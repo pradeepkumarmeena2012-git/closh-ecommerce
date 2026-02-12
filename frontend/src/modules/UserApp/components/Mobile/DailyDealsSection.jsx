@@ -6,7 +6,7 @@ import ProductCard from "../../../../shared/components/ProductCard";
 import { getDailyDeals } from "../../../../data/products";
 
 const DailyDealsSection = () => {
-  const dailyDeals = getDailyDeals().slice(0, 4);
+  const dailyDeals = getDailyDeals().slice(0, 5);
   const [timeLeft, setTimeLeft] = useState({
     hours: 23,
     minutes: 59,
@@ -121,7 +121,7 @@ const DailyDealsSection = () => {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
           {dailyDeals.map((product, index) => (
             <motion.div
               key={product.id}

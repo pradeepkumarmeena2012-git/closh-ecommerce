@@ -10,8 +10,7 @@ import { useState, useRef } from "react";
 import useLongPress from "../../modules/UserApp/hooks/useLongPress";
 import LongPressMenu from "../../modules/UserApp/components/Mobile/LongPressMenu";
 import FlyingItem from "../../modules/UserApp/components/Mobile/FlyingItem";
-import VendorBadge from "../../modules/Vendor/components/VendorBadge";
-import { getVendorById } from "../../data/vendors";
+
 
 const ProductCard = ({ product, hideRating = false, isFlashSale = false }) => {
   const location = useLocation();
@@ -218,17 +217,7 @@ const ProductCard = ({ product, hideRating = false, isFlashSale = false }) => {
             {product.unit}
           </p>
 
-          {/* Vendor Badge */}
-          {product.vendorId && (
-            <div className="mb-1 lg:mb-0.5 hidden md:block">
-              <VendorBadge
-                vendor={getVendorById(product.vendorId)}
-                showVerified={true}
-                size="sm"
-                showLogo={true}
-              />
-            </div>
-          )}
+
 
           {/* Rating */}
           <div className="flex items-center justify-between mb-2">
@@ -283,6 +272,7 @@ const ProductCard = ({ product, hideRating = false, isFlashSale = false }) => {
           {/* Add/Remove Button */}
           {isInCart ? (
             <motion.button
+              type="button"
               onClick={handleRemoveFromCart}
               whileTap={{ scale: 0.95 }}
               className="w-full py-1.5 md:py-2.5 lg:py-2 rounded-xl font-bold text-xs md:text-sm bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all duration-300 flex items-center justify-center gap-1.5">
@@ -292,6 +282,7 @@ const ProductCard = ({ product, hideRating = false, isFlashSale = false }) => {
           ) : (
             <motion.button
               ref={buttonRef}
+              type="button"
               onClick={handleAddToCart}
               disabled={product.stock === "out_of_stock" || isAdding}
               whileTap={{ scale: 0.95 }}

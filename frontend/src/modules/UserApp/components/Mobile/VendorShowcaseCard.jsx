@@ -16,7 +16,7 @@ const VendorShowcaseCard = ({ vendor, index = 0 }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.1 }}
         whileTap={{ scale: 0.98 }}
-        className="glass-card rounded-xl p-4 flex flex-col items-center text-center min-w-[140px] max-w-[160px] h-full"
+        className="glass-card rounded-xl p-4 flex flex-col items-center text-center w-[160px] min-w-[160px] h-full"
       >
         {/* Vendor Logo/Avatar */}
         <div className="relative mb-3">
@@ -56,8 +56,8 @@ const VendorShowcaseCard = ({ vendor, index = 0 }) => {
                 <FiStar
                   key={i}
                   className={`text-[10px] ${i < Math.floor(vendor.rating)
-                      ? 'text-yellow-400 fill-yellow-400'
-                      : 'text-gray-300'
+                    ? 'text-yellow-400 fill-yellow-400'
+                    : 'text-gray-300'
                     }`}
                 />
               ))}

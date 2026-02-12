@@ -90,7 +90,7 @@ const AnimatedBanner = () => {
                   ease: [0.25, 0.1, 0.25, 1],
                 }}
                 style={{ willChange: "transform, opacity" }}
-                className={`absolute inset-0 bg-gradient-to-br ${banner.gradient} p-4 relative`}>
+                className={`absolute inset-0 bg-gradient-to-br ${banner.gradient} p-3 relative`}>
                 {/* Ripple Effects */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none z-20">
                   {ripples.map((ripple) => (
@@ -121,13 +121,13 @@ const AnimatedBanner = () => {
                   to={banner.link}
                   onClick={handleRipple}
                   onTouchStart={handleRipple}
-                  className="relative z-10 h-full flex items-center justify-between group">
+                  className="relative z-10 h-full flex pt-2 justify-between group">
                   <div className="flex-1">
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2 }}
-                      className="flex items-center gap-2 mb-1">
+                      className="flex items-center gap-2 mb-0">
                       <motion.div
                         animate={{
                           scale: [1, 1.2, 1],
@@ -158,7 +158,7 @@ const AnimatedBanner = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.3 }}
-                      className="text-white text-xl font-extrabold mb-1 drop-shadow-lg relative inline-block">
+                      className="text-white text-xl font-extrabold mb-0 drop-shadow-lg relative inline-block">
                       {banner.title}
                     </motion.h3>
 
@@ -166,7 +166,7 @@ const AnimatedBanner = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.4 }}
-                      className="text-white/90 text-xs mb-2">
+                      className="text-white/90 text-xs mb-1">
                       {banner.description}
                     </motion.p>
 
@@ -205,9 +205,8 @@ const AnimatedBanner = () => {
                   opacity: index === currentBanner ? 1 : 0.5,
                 }}
                 transition={{ duration: 0.3 }}
-                className={`h-1.5 rounded-full bg-white ${
-                  index === currentBanner ? "w-6" : "w-1.5"
-                }`}
+                className={`h-1.5 rounded-full bg-white ${index === currentBanner ? "w-6" : "w-1.5"
+                  }`}
               />
             </button>
           ))}

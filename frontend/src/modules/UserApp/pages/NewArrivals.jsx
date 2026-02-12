@@ -49,8 +49,8 @@ const MobileNewArrivals = () => {
 
     const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } = useInfiniteScroll(
         filteredProducts,
-        10,
-        10
+        5,
+        5
     );
 
     const filterButtonRef = useRef(null);
@@ -112,25 +112,7 @@ const MobileNewArrivals = () => {
                                 <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                                     New Arrivals <span className="text-cyan-500">✨</span>
                                 </h1>
-                                <div className="relative mt-1">
-                                    <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search new arrivals..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pl-8 pr-10 py-1.5 bg-gray-100 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                    />
-                                    {searchQuery && (
-                                        <button
-                                            onClick={() => setSearchQuery("")}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 p-1 hover:bg-gray-200 rounded-full transition-colors"
-                                        >
-                                            <FiX className="text-xs" />
-                                        </button>
-                                    )}
-                                </div>
-                                <p className="text-[10px] text-gray-500 mt-1">
+                                <p className="text-[10px] text-gray-500 mt-0.5">
                                     {filteredProducts.length} new items available
                                 </p>
                             </div>
@@ -297,6 +279,25 @@ const MobileNewArrivals = () => {
                                 </div>
                             </div>
                         </div>
+                        {/* Full Width Search Bar */}
+                        <div className="relative mt-2 w-full">
+                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                            <input
+                                type="text"
+                                placeholder="Search new arrivals..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-10 py-2.5 bg-white border border-gray-200 shadow-sm rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                                >
+                                    <FiX className="text-sm" />
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Products List */}
@@ -309,7 +310,7 @@ const MobileNewArrivals = () => {
                             </div>
                         ) : viewMode === 'grid' ? (
                             <>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-6">
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5 gap-3 md:gap-6">
                                     {displayedItems.map((product, index) => (
                                         <motion.div
                                             key={product.id}

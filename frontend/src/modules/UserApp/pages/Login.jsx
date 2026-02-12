@@ -4,7 +4,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../../shared/store/authStore';
-import { isValidEmail, isValidPhone } from '../../../shared/utils/helpers';
+import { isValidEmail } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
 import MobileLayout from '../components/Layout/MobileLayout';
 import PageTransition from '../../../shared/components/PageTransition';
@@ -15,7 +15,6 @@ const MobileLogin = () => {
   const { login, isLoading } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [loginMethod, setLoginMethod] = useState('phone'); // 'phone' or 'email'
 
   const {
     register,
@@ -27,12 +26,7 @@ const MobileLogin = () => {
 
   const onSubmit = async (data) => {
     try {
-      // If using phone, combine country code with phone number
-      const identifier = loginMethod === 'phone' 
-        ? (data.countryCode ? `${data.countryCode}${data.phone}` : data.phone)
-        : data.email;
-      
-      await login(identifier, data.password, rememberMe);
+      await login(data.email, data.password, rememberMe);
       toast.success('Login successful!');
       navigate(from, { replace: true });
     } catch (error) {
@@ -57,101 +51,32 @@ const MobileLogin = () => {
                 <p className="text-sm text-gray-600">Login to access your account</p>
               </div>
 
-              {/* Login Method Toggle */}
-              <div className="mb-6">
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  <button
-                    type="button"
-                    onClick={() => setLoginMethod('phone')}
-                    className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
-                      loginMethod === 'phone'
-                        ? 'bg-primary-500 text-white shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Phone Number
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLoginMethod('email')}
-                    className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
-                      loginMethod === 'email'
-                        ? 'bg-primary-500 text-white shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Email
-                  </button>
-                </div>
-              </div>
-
               {/* Login Form */}
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                {/* Phone or Email Input */}
-                {loginMethod === 'phone' ? (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Phone Number
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        {...register('countryCode', { required: loginMethod === 'phone' })}
-                        className="w-24 px-3 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:outline-none text-sm"
-                      >
-                        <option value="+880">+880</option>
-                        <option value="+1">+1</option>
-                        <option value="+91">+91</option>
-                        <option value="+44">+44</option>
-                      </select>
-                      <div className="relative flex-1">
-                        <FiPhone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="tel"
-                          {...register('phone', {
-                            required: loginMethod === 'phone' ? 'Phone number is required' : false,
-                            validate: (value) =>
-                              !value || isValidPhone(value) || 'Please enter a valid phone number',
-                          })}
-                          className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${
-                            errors.phone
-                              ? 'border-red-300 focus:border-red-500'
-                              : 'border-gray-200 focus:border-primary-500'
-                          } focus:outline-none transition-colors text-base`}
-                          placeholder="1775472701"
-                        />
-                      </div>
-                    </div>
-                    {errors.phone && (
-                      <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="email"
-                        {...register('email', {
-                          required: loginMethod === 'email' ? 'Email is required' : false,
-                          validate: (value) =>
-                            !value || isValidEmail(value) || 'Please enter a valid email',
-                        })}
-                        className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${
-                          errors.email
-                            ? 'border-red-300 focus:border-red-500'
-                            : 'border-gray-200 focus:border-primary-500'
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="email"
+                      {...register('email', {
+                        required: 'Email is required',
+                        validate: (value) =>
+                          !value || isValidEmail(value) || 'Please enter a valid email',
+                      })}
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 ${errors.email
+                          ? 'border-red-300 focus:border-red-500'
+                          : 'border-gray-200 focus:border-primary-500'
                         } focus:outline-none transition-colors text-base`}
-                        placeholder="your.email@example.com"
-                      />
-                    </div>
-                    {errors.email && (
-                      <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-                    )}
+                      placeholder="your.email@example.com"
+                    />
                   </div>
-                )}
+                  {errors.email && (
+                    <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                  )}
+                </div>
 
                 {/* Password */}
                 <div>
@@ -169,11 +94,10 @@ const MobileLogin = () => {
                           message: 'Password must be at least 6 characters',
                         },
                       })}
-                      className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 ${
-                        errors.password
+                      className={`w-full pl-12 pr-12 py-3 rounded-xl border-2 ${errors.password
                           ? 'border-red-300 focus:border-red-500'
                           : 'border-gray-200 focus:border-primary-500'
-                      } focus:outline-none transition-colors text-base`}
+                        } focus:outline-none transition-colors text-base`}
                       placeholder="Enter your password"
                     />
                     <button

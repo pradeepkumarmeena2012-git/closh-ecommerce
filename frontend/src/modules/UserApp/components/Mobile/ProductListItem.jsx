@@ -131,16 +131,7 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
           </div>
 
           {/* Vendor */}
-          {product.vendorId && (
-            <div className="mb-1.5">
-              <VendorBadge
-                vendor={getVendorById(product.vendorId)}
-                showVerified={true}
-                size="sm"
-                showLogo={false}
-              />
-            </div>
-          )}
+
 
           {/* Flash Sale Progress */}
           {isFlashSale && (
@@ -173,6 +164,7 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
 
             {isInCart ? (
               <button
+                type="button"
                 onClick={handleRemoveFromCart}
                 className="px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 transition-all shadow-sm active:scale-95">
                 <FiTrash2 className="text-xs md:text-base" />
@@ -180,6 +172,7 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
               </button>
             ) : (
               <button
+                type="button"
                 onClick={handleAddToCart}
                 className={`px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-sm active:scale-95 ${isFlashSale
                   ? "bg-gradient-to-r from-red-500 to-orange-500 text-white hover:shadow-red-200"

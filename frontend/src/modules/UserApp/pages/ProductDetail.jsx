@@ -162,7 +162,7 @@ const MobileProductDetail = () => {
   }, [product, selectedVariant]);
 
   const similarProducts = useMemo(() => {
-    return getSimilarProducts(product.id, 6);
+    return getSimilarProducts(product.id, 5);
   }, [product?.id]);
 
   return (
@@ -430,7 +430,7 @@ const MobileProductDetail = () => {
               <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-6">
                 You May Also Like
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
                 {similarProducts.map((similarProduct) => (
                   <ProductCard
                     key={similarProduct.id}

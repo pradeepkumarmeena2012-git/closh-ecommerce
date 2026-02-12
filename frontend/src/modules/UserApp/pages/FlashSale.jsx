@@ -375,7 +375,7 @@ const MobileFlashSale = () => {
               </>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="space-y-3">
                   {displayedItems.map((product, index) => (
                     <ProductListItem
                       key={product.id}
