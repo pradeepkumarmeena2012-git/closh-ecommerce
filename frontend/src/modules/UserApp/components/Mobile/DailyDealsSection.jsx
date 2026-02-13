@@ -85,34 +85,34 @@ const DailyDealsSection = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-xl p-4 shadow-2xl border-2 border-white/50">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-lg p-2">
-                <FiClock className="text-white text-xl" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-gray-700 mb-1">
-                  Deal ends in
-                </p>
+            <div className="mb-2">
+              <p className="text-xs font-semibold text-gray-700 mb-2 ml-11">
+                Deal ends in
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="bg-gradient-to-br from-red-500 to-orange-500 rounded-md p-1.5 shadow-md transform translate-y-[2px]">
+                  <FiClock className="text-white text-base" />
+                </div>
                 <div className="flex items-center gap-2">
-                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
-                    <div className="text-lg font-extrabold">
+                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-2.5 py-1.5 min-w-[2.8rem] text-center shadow-lg border border-white/20">
+                    <div className="text-base font-extrabold leading-tight">
                       {formatTime(timeLeft.hours)}
                     </div>
-                    <div className="text-[9px] opacity-90 font-medium">H</div>
+                    <div className="text-[8px] opacity-90 font-medium uppercase">Hrs</div>
                   </div>
                   <span className="text-red-500 font-bold text-lg">:</span>
-                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg">
-                    <div className="text-lg font-extrabold">
+                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-2.5 py-1.5 min-w-[2.8rem] text-center shadow-lg border border-white/20">
+                    <div className="text-base font-extrabold leading-tight">
                       {formatTime(timeLeft.minutes)}
                     </div>
-                    <div className="text-[9px] opacity-90 font-medium">M</div>
+                    <div className="text-[8px] opacity-90 font-medium uppercase">Min</div>
                   </div>
                   <span className="text-red-500 font-bold text-lg">:</span>
-                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-3 py-2 min-w-[3rem] text-center shadow-lg animate-pulse">
-                    <div className="text-lg font-extrabold">
+                  <div className="bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-lg px-2.5 py-1.5 min-w-[2.8rem] text-center shadow-lg border border-white/20 animate-pulse">
+                    <div className="text-base font-extrabold leading-tight">
                       {formatTime(timeLeft.seconds)}
                     </div>
-                    <div className="text-[9px] opacity-90 font-medium">S</div>
+                    <div className="text-[8px] opacity-90 font-medium uppercase">Sec</div>
                   </div>
                 </div>
               </div>

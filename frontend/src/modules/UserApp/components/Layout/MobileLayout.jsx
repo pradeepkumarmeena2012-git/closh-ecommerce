@@ -17,8 +17,8 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
 
   const isCheckoutPage = location.pathname === '/checkout';
 
-  // Always show bottom nav on /app routes, except auth pages
-  const shouldShowBottomNav = location.pathname.startsWith('/') && !isAuthPage ? true : (showBottomNav && !isAuthPage);
+  // Respect the showBottomNav prop and hide on auth pages
+  const shouldShowBottomNav = showBottomNav && !isAuthPage;
   // Hide header on categories, search, wishlist, profile, and auth pages
   const shouldShowHeader = !isAuthPage &&
     location.pathname !== '/categories' &&

@@ -138,9 +138,17 @@ const MobileProductDetail = () => {
   };
 
   const productImages = useMemo(() => {
-    return product.images && product.images.length > 0
-      ? product.images
+    let images = product.images && product.images.length > 0
+      ? [...product.images] // Create a mutable copy
       : [product.image];
+
+    // Ensure exactly 3 images for the gallery as requested (representing color variants)
+    while (images.length < 3) {
+      images.push(product.image);
+    }
+
+    // Limit to exactly 3 images
+    return images.slice(0, 3);
   }, [product]);
 
   const currentPrice = useMemo(() => {

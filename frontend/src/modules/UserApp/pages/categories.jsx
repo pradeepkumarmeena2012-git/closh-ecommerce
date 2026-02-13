@@ -298,25 +298,9 @@ const MobileCategories = () => {
                   <FiArrowLeft className="text-xl text-gray-700" />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-bold text-gray-800 mb-0.5">
+                  <h2 className="text-lg font-bold text-gray-800">
                     {selectedCategory.name}
                   </h2>
-                  <div className="relative mb-0.5">
-                    <input
-                      type="text"
-                      placeholder="Search in category..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-2 py-1 bg-gray-100 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">
-                      <FiX
-                        className={`text-xs cursor-pointer ${searchQuery ? 'block' : 'hidden'}`}
-                        onClick={() => setSearchQuery('')}
-                      />
-                      {!searchQuery && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}><FiSearch className="text-xs" /></motion.div>}
-                    </div>
-                  </div>
                   <p className="text-[10px] text-gray-500">
                     {filteredProducts.length} product
                     {filteredProducts.length !== 1 ? "s" : ""} available
@@ -356,7 +340,7 @@ const MobileCategories = () => {
                               damping: 30,
                             }}
                             className="filter-dropdown absolute right-0 top-full w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden"
-                            style={{ marginTop: "-32px" }}>
+                            style={{ marginTop: "10px" }}>
                             {/* Header */}
                             <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50">
                               <div className="flex items-center gap-1.5">
@@ -470,6 +454,26 @@ const MobileCategories = () => {
                     </AnimatePresence>
                   </div>
                 </div>
+              </div>
+
+              {/* New Search Bar Row */}
+              <div className="mt-3 relative">
+                <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                <input
+                  type="text"
+                  placeholder="Search in category..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2.5 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 shadow-inner placeholder:text-gray-400"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                  >
+                    <FiX className="text-sm" />
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -615,7 +619,7 @@ const MobileCategories = () => {
           </div>
         </div>
       </MobileLayout>
-    </PageTransition>
+    </PageTransition >
   );
 };
 

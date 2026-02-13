@@ -121,18 +121,18 @@ const MobileOffers = () => {
       <MobileLayout showBottomNav={true} showCartBar={true}>
         <div className="w-full pb-24">
           {/* Header */}
-          <div className="px-4 py-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-200 sticky top-1 z-30">
+          <div className="mx-2 mt-2 px-4 py-6 bg-gradient-to-r from-red-50 to-orange-50 border border-gray-100 rounded-2xl sticky top-2 z-30 shadow-md">
             <div className="flex items-center gap-3 mb-3">
               <button
                 onClick={() => navigate(-1)}
-                className="p-2 hover:bg-white/50 rounded-full transition-colors">
+                className="p-2 hover:bg-red-100/50 rounded-full transition-colors">
                 <FiArrowLeft className="text-xl text-gray-700" />
               </button>
               <div className="flex-1">
                 <h1 className="text-2xl font-black text-gray-800 tracking-tight uppercase">
                   Special Offers
                 </h1>
-                <p className="text-sm font-medium text-emerald-600">
+                <p className="text-sm font-medium text-red-600">
                   {filteredProducts.length}{" "}
                   {filteredProducts.length === 1 ? "offer" : "offers"} live now • Extra savings
                 </p>
@@ -143,7 +143,7 @@ const MobileOffers = () => {
                   <button
                     onClick={() => setViewMode("list")}
                     className={`p-1.5 rounded transition-colors ${viewMode === "list"
-                      ? "bg-white text-primary-600 shadow-sm"
+                      ? "bg-white text-red-600 shadow-sm"
                       : "text-gray-600"
                       }`}
                   >
@@ -152,7 +152,7 @@ const MobileOffers = () => {
                   <button
                     onClick={() => setViewMode("grid")}
                     className={`p-1.5 rounded transition-colors ${viewMode === "grid"
-                      ? "bg-white text-primary-600 shadow-sm"
+                      ? "bg-white text-red-600 shadow-sm"
                       : "text-gray-600"
                       }`}
                   >
@@ -221,7 +221,7 @@ const MobileOffers = () => {
                                   onChange={(e) =>
                                     handleFilterChange("category", e.target.value)
                                   }
-                                  className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
+                                  className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-red-500 text-xs"
                                 >
                                   <option value="">All Categories</option>
                                   {categories.map((cat) => (
@@ -245,7 +245,7 @@ const MobileOffers = () => {
                                     onChange={(e) =>
                                       handleFilterChange("minPrice", e.target.value)
                                     }
-                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
+                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-red-500 text-xs"
                                   />
                                   <input
                                     type="number"
@@ -254,7 +254,7 @@ const MobileOffers = () => {
                                     onChange={(e) =>
                                       handleFilterChange("maxPrice", e.target.value)
                                     }
-                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
+                                    className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-red-500 text-xs"
                                   />
                                 </div>
                               </div>
@@ -282,11 +282,11 @@ const MobileOffers = () => {
                                             e.target.value
                                           )
                                         }
-                                        className="w-3 h-3 appearance-none rounded-full border-2 border-gray-300 bg-white checked:bg-white checked:border-primary-500 relative cursor-pointer"
+                                        className="w-3 h-3 appearance-none rounded-full border-2 border-gray-300 bg-white checked:bg-white checked:border-red-500 relative cursor-pointer"
                                         style={{
                                           backgroundImage:
                                             filters.minRating === rating.toString()
-                                              ? "radial-gradient(circle, #10b981 40%, transparent 40%)"
+                                              ? "radial-gradient(circle, #EF4444 40%, transparent 40%)"
                                               : "none",
                                         }}
                                       />
@@ -309,7 +309,7 @@ const MobileOffers = () => {
                             </button>
                             <button
                               onClick={() => setShowFilters(false)}
-                              className="w-full py-1.5 gradient-green text-white rounded-md font-semibold text-xs hover:shadow-glow-green transition-all">
+                              className="w-full py-1.5 gradient-red text-white rounded-md font-semibold text-xs hover:shadow-glow-red transition-all">
                               Apply Filters
                             </button>
                           </div>
@@ -359,7 +359,7 @@ const MobileOffers = () => {
                             repeat: Infinity,
                             ease: "linear",
                           }}
-                          className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full"
+                          className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full"
                         />
                         <span className="text-sm">
                           Loading more products...
@@ -369,7 +369,7 @@ const MobileOffers = () => {
                     <button
                       onClick={loadMore}
                       disabled={isLoading}
-                      className="px-6 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                      className="px-6 py-3 gradient-red text-white rounded-xl font-semibold hover:shadow-glow-red transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? (
                         <span className="flex items-center gap-2">
                           <motion.div
@@ -392,7 +392,7 @@ const MobileOffers = () => {
               </>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="space-y-3">
                   {displayedItems.map((product, index) => (
                     <ProductListItem
                       key={product.id}
@@ -416,7 +416,7 @@ const MobileOffers = () => {
                             repeat: Infinity,
                             ease: "linear",
                           }}
-                          className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full"
+                          className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full"
                         />
                         <span className="text-sm">
                           Loading more products...
@@ -426,7 +426,7 @@ const MobileOffers = () => {
                     <button
                       onClick={loadMore}
                       disabled={isLoading}
-                      className="px-6 py-3 gradient-green text-white rounded-xl font-semibold hover:shadow-glow-green transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                      className="px-6 py-3 gradient-red text-white rounded-xl font-semibold hover:shadow-glow-red transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
                       {isLoading ? (
                         <span className="flex items-center gap-2">
                           <motion.div

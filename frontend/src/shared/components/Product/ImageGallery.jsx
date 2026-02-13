@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import LazyImage from "../LazyImage";
 import useSwipeGesture from "../../../modules/UserApp/hooks/useSwipeGesture";
 
-const ImageGallery = ({ images, productName = "Product" }) => {
+const ImageGallery = ({ images, productName = "Product", children }) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
@@ -49,10 +49,10 @@ const ImageGallery = ({ images, productName = "Product" }) => {
 
   return (
     <>
-      <div className="w-full">
+      <div className="w-full flex flex-col gap-6">
         {/* Main Image */}
         <div
-          className="relative w-full aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl overflow-hidden mb-4"
+          className="relative w-full aspect-square bg-white rounded-3xl p-4 shadow-sm border border-gray-100 overflow-hidden"
           data-gallery>
           <motion.div
             key={selectedIndex}
@@ -60,11 +60,14 @@ const ImageGallery = ({ images, productName = "Product" }) => {
             onClick={handleImageClick}
             onTouchStart={swipeHandlers.onTouchStart}
             onTouchMove={swipeHandlers.onTouchMove}
-            onTouchEnd={swipeHandlers.onTouchEnd}>
+            onTouchEnd={swipeHandlers.onTouchEnd}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}>
             <LazyImage
               src={imageArray[selectedIndex]}
               alt={`${productName} - Image ${selectedIndex + 1}`}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain mix-blend-multiply"
               onError={(e) => {
                 e.target.src =
                   "https://via.placeholder.com/500x500?text=Product+Image";
@@ -72,35 +75,42 @@ const ImageGallery = ({ images, productName = "Product" }) => {
             />
           </motion.div>
 
-          {/* Navigation Arrows (if multiple images) */}
+          {/* Navigation Arrows (Mobile Only) */}
           {imageArray.length > 1 && (
             <>
               <button
-                onClick={handlePrevious}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg transition-all duration-300">
+                onClick={(e) => { e.stopPropagation(); handlePrevious(); }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:bg-white hover:scale-110 lg:hidden">
                 <FiChevronLeft className="text-gray-800 text-xl" />
               </button>
               <button
-                onClick={handleNext}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg transition-all duration-300">
+                onClick={(e) => { e.stopPropagation(); handleNext(); }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:bg-white hover:scale-110 lg:hidden">
                 <FiChevronRight className="text-gray-800 text-xl" />
               </button>
             </>
           )}
+
+          {/* Zoom Hint */}
+          <div className="absolute bottom-4 right-4 bg-white/90 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700 shadow-sm pointer-events-none opacity-0 lg:opacity-100 transition-opacity">
+            Click to zoom
+          </div>
         </div>
 
-        {/* Thumbnails */}
+        {/* Action Buttons / Badge Area (Injected via children) */}
+        {children}
+
+        {/* Thumbnails Grid (3 Columns) */}
         {imageArray.length > 1 && (
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+          <div className="grid grid-cols-3 gap-3">
             {imageArray.map((image, index) => (
               <button
                 key={index}
                 onClick={() => handleThumbnailClick(index)}
-                className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 ${
-                  selectedIndex === index
-                    ? "border-primary-600 scale-105"
-                    : "border-gray-200"
-                }`}>
+                className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all duration-300 ${selectedIndex === index
+                  ? "border-primary-600 ring-2 ring-primary-50 ring-offset-2"
+                  : "border-transparent hover:border-gray-300"
+                  }`}>
                 <LazyImage
                   src={image}
                   alt={`${productName} thumbnail ${index + 1}`}

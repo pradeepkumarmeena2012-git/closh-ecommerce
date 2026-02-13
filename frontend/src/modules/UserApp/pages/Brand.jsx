@@ -150,8 +150,8 @@ const Brand = () => {
                                         }}
                                     />
                                 </div>
-                                <div className="flex-1">
-                                    <h1 className="text-xl font-bold text-gray-800">
+                                <div className="flex-1 min-w-0">
+                                    <h1 className="text-xl font-bold text-gray-800 truncate">
                                         {brand.name}
                                     </h1>
                                     <div className="relative mt-1">
@@ -161,12 +161,12 @@ const Brand = () => {
                                             placeholder="Search in brand..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-8 pr-10 py-1.5 bg-gray-100 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                            className="w-full pl-8 pr-8 py-2 bg-gray-100 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 shadow-inner"
                                         />
                                         {searchQuery && (
                                             <button
                                                 onClick={() => setSearchQuery("")}
-                                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 p-1 hover:bg-gray-200 rounded-full transition-colors"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 p-1 hover:bg-gray-200 rounded-full transition-colors"
                                             >
                                                 <FiX className="text-xs" />
                                             </button>
@@ -177,32 +177,32 @@ const Brand = () => {
                                         {brandProducts.length !== 1 ? "s" : ""} available
                                     </p>
                                 </div>
-                                <div className="flex flex-col items-end gap-1.5">
+                                <div className="flex flex-col items-end gap-2 flex-shrink-0">
                                     <div className="flex items-center bg-gray-100 rounded-lg p-1">
                                         <button
                                             onClick={() => setViewMode("list")}
-                                            className={`p-1 rounded transition-colors ${viewMode === "list"
+                                            className={`p-1.5 rounded transition-colors ${viewMode === "list"
                                                 ? "bg-white text-primary-600 shadow-sm"
                                                 : "text-gray-600"
                                                 }`}>
-                                            <FiList className="text-sm" />
+                                            <FiList className="text-lg" />
                                         </button>
                                         <button
                                             onClick={() => setViewMode("grid")}
-                                            className={`p-1 rounded transition-colors ${viewMode === "grid"
+                                            className={`p-1.5 rounded transition-colors ${viewMode === "grid"
                                                 ? "bg-white text-primary-600 shadow-sm"
                                                 : "text-gray-600"
                                                 }`}>
-                                            <FiGrid className="text-sm" />
+                                            <FiGrid className="text-lg" />
                                         </button>
                                     </div>
                                     <div ref={filterButtonRef} className="relative">
                                         <button
                                             onClick={() => setShowFilters(!showFilters)}
-                                            className={`p-1.5 glass-card rounded-lg hover:bg-white/80 transition-colors ${showFilters ? "bg-white/80" : ""
+                                            className={`p-2 glass-card rounded-xl hover:bg-white/80 transition-colors ${showFilters ? "bg-white/80" : ""
                                                 }`}>
                                             <FiFilter
-                                                className={`text-sm transition-colors ${hasActiveFilters ? "text-blue-600" : "text-gray-600"
+                                                className={`text-lg transition-colors ${hasActiveFilters ? "text-blue-600" : "text-gray-600"
                                                     }`}
                                             />
                                         </button>
@@ -395,7 +395,7 @@ const Brand = () => {
                             </>
                         ) : (
                             <>
-                                <div className="space-y-3 lg:grid lg:grid-cols-3 lg:gap-4 lg:space-y-0">
+                                <div className="space-y-3">
                                     {displayedItems.map((product, index) => (
                                         <ProductListItem
                                             key={product.id}

@@ -21,6 +21,8 @@ const MobileSearch = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
   const [recentSearches, setRecentSearches] = useState(() => {
     const stored = localStorage.getItem('recentSearches');
     return stored ? JSON.parse(stored) : [];
@@ -365,8 +367,8 @@ const MobileSearch = () => {
                             stiffness: 300,
                             damping: 30,
                           }}
-                          className="filter-dropdown absolute right-0 top-full w-56 bg-white rounded-xl shadow-2xl border border-gray-200 z-[10001] overflow-hidden"
-                          style={{ marginTop: "-50px" }}>
+                          className="filter-dropdown absolute right-0 top-full w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 z-[10001] overflow-hidden"
+                          style={{ marginTop: "10px" }}>
                           {/* Header */}
                           <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-200 bg-gray-50">
                             <div className="flex items-center gap-1.5">
@@ -390,20 +392,57 @@ const MobileSearch = () => {
                                 <h4 className="font-semibold text-gray-700 mb-1 text-xs">
                                   Category
                                 </h4>
-                                <select
-                                  value={filters.category}
-                                  onChange={(e) =>
-                                    handleFilterChange("category", e.target.value)
-                                  }
-                                  className="w-full px-2 py-1.5 rounded-md border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-                                >
-                                  <option value="">All Categories</option>
-                                  {categories.map((cat) => (
-                                    <option key={cat.id} value={cat.id}>
-                                      {cat.name}
-                                    </option>
-                                  ))}
-                                </select>
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowCategoryDropdown(!showCategoryDropdown);
+                                      setShowVendorDropdown(false);
+                                    }}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm flex items-center justify-between text-gray-700"
+                                  >
+                                    <span>{filters.category ? categories.find(c => c.id === filters.category)?.name : "All Categories"}</span>
+                                    <motion.div
+                                      animate={{ rotate: showCategoryDropdown ? 180 : 0 }}
+                                      transition={{ duration: 0.2 }}
+                                    >
+                                      <FiFilter className="text-gray-400 text-xs" />
+                                    </motion.div>
+                                  </button>
+
+                                  <AnimatePresence>
+                                    {showCategoryDropdown && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="mt-1 bg-gray-50 rounded-xl border border-gray-100 overflow-hidden"
+                                      >
+                                        <div
+                                          onClick={() => {
+                                            handleFilterChange("category", "");
+                                            setShowCategoryDropdown(false);
+                                          }}
+                                          className={`px-3 py-2 text-sm cursor-pointer hover:bg-white transition-colors ${!filters.category ? "bg-white text-primary-700 font-bold" : "text-gray-600"}`}
+                                        >
+                                          All Categories
+                                        </div>
+                                        {categories.map((cat) => (
+                                          <div
+                                            key={cat.id}
+                                            onClick={() => {
+                                              handleFilterChange("category", cat.id);
+                                              setShowCategoryDropdown(false);
+                                            }}
+                                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-white transition-colors ${filters.category === cat.id ? "bg-white text-primary-700 font-bold" : "text-gray-600"}`}
+                                          >
+                                            {cat.name}
+                                          </div>
+                                        ))}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
                               </div>
 
                               {/* Price Range */}
@@ -444,19 +483,64 @@ const MobileSearch = () => {
                                     {approvedVendors.length}+ Stores
                                   </span>
                                 </div>
-                                <select
-                                  value={filters.vendor}
-                                  onChange={(e) => handleFilterChange('vendor', e.target.value)}
-                                  className="w-full px-3 py-2 rounded-lg border-2 border-primary-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm font-medium"
-                                >
-                                  <option value="">All Vendors ({approvedVendors.length})</option>
-                                  {approvedVendors.map((vendor) => (
-                                    <option key={vendor.id} value={vendor.id}>
-                                      {vendor.storeName || vendor.name}
-                                      {vendor.isVerified && ' ✓'}
-                                    </option>
-                                  ))}
-                                </select>
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowVendorDropdown(!showVendorDropdown);
+                                      setShowCategoryDropdown(false);
+                                    }}
+                                    className="w-full px-3 py-2.5 rounded-xl border-2 border-primary-100 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-bold flex items-center justify-between text-gray-800 shadow-sm"
+                                  >
+                                    <span className="truncate pr-2">
+                                      {filters.vendor ? approvedVendors.find(v => v.id === filters.vendor)?.storeName || approvedVendors.find(v => v.id === filters.vendor)?.name : "All Vendors"}
+                                    </span>
+                                    <motion.div
+                                      animate={{ rotate: showVendorDropdown ? 180 : 0 }}
+                                      transition={{ duration: 0.2 }}
+                                    >
+                                      <FiFilter className="text-primary-500" />
+                                    </motion.div>
+                                  </button>
+
+                                  <AnimatePresence>
+                                    {showVendorDropdown && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="mt-2 bg-gray-50 border border-primary-50 rounded-2xl overflow-hidden"
+                                      >
+                                        <div
+                                          onClick={() => {
+                                            handleFilterChange("vendor", "");
+                                            setShowVendorDropdown(false);
+                                          }}
+                                          className={`p-3 text-sm cursor-pointer hover:bg-white transition-colors border-b border-gray-100 flex items-center justify-between ${!filters.vendor ? "bg-white text-primary-700 font-bold" : "text-gray-600"}`}
+                                        >
+                                          <span>All Vendors</span>
+                                          {!filters.vendor && <FiFilter className="text-primary-500" />}
+                                        </div>
+                                        {approvedVendors.map((vendor) => (
+                                          <div
+                                            key={vendor.id}
+                                            onClick={() => {
+                                              handleFilterChange("vendor", vendor.id);
+                                              setShowVendorDropdown(false);
+                                            }}
+                                            className={`p-3 text-sm cursor-pointer hover:bg-white transition-colors border-b last:border-0 border-gray-100 flex items-center justify-between ${filters.vendor === vendor.id ? "bg-white text-primary-700 font-bold" : "text-gray-600"}`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <span>{vendor.storeName || vendor.name}</span>
+                                              {vendor.isVerified && <span className="text-blue-500 text-xs">✓</span>}
+                                            </div>
+                                            {filters.vendor === vendor.id && <FiFilter className="text-primary-500" />}
+                                          </div>
+                                        ))}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
                               </div>
 
                               {/* Rating Filter */}

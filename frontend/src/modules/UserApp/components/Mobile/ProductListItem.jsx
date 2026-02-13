@@ -174,7 +174,7 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className={`px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-sm active:scale-95 ${isFlashSale
+                className={`px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-sm active:scale-95 whitespace-nowrap ${isFlashSale
                   ? "bg-gradient-to-r from-red-500 to-orange-500 text-white hover:shadow-red-200"
                   : "gradient-green text-white hover:shadow-glow-green"
                   }`}>
