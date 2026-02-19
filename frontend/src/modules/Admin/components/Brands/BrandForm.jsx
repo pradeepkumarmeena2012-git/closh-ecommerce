@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { FiX, FiSave } from "react-icons/fi";
+import { FiX, FiSave, FiUpload } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBrandStore } from "../../../../shared/store/brandStore";
 import toast from "react-hot-toast";
 import Button from "../Button";
+import { uploadAdminImage } from "../../services/adminService";
 
 const BrandForm = ({ brand, onClose, onSave }) => {
   const location = useLocation();
@@ -12,6 +13,7 @@ const BrandForm = ({ brand, onClose, onSave }) => {
   const { createBrand, updateBrand } = useBrandStore();
   const isEdit = !!brand;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -64,6 +66,33 @@ const BrandForm = ({ brand, onClose, onSave }) => {
       // Error handled in store
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type?.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const response = await uploadAdminImage(file, "brands");
+      const logoUrl = response?.data?.url;
+      if (!logoUrl) {
+        toast.error("Logo upload failed");
+        return;
+      }
+      setFormData((prev) => ({ ...prev, logo: logoUrl }));
+      toast.success("Logo uploaded");
+    } catch (error) {
+      // Error toast handled by api interceptor
+    } finally {
+      setIsUploadingLogo(false);
+      e.target.value = "";
     }
   };
 
@@ -206,6 +235,19 @@ const BrandForm = ({ brand, onClose, onSave }) => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="data/brands/brand-logo.png"
                   />
+                  <div className="mt-3">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer text-sm font-semibold">
+                      <FiUpload />
+                      {isUploadingLogo ? "Uploading..." : "Upload to Cloudinary"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                        disabled={isUploadingLogo}
+                      />
+                    </label>
+                  </div>
                   {formData.logo && (
                     <div className="mt-4">
                       <img

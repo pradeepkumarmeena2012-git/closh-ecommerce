@@ -89,7 +89,7 @@ export const useCommissionStore = create(
       getVendorCommissions: (vendorId, status = null) => {
         const state = get();
         let vendorCommissions = state.commissions.filter(
-          (c) => c.vendorId === parseInt(vendorId)
+          (c) => String(c.vendorId) === String(vendorId)
         );
 
         if (status) {
@@ -167,7 +167,7 @@ export const useCommissionStore = create(
       // Get settlement history for a vendor
       getVendorSettlements: (vendorId) => {
         return get().settlements.filter(
-          (s) => s.vendorId === parseInt(vendorId)
+          (s) => String(s.vendorId) === String(vendorId)
         );
       },
 

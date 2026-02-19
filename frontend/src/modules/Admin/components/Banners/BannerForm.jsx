@@ -1,17 +1,19 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { FiX, FiSave } from "react-icons/fi";
+import { FiX, FiSave, FiUpload } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBannerStore } from "../../../../shared/store/bannerStore";
 import AnimatedSelect from "../AnimatedSelect";
 import toast from "react-hot-toast";
 import Button from "../Button";
+import { uploadAdminImage } from "../../services/adminService";
 
 const BannerForm = ({ banner, onClose, onSave }) => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
   const { createBanner, updateBanner } = useBannerStore();
   const isEdit = !!banner;
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const [formData, setFormData] = useState({
     type: "hero",
@@ -49,6 +51,33 @@ const BannerForm = ({ banner, onClose, onSave }) => {
       ...formData,
       [name]: type === "checkbox" ? checked : value,
     });
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type?.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const response = await uploadAdminImage(file, "banners");
+      const url = response?.data?.url;
+      if (!url) {
+        toast.error("Image upload failed");
+        return;
+      }
+      setFormData((prev) => ({ ...prev, image: url }));
+      toast.success("Image uploaded");
+    } catch (error) {
+      // Error toast handled by api interceptor
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = "";
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -243,6 +272,19 @@ const BannerForm = ({ banner, onClose, onSave }) => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="data/banners/banner.png"
                   />
+                  <div className="mt-3">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer text-sm font-semibold">
+                      <FiUpload />
+                      {isUploadingImage ? "Uploading..." : "Upload to Cloudinary"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        disabled={isUploadingImage}
+                      />
+                    </label>
+                  </div>
                   {formData.image && (
                     <div className="mt-4">
                       <img

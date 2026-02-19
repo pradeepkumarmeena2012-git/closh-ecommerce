@@ -67,14 +67,14 @@ const ProfitLoss = () => {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
         <AnimatedSelect
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
           options={[
-            { value: "month", label: "This Month" },
-            { value: "quarter", label: "This Quarter" },
-            { value: "year", label: "This Year" },
+            { value: "week", label: "Last 7 Days" },
+            { value: "month", label: "Last 30 Days" },
+            { value: "year", label: "Last Year" },
           ]}
           className="min-w-[140px]"
         />

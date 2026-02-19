@@ -25,6 +25,7 @@ import AnimatedSelect from "../AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import Button from "../Button";
+import { uploadAdminImage } from "../../services/adminService";
 
 const CampaignForm = ({ campaign, onClose, onSave }) => {
   const location = useLocation();
@@ -74,6 +75,7 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
   const [selectedProductStock, setSelectedProductStock] = useState("all");
   const [productPage, setProductPage] = useState(1);
   const productsPerPage = 20;
+  const [isUploadingBannerImage, setIsUploadingBannerImage] = useState(false);
 
   // Get stores
   const {
@@ -349,37 +351,42 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
   }, [filteredProducts, formData.productIds]);
 
   // Handle custom banner image upload
-  const handleBannerImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Check if file is an image
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please select an image file");
+  const handleBannerImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type?.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setIsUploadingBannerImage(true);
+    try {
+      const response = await uploadAdminImage(file, "campaigns");
+      const imageUrl = response?.data?.url;
+      if (!imageUrl) {
+        toast.error("Banner image upload failed");
         return;
       }
-
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size should be less than 5MB");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({
-          ...formData,
-          bannerConfig: {
-            ...formData.bannerConfig,
-            image: reader.result, // Base64 data URL
-            customImage: true, // Flag to indicate custom image
-          },
-        });
-        toast.success("Banner image uploaded successfully");
-      };
-      reader.onerror = () => {
-        toast.error("Error reading image file");
-      };
-      reader.readAsDataURL(file);
+      setFormData((prev) => ({
+        ...prev,
+        bannerConfig: {
+          ...prev.bannerConfig,
+          image: imageUrl,
+          customImage: true,
+        },
+      }));
+      toast.success("Banner image uploaded successfully");
+    } catch (error) {
+      // Error toast handled by api interceptor
+    } finally {
+      setIsUploadingBannerImage(false);
+      e.target.value = "";
     }
   };
 
@@ -1148,13 +1155,16 @@ const CampaignForm = ({ campaign, onClose, onSave }) => {
                                 onChange={handleBannerImageUpload}
                                 className="hidden"
                                 id="banner-image-upload"
+                                disabled={isUploadingBannerImage}
                               />
                               <label
                                 htmlFor="banner-image-upload"
-                                className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white">
+                                className={`flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg transition-colors bg-white ${isUploadingBannerImage ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-primary-500 hover:bg-primary-50"}`}>
                                 <FiUpload className="text-lg text-primary-600" />
                                 <span className="text-sm font-medium text-gray-700">
-                                  {formData.bannerConfig.image &&
+                                  {isUploadingBannerImage
+                                    ? "Uploading Banner Image..."
+                                    : formData.bannerConfig.image &&
                                     formData.bannerConfig.customImage
                                     ? "Change Custom Banner Image"
                                     : "Upload Custom Banner Image"}

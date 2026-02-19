@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FiDownload, FiCalendar, FiTrendingUp } from 'react-icons/fi';
+import { FiCalendar, FiTrendingUp } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import ExportButton from '../../components/ExportButton';
@@ -11,45 +11,43 @@ const SalesReport = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    pages: 1
-  });
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (range = { start: '', end: '' }) => {
     setLoading(true);
     try {
-      const params = {
-        page: pagination.page,
-        limit: pagination.limit,
-        status: 'delivered', // Only counting delivered sales usually, or 'all' if preferred
-        startDate: dateRange.start,
-        endDate: dateRange.end
-      };
-      const response = await adminService.getAllOrders(params);
-      setOrders(response.data.orders);
-      setPagination(prev => ({
-        ...prev,
-        total: response.data.total,
-        pages: response.data.pages
-      }));
+      const allOrders = [];
+      let page = 1;
+      let totalPages = 1;
+
+      while (page <= totalPages && page <= 20) {
+        const response = await adminService.getAllOrders({
+          page,
+          limit: 200,
+          status: 'delivered',
+          startDate: range.start,
+          endDate: range.end
+        });
+        const payload = response?.data || {};
+        allOrders.push(...(payload.orders || []));
+        totalPages = payload.pages || 1;
+        page += 1;
+      }
+
+      setOrders(allOrders);
     } catch (error) {
       console.error(error);
       toast.error('Failed to fetch sales report');
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, dateRange]);
+  }, []);
 
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+  }, []);
 
   const handleApplyFilter = () => {
-    setPagination(prev => ({ ...prev, page: 1 }));
-    fetchOrders();
+    fetchOrders(dateRange);
   };
 
   const totalSales = orders.reduce((sum, order) => sum + (order.total || 0), 0);
@@ -185,10 +183,7 @@ const SalesReport = () => {
             data={orders}
             columns={columns}
             pagination={true}
-            itemsPerPage={pagination.limit}
-            totalItems={pagination.total}
-            currentPage={pagination.page}
-            onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
+            itemsPerPage={10}
           />
         )}
       </div>

@@ -9,10 +9,14 @@ import * as returnController from '../controllers/return.controller.js';
 import * as supportController from '../controllers/support.controller.js';
 import * as reviewController from '../controllers/review.controller.js';
 import * as analyticsController from '../controllers/analytics.controller.js';
+import * as reportController from '../controllers/report.controller.js';
 import * as marketingController from '../controllers/marketing.controller.js';
+import * as notificationController from '../controllers/notification.controller.js';
+import * as uploadController from '../controllers/upload.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize } from '../../../middlewares/authorize.js';
 import { authLimiter } from '../../../middlewares/rateLimiter.js';
+import { uploadSingle } from '../../../middlewares/upload.js';
 
 const router = Router();
 const adminAuth = [authenticate, authorize('admin', 'superadmin')];
@@ -92,11 +96,16 @@ router.get('/support/tickets', ...adminAuth, supportController.getAllTickets);
 router.get('/support/tickets/:id', ...adminAuth, supportController.getTicketById);
 router.patch('/support/tickets/:id/status', ...adminAuth, supportController.updateTicketStatus);
 router.post('/support/tickets/:id/messages', ...adminAuth, supportController.addTicketMessage);
+router.get('/support/ticket-types', ...adminAuth, supportController.getAllTicketTypes);
+router.post('/support/ticket-types', ...adminAuth, supportController.createTicketType);
+router.put('/support/ticket-types/:id', ...adminAuth, supportController.updateTicketType);
+router.delete('/support/ticket-types/:id', ...adminAuth, supportController.deleteTicketType);
 
 // ─── Product Reviews ──────────────────────────────────────────────────────────
 router.get('/reviews', ...adminAuth, reviewController.getAllReviews);
 router.patch('/reviews/:id/status', ...adminAuth, reviewController.updateReviewStatus);
 router.delete('/reviews/:id', ...adminAuth, reviewController.deleteReview);
+router.post('/uploads/image', ...adminAuth, uploadSingle('image'), uploadController.uploadImage);
 
 // ─── Marketing & Promotions ──────────────────────────────────────────────────
 // Coupons
@@ -117,8 +126,11 @@ router.post('/marketing/campaigns', ...adminAuth, marketingController.createCamp
 router.put('/marketing/campaigns/:id', ...adminAuth, marketingController.updateCampaign);
 router.delete('/marketing/campaigns/:id', ...adminAuth, marketingController.deleteCampaign);
 
+// ─── Reports ──────────────────────────────────────────────────────────────────
+router.get('/reports/sales', ...adminAuth, reportController.getSalesReport);
+router.get('/reports/inventory', ...adminAuth, reportController.getInventoryReport);
+
 // ─── Notifications ─────────────────────────────────────────────────────────────
-import * as notificationController from '../controllers/notification.controller.js';
 router.get('/notifications', ...adminAuth, notificationController.getAdminNotifications);
 router.put('/notifications/:id/read', ...adminAuth, notificationController.markAsRead);
 router.put('/notifications/read-all', ...adminAuth, notificationController.markAllAsRead);

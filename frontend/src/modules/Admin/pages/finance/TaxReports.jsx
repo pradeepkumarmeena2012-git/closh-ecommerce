@@ -1,25 +1,61 @@
-import { useState, useMemo } from "react";
-import { FiFileText, FiDownload } from "react-icons/fi";
+import { useState, useMemo, useEffect } from "react";
+import { FiFileText, FiLoader } from "react-icons/fi";
 import { motion } from "framer-motion";
 import TaxTrendsChart from "../../components/Analytics/TaxTrendsChart";
 import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";
 import { formatPrice } from '../../../../shared/utils/helpers';
-import { mockOrders } from "../../../../data/adminMockData";
+import { getAllOrders } from "../../services/adminService";
 
 const TaxReports = () => {
-  const [orders] = useState(mockOrders);
+  const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchOrders = async () => {
+      setIsLoading(true);
+      try {
+        const allOrders = [];
+        let page = 1;
+        let totalPages = 1;
+
+        while (page <= totalPages && page <= 20) {
+          const response = await getAllOrders({ page, limit: 200 });
+          const payload = response?.data || {};
+          allOrders.push(...(payload.orders || []));
+          totalPages = payload.pages || 1;
+          page += 1;
+        }
+
+        if (mounted) setOrders(allOrders);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    fetchOrders();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const taxData = useMemo(() => {
     // Generate tax data from orders and create daily aggregates for better chart visualization
     const dailyData = {};
 
     orders.forEach((order) => {
-      const taxRate = 0.18; // 18% tax
-      const taxAmount = order.total * taxRate;
-      const subtotal = order.total - taxAmount;
-      const dateKey = order.date.split("T")[0]; // Get date part only
+      const taxAmount = Number(order.tax) || 0;
+      const subtotal = Number(order.subtotal) || 0;
+      const total = Number(order.total) || 0;
+      const taxRate = subtotal > 0 ? (taxAmount / subtotal) * 100 : 0;
+      const createdAt = order.createdAt ? new Date(order.createdAt) : null;
+      const dateKey =
+        createdAt && !Number.isNaN(createdAt.getTime())
+          ? createdAt.toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0];
 
       if (!dailyData[dateKey]) {
         dailyData[dateKey] = {
@@ -32,15 +68,18 @@ const TaxReports = () => {
       }
 
       dailyData[dateKey].taxAmount += taxAmount;
-      dailyData[dateKey].total += order.total;
+      dailyData[dateKey].total += total;
       dailyData[dateKey].count += 1;
       dailyData[dateKey].orders.push({
-        orderId: order.id,
-        customer: order.customer.name,
+        orderId: order.orderId || order._id,
+        customer:
+          order.userId?.name ||
+          order.shippingAddress?.name ||
+          "Guest Customer",
         subtotal,
-        taxRate: taxRate * 100,
+        taxRate,
         taxAmount,
-        total: order.total,
+        total,
       });
     });
 
@@ -65,7 +104,7 @@ const TaxReports = () => {
         date: day.date,
         taxAmount: day.taxAmount,
         total: day.total,
-        taxRate: 18,
+        taxRate: day.total > 0 ? (day.taxAmount / day.total) * 100 : 0,
         count: day.count,
       })),
       tableData,
@@ -121,7 +160,7 @@ const TaxReports = () => {
       key: "taxRate",
       label: "Tax Rate",
       sortable: true,
-      render: (value) => `${value}%`,
+      render: (value) => `${Number(value || 0).toFixed(2)}%`,
     },
     {
       key: "taxAmount",
@@ -140,6 +179,11 @@ const TaxReports = () => {
   ];
 
   return (
+    isLoading && orders.length === 0 ? (
+      <div className="flex items-center justify-center min-h-[320px]">
+        <FiLoader className="animate-spin text-3xl text-primary-600" />
+      </div>
+    ) : (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -242,6 +286,7 @@ const TaxReports = () => {
         />
       </div>
     </motion.div>
+    )
   );
 };
 

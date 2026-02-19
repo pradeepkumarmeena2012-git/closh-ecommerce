@@ -1,39 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import ConfirmModal from '../../components/ConfirmModal';
 import AnimatedSelect from '../../components/AnimatedSelect';
-import toast from 'react-hot-toast';
+import {
+  getAllTicketTypes,
+  createTicketType,
+  updateTicketType,
+  deleteTicketType,
+} from '../../services/adminService';
 
 const TicketTypes = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const [ticketTypes, setTicketTypes] = useState([
-    { id: 1, name: 'Technical Support', description: 'Technical issues and bugs', status: 'active' },
-    { id: 2, name: 'Billing Inquiry', description: 'Payment and billing questions', status: 'active' },
-    { id: 3, name: 'Product Inquiry', description: 'Questions about products', status: 'active' },
-  ]);
+  const [ticketTypes, setTicketTypes] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [editingType, setEditingType] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
 
-  const handleSave = (typeData) => {
-    if (editingType && editingType.id) {
-      setTicketTypes(ticketTypes.map((t) => (t.id === editingType.id ? { ...typeData, id: editingType.id } : t)));
-      toast.success('Ticket type updated');
-    } else {
-      const newId = ticketTypes.length > 0 ? Math.max(...ticketTypes.map(t => t.id)) + 1 : 1;
-      setTicketTypes([...ticketTypes, { ...typeData, id: newId }]);
-      toast.success('Ticket type added');
+  const fetchTicketTypes = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await getAllTicketTypes();
+      setTicketTypes(response?.data || []);
+    } catch {
+      setTicketTypes([]);
+    } finally {
+      setIsLoading(false);
     }
-    setEditingType(null);
+  }, []);
+
+  useEffect(() => {
+    fetchTicketTypes();
+  }, [fetchTicketTypes]);
+
+  const handleSave = async (typeData) => {
+    try {
+      if (editingType && editingType.id) {
+        await updateTicketType(editingType.id, typeData);
+      } else {
+        await createTicketType(typeData);
+      }
+      await fetchTicketTypes();
+      setEditingType(null);
+    } catch {
+      // Toast handled by interceptor/store pattern
+    }
   };
 
-  const handleDelete = () => {
-    setTicketTypes(ticketTypes.filter((t) => t.id !== deleteModal.id));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success('Ticket type deleted');
+  const handleDelete = async () => {
+    try {
+      await deleteTicketType(deleteModal.id);
+      await fetchTicketTypes();
+    } catch {
+      // Toast handled by interceptor/store pattern
+    } finally {
+      setDeleteModal({ isOpen: false, id: null });
+    }
   };
 
   const columns = [
@@ -104,12 +129,18 @@ const TicketTypes = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={ticketTypes}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {isLoading ? (
+          <div className="flex justify-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        ) : (
+          <DataTable
+            data={ticketTypes}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       <AnimatePresence>

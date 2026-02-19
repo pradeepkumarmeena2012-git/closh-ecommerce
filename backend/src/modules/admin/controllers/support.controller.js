@@ -4,6 +4,8 @@ import { ApiError } from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 
+const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * @desc    Get all support tickets with filtering and pagination
  * @route   GET /api/admin/support/tickets
@@ -11,6 +13,8 @@ import { asyncHandler } from '../../../utils/asyncHandler.js';
  */
 export const getAllTickets = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, search = '', status, priority } = req.query;
+    const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNumber = Math.max(parseInt(limit, 10) || 10, 1);
 
     const filter = {};
 
@@ -35,8 +39,8 @@ export const getAllTickets = asyncHandler(async (req, res) => {
         .populate('vendorId', 'shopName email')
         .populate('ticketTypeId', 'name')
         .sort({ updatedAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+        .skip((pageNumber - 1) * limitNumber)
+        .limit(limitNumber);
 
     const total = await SupportTicket.countDocuments(filter);
 
@@ -61,9 +65,9 @@ export const getAllTickets = asyncHandler(async (req, res) => {
             tickets: normalizedTickets,
             pagination: {
                 total,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                pages: Math.ceil(total / limit)
+                page: pageNumber,
+                limit: limitNumber,
+                pages: Math.ceil(total / limitNumber)
             }
         }, 'Support tickets fetched successfully')
     );
@@ -135,6 +139,11 @@ export const updateTicketStatus = asyncHandler(async (req, res) => {
  */
 export const addTicketMessage = asyncHandler(async (req, res) => {
     const { message } = req.body;
+    const trimmedMessage = String(message || '').trim();
+    if (!trimmedMessage) {
+        throw new ApiError(400, 'Message is required');
+    }
+
     const ticket = await SupportTicket.findById(req.params.id);
 
     if (!ticket) {
@@ -144,7 +153,7 @@ export const addTicketMessage = asyncHandler(async (req, res) => {
     ticket.messages.push({
         senderId: req.user._id, // Assuming req.user is set by auth middleware
         senderType: 'admin',
-        message
+        message: trimmedMessage
     });
 
     // Automatically set to in_progress if an admin replies
@@ -157,4 +166,111 @@ export const addTicketMessage = asyncHandler(async (req, res) => {
     res.status(200).json(
         new ApiResponse(200, ticket.messages[ticket.messages.length - 1], 'Message added successfully')
     );
+});
+
+/**
+ * @desc    Get all ticket types
+ * @route   GET /api/admin/support/ticket-types
+ * @access  Private (Admin)
+ */
+export const getAllTicketTypes = asyncHandler(async (req, res) => {
+    const { status } = req.query;
+    const filter = {};
+
+    if (status === 'active') filter.isActive = true;
+    if (status === 'inactive') filter.isActive = false;
+
+    const ticketTypes = await TicketType.find(filter).sort({ createdAt: -1 });
+
+    const normalized = ticketTypes.map((type) => ({
+        ...type._doc,
+        id: type._id,
+        status: type.isActive ? 'active' : 'inactive',
+    }));
+
+    res.status(200).json(new ApiResponse(200, normalized, 'Ticket types fetched successfully'));
+});
+
+/**
+ * @desc    Create ticket type
+ * @route   POST /api/admin/support/ticket-types
+ * @access  Private (Admin)
+ */
+export const createTicketType = asyncHandler(async (req, res) => {
+    const { name, description, status } = req.body;
+    const trimmedName = String(name || '').trim();
+
+    if (!trimmedName) throw new ApiError(400, 'Ticket type name is required');
+
+    const existing = await TicketType.findOne({ name: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') });
+    if (existing) throw new ApiError(409, 'Ticket type already exists');
+
+    const ticketType = await TicketType.create({
+        name: trimmedName,
+        description: String(description || '').trim(),
+        isActive: status ? status === 'active' : true,
+    });
+
+    res.status(201).json(
+        new ApiResponse(
+            201,
+            { ...ticketType._doc, id: ticketType._id, status: ticketType.isActive ? 'active' : 'inactive' },
+            'Ticket type created successfully'
+        )
+    );
+});
+
+/**
+ * @desc    Update ticket type
+ * @route   PUT /api/admin/support/ticket-types/:id
+ * @access  Private (Admin)
+ */
+export const updateTicketType = asyncHandler(async (req, res) => {
+    const { name, description, status } = req.body;
+    const ticketType = await TicketType.findById(req.params.id);
+
+    if (!ticketType) throw new ApiError(404, 'Ticket type not found');
+
+    if (name !== undefined) {
+        const trimmedName = String(name || '').trim();
+        if (!trimmedName) throw new ApiError(400, 'Ticket type name is required');
+
+        const existing = await TicketType.findOne({
+            _id: { $ne: req.params.id },
+            name: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i'),
+        });
+        if (existing) throw new ApiError(409, 'Ticket type already exists');
+
+        ticketType.name = trimmedName;
+    }
+
+    if (description !== undefined) {
+        ticketType.description = String(description || '').trim();
+    }
+
+    if (status !== undefined) {
+        ticketType.isActive = String(status).toLowerCase() === 'active';
+    }
+
+    await ticketType.save();
+
+    res.status(200).json(
+        new ApiResponse(
+            200,
+            { ...ticketType._doc, id: ticketType._id, status: ticketType.isActive ? 'active' : 'inactive' },
+            'Ticket type updated successfully'
+        )
+    );
+});
+
+/**
+ * @desc    Delete ticket type
+ * @route   DELETE /api/admin/support/ticket-types/:id
+ * @access  Private (Admin)
+ */
+export const deleteTicketType = asyncHandler(async (req, res) => {
+    const ticketType = await TicketType.findByIdAndDelete(req.params.id);
+    if (!ticketType) throw new ApiError(404, 'Ticket type not found');
+
+    res.status(200).json(new ApiResponse(200, null, 'Ticket type deleted successfully'));
 });

@@ -3,11 +3,13 @@ import mongoose from 'mongoose';
 const bannerSchema = new mongoose.Schema(
     {
         title: String,
+        subtitle: String,
+        description: String,
         image: { type: String, required: true },
         link: String,
         type: {
             type: String,
-            enum: ['home_slider', 'festival_offer', 'banner'],
+            enum: ['home_slider', 'festival_offer', 'banner', 'hero', 'promotional'],
             default: 'banner',
         },
         order: { type: Number, default: 0 },

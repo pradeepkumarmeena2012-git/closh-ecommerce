@@ -6,6 +6,10 @@ export const useCampaignStore = create((set, get) => ({
   campaigns: [],
   isLoading: false,
 
+  initialize: async (params = {}) => {
+    await get().fetchCampaigns(params);
+  },
+
   fetchCampaigns: async (params = {}) => {
     set({ isLoading: true });
     try {
@@ -71,6 +75,11 @@ export const useCampaignStore = create((set, get) => ({
     const campaign = get().campaigns.find(c => c._id === id);
     if (!campaign) return;
     await get().updateCampaign(id, { isActive: !campaign.isActive });
+  },
+
+  getCampaignsByType: (type) => {
+    if (!type) return get().campaigns;
+    return get().campaigns.filter((campaign) => campaign.type === type);
   }
 }));
 

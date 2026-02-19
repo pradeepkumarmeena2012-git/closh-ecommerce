@@ -1,18 +1,88 @@
-import { useState } from 'react';
-import { FiBarChart2, FiTrendingUp, FiTrendingDown, FiDownload } from 'react-icons/fi';
+import { useState, useEffect, useMemo } from 'react';
+import { FiBarChart2, FiTrendingUp } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { generateRevenueData, getAnalyticsSummary } from '../../../data/adminMockData';
 import RevenueChart from '../components/Analytics/RevenueChart';
 import SalesChart from '../components/Analytics/SalesChart';
 import TimePeriodFilter from '../components/Analytics/TimePeriodFilter';
 import ExportButton from '../components/ExportButton';
 import { formatCurrency } from '../utils/adminHelpers';
+import { getDashboardStats, getRevenueData } from '../services/adminService';
 
 const Analytics = () => {
   const [period, setPeriod] = useState('month');
-  const [dateRange, setDateRange] = useState({ start: null, end: null });
-  const analyticsSummary = getAnalyticsSummary();
-  const revenueData = generateRevenueData(30);
+  const [isLoading, setIsLoading] = useState(true);
+  const [analyticsSummary, setAnalyticsSummary] = useState({
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalProducts: 0,
+    totalCustomers: 0,
+    revenueChange: 0,
+    ordersChange: 0,
+    productsChange: 0,
+    customersChange: 0,
+  });
+  const [revenueData, setRevenueData] = useState([]);
+
+  const mapUiPeriodToApiPeriod = (uiPeriod) => {
+    if (uiPeriod === 'today' || uiPeriod === 'week') return 'daily';
+    if (uiPeriod === 'month') return 'daily';
+    return 'monthly';
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const apiPeriod = mapUiPeriodToApiPeriod(period);
+        const [statsRes, revenueRes] = await Promise.allSettled([
+          getDashboardStats(),
+          getRevenueData(apiPeriod),
+        ]);
+
+        if (mounted && statsRes.status === 'fulfilled') {
+          const stats = statsRes.value?.data || {};
+          setAnalyticsSummary({
+            totalRevenue: stats.totalRevenue || 0,
+            totalOrders: stats.totalOrders || 0,
+            totalProducts: stats.totalProducts || 0,
+            totalCustomers: stats.totalUsers || 0,
+            revenueChange: 0,
+            ordersChange: 0,
+            productsChange: 0,
+            customersChange: 0,
+          });
+        }
+
+        if (mounted && revenueRes.status === 'fulfilled') {
+          const mappedRevenue = (revenueRes.value?.data || []).map((item) => ({
+            date: item._id,
+            revenue: item.revenue || 0,
+            orders: item.orders || 0,
+          }));
+          setRevenueData(mappedRevenue);
+        }
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => {
+      mounted = false;
+    };
+  }, [period]);
+
+  const visibleRevenueData = useMemo(() => revenueData || [], [revenueData]);
+
+  if (isLoading && visibleRevenueData.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -28,7 +98,7 @@ const Analytics = () => {
         <div className="flex items-center gap-3">
           <TimePeriodFilter selectedPeriod={period} onPeriodChange={setPeriod} />
           <ExportButton
-            data={revenueData}
+            data={visibleRevenueData}
             headers={[
               { label: 'Date', accessor: (row) => row.date },
               { label: 'Revenue', accessor: (row) => formatCurrency(row.revenue) },
@@ -92,8 +162,8 @@ const Analytics = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueChart data={revenueData} period={period} />
-        <SalesChart data={revenueData} period={period} />
+        <RevenueChart data={visibleRevenueData} period={period} />
+        <SalesChart data={visibleRevenueData} period={period} />
       </div>
     </motion.div>
   );

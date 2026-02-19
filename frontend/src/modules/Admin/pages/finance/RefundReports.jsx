@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { FiRefreshCw, FiDollarSign } from "react-icons/fi";
+import { useState, useMemo, useEffect } from "react";
+import { FiRefreshCw, FiDollarSign, FiLoader } from "react-icons/fi";
 import { motion } from "framer-motion";
 import RefundTrendsChart from "../../components/Analytics/RefundTrendsChart";
 import DataTable from "../../components/DataTable";
@@ -7,69 +7,66 @@ import Badge from "../../../../shared/components/Badge";
 import ExportButton from "../../components/ExportButton";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatPrice } from '../../../../shared/utils/helpers';
+import { getAllReturnRequests } from "../../services/adminService";
 
 const RefundReports = () => {
-  const [refunds] = useState(() => {
-    const now = Date.now();
-    const refundsList = [];
-    const reasons = [
-      "Product defect",
-      "Wrong item received",
-      "Customer request",
-      "Not as described",
-      "Size issue",
-    ];
-    const statuses = [
-      "completed",
-      "pending",
-      "completed",
-      "pending",
-      "completed",
-    ];
-    const customers = [
-      "John Doe",
-      "Jane Smith",
-      "Bob Johnson",
-      "Alice Brown",
-      "Charlie Wilson",
-      "Diana Prince",
-      "Emma Davis",
-      "Frank Miller",
-    ];
-
-    // Generate refunds for the last 30 days
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(now - i * 86400000);
-      const count = Math.floor(Math.random() * 3) + 1; // 1-3 refunds per day
-
-      for (let j = 0; j < count; j++) {
-        const status = statuses[Math.floor(Math.random() * statuses.length)];
-        refundsList.push({
-          id: `REF-${String(refundsList.length + 1).padStart(3, "0")}`,
-          orderId: `ORD-${String(Math.floor(Math.random() * 100) + 1).padStart(
-            3,
-            "0"
-          )}`,
-          customerName: customers[Math.floor(Math.random() * customers.length)],
-          amount: Math.floor(Math.random() * 500) + 50,
-          reason: reasons[Math.floor(Math.random() * reasons.length)],
-          status,
-          requestedDate: new Date(
-            date.getTime() - Math.random() * 86400000
-          ).toISOString(),
-          processedDate:
-            status === "completed"
-              ? new Date(
-                date.getTime() + Math.random() * 86400000
-              ).toISOString()
-              : null,
-        });
-      }
-    }
-
-    return refundsList;
-  });
+  const [refunds, setRefunds] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchRefunds = async () => {
+      setIsLoading(true);
+      try {
+        const allReturns = [];
+        let page = 1;
+        let totalPages = 1;
+
+        while (page <= totalPages && page <= 20) {
+          const response = await getAllReturnRequests({ page, limit: 200 });
+          const payload = response?.data || {};
+          allReturns.push(...(payload.returnRequests || []));
+          totalPages = payload.pagination?.pages || 1;
+          page += 1;
+        }
+
+        const normalizedRefunds = allReturns.map((request) => {
+          const rawStatus = request.refundStatus || request.status || "pending";
+          const status =
+            rawStatus === "processed" || rawStatus === "completed"
+              ? "completed"
+              : rawStatus === "failed" || rawStatus === "rejected"
+                ? "rejected"
+                : "pending";
+
+          return {
+            id: request._id || request.id,
+            orderId: request.orderId || request.orderRefId || "N/A",
+            customerName: request.customer?.name || "Guest Customer",
+            amount: Number(request.refundAmount) || 0,
+            reason: request.reason || "N/A",
+            status,
+            requestedDate: request.requestDate || request.createdAt,
+            processedDate:
+              status === "completed" || status === "rejected"
+                ? request.updatedAt || null
+                : null,
+          };
+        });
+
+        if (mounted) setRefunds(normalizedRefunds);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    fetchRefunds();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const filteredRefunds = refunds.filter(
     (refund) => statusFilter === "all" || refund.status === statusFilter
@@ -151,6 +148,11 @@ const RefundReports = () => {
   ];
 
   return (
+    isLoading && refunds.length === 0 ? (
+      <div className="flex items-center justify-center min-h-[320px]">
+        <FiLoader className="animate-spin text-3xl text-primary-600" />
+      </div>
+    ) : (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -236,6 +238,7 @@ const RefundReports = () => {
         />
       </div>
     </motion.div>
+    )
   );
 };
 

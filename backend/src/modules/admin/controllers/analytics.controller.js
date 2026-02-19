@@ -34,8 +34,9 @@ export const getRevenueData = asyncHandler(async (req, res) => {
     const revenue = await Order.aggregate([
         { $match: { status: { $ne: 'cancelled' } } },
         { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
-        { $sort: { _id: 1 } },
+        { $sort: { _id: -1 } },
         { $limit: 12 },
+        { $sort: { _id: 1 } },
     ]);
 
     res.status(200).json(new ApiResponse(200, revenue, 'Revenue data fetched.'));
@@ -61,7 +62,16 @@ export const getTopProducts = asyncHandler(async (req, res) => {
         { $limit: 5 },
         { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'product' } },
         { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
-        { $project: { name: { $ifNull: ['$product.name', 'Unknown Product'] }, image: { $arrayElemAt: ['$product.images', 0] }, totalSold: 1, revenue: 1 } },
+        {
+            $project: {
+                name: { $ifNull: ['$product.name', 'Unknown Product'] },
+                image: {
+                    $ifNull: [{ $arrayElemAt: ['$product.images', 0] }, '$product.image']
+                },
+                totalSold: 1,
+                revenue: 1
+            }
+        },
     ]);
 
     res.status(200).json(new ApiResponse(200, topProducts, 'Top products fetched.'));
@@ -75,8 +85,9 @@ export const getCustomerGrowth = asyncHandler(async (req, res) => {
     const growth = await User.aggregate([
         { $match: { role: 'customer' } },
         { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, newUsers: { $sum: 1 } } },
-        { $sort: { _id: 1 } },
+        { $sort: { _id: -1 } },
         { $limit: 12 },
+        { $sort: { _id: 1 } },
     ]);
 
     res.status(200).json(new ApiResponse(200, growth, 'Customer growth fetched.'));
@@ -101,8 +112,9 @@ export const getSalesData = asyncHandler(async (req, res) => {
     const sales = await Order.aggregate([
         { $match: { status: { $ne: 'cancelled' } } },
         { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, sales: { $sum: '$total' }, orders: { $sum: 1 } } },
-        { $sort: { _id: 1 } },
+        { $sort: { _id: -1 } },
         { $limit: 12 },
+        { $sort: { _id: 1 } },
     ]);
 
     res.status(200).json(new ApiResponse(200, sales, 'Sales data fetched.'));
@@ -119,13 +131,15 @@ export const getFinancialSummary = asyncHandler(async (req, res) => {
             $group: {
                 _id: { $dateToString: { format: groupFormat, date: '$createdAt' } },
                 revenue: { $sum: '$total' },
-                tax: { $sum: { $multiply: ['$total', 0.05] } }, // Assuming 5% tax for demo if not in schema
-                delivery: { $sum: 50 }, // Assuming flat delivery fee for demo
+                tax: { $sum: '$tax' },
+                delivery: { $sum: '$shipping' },
+                discount: { $sum: '$discount' },
                 orders: { $sum: 1 }
             }
         },
-        { $sort: { _id: 1 } },
+        { $sort: { _id: -1 } },
         { $limit: 12 },
+        { $sort: { _id: 1 } },
     ]);
 
     res.status(200).json(new ApiResponse(200, summary, 'Financial summary fetched.'));
@@ -135,8 +149,8 @@ export const getFinancialSummary = asyncHandler(async (req, res) => {
 export const getInventoryStats = asyncHandler(async (req, res) => {
     const [totalProducts, outOfStock, lowStock] = await Promise.all([
         Product.countDocuments(),
-        Product.countDocuments({ stock: 0 }),
-        Product.countDocuments({ stock: { $gt: 0, $lte: 5 } })
+        Product.countDocuments({ stock: 'out_of_stock' }),
+        Product.countDocuments({ stock: 'low_stock' })
     ]);
 
     res.status(200).json(new ApiResponse(200, {

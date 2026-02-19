@@ -190,6 +190,18 @@ export const updateTicketStatus = (id, status) =>
 export const addTicketMessage = (id, message) =>
     api.post(`/admin/support/tickets/${id}/messages`, { message });
 
+export const getAllTicketTypes = (params = {}) =>
+    api.get('/admin/support/ticket-types', { params });
+
+export const createTicketType = (data) =>
+    api.post('/admin/support/ticket-types', data);
+
+export const updateTicketType = (id, data) =>
+    api.put(`/admin/support/ticket-types/${id}`, data);
+
+export const deleteTicketType = (id) =>
+    api.delete(`/admin/support/ticket-types/${id}`);
+
 // ─── Reports ──────────────────────────────────────────────────────────────────
 export const getSalesReport = (params = {}) =>
     api.get('/admin/reports/sales', { params });
@@ -222,6 +234,19 @@ export const getAllCampaigns = (params) => api.get('/admin/marketing/campaigns',
 export const createCampaign = (data) => api.post('/admin/marketing/campaigns', data);
 export const updateCampaign = (id, data) => api.put(`/admin/marketing/campaigns/${id}`, data);
 export const deleteCampaign = (id) => api.delete(`/admin/marketing/campaigns/${id}`);
+
+// Image Uploads
+export const uploadAdminImage = (file, folder = 'general', publicId) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('folder', folder);
+    if (publicId) {
+        formData.append('publicId', publicId);
+    }
+    return api.post('/admin/uploads/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+};
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 export const sendPushNotification = (data) =>

@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiPlus, FiSearch, FiEdit, FiTrash2, FiTag, FiCopy, FiCheck } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import DataTable from '../components/DataTable';
 import ExportButton from '../components/ExportButton';
-import Badge from '../../../shared/components/Badge';
 import ConfirmModal from '../components/ConfirmModal';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
@@ -28,13 +27,37 @@ const PromoCodes = () => {
     fetchCoupons();
   }, [fetchCoupons]);
 
-  const filteredCodes = (coupons || []).filter((code) => {
+  const normalizedCodes = useMemo(() => {
+    const now = Date.now();
+    return (coupons || []).map((coupon) => {
+      const startDate = coupon.startDate || coupon.startsAt || null;
+      const endDate = coupon.endDate || coupon.expiresAt || null;
+      const startMs = startDate ? new Date(startDate).getTime() : null;
+      const endMs = endDate ? new Date(endDate).getTime() : null;
+
+      let status = 'inactive';
+      if (coupon.isActive) {
+        if (startMs && startMs > now) status = 'upcoming';
+        else if (endMs && endMs < now) status = 'expired';
+        else status = 'active';
+      }
+
+      return {
+        ...coupon,
+        minPurchase: coupon.minPurchase ?? coupon.minOrderValue ?? 0,
+        startDate,
+        endDate,
+        status,
+      };
+    });
+  }, [coupons]);
+
+  const filteredCodes = normalizedCodes.filter((code) => {
     const matchesSearch =
       !searchQuery ||
       code.code.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' ||
-      (statusFilter === 'active' ? code.isActive : !code.isActive);
+    const matchesStatus = statusFilter === 'all' || code.status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -122,12 +145,12 @@ const PromoCodes = () => {
       render: (value, row) => (
         <div>
           <span className="text-sm font-medium text-gray-800">
-            {row.usedCount} / {value === -1 ? '∞' : value}
+            {row.usedCount} / {value === null || value === undefined ? '∞' : value}
           </span>
           <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
             <div
               className="bg-primary-600 h-1.5 rounded-full"
-              style={{ width: `${value === -1 ? 0 : Math.min((row.usedCount / value) * 100, 100)}%` }}
+              style={{ width: `${!value ? 0 : Math.min((row.usedCount / value) * 100, 100)}%` }}
             />
           </div>
         </div>
@@ -143,15 +166,19 @@ const PromoCodes = () => {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (_, row) => (
+      render: (value, row) => (
         <button
           onClick={() => handleToggleStatus(row._id, row.isActive)}
-          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${row.isActive
+          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${value === 'active'
             ? 'bg-green-100 text-green-800 hover:bg-green-200'
-            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+            : value === 'upcoming'
+              ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+              : value === 'expired'
+                ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
             }`}
         >
-          {row.isActive ? 'Active' : 'Inactive'}
+          {value.charAt(0).toUpperCase() + value.slice(1)}
         </button>
       ),
     },
@@ -190,7 +217,7 @@ const PromoCodes = () => {
           <p className="text-sm sm:text-base text-gray-600">Create and manage discount codes</p>
         </div>
         <button
-          onClick={() => setEditingCode({ code: '', type: 'percentage', value: '', minPurchase: 0, maxDiscount: '', usageLimit: '', startDate: '', endDate: '', status: 'active' })}
+          onClick={() => setEditingCode({ code: '', type: 'percentage', value: '', minPurchase: 0, maxDiscount: '', usageLimit: '', startDate: '', endDate: '', status: 'active', isActive: true })}
           className="flex items-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm"
         >
           <FiPlus />
@@ -217,6 +244,7 @@ const PromoCodes = () => {
             options={[
               { value: 'all', label: 'All Status' },
               { value: 'active', label: 'Active' },
+              { value: 'upcoming', label: 'Upcoming' },
               { value: 'inactive', label: 'Inactive' },
               { value: 'expired', label: 'Expired' },
             ]}
@@ -232,7 +260,7 @@ const PromoCodes = () => {
               { label: 'Type', accessor: (row) => row.type },
               { label: 'Value', accessor: (row) => row.type === 'percentage' ? `${row.value}%` : formatCurrency(row.value) },
               { label: 'Min Purchase', accessor: (row) => formatCurrency(row.minPurchase) },
-              { label: 'Usage', accessor: (row) => `${row.usedCount} / ${row.usageLimit}` },
+              { label: 'Usage', accessor: (row) => `${row.usedCount} / ${row.usageLimit ?? '∞'}` },
               { label: 'Status', accessor: (row) => row.status },
             ]}
             filename="promo-codes"
@@ -312,16 +340,28 @@ const PromoCodes = () => {
                   onSubmit={(e) => {
                     e.preventDefault();
                     const formData = new FormData(e.target);
+                    const startDate = formData.get('startDate') || null;
+                    const endDate = formData.get('endDate') || null;
+                    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
+                      toast.error('End date must be after start date');
+                      return;
+                    }
+
+                    const type = formData.get('type');
+                    const usageLimitRaw = formData.get('usageLimit');
+                    const usageLimit = usageLimitRaw === '' ? null : parseInt(usageLimitRaw, 10);
+                    const maxDiscountRaw = formData.get('maxDiscount');
+
                     handleSave({
                       code: formData.get('code').toUpperCase(),
-                      type: formData.get('type'),
+                      type,
                       value: parseFloat(formData.get('value')),
-                      minPurchase: parseFloat(formData.get('minPurchase')),
-                      maxDiscount: parseFloat(formData.get('maxDiscount')),
-                      usageLimit: parseInt(formData.get('usageLimit')) || -1,
-                      startDate: formData.get('startDate'),
-                      endDate: formData.get('endDate'),
-                      status: formData.get('status'),
+                      minOrderValue: parseFloat(formData.get('minPurchase')) || 0,
+                      maxDiscount: type === 'percentage' && maxDiscountRaw !== '' ? parseFloat(maxDiscountRaw) : null,
+                      usageLimit: usageLimit === null || usageLimit < 0 ? null : usageLimit,
+                      startsAt: startDate,
+                      expiresAt: endDate,
+                      isActive: formData.get('status') === 'active',
                     });
                   }}
                   className="space-y-4"
@@ -378,7 +418,7 @@ const PromoCodes = () => {
                       <input
                         type="number"
                         name="minPurchase"
-                        defaultValue={editingCode.minPurchase || '0'}
+                        defaultValue={editingCode.minPurchase ?? '0'}
                         required
                         min="0"
                         step="0.01"
@@ -390,7 +430,7 @@ const PromoCodes = () => {
                       <input
                         type="number"
                         name="maxDiscount"
-                        defaultValue={editingCode.maxDiscount || ''}
+                        defaultValue={editingCode.maxDiscount ?? ''}
                         min="0"
                         step="0.01"
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -403,7 +443,7 @@ const PromoCodes = () => {
                     <input
                       type="number"
                       name="usageLimit"
-                      defaultValue={editingCode.usageLimit || ''}
+                      defaultValue={editingCode.usageLimit ?? ''}
                       placeholder="Leave empty for unlimited"
                       min="-1"
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -438,8 +478,14 @@ const PromoCodes = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                     <AnimatedSelect
                       name="status"
-                      value={editingCode.status || 'active'}
-                      onChange={(e) => setEditingCode({ ...editingCode, status: e.target.value })}
+                      value={editingCode.status === 'inactive' ? 'inactive' : 'active'}
+                      onChange={(e) =>
+                        setEditingCode({
+                          ...editingCode,
+                          status: e.target.value,
+                          isActive: e.target.value === 'active',
+                        })
+                      }
                       options={[
                         { value: 'active', label: 'Active' },
                         { value: 'inactive', label: 'Inactive' },

@@ -1,28 +1,33 @@
 import cloudinary from '../config/cloudinary.js';
-import { Readable } from 'stream';
+import fs from 'fs/promises';
 
 /**
- * Upload a buffer to Cloudinary
- * @param {Buffer} buffer - File buffer from multer
+ * Upload a local image file to Cloudinary
+ * @param {string} localFilePath - Temporary local file path from multer disk storage
  * @param {string} folder - Cloudinary folder (e.g. 'products', 'vendors/logos')
  * @param {string} [publicId] - Optional custom public ID
  * @returns {Promise<{url: string, publicId: string}>}
  */
-export const uploadToCloudinary = (buffer, folder, publicId) => {
-    return new Promise((resolve, reject) => {
-        const uploadOptions = { folder, resource_type: 'image' };
-        if (publicId) uploadOptions.public_id = publicId;
+export const uploadToCloudinary = async (localFilePath, folder, publicId) => {
+    const uploadOptions = { folder, resource_type: 'image' };
+    if (publicId) uploadOptions.public_id = publicId;
 
-        const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
-            if (error) return reject(error);
-            resolve({ url: result.secure_url, publicId: result.public_id });
-        });
+    const result = await cloudinary.uploader.upload(localFilePath, uploadOptions);
+    return { url: result.secure_url, publicId: result.public_id };
+};
 
-        const readable = new Readable();
-        readable.push(buffer);
-        readable.push(null);
-        readable.pipe(uploadStream);
-    });
+/**
+ * Upload local file to Cloudinary and remove the local temp file.
+ * Local file deletion happens only after successful Cloudinary upload.
+ */
+export const uploadLocalFileToCloudinaryAndCleanup = async (localFilePath, folder, publicId) => {
+    const uploaded = await uploadToCloudinary(localFilePath, folder, publicId);
+    try {
+        await fs.unlink(localFilePath);
+    } catch {
+        // Non-fatal: do not fail the request if temp cleanup fails.
+    }
+    return uploaded;
 };
 
 /**

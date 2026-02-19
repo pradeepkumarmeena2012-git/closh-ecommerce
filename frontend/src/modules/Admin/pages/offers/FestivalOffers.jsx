@@ -8,14 +8,12 @@ import {
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { useBannerStore } from "../../../../shared/store/bannerStore";
 import { useCampaignStore } from "../../../../shared/store/campaignStore";
 import CampaignForm from "../../components/Campaigns/CampaignForm";
 import DataTable from "../../components/DataTable";
 import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
 // import { formatDateTime } from "../../../utils/adminHelpers";
-import toast from "react-hot-toast";
 
 const FestivalOffers = () => {
   const { campaigns, initialize, getCampaignsByType, deleteCampaign } =
@@ -50,7 +48,7 @@ const FestivalOffers = () => {
       }
 
       return {
-        id: campaign.id,
+        id: campaign.id || campaign._id,
         title: campaign.name,
         discount: campaign.discountValue,
         startDate: campaign.startDate,
@@ -61,9 +59,12 @@ const FestivalOffers = () => {
     });
   }, [festivalCampaigns]);
 
-  const handleDelete = () => {
-    deleteCampaign(deleteModal.id);
-    setDeleteModal({ isOpen: false, id: null });
+  const handleDelete = async () => {
+    try {
+      await deleteCampaign(deleteModal.id);
+    } finally {
+      setDeleteModal({ isOpen: false, id: null });
+    }
   };
 
   const handleFormClose = () => {

@@ -9,6 +9,7 @@ import {
   createProduct,
   updateProduct,
   getAllVendors,
+  uploadAdminImage,
 } from "../services/adminService";
 import CategorySelector from "./CategorySelector";
 import AnimatedSelect from "./AnimatedSelect";
@@ -23,6 +24,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
   const { categories, initialize: initCategories } = useCategoryStore();
   const { brands, initialize: initBrands } = useBrandStore();
   const [vendors, setVendors] = useState([]);
+  const [isUploadingMainImage, setIsUploadingMainImage] = useState(false);
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -215,34 +218,42 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     });
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please select an image file");
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type?.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setIsUploadingMainImage(true);
+    try {
+      const response = await uploadAdminImage(file, "products");
+      const imageUrl = response?.data?.url;
+      if (!imageUrl) {
+        toast.error("Image upload failed");
         return;
       }
-
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size should be less than 5MB");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({
-          ...formData,
-          image: reader.result,
-        });
-      };
-      reader.onerror = () => {
-        toast.error("Error reading image file");
-      };
-      reader.readAsDataURL(file);
+      setFormData((prev) => ({
+        ...prev,
+        image: imageUrl,
+      }));
+      toast.success("Image uploaded");
+    } catch (error) {
+      // Error toast handled by api interceptor
+    } finally {
+      setIsUploadingMainImage(false);
+      e.target.value = "";
     }
   };
 
-  const handleGalleryUpload = (e) => {
+  const handleGalleryUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
@@ -261,27 +272,28 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
 
     if (validFiles.length === 0) return;
 
-    // Read all valid files
-    const readers = validFiles.map((file) => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    });
+    setIsUploadingGallery(true);
+    try {
+      const uploadResults = await Promise.allSettled(
+        validFiles.map((file) => uploadAdminImage(file, "products"))
+      );
 
-    Promise.all(readers)
-      .then((results) => {
-        setFormData({
-          ...formData,
-          images: [...formData.images, ...results],
-        });
-        toast.success(`${validFiles.length} image(s) added to gallery`);
-      })
-      .catch(() => {
-        toast.error("Error reading image files");
-      });
+      const successfulUrls = uploadResults
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => result.value?.data?.url)
+        .filter(Boolean);
+
+      if (successfulUrls.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          images: [...(prev.images || []), ...successfulUrls],
+        }));
+        toast.success(`${successfulUrls.length} image(s) added to gallery`);
+      }
+    } finally {
+      setIsUploadingGallery(false);
+      e.target.value = "";
+    }
   };
 
   const removeGalleryImage = (index) => {
@@ -589,13 +601,16 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                               onChange={handleImageUpload}
                               className="hidden"
                               id="main-image-upload-modal"
+                              disabled={isUploadingMainImage}
                             />
                             <label
                               htmlFor="main-image-upload-modal"
-                              className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-primary-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white">
+                              className={`flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-primary-300 rounded-lg transition-colors bg-white ${isUploadingMainImage ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-primary-500 hover:bg-primary-50"}`}>
                               <FiUpload className="text-lg text-primary-600" />
                               <span className="text-sm font-medium text-gray-700">
-                                {formData.image
+                                {isUploadingMainImage
+                                  ? "Uploading Main Image..."
+                                  : formData.image
                                   ? "Change Main Image"
                                   : "Choose Main Image"}
                               </span>
@@ -641,13 +656,16 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                               onChange={handleGalleryUpload}
                               className="hidden"
                               id="gallery-upload-modal"
+                              disabled={isUploadingGallery}
                             />
                             <label
                               htmlFor="gallery-upload-modal"
-                              className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-primary-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white">
+                              className={`flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-primary-300 rounded-lg transition-colors bg-white ${isUploadingGallery ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-primary-500 hover:bg-primary-50"}`}>
                               <FiUpload className="text-lg text-primary-600" />
                               <span className="text-sm font-medium text-gray-700">
-                                Choose Gallery Images
+                                {isUploadingGallery
+                                  ? "Uploading Gallery Images..."
+                                  : "Choose Gallery Images"}
                               </span>
                             </label>
                           </div>

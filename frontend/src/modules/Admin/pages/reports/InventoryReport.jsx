@@ -3,33 +3,78 @@ import { FiPackage, FiAlertCircle, FiTrendingDown } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import ExportButton from '../../components/ExportButton';
-import { useProductStore } from '../../../../shared/store/productStore';
 import { useAnalyticsStore } from '../../../../shared/store/analyticsStore';
 import { formatPrice } from '../../../../shared/utils/helpers';
+import * as adminService from '../../services/adminService';
 
 const InventoryReport = () => {
-  const { products, isLoading: productsLoading, fetchProducts } = useProductStore();
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
   const { inventoryStats, isLoading: statsLoading, fetchInventoryStats } = useAnalyticsStore();
 
   useEffect(() => {
-    fetchProducts({ limit: 100 }); // Fetch more for report
+    let mounted = true;
+
+    const fetchAllProducts = async () => {
+      setProductsLoading(true);
+      try {
+        const allProducts = [];
+        let page = 1;
+        let totalPages = 1;
+
+        while (page <= totalPages && page <= 20) {
+          const response = await adminService.getAllProducts({ page, limit: 200 });
+          const payload = response?.data || {};
+          allProducts.push(...(payload.products || []));
+          totalPages = payload.pages || 1;
+          page += 1;
+        }
+
+        if (mounted) {
+          setProducts(
+            allProducts.map((p) => ({
+              ...p,
+              id: p._id || p.id,
+              stockQuantity: p.stockQuantity || 0,
+              price: p.price || 0,
+              image: p.image || p.images?.[0] || 'https://via.placeholder.com/50x50?text=Product',
+            }))
+          );
+        }
+      } finally {
+        if (mounted) setProductsLoading(false);
+      }
+    };
+
+    fetchAllProducts();
     fetchInventoryStats();
-  }, [fetchProducts, fetchInventoryStats]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetchInventoryStats]);
 
   const stats = useMemo(() => {
-    if (inventoryStats) return inventoryStats;
-    // Fallback calculation if stats endpoint hasn't loaded
     const totalProducts = products.length;
     const inStock = products.filter(p => (p.stockQuantity || 0) > 5).length;
     const lowStock = products.filter(p => (p.stockQuantity || 0) <= 5 && (p.stockQuantity || 0) > 0).length;
     const outOfStock = products.filter(p => (p.stockQuantity || 0) === 0).length;
-    const totalValue = products.reduce((sum, p) => sum + (p.price * p.stockQuantity), 0);
+    const activeProducts = products.filter(p => p.isActive !== false).length;
+    const totalValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.stockQuantity || 0)), 0);
 
-    return { totalProducts, inStock, lowStock, outOfStock, totalValue };
+    if (inventoryStats) {
+      return {
+        ...inventoryStats,
+        inStock,
+        totalValue,
+      };
+    }
+
+    return { totalProducts, activeProducts, inStock, lowStock, outOfStock, totalValue };
   }, [products, inventoryStats]);
 
   const lowStockProducts = useMemo(() =>
-    products.filter(p => (p.stockQuantity || 0) <= 5),
+    products.filter(p => (p.stockQuantity || 0) <= 5 || p.stock === 'low_stock' || p.stock === 'out_of_stock'),
     [products]);
 
   const columns = [

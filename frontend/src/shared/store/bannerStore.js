@@ -6,6 +6,10 @@ export const useBannerStore = create((set, get) => ({
   banners: [],
   isLoading: false,
 
+  initialize: async () => {
+    await get().fetchBanners();
+  },
+
   fetchBanners: async () => {
     set({ isLoading: true });
     try {
@@ -72,5 +76,10 @@ export const useBannerStore = create((set, get) => ({
     if (banner) {
       await get().updateBanner(id, { isActive: !banner.isActive });
     }
+  },
+
+  getBannersByType: (type) => {
+    if (!type) return get().banners;
+    return get().banners.filter((banner) => banner.type === type);
   }
 }));

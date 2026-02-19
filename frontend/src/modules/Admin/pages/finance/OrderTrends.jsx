@@ -24,7 +24,7 @@ const OrderTrends = () => {
     if (!revenueData) return [];
     return revenueData.map((day) => ({
       date: day._id,
-      orders: day.orders,
+      orders: day.orders || 0,
     }));
   }, [revenueData]);
 
@@ -97,7 +97,7 @@ const OrderTrends = () => {
             className="min-w-[140px]"
           />
         </div>
-        <OrderTrendsLineChart data={revenueData} period={period} />
+        <OrderTrendsLineChart data={orderTrends} period={period} />
       </div>
     </motion.div>
   );

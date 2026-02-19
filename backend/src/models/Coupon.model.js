@@ -11,6 +11,7 @@ const couponSchema = new mongoose.Schema(
         usageLimit: { type: Number }, // null = unlimited
         usedCount: { type: Number, default: 0 },
         isActive: { type: Boolean, default: true },
+        startsAt: { type: Date },
         expiresAt: { type: Date },
     },
     { timestamps: true }

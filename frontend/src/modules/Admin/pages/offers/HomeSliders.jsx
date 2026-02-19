@@ -1,61 +1,100 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { FiPlus, FiEdit, FiTrash2, FiImage } from "react-icons/fi";
+import { FiPlus, FiEdit, FiTrash2, FiUpload } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
+import { useBannerStore } from "../../../../shared/store/bannerStore";
 import toast from "react-hot-toast";
-import heroSlide1 from "../../../../../data/hero/slide1.png";
-import heroSlide2 from "../../../../../data/hero/slide2.png";
+import { uploadAdminImage } from "../../services/adminService";
 
 const HomeSliders = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith("/app");
-  const [sliders, setSliders] = useState([
-    {
-      id: 1,
-      title: "Summer Sale",
-      image: heroSlide1,
-      link: "/offers",
-      order: 1,
-      status: "active",
-    },
-    {
-      id: 2,
-      title: "New Arrivals",
-      image: heroSlide2,
-      link: "/products",
-      order: 2,
-      status: "active",
-    },
-  ]);
+  const { banners, initialize, createBanner, updateBanner, deleteBanner } =
+    useBannerStore();
+
+  const sliders = useMemo(
+    () =>
+      (banners || [])
+        .filter((banner) => banner.type === "home_slider")
+        .map((banner) => ({
+          ...banner,
+          id: banner._id,
+          status: banner.isActive ? "active" : "inactive",
+        }))
+        .sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [banners]
+  );
+
   const [editingSlider, setEditingSlider] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
-  const handleSave = (sliderData) => {
-    if (editingSlider && editingSlider.id) {
-      setSliders(
-        sliders.map((s) =>
-          s.id === editingSlider.id
-            ? { ...sliderData, id: editingSlider.id }
-            : s
-        )
-      );
-      toast.success("Slider updated");
-    } else {
-      const newId =
-        sliders.length > 0 ? Math.max(...sliders.map((s) => s.id)) + 1 : 1;
-      setSliders([...sliders, { ...sliderData, id: newId }]);
-      toast.success("Slider added");
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  const handleSave = async (sliderData) => {
+    const payload = {
+      title: sliderData.title,
+      image: sliderData.image,
+      link: sliderData.link,
+      order: sliderData.order,
+      isActive: sliderData.status === "active",
+      type: "home_slider",
+    };
+
+    try {
+      if (editingSlider && editingSlider.id) {
+        await updateBanner(editingSlider.id, payload);
+      } else {
+        await createBanner(payload);
+      }
+      await initialize();
+      setEditingSlider(null);
+    } catch (error) {
+      // Error handled in store
     }
-    setEditingSlider(null);
   };
 
-  const handleDelete = () => {
-    setSliders(sliders.filter((s) => s.id !== deleteModal.id));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success("Slider deleted");
+  const handleDelete = async () => {
+    try {
+      await deleteBanner(deleteModal.id);
+      await initialize();
+    } catch (error) {
+      // Error handled in store
+    } finally {
+      setDeleteModal({ isOpen: false, id: null });
+    }
+  };
+
+  const handleSliderImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingSlider) return;
+
+    if (!file.type?.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const response = await uploadAdminImage(file, "banners");
+      const imageUrl = response?.data?.url;
+      if (!imageUrl) {
+        toast.error("Image upload failed");
+        return;
+      }
+      setEditingSlider((prev) => ({ ...prev, image: imageUrl }));
+      toast.success("Image uploaded");
+    } catch (error) {
+      // Error toast handled by api interceptor
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = "";
+    }
   };
 
   const columns = [
@@ -155,18 +194,12 @@ const HomeSliders = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        <DataTable
-          data={sliders}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        <DataTable data={sliders} columns={columns} pagination={true} itemsPerPage={10} />
       </div>
 
       <AnimatePresence>
         {editingSlider !== null && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -176,7 +209,6 @@ const HomeSliders = () => {
               className="fixed inset-0 bg-black/50 z-[10000]"
             />
 
-            {/* Modal Content - Mobile: Slide up from bottom, Desktop: Center with scale */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -232,7 +264,7 @@ const HomeSliders = () => {
                       title: formData.get("title"),
                       image: formData.get("image"),
                       link: formData.get("link"),
-                      order: parseInt(formData.get("order")),
+                      order: parseInt(formData.get("order"), 10),
                       status: formData.get("status"),
                     });
                   }}
@@ -248,11 +280,28 @@ const HomeSliders = () => {
                   <input
                     type="text"
                     name="image"
-                    defaultValue={editingSlider.image || ""}
+                    value={editingSlider.image || ""}
+                    onChange={(e) =>
+                      setEditingSlider({
+                        ...editingSlider,
+                        image: e.target.value,
+                      })
+                    }
                     placeholder="Image URL"
                     required
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
+                  <label className={`inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg transition-colors text-sm font-semibold ${isUploadingImage ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-gray-200"}`}>
+                    <FiUpload />
+                    {isUploadingImage ? "Uploading..." : "Upload to Cloudinary"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSliderImageUpload}
+                      className="hidden"
+                      disabled={isUploadingImage}
+                    />
+                  </label>
                   <input
                     type="text"
                     name="link"

@@ -20,7 +20,7 @@ export const useVendorStore = create(
             : (response.data?.vendors || []);
           const normalizedVendors = vendors.map(v => ({
             ...v,
-            id: v._id // Alias _id to id
+            id: v.id || v._id // Alias _id to id while preserving existing id
           }));
           set({ vendors: normalizedVendors, isLoading: false });
         } catch (error) {
@@ -44,7 +44,7 @@ export const useVendorStore = create(
           const response = await getVendorById(id);
           const vendor = {
             ...response.data,
-            id: response.data._id
+            id: response.data.id || response.data._id
           };
           set({ selectedVendor: vendor, isLoading: false });
           return vendor;
@@ -95,7 +95,7 @@ export const useVendorStore = create(
           const response = await updateVendorStatus(vendorId, status, reason);
           const updatedVendor = {
             ...response.data,
-            id: response.data._id
+            id: response.data.id || response.data._id
           };
 
           set((state) => ({
@@ -119,7 +119,7 @@ export const useVendorStore = create(
           const response = await updateCommissionRate(vendorId, commissionRate);
           const updatedVendor = {
             ...response.data,
-            id: response.data._id
+            id: response.data.id || response.data._id
           };
 
           set((state) => ({

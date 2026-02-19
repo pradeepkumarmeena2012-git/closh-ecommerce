@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   FiArrowLeft,
@@ -28,9 +28,8 @@ import toast from "react-hot-toast";
 const VendorDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { vendors, updateVendorStatus, updateCommissionRate } =
+  const { getVendor, updateVendorStatus, updateCommissionRate } =
     useVendorStore();
-  useVendorStore();
 
   const [vendor, setVendor] = useState(null);
   const [vendorOrders, setVendorOrders] = useState([]);
@@ -39,6 +38,7 @@ const VendorDetail = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditingCommission, setIsEditingCommission] = useState(false);
   const [commissionRate, setCommissionRate] = useState("");
+  const isSameVendorId = (a, b) => String(a) === String(b);
 
   useEffect(() => {
     const fetchVendorData = async () => {
@@ -51,7 +51,12 @@ const VendorDetail = () => {
         // 2. Fetch Vendor Orders
         try {
           const ordersResponse = await getAllOrders({ vendorId: id, limit: 100 }); // Fetch enough for stats
-          setVendorOrders(ordersResponse.data.orders);
+          const normalizedOrders = (ordersResponse?.data?.orders || []).map((order) => ({
+            ...order,
+            id: order.orderId || order._id,
+            date: order.date || order.createdAt,
+          }));
+          setVendorOrders(normalizedOrders);
         } catch (error) {
           console.error("Failed to fetch vendor orders:", error);
           toast.error("Failed to load vendor orders");
@@ -69,7 +74,9 @@ const VendorDetail = () => {
 
     // Calculate earnings from real orders
     const summary = vendorOrders.reduce((acc, order) => {
-      const vendorItem = order.vendorItems?.find(vi => vi.vendorId === vendor.id);
+      const vendorItem = order.vendorItems?.find((vi) =>
+        isSameVendorId(vi.vendorId, vendor.id)
+      );
       if (vendorItem) {
         // commission stored in vendorItem would be ideal, if not calculate it
         const subtotal = vendorItem.subtotal || 0;
@@ -159,7 +166,7 @@ const VendorDetail = () => {
       sortable: true,
       render: (_, row) => {
         const vendorItem = row.vendorItems?.find(
-          (vi) => vi.vendorId === vendor.id
+          (vi) => isSameVendorId(vi.vendorId, vendor.id)
         );
         return formatPrice(vendorItem?.subtotal || 0);
       },

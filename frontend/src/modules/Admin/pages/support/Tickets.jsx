@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FiSearch, FiEye, FiMessageSquare, FiSend } from 'react-icons/fi';
+import { FiSearch, FiEye, FiMessageSquare, FiSend, FiX } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import Badge from '../../../../shared/components/Badge';
@@ -11,7 +11,7 @@ import { formatDateTime } from '../../utils/adminHelpers';
 const Tickets = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const { tickets, isLoading, fetchTickets, updateTicketStatus, addReply, pagination } = useSupportStore();
+  const { tickets, isLoading, fetchTickets, addReply, pagination } = useSupportStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -25,9 +25,16 @@ const Tickets = () => {
     });
   }, [searchQuery, statusFilter, fetchTickets]);
 
+  const handleViewTicket = async (ticketRow) => {
+    setSelectedTicket(ticketRow);
+    const updated = await useSupportStore.getState().fetchTicketById(ticketRow.id);
+    if (updated) setSelectedTicket(updated);
+  };
+
   const handleReply = async () => {
-    if (!replyMessage.trim()) return;
-    const success = await addReply(selectedTicket.id, replyMessage);
+    const message = replyMessage.trim();
+    if (!message) return;
+    const success = await addReply(selectedTicket.id, message);
     if (success) {
       setReplyMessage('');
       // Refresh selected ticket detail if needed, or just stay as is
@@ -64,12 +71,12 @@ const Tickets = () => {
       render: (value) => <span className="font-semibold text-gray-800 text-xs">{value}</span>,
     },
     {
-      key: 'customer.name',
+      key: 'customer',
       label: 'Customer',
-      sortable: true,
-      render: (value, row) => (
+      sortable: false,
+      render: (_, row) => (
         <div>
-          <p className="font-medium">{value}</p>
+          <p className="font-medium">{row.customer?.name || 'Anonymous'}</p>
           <p className="text-xs text-gray-500">{row.customer?.email}</p>
         </div>
       )
@@ -99,7 +106,7 @@ const Tickets = () => {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value) => <Badge variant={getStatusColor(value)}>{value.replace('_', ' ')}</Badge>,
+      render: (value) => <Badge variant={getStatusColor(value)}>{value?.replace('_', ' ') || 'unknown'}</Badge>,
     },
     {
       key: 'createdAt',
@@ -113,7 +120,7 @@ const Tickets = () => {
       sortable: false,
       render: (_, row) => (
         <button
-          onClick={() => setSelectedTicket(row)}
+          onClick={() => handleViewTicket(row)}
           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
         >
           <FiEye />
@@ -165,10 +172,8 @@ const Tickets = () => {
         <DataTable
           data={tickets}
           columns={columns}
-          loading={isLoading}
           pagination={true}
           itemsPerPage={pagination.limit}
-          totalItems={pagination.total}
         />
       </div>
 
@@ -234,7 +239,7 @@ const Tickets = () => {
                     onClick={() => setSelectedTicket(null)}
                     className="text-gray-400 hover:text-gray-600"
                   >
-                    ✕
+                    <FiX />
                   </button>
                 </div>
 
@@ -257,7 +262,7 @@ const Tickets = () => {
                     <div>
                       <p className="text-xs text-gray-500">Status</p>
                       <Badge variant={getStatusColor(selectedTicket.status)}>
-                        {selectedTicket.status.replace('_', ' ')}
+                        {selectedTicket.status?.replace('_', ' ') || 'unknown'}
                       </Badge>
                     </div>
                   </div>
@@ -277,7 +282,7 @@ const Tickets = () => {
                             {msg.message}
                           </div>
                           <span className="text-[10px] text-gray-400 mt-1">
-                            {msg.senderType.toUpperCase()} • {new Date(msg.createdAt).toLocaleTimeString()}
+                            {msg.senderType.toUpperCase()} | {new Date(msg.createdAt).toLocaleTimeString()}
                           </span>
                         </div>
                       ))}
@@ -319,4 +324,3 @@ const Tickets = () => {
 };
 
 export default Tickets;
-

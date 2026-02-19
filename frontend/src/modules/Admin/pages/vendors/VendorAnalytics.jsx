@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FiBarChart2,
@@ -23,6 +23,8 @@ const VendorAnalytics = () => {
     initialize();
   }, [initialize]);
 
+  const isSameVendorId = (a, b) => String(a) === String(b);
+
   const approvedVendors = vendors.filter((v) => v.status === "approved");
 
   // Calculate vendor statistics
@@ -31,7 +33,9 @@ const VendorAnalytics = () => {
       .map((vendor) => {
         const vendorOrders = orders.filter((order) => {
           if (order.vendorItems && Array.isArray(order.vendorItems)) {
-            return order.vendorItems.some((vi) => vi.vendorId === vendor.id);
+            return order.vendorItems.some((vi) =>
+              isSameVendorId(vi.vendorId, vendor.id)
+            );
           }
           return false;
         });
@@ -39,7 +43,7 @@ const VendorAnalytics = () => {
         const earningsSummary = getVendorEarningsSummary(vendor.id);
         const totalRevenue = vendorOrders.reduce((sum, order) => {
           const vendorItem = order.vendorItems?.find(
-            (vi) => vi.vendorId === vendor.id
+            (vi) => isSameVendorId(vi.vendorId, vendor.id)
           );
           return sum + (vendorItem?.subtotal || 0);
         }, 0);

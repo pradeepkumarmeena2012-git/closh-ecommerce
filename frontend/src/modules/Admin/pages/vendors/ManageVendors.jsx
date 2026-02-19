@@ -41,11 +41,15 @@ const ManageVendors = () => {
     initialize();
   }, [initialize]);
 
+  const isSameVendorId = (a, b) => String(a) === String(b);
+
   // Get vendor statistics
   const getVendorStats = (vendorId) => {
     const vendorOrders = orders.filter((order) => {
       if (order.vendorItems && Array.isArray(order.vendorItems)) {
-        return order.vendorItems.some((vi) => vi.vendorId === vendorId);
+        return order.vendorItems.some((vi) =>
+          isSameVendorId(vi.vendorId, vendorId)
+        );
       }
       return false;
     });
