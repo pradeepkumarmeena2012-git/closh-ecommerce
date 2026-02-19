@@ -11,6 +11,8 @@ import { asyncHandler } from '../../../utils/asyncHandler.js';
  */
 export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, search = '', status } = req.query;
+    const numericPage = Number(page) || 1;
+    const numericLimit = Number(limit) || 10;
 
     const filter = {};
 
@@ -18,7 +20,8 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
         filter.$or = [
             { name: { $regex: search, $options: 'i' } },
             { email: { $regex: search, $options: 'i' } },
-            { phone: { $regex: search, $options: 'i' } }
+            { phone: { $regex: search, $options: 'i' } },
+            { address: { $regex: search, $options: 'i' } },
         ];
     }
 
@@ -29,8 +32,8 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
     const deliveryBoys = await DeliveryBoy.find(filter)
         .select('-password')
         .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+        .skip((numericPage - 1) * numericLimit)
+        .limit(numericLimit);
 
     const total = await DeliveryBoy.countDocuments(filter);
 
@@ -80,9 +83,9 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
             deliveryBoys: boysWithStats,
             pagination: {
                 total,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                pages: Math.ceil(total / limit)
+                page: numericPage,
+                limit: numericLimit,
+                pages: Math.ceil(total / numericLimit)
             }
         }, 'Delivery boys fetched successfully')
     );
@@ -147,7 +150,7 @@ export const getDeliveryBoyById = asyncHandler(async (req, res) => {
  * @access  Private (Admin)
  */
 export const createDeliveryBoy = asyncHandler(async (req, res) => {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, address, vehicleType, vehicleNumber, isActive } = req.body;
 
     const existedUser = await DeliveryBoy.findOne({
         $or: [{ email }, { phone }]
@@ -162,7 +165,10 @@ export const createDeliveryBoy = asyncHandler(async (req, res) => {
         email,
         password,
         phone,
-        isActive: true
+        address,
+        vehicleType,
+        vehicleNumber,
+        isActive: typeof isActive === 'boolean' ? isActive : true
     });
 
     const createdBoy = await DeliveryBoy.findById(boy._id).select('-password');
@@ -183,6 +189,9 @@ export const createDeliveryBoy = asyncHandler(async (req, res) => {
  */
 export const updateDeliveryBoyStatus = asyncHandler(async (req, res) => {
     const { isActive } = req.body;
+    if (typeof isActive !== 'boolean') {
+        throw new ApiError(400, 'isActive status must be a boolean');
+    }
 
     const boy = await DeliveryBoy.findByIdAndUpdate(
         req.params.id,
@@ -196,6 +205,63 @@ export const updateDeliveryBoyStatus = asyncHandler(async (req, res) => {
 
     res.status(200).json(
         new ApiResponse(200, boy, `Delivery boy status updated to ${isActive ? 'active' : 'inactive'}`)
+    );
+});
+
+/**
+ * @desc    Update delivery boy details
+ * @route   PUT /api/admin/delivery-boys/:id
+ * @access  Private (Admin)
+ */
+export const updateDeliveryBoy = asyncHandler(async (req, res) => {
+    const { name, email, phone, address, vehicleType, vehicleNumber, isActive } = req.body;
+
+    const existing = await DeliveryBoy.findOne({
+        _id: { $ne: req.params.id },
+        $or: [{ email }, { phone }]
+    });
+    if (existing) {
+        throw new ApiError(409, 'User with email or phone already exists');
+    }
+
+    const payload = {
+        name,
+        email,
+        phone,
+        address,
+        vehicleType,
+        vehicleNumber,
+    };
+    if (typeof isActive === 'boolean') payload.isActive = isActive;
+
+    const boy = await DeliveryBoy.findByIdAndUpdate(
+        req.params.id,
+        payload,
+        { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!boy) {
+        throw new ApiError(404, 'Delivery boy not found');
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, boy, 'Delivery boy updated successfully')
+    );
+});
+
+/**
+ * @desc    Delete a delivery boy
+ * @route   DELETE /api/admin/delivery-boys/:id
+ * @access  Private (Admin)
+ */
+export const deleteDeliveryBoy = asyncHandler(async (req, res) => {
+    const boy = await DeliveryBoy.findByIdAndDelete(req.params.id);
+    if (!boy) {
+        throw new ApiError(404, 'Delivery boy not found');
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, null, 'Delivery boy deleted successfully')
     );
 });
 

@@ -6,7 +6,7 @@ import Badge from "../../../../shared/components/Badge";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { formatDateTime } from "../../utils/adminHelpers";
-import { mockOrders } from "../../../../data/adminMockData";
+import { getAllOrders } from "../../services/adminService";
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -14,46 +14,82 @@ const Transactions = () => {
   const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
-    // Generate transactions from orders
-    const generatedTransactions = mockOrders.flatMap((order) => [
-      {
-        id: `TXN-${order.id}-1`,
-        orderId: order.id,
-        customerName: order.customer.name,
-        customerEmail: order.customer.email,
-        amount: order.total,
-        type: "payment",
-        status: order.status === "cancelled" ? "failed" : "completed",
-        method: "Credit Card",
-        date: order.date,
-      },
-      ...(order.status === "cancelled"
-        ? [
+    const loadTransactions = async () => {
+      try {
+        const response = await getAllOrders({ page: 1, limit: 500 });
+        const orders = response?.data?.orders || [];
+
+        const generatedTransactions = orders.flatMap((order) => {
+          const orderId = order.orderId || order._id;
+          const customerName =
+            order.userId?.name || order.shippingAddress?.name || "Guest";
+          const customerEmail =
+            order.userId?.email || order.shippingAddress?.email || "N/A";
+          const amount = Number(order.total) || 0;
+          const method = order.paymentMethod || "N/A";
+          const createdDate = order.createdAt || new Date().toISOString();
+
+          const paymentStatusMap = {
+            paid: "completed",
+            pending: "pending",
+            failed: "failed",
+            refunded: "completed",
+          };
+
+          const transactionsForOrder = [
             {
-              id: `TXN-${order.id}-2`,
-              orderId: order.id,
-              customerName: order.customer.name,
-              customerEmail: order.customer.email,
-              amount: order.total,
+              id: `TXN-${orderId}-PAY`,
+              orderId,
+              customerName,
+              customerEmail,
+              amount,
+              type: "payment",
+              status:
+                paymentStatusMap[order.paymentStatus] ||
+                (order.status === "cancelled" ? "failed" : "completed"),
+              method,
+              date: createdDate,
+            },
+          ];
+
+          if (order.paymentStatus === "refunded") {
+            transactionsForOrder.push({
+              id: `TXN-${orderId}-REF`,
+              orderId,
+              customerName,
+              customerEmail,
+              amount,
               type: "refund",
               status: "completed",
               method: "Original Payment Method",
-              date: new Date(
-                new Date(order.date).getTime() + 86400000
-              ).toISOString(),
-            },
-          ]
-        : []),
-    ]);
-    setTransactions(generatedTransactions);
+              date: order.updatedAt || createdDate,
+            });
+          }
+
+          return transactionsForOrder;
+        });
+
+        setTransactions(generatedTransactions);
+      } catch (error) {
+        setTransactions([]);
+      }
+    };
+
+    loadTransactions();
   }, []);
 
   const filteredTransactions = transactions.filter((txn) => {
     const matchesSearch =
       !searchQuery ||
-      txn.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      txn.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      txn.customerEmail.toLowerCase().includes(searchQuery.toLowerCase());
+      String(txn.orderId || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      String(txn.customerName || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      String(txn.customerEmail || "")
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || txn.status === statusFilter;
 

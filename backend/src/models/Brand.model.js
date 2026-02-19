@@ -6,6 +6,7 @@ const brandSchema = new mongoose.Schema(
         slug: { type: String, required: true, unique: true },
         logo: { type: String },
         description: { type: String },
+        website: { type: String, trim: true },
         isActive: { type: Boolean, default: true },
     },
     { timestamps: true }

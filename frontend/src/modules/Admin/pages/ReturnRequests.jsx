@@ -8,11 +8,16 @@ import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import { useReturnStore } from '../../../shared/store/returnStore';
-import toast from 'react-hot-toast';
 
 const ReturnRequests = () => {
   const navigate = useNavigate();
-  const { returnRequests, isLoading, fetchReturnRequests, updateReturnStatus } = useReturnStore();
+  const {
+    returnRequests,
+    isLoading,
+    pagination,
+    fetchReturnRequests,
+    updateReturnStatus,
+  } = useReturnStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
@@ -23,6 +28,26 @@ const ReturnRequests = () => {
       status: selectedStatus === 'all' ? undefined : selectedStatus
     });
   }, [searchQuery, selectedStatus, fetchReturnRequests]);
+
+  const filteredRequests = useMemo(() => {
+    if (dateFilter === 'all') return returnRequests;
+
+    const now = new Date();
+    const threshold = new Date();
+
+    if (dateFilter === 'today') {
+      threshold.setHours(0, 0, 0, 0);
+    } else if (dateFilter === 'week') {
+      threshold.setDate(now.getDate() - 7);
+    } else if (dateFilter === 'month') {
+      threshold.setDate(now.getDate() - 30);
+    }
+
+    return returnRequests.filter((req) => {
+      const requestDate = new Date(req.requestDate);
+      return requestDate >= threshold;
+    });
+  }, [returnRequests, dateFilter]);
 
   // Handle status update
   const handleStatusUpdate = async (requestId, newStatus, action = '') => {
@@ -175,14 +200,14 @@ const ReturnRequests = () => {
   // Get status counts for stats
   const statusCounts = useMemo(() => {
     return {
-      all: returnRequests.length,
-      pending: returnRequests.filter((r) => r.status === 'pending').length,
-      approved: returnRequests.filter((r) => r.status === 'approved').length,
-      processing: returnRequests.filter((r) => r.status === 'processing').length,
-      completed: returnRequests.filter((r) => r.status === 'completed').length,
-      rejected: returnRequests.filter((r) => r.status === 'rejected').length,
+      all: filteredRequests.length,
+      pending: filteredRequests.filter((r) => r.status === 'pending').length,
+      approved: filteredRequests.filter((r) => r.status === 'approved').length,
+      processing: filteredRequests.filter((r) => r.status === 'processing').length,
+      completed: filteredRequests.filter((r) => r.status === 'completed').length,
+      rejected: filteredRequests.filter((r) => r.status === 'rejected').length,
     };
-  }, [returnRequests]);
+  }, [filteredRequests]);
 
   return (
     <motion.div
@@ -272,7 +297,7 @@ const ReturnRequests = () => {
           {/* Export Button */}
           <div className="w-full sm:w-auto">
             <ExportButton
-              data={returnRequests}
+              data={filteredRequests}
               headers={[
                 { label: 'Return ID', accessor: (row) => row.id },
                 { label: 'Order ID', accessor: (row) => row.orderId },
@@ -291,15 +316,19 @@ const ReturnRequests = () => {
       </div>
 
       {/* Return Requests Table */}
-      <DataTable
-        data={returnRequests}
-        columns={columns}
-        loading={isLoading}
-        pagination={true}
-        itemsPerPage={pagination.limit}
-        totalItems={pagination.total}
-        onRowClick={(row) => navigate(`/admin/return-requests/${row.id}`)}
-      />
+      {isLoading ? (
+        <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-center text-gray-500">
+          Loading return requests...
+        </div>
+      ) : (
+        <DataTable
+          data={filteredRequests}
+          columns={columns}
+          pagination={true}
+          itemsPerPage={pagination?.limit || 10}
+          onRowClick={(row) => navigate(`/admin/return-requests/${row.id}`)}
+        />
+      )}
     </motion.div>
   );
 };

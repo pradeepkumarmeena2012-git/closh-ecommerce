@@ -6,45 +6,66 @@ import DataTable from '../../components/DataTable';
 import Badge from '../../../../shared/components/Badge';
 import ConfirmModal from '../../components/ConfirmModal';
 import AnimatedSelect from '../../components/AnimatedSelect';
-import toast from 'react-hot-toast';
+import Pagination from '../../components/Pagination';
 import { useDeliveryStore } from '../../../../shared/store/deliveryStore';
 
 const DeliveryBoys = () => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const { deliveryBoys, isLoading, fetchDeliveryBoys, addDeliveryBoy, updateStatus, pagination } = useDeliveryStore();
+  const {
+    deliveryBoys,
+    fetchDeliveryBoys,
+    addDeliveryBoy,
+    updateStatus,
+    updateDeliveryBoyDetail,
+    removeDeliveryBoy,
+    pagination
+  } = useDeliveryStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [editingBoy, setEditingBoy] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const params = {
       search: searchQuery,
       status: statusFilter === 'all' ? undefined : statusFilter,
-      page: 1,
-      limit: 10
+      page: currentPage,
+      limit: itemsPerPage
     };
     fetchDeliveryBoys(params);
-  }, [searchQuery, statusFilter, fetchDeliveryBoys]);
+  }, [searchQuery, statusFilter, currentPage, fetchDeliveryBoys]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
 
   const handleSave = async (boyData) => {
+    const payload = {
+      ...boyData,
+      isActive: boyData.status === 'active',
+    };
     if (editingBoy && editingBoy.id) {
-      // For now, only status update is implemented in backend for existing boys
-      // Future: add updateDeliveryBoyDetail to backend
-      toast.error('Update delivery boy details not yet implemented');
+      const success = await updateDeliveryBoyDetail(editingBoy.id, payload);
+      if (success) {
+        setEditingBoy(null);
+      }
     } else {
-      const success = await addDeliveryBoy(boyData);
+      const success = await addDeliveryBoy(payload);
       if (success) {
         setEditingBoy(null);
       }
     }
   };
 
-  const handleDelete = () => {
-    toast.error('Delete functionality restricted for now');
-    setDeleteModal({ isOpen: false, id: null });
+  const handleDelete = async () => {
+    const success = await removeDeliveryBoy(deleteModal.id);
+    if (success) {
+      setDeleteModal({ isOpen: false, id: null });
+    }
   };
 
   const columns = [
@@ -108,9 +129,7 @@ const DeliveryBoys = () => {
       key: 'rating',
       label: 'Rating',
       sortable: true,
-      render: (value) => (
-        <span className="font-semibold text-gray-800">{value} ⭐</span>
-      ),
+      render: (value) => <span className="font-semibold text-gray-800">{Number(value || 0)} star</span>,
     },
     {
       key: 'status',
@@ -139,6 +158,12 @@ const DeliveryBoys = () => {
           >
             <FiEdit />
           </button>
+          <button
+            onClick={() => setDeleteModal({ isOpen: true, id: row.id })}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <FiTrash2 />
+          </button>
         </div>
       ),
     },
@@ -156,7 +181,20 @@ const DeliveryBoys = () => {
           <p className="text-sm sm:text-base text-gray-600">Manage delivery personnel</p>
         </div>
         <button
-          onClick={() => setEditingBoy({ name: '', phone: '', email: '', address: '', vehicleType: 'Bike', vehicleNumber: '', status: 'active', totalDeliveries: 0, rating: 0 })}
+          onClick={() =>
+            setEditingBoy({
+              name: '',
+              phone: '',
+              email: '',
+              password: '',
+              address: '',
+              vehicleType: 'Bike',
+              vehicleNumber: '',
+              status: 'active',
+              totalDeliveries: 0,
+              rating: 0,
+            })
+          }
           className="flex items-center gap-2 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm"
         >
           <FiPlus />
@@ -194,10 +232,15 @@ const DeliveryBoys = () => {
         <DataTable
           data={deliveryBoys}
           columns={columns}
-          loading={isLoading}
-          pagination={true}
-          itemsPerPage={pagination.limit}
+          pagination={false}
+        />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={pagination.pages}
           totalItems={pagination.total}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+          className="mt-6"
         />
       </div>
 
@@ -268,6 +311,7 @@ const DeliveryBoys = () => {
                       name: formData.get('name'),
                       phone: formData.get('phone'),
                       email: formData.get('email'),
+                      password: formData.get('password'),
                       address: formData.get('address'),
                       vehicleType: formData.get('vehicleType'),
                       vehicleNumber: formData.get('vehicleNumber'),
@@ -302,6 +346,17 @@ const DeliveryBoys = () => {
                     required
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
+                  {!editingBoy.id && (
+                    <input
+                      type="password"
+                      name="password"
+                      defaultValue={editingBoy.password || ''}
+                      placeholder="Temporary Password"
+                      required
+                      minLength={6}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  )}
                   <input
                     type="text"
                     name="address"
@@ -376,4 +431,3 @@ const DeliveryBoys = () => {
 };
 
 export default DeliveryBoys;
-

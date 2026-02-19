@@ -6,41 +6,16 @@ import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatDateTime } from '../../utils/adminHelpers';
+import {
+  getAllReviews,
+  updateReviewStatus,
+  deleteReview,
+} from "../../services/adminService";
 import toast from "react-hot-toast";
 
 const ProductRatings = () => {
-  const [ratings, setRatings] = useState([
-    {
-      id: 1,
-      productId: 1,
-      productName: "Sample Product",
-      customerName: "John Doe",
-      rating: 5,
-      review: "Great product! Highly recommended.",
-      date: new Date().toISOString(),
-      status: "approved",
-    },
-    {
-      id: 2,
-      productId: 2,
-      productName: "Another Product",
-      customerName: "Jane Smith",
-      rating: 4,
-      review: "Good quality, fast shipping.",
-      date: new Date(Date.now() - 86400000).toISOString(),
-      status: "pending",
-    },
-    {
-      id: 3,
-      productId: 3,
-      productName: "Third Product",
-      customerName: "Bob Johnson",
-      rating: 3,
-      review: "Average product, could be better.",
-      date: new Date(Date.now() - 172800000).toISOString(),
-      status: "approved",
-    },
-  ]);
+  const [ratings, setRatings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRating, setSelectedRating] = useState(null);
@@ -49,30 +24,63 @@ const ProductRatings = () => {
     ratingId: null,
   });
 
-  const filteredRatings = ratings.filter((rating) => {
-    const matchesSearch =
-      !searchQuery ||
-      rating.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rating.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rating.review.toLowerCase().includes(searchQuery.toLowerCase());
+  const loadRatings = async () => {
+    setIsLoading(true);
+    try {
+      const params = {
+        search: searchQuery || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        limit: 200,
+      };
+      const response = await getAllReviews(params);
+      const reviewRows = response.data?.reviews || [];
+      const normalizedRows = reviewRows.map((row) => ({
+        ...row,
+        date: row.createdAt || row.date,
+      }));
+      setRatings(normalizedRows);
+    } catch (error) {
+      setRatings([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const matchesStatus =
-      statusFilter === "all" || rating.status === statusFilter;
+  useEffect(() => {
+    loadRatings();
+  }, [searchQuery, statusFilter]);
 
-    return matchesSearch && matchesStatus;
-  });
+  const filteredRatings = ratings;
 
-  const handleStatusChange = (id, newStatus) => {
-    setRatings(
-      ratings.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
-    );
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await updateReviewStatus(id, newStatus);
+      setRatings((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
+      );
+      if (selectedRating?.id === id) {
+        setSelectedRating((prev) => (prev ? { ...prev, status: newStatus } : prev));
+      }
+      toast.success("Review status updated");
+    } catch (error) {
+      // handled by interceptor
+    }
   };
 
   const handleDelete = () => {
     if (deleteModal.ratingId) {
-      setRatings(ratings.filter((r) => r.id !== deleteModal.ratingId));
-      toast.success("Rating deleted successfully");
-      setDeleteModal({ isOpen: false, ratingId: null });
+      deleteReview(deleteModal.ratingId)
+        .then(() => {
+          setRatings((prev) => prev.filter((r) => r.id !== deleteModal.ratingId));
+          toast.success("Rating deleted successfully");
+          setDeleteModal({ isOpen: false, ratingId: null });
+          if (selectedRating?.id === deleteModal.ratingId) {
+            setSelectedRating(null);
+          }
+        })
+        .catch(() => {
+          setDeleteModal({ isOpen: false, ratingId: null });
+        });
     }
   };
 
@@ -139,7 +147,6 @@ const ProductRatings = () => {
           options={[
             { value: "approved", label: "Approved" },
             { value: "pending", label: "Pending" },
-            { value: "rejected", label: "Rejected" },
           ]}
           className="min-w-[120px]"
         />
@@ -209,18 +216,21 @@ const ProductRatings = () => {
                 { value: "all", label: "All Status" },
                 { value: "approved", label: "Approved" },
                 { value: "pending", label: "Pending" },
-                { value: "rejected", label: "Rejected" },
               ]}
               className="min-w-[140px]"
             />
           </div>
         </div>
-        <DataTable
-          data={filteredRatings}
-          columns={columns}
-          pagination={true}
-          itemsPerPage={10}
-        />
+        {isLoading ? (
+          <div className="p-8 text-center text-gray-500">Loading ratings...</div>
+        ) : (
+          <DataTable
+            data={filteredRatings}
+            columns={columns}
+            pagination={true}
+            itemsPerPage={10}
+          />
+        )}
       </div>
 
       {/* Rating Detail Modal */}
@@ -307,7 +317,6 @@ const ProductRatings = () => {
                     options={[
                       { value: "approved", label: "Approved" },
                       { value: "pending", label: "Pending" },
-                      { value: "rejected", label: "Rejected" },
                     ]}
                     className="min-w-[120px]"
                   />

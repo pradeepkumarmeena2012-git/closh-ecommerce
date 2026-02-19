@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import * as adminService from '../../modules/Admin/services/adminService';
 import toast from 'react-hot-toast';
 
@@ -45,7 +44,10 @@ export const useDeliveryStore = create(
                 const createdBoy = {
                     ...response.data,
                     id: response.data.id || response.data._id,
-                    status: response.data.status || (response.data.isActive ? 'active' : 'inactive')
+                    status: response.data.status || (response.data.isActive ? 'active' : 'inactive'),
+                    totalDeliveries: response.data.totalDeliveries ?? 0,
+                    pendingDeliveries: response.data.pendingDeliveries ?? 0,
+                    cashInHand: response.data.cashInHand ?? 0
                 };
                 set((state) => ({
                     deliveryBoys: [createdBoy, ...state.deliveryBoys],
@@ -71,6 +73,47 @@ export const useDeliveryStore = create(
                 toast.success('Status updated successfully');
             } catch (error) {
                 toast.error(error.message || 'Failed to update status');
+            }
+        },
+
+        updateDeliveryBoyDetail: async (id, payload) => {
+            set({ isLoading: true });
+            try {
+                const response = await adminService.updateDeliveryBoy(id, payload);
+                const updatedBoy = {
+                    ...response.data,
+                    id: response.data.id || response.data._id,
+                    status: response.data.status || (response.data.isActive ? 'active' : 'inactive')
+                };
+                set((state) => ({
+                    deliveryBoys: state.deliveryBoys.map((boy) =>
+                        String(boy.id) === String(id) ? { ...boy, ...updatedBoy } : boy
+                    ),
+                    isLoading: false
+                }));
+                toast.success('Delivery boy updated successfully');
+                return true;
+            } catch (error) {
+                set({ isLoading: false });
+                toast.error(error.message || 'Failed to update delivery boy');
+                return false;
+            }
+        },
+
+        removeDeliveryBoy: async (id) => {
+            set({ isLoading: true });
+            try {
+                await adminService.deleteDeliveryBoy(id);
+                set((state) => ({
+                    deliveryBoys: state.deliveryBoys.filter((boy) => String(boy.id) !== String(id)),
+                    isLoading: false
+                }));
+                toast.success('Delivery boy deleted successfully');
+                return true;
+            } catch (error) {
+                set({ isLoading: false });
+                toast.error(error.message || 'Failed to delete delivery boy');
+                return false;
             }
         },
 

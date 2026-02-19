@@ -61,9 +61,9 @@ const ManageBrands = () => {
       sortable: true,
       render: (value, row) => (
         <div className="flex items-center gap-3">
-          {row.image && (
+          {row.logo && (
             <img
-              src={row.image}
+              src={row.logo}
               alt={value}
               className="w-10 h-10 object-cover rounded-lg"
             />

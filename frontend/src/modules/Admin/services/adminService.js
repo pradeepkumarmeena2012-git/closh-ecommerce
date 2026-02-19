@@ -127,6 +127,9 @@ export const updateCustomer = (id, data) =>
 export const updateCustomerStatus = (id, isActive) =>
     api.patch(`/admin/customers/${id}/status`, { isActive });
 
+export const deleteCustomerAddress = (customerId, addressId) =>
+    api.delete(`/admin/customers/${customerId}/addresses/${addressId}`);
+
 // ─── Delivery Boys ────────────────────────────────────────────────────────────
 export const getAllDeliveryBoys = (params = {}) =>
     api.get('/admin/delivery-boys', { params });

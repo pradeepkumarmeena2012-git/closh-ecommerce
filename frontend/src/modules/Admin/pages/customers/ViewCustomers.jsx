@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { FiSearch, FiFilter } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { FiSearch } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useCustomerStore } from '../../../../shared/store/customerStore';
 import CustomerCard from '../../components/Customers/CustomerCard';
@@ -10,7 +10,7 @@ import AnimatedSelect from '../../components/AnimatedSelect';
 import { formatPrice } from '../../../../shared/utils/helpers';
 
 const ViewCustomers = () => {
-  const { customers, initialize } = useCustomerStore();
+  const { customers, pagination, initialize } = useCustomerStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
@@ -20,35 +20,14 @@ const ViewCustomers = () => {
   const itemsPerPage = 10;
 
   useEffect(() => {
-    initialize();
-  }, []);
-
-  const filteredCustomers = useMemo(() => {
-    return customers.filter((customer) => {
-      const matchesSearch =
-        !searchQuery ||
-        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (customer.phone && customer.phone.includes(searchQuery));
-
-      const matchesStatus =
-        selectedStatus === 'all' ||
-        (selectedStatus === 'active' && customer.status === 'active') ||
-        (selectedStatus === 'blocked' && customer.status === 'blocked');
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [customers, searchQuery, selectedStatus]);
-
-  // Pagination for grid view
-  const paginatedCustomers = useMemo(() => {
-    if (viewMode !== 'grid') return filteredCustomers;
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredCustomers.slice(startIndex, endIndex);
-  }, [filteredCustomers, currentPage, itemsPerPage, viewMode]);
-
-  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+    const params = {
+      page: currentPage,
+      limit: itemsPerPage,
+      search: searchQuery,
+      status: selectedStatus !== 'all' ? selectedStatus : undefined,
+    };
+    initialize(params);
+  }, [currentPage, searchQuery, selectedStatus, initialize]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -191,14 +170,14 @@ const ViewCustomers = () => {
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-        {filteredCustomers.length === 0 ? (
+        {customers.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500">No customers found</p>
           </div>
         ) : viewMode === 'grid' ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {paginatedCustomers.map((customer) => (
+              {customers.map((customer) => (
                 <CustomerCard
                   key={customer.id}
                   customer={customer}
@@ -208,8 +187,8 @@ const ViewCustomers = () => {
             </div>
             <Pagination
               currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredCustomers.length}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
               className="mt-6"
@@ -217,10 +196,9 @@ const ViewCustomers = () => {
           </>
         ) : (
           <DataTable
-            data={filteredCustomers}
+            data={customers}
             columns={columns}
-            pagination={true}
-            itemsPerPage={10}
+            pagination={false}
           />
         )}
       </div>
@@ -230,7 +208,12 @@ const ViewCustomers = () => {
           customer={selectedCustomer}
           onClose={handleCloseDetail}
           onUpdate={() => {
-            initialize();
+            initialize({
+              page: currentPage,
+              limit: itemsPerPage,
+              search: searchQuery,
+              status: selectedStatus !== 'all' ? selectedStatus : undefined,
+            });
           }}
         />
       )}

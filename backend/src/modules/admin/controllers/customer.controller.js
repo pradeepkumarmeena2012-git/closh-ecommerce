@@ -3,6 +3,7 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import User from '../../../models/User.model.js';
 import Order from '../../../models/Order.model.js';
+import Address from '../../../models/Address.model.js';
 
 /**
  * @desc    Get all customers with pagination and filters
@@ -11,6 +12,8 @@ import Order from '../../../models/Order.model.js';
  */
 export const getAllCustomers = asyncHandler(async (req, res) => {
     const { status, search, page = 1, limit = 10 } = req.query;
+    const numericPage = Number(page) || 1;
+    const numericLimit = Number(limit) || 10;
 
     const filter = { role: 'customer' };
 
@@ -26,45 +29,71 @@ export const getAllCustomers = asyncHandler(async (req, res) => {
         ];
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (numericPage - 1) * numericLimit;
 
     const customers = await User.find(filter)
         .select('-password -otp -otpExpiry')
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(parseInt(limit));
+        .limit(numericLimit);
 
     const total = await User.countDocuments(filter);
 
-    // Aggregate stats for each customer
-    const customersWithStats = await Promise.all(customers.map(async (customer) => {
-        const stats = await Order.aggregate([
-            { $match: { userId: customer._id } },
+    const customerIds = customers.map((customer) => customer._id);
+
+    const [statsByUser, addressesByUser] = await Promise.all([
+        Order.aggregate([
+            { $match: { userId: { $in: customerIds } } },
             {
                 $group: {
-                    _id: null,
+                    _id: '$userId',
                     orders: { $sum: 1 },
-                    totalSpent: { $sum: '$total' }
-                }
-            }
-        ]);
+                    totalSpent: { $sum: '$total' },
+                    lastOrderDate: { $max: '$createdAt' },
+                },
+            },
+        ]),
+        Address.find({ userId: { $in: customerIds } })
+            .sort({ isDefault: -1, createdAt: -1 })
+            .lean(),
+    ]);
 
-        const customerStats = stats.length > 0 ? stats[0] : { orders: 0, totalSpent: 0 };
+    const statsMap = new Map(
+        statsByUser.map((stats) => [String(stats._id), stats])
+    );
+
+    const addressesMap = new Map();
+    for (const address of addressesByUser) {
+        const userId = String(address.userId);
+        const existing = addressesMap.get(userId) || [];
+        existing.push(address);
+        addressesMap.set(userId, existing);
+    }
+
+    const customersWithStats = customers.map((customer) => {
+        const customerStats = statsMap.get(String(customer._id)) || {
+            orders: 0,
+            totalSpent: 0,
+            lastOrderDate: null,
+        };
+
         return {
             ...customer._doc,
             orders: customerStats.orders,
-            totalSpent: customerStats.totalSpent
+            totalSpent: customerStats.totalSpent,
+            lastOrderDate: customerStats.lastOrderDate,
+            addresses: addressesMap.get(String(customer._id)) || [],
         };
-    }));
+    });
 
     res.status(200).json(
         new ApiResponse(200, {
             customers: customersWithStats,
             pagination: {
                 total,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                pages: Math.ceil(total / limit)
+                page: numericPage,
+                limit: numericLimit,
+                pages: Math.ceil(total / numericLimit)
             }
         }, 'Customers fetched successfully')
     );
@@ -83,17 +112,21 @@ export const getCustomerById = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Customer not found');
     }
 
-    // Get order statistics for this customer
-    const orderStats = await Order.aggregate([
-        { $match: { userId: customer._id } },
-        {
-            $group: {
-                _id: null,
-                totalOrders: { $sum: 1 },
-                totalSpent: { $sum: '$total' },
-                lastOrderDate: { $max: '$createdAt' }
+    const [orderStats, addresses] = await Promise.all([
+        Order.aggregate([
+            { $match: { userId: customer._id } },
+            {
+                $group: {
+                    _id: null,
+                    totalOrders: { $sum: 1 },
+                    totalSpent: { $sum: '$total' },
+                    lastOrderDate: { $max: '$createdAt' }
+                }
             }
-        }
+        ]),
+        Address.find({ userId: customer._id })
+            .sort({ isDefault: -1, createdAt: -1 })
+            .lean(),
     ]);
 
     const stats = orderStats.length > 0 ? orderStats[0] : {
@@ -107,7 +140,8 @@ export const getCustomerById = asyncHandler(async (req, res) => {
             ...customer._doc,
             orders: stats.totalOrders,
             totalSpent: stats.totalSpent,
-            lastOrderDate: stats.lastOrderDate
+            lastOrderDate: stats.lastOrderDate,
+            addresses
         }, 'Customer details fetched successfully')
     );
 });
@@ -159,5 +193,28 @@ export const updateCustomerDetail = asyncHandler(async (req, res) => {
 
     res.status(200).json(
         new ApiResponse(200, customer, 'Customer updated successfully')
+    );
+});
+
+/**
+ * @desc    Delete a customer address
+ * @route   DELETE /api/admin/customers/:customerId/addresses/:addressId
+ * @access  Private (Admin)
+ */
+export const deleteCustomerAddress = asyncHandler(async (req, res) => {
+    const { customerId, addressId } = req.params;
+
+    const customer = await User.findOne({ _id: customerId, role: 'customer' }).select('_id');
+    if (!customer) {
+        throw new ApiError(404, 'Customer not found');
+    }
+
+    const address = await Address.findOneAndDelete({ _id: addressId, userId: customerId });
+    if (!address) {
+        throw new ApiError(404, 'Address not found');
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, null, 'Address deleted successfully')
     );
 });

@@ -62,7 +62,7 @@ const orderSchema = new mongoose.Schema(
         couponCode: { type: String },
         couponDiscount: { type: Number, default: 0 },
         trackingNumber: { type: String, unique: true, sparse: true },
-        deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+        deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBoy', index: true },
         estimatedDelivery: Date,
         deliveredAt: Date,
         isCashSettled: { type: Boolean, default: false },

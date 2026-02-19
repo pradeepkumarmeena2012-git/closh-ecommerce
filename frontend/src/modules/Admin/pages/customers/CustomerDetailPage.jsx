@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FiArrowLeft,
@@ -7,14 +7,8 @@ import {
   FiMapPin,
   FiShoppingBag,
   FiDollarSign,
-  FiClock,
   FiEdit,
   FiCreditCard,
-  FiPackage,
-  FiCheckCircle,
-  FiXCircle,
-  FiAlertCircle,
-  FiTrendingUp,
   FiUser,
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -23,7 +17,7 @@ import Badge from '../../../../shared/components/Badge';
 import DataTable from '../../components/DataTable';
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { formatDateTime } from '../../utils/adminHelpers';
-import { mockOrders } from '../../../../data/adminMockData';
+import { getAllOrders } from '../../services/adminService';
 
 import toast from 'react-hot-toast';
 
@@ -51,62 +45,66 @@ const CustomerDetailPage = () => {
   }, [id, fetchCustomerById, navigate]);
 
   useEffect(() => {
-    // Load orders from localStorage
-    const savedOrders = localStorage.getItem('admin-orders');
-    let allOrders = [];
+    const loadCustomerOrders = async () => {
+      if (!customer?.id) return;
 
-    if (savedOrders) {
-      allOrders = JSON.parse(savedOrders);
-    } else {
-      allOrders = mockOrders.map((order) => ({
-        ...order,
-        customerId: customer?.id,
-        items: Array.isArray(order.items) ? order.items : Array.from({ length: order.items || 1 }, (_, i) => ({
-          id: i + 1,
-          name: `Product ${i + 1}`,
-          quantity: 1,
-          price: order.total / (order.items || 1),
-        })),
-      }));
-    }
+      try {
+        const response = await getAllOrders({
+          page: 1,
+          limit: 500,
+          userId: customer.id,
+        });
+        const customerOrders = response?.data?.orders || [];
+        setOrders(customerOrders);
 
-    // Filter orders by customer email or name
-    if (customer) {
-      const customerOrders = allOrders.filter(
-        (order) =>
-          order.customer?.email === customer.email ||
-          order.customer?.name === customer.name ||
-          order.customerId === customer.id
-      );
-      setOrders(customerOrders);
+        const paymentStatusMap = {
+          paid: 'completed',
+          pending: 'pending',
+          failed: 'failed',
+          refunded: 'completed',
+        };
 
-      // Generate transactions from orders
-      const generatedTransactions = customerOrders.flatMap((order) => [
-        {
-          id: `TXN-${order.id}-1`,
-          orderId: order.id,
-          amount: order.total,
-          type: 'payment',
-          status: order.status === 'cancelled' ? 'failed' : 'completed',
-          method: 'Credit Card',
-          date: order.date,
-        },
-        ...(order.status === 'cancelled'
-          ? [
-            {
-              id: `TXN-${order.id}-2`,
-              orderId: order.id,
-              amount: order.total,
-              type: 'refund',
-              status: 'completed',
-              method: 'Original Payment Method',
-              date: new Date(new Date(order.date).getTime() + 86400000).toISOString(),
-            },
-          ]
-          : []),
-      ]);
-      setTransactions(generatedTransactions);
-    }
+        const generatedTransactions = customerOrders.flatMap((order) => {
+          const orderRef = order.orderId || order._id;
+          const createdDate = order.createdAt || new Date().toISOString();
+          const baseTransaction = {
+            id: `TXN-${orderRef}-PAY`,
+            orderId: orderRef,
+            amount: Number(order.total) || 0,
+            type: 'payment',
+            status:
+              paymentStatusMap[order.paymentStatus] ||
+              (order.status === 'cancelled' ? 'failed' : 'completed'),
+            method: order.paymentMethod || 'N/A',
+            date: createdDate,
+          };
+
+          if (order.paymentStatus === 'refunded') {
+            return [
+              baseTransaction,
+              {
+                id: `TXN-${orderRef}-REF`,
+                orderId: orderRef,
+                amount: Number(order.total) || 0,
+                type: 'refund',
+                status: 'completed',
+                method: 'Original Payment Method',
+                date: order.updatedAt || createdDate,
+              },
+            ];
+          }
+
+          return [baseTransaction];
+        });
+
+        setTransactions(generatedTransactions);
+      } catch (error) {
+        setOrders([]);
+        setTransactions([]);
+      }
+    };
+
+    loadCustomerOrders();
   }, [customer]);
 
   // Set active tab from URL query parameter
@@ -151,13 +149,13 @@ const CustomerDetailPage = () => {
 
   const orderColumns = [
     {
-      key: 'id',
+      key: 'orderId',
       label: 'Order ID',
       sortable: true,
       render: (value) => <span className="font-semibold text-primary-600">{value}</span>,
     },
     {
-      key: 'date',
+      key: 'createdAt',
       label: 'Date',
       sortable: true,
       render: (value) => formatDateTime(value),
@@ -188,7 +186,7 @@ const CustomerDetailPage = () => {
       sortable: false,
       render: (_, row) => (
         <button
-          onClick={() => navigate(`/admin/orders/${row.id}`)}
+          onClick={() => navigate(`/admin/orders/${row.orderId || row._id}`)}
           className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
           View
@@ -506,13 +504,13 @@ const CustomerDetailPage = () => {
                   <div className="space-y-3">
                     {orders.slice(0, 5).map((order) => (
                       <div
-                        key={order.id}
+                        key={order.orderId || order._id}
                         className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/admin/orders/${order.id}`)}
+                        onClick={() => navigate(`/admin/orders/${order.orderId || order._id}`)}
                       >
                         <div>
-                          <p className="font-semibold text-gray-800">{order.id}</p>
-                          <p className="text-sm text-gray-500">{formatDateTime(order.date)}</p>
+                          <p className="font-semibold text-gray-800">{order.orderId || order._id}</p>
+                          <p className="text-sm text-gray-500">{formatDateTime(order.createdAt || order.date)}</p>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-gray-800">{formatPrice(order.total)}</p>

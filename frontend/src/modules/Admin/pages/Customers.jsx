@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { FiSearch, FiFilter } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import { FiSearch } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useCustomerStore } from '../../../shared/store/customerStore';
 import CustomerCard from '../components/Customers/CustomerCard';
@@ -235,7 +235,12 @@ const Customers = () => {
           customer={selectedCustomer}
           onClose={handleCloseDetail}
           onUpdate={() => {
-            initialize();
+            initialize({
+              page: currentPage,
+              limit: itemsPerPage,
+              search: searchQuery,
+              status: selectedStatus !== 'all' ? selectedStatus : undefined
+            });
           }}
         />
       )}

@@ -5,6 +5,7 @@ import DataTable from '../../components/DataTable';
 import { useCustomerStore } from '../../../../shared/store/customerStore';
 import ConfirmModal from '../../components/ConfirmModal';
 import toast from 'react-hot-toast';
+import { deleteCustomerAddress } from '../../services/adminService';
 
 const Addresses = () => {
   const { customers, initialize } = useCustomerStore();
@@ -13,7 +14,7 @@ const Addresses = () => {
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
 
   useEffect(() => {
-    initialize();
+    initialize({ page: 1, limit: 200 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -22,6 +23,7 @@ const Addresses = () => {
     const allAddresses = customers.flatMap((customer) =>
       (customer.addresses || []).map((addr) => ({
         ...addr,
+        id: addr._id || addr.id,
         customerId: customer.id,
         customerName: customer.name,
         customerEmail: customer.email,
@@ -34,15 +36,30 @@ const Addresses = () => {
     return (
       !searchQuery ||
       addr.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      addr.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      addr.city.toLowerCase().includes(searchQuery.toLowerCase())
+      (addr.address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (addr.city || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
-  const handleDelete = () => {
-    setAddresses(addresses.filter((a) => a.id !== deleteModal.id));
-    setDeleteModal({ isOpen: false, id: null });
-    toast.success('Address deleted');
+  const handleDelete = async () => {
+    const addressToDelete = addresses.find((a) => String(a.id) === String(deleteModal.id));
+    if (!addressToDelete?.customerId || !addressToDelete?.id) {
+      toast.error('Unable to delete address');
+      setDeleteModal({ isOpen: false, id: null });
+      return;
+    }
+
+    try {
+      await deleteCustomerAddress(addressToDelete.customerId, addressToDelete.id);
+      setAddresses((prev) =>
+        prev.filter((address) => String(address.id) !== String(deleteModal.id))
+      );
+      toast.success('Address deleted');
+    } catch (error) {
+      // Error toast is handled by api interceptor
+    } finally {
+      setDeleteModal({ isOpen: false, id: null });
+    }
   };
 
   const columns = [

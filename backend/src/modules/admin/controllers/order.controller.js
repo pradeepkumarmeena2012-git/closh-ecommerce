@@ -3,18 +3,31 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Order from '../../../models/Order.model.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
+import User from '../../../models/User.model.js';
 
 // GET /api/admin/orders
 export const getAllOrders = asyncHandler(async (req, res) => {
-    const { status, page = 1, limit = 20, search, startDate, endDate } = req.query;
-    const skip = (page - 1) * limit;
+    const { status, page = 1, limit = 20, search, startDate, endDate, userId } = req.query;
+    const numericPage = Number(page) || 1;
+    const numericLimit = Number(limit) || 20;
+    const skip = (numericPage - 1) * numericLimit;
     const filter = {};
 
     if (status && status !== 'all') filter.status = status;
-    if (search) filter.$or = [
-        { orderId: new RegExp(search, 'i') },
-        { 'shippingAddress.name': new RegExp(search, 'i') },
-    ];
+    if (search) {
+        const regex = new RegExp(search, 'i');
+        const matchedUsers = await User.find({
+            $or: [{ name: regex }, { email: regex }, { phone: regex }]
+        }).select('_id').limit(200).lean();
+        const matchedUserIds = matchedUsers.map((u) => u._id);
+
+        filter.$or = [
+            { orderId: regex },
+            { 'shippingAddress.name': regex },
+            { 'shippingAddress.email': regex },
+            ...(matchedUserIds.length > 0 ? [{ userId: { $in: matchedUserIds } }] : []),
+        ];
+    }
     if (startDate || endDate) {
         filter.createdAt = {};
         if (startDate) filter.createdAt.$gte = new Date(startDate);
@@ -23,6 +36,9 @@ export const getAllOrders = asyncHandler(async (req, res) => {
     if (req.query.vendorId) {
         filter['vendorItems.vendorId'] = req.query.vendorId;
     }
+    if (userId) {
+        filter.userId = userId;
+    }
 
     const [orders, total] = await Promise.all([
         Order.find(filter)
@@ -30,7 +46,7 @@ export const getAllOrders = asyncHandler(async (req, res) => {
             .populate('deliveryBoyId', 'name phone')
             .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(Number(limit))
+            .limit(numericLimit)
             .lean(),
         Order.countDocuments(filter),
     ]);
@@ -38,8 +54,8 @@ export const getAllOrders = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, {
         orders,
         total,
-        page: Number(page),
-        pages: Math.ceil(total / limit),
+        page: numericPage,
+        pages: Math.ceil(total / numericLimit),
     }, 'Orders fetched.'));
 });
 
@@ -61,9 +77,20 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     const allowed = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
     if (!allowed.includes(status)) throw new ApiError(400, `Status must be one of: ${allowed.join(', ')}`);
 
+    const update = { status };
+    if (status === 'delivered') {
+        update.deliveredAt = new Date();
+        update.cancelledAt = null;
+    } else if (status === 'cancelled') {
+        update.cancelledAt = new Date();
+    } else {
+        update.deliveredAt = null;
+        update.cancelledAt = null;
+    }
+
     const order = await Order.findOneAndUpdate(
         { $or: [{ orderId: req.params.id }, { _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null }] },
-        { status },
+        update,
         { new: true }
     ).populate('userId', 'name email');
 

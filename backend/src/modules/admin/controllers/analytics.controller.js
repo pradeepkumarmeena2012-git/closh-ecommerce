@@ -9,7 +9,7 @@ import Product from '../../../models/Product.model.js';
 export const getDashboardStats = asyncHandler(async (req, res) => {
     const [totalOrders, totalUsers, totalVendors, totalProducts, revenueAgg, pendingOrders] = await Promise.all([
         Order.countDocuments(),
-        User.countDocuments(),
+        User.countDocuments({ role: 'customer' }),
         Vendor.countDocuments({ status: 'approved' }),
         Product.countDocuments({ isActive: true }),
         Order.aggregate([{ $match: { status: { $ne: 'cancelled' } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
@@ -73,6 +73,7 @@ export const getCustomerGrowth = asyncHandler(async (req, res) => {
     const groupFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%Y-%U' : '%Y-%m';
 
     const growth = await User.aggregate([
+        { $match: { role: 'customer' } },
         { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, newUsers: { $sum: 1 } } },
         { $sort: { _id: 1 } },
         { $limit: 12 },

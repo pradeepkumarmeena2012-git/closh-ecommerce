@@ -4,11 +4,15 @@ import ApiError from '../../../utils/ApiError.js';
 import Vendor from '../../../models/Vendor.model.js';
 
 const toApiVendor = (vendorDoc) => {
-    const vendor = vendorDoc.toObject ? vendorDoc.toObject() : vendorDoc;
+    const vendor = typeof vendorDoc?.toObject === 'function'
+        ? vendorDoc.toObject()
+        : (vendorDoc || {});
+
+    const normalizedCommissionRate = Number(vendor.commissionRate);
     return {
         ...vendor,
-        commissionRate: typeof vendor.commissionRate === 'number'
-            ? vendor.commissionRate / 100
+        commissionRate: Number.isFinite(normalizedCommissionRate)
+            ? normalizedCommissionRate / 100
             : 0
     };
 };
@@ -16,14 +20,27 @@ const toApiVendor = (vendorDoc) => {
 // GET /api/admin/vendors
 export const getAllVendors = asyncHandler(async (req, res) => {
     const { status, page = 1, limit = 20, search } = req.query;
-    const skip = (page - 1) * limit;
+    const numericPage = Number(page) || 1;
+    const numericLimit = Number(limit) || 20;
+    const skip = (numericPage - 1) * numericLimit;
     const filter = {};
     if (status) filter.status = status;
     if (search) filter.$or = [{ name: new RegExp(search, 'i') }, { email: new RegExp(search, 'i') }, { storeName: new RegExp(search, 'i') }];
 
-    const vendors = await Vendor.find(filter).select('-password -otp -otpExpiry -bankDetails').sort({ createdAt: -1 }).skip(skip).limit(Number(limit));
+    const vendors = await Vendor.find(filter)
+        .select('-password -otp -otpExpiry -bankDetails')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(numericLimit);
     const total = await Vendor.countDocuments(filter);
-    res.status(200).json(new ApiResponse(200, { vendors: vendors.map(toApiVendor), total, page: Number(page), pages: Math.ceil(total / limit) }, 'Vendors fetched.'));
+    res.status(200).json(
+        new ApiResponse(200, {
+            vendors: vendors.map(toApiVendor),
+            total,
+            page: numericPage,
+            pages: Math.ceil(total / numericLimit)
+        }, 'Vendors fetched.')
+    );
 });
 
 // GET /api/admin/vendors/:id

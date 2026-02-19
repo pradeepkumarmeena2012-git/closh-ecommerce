@@ -90,10 +90,10 @@ const OrderDetail = () => {
   const itemsArray = Array.isArray(order.items) ? order.items : [];
 
   // Calculate order breakdown
-  const subtotal = order.subtotal || (order.total * 0.95);
-  const shipping = order.shipping || (order.total * 0.05);
-  const tax = order.tax || 0;
-  const discount = order.discount || 0;
+  const subtotal = order.subtotal ?? (order.total * 0.95);
+  const shipping = order.shipping ?? (order.total * 0.05);
+  const tax = order.tax ?? 0;
+  const discount = order.discount ?? 0;
 
   // Get payment method display name
   const getPaymentMethodName = (method) => {
@@ -243,7 +243,7 @@ const OrderDetail = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-gray-800 truncate">{item.name || 'Unknown Product'}</p>
                       <p className="text-xs text-gray-600">
-                        {formatCurrency(item.price || 0)} × {item.quantity || 1}
+                        {formatCurrency(item.price || 0)} x {item.quantity || 1}
                       </p>
                     </div>
                     <p className="font-bold text-sm text-gray-800">
@@ -316,7 +316,7 @@ const OrderDetail = () => {
           </div>
 
           {/* Tracking & Delivery Compact */}
-          {(order.trackingNumber || order.estimatedDelivery || order.deliveredDate) && (
+          {(order.trackingNumber || order.estimatedDelivery || order.deliveredDate || order.deliveredAt) && (
             <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
                 <FiTruck className="text-primary-600 text-base" />
@@ -338,13 +338,15 @@ const OrderDetail = () => {
                     <p className="font-semibold text-xs text-gray-800">{formatDateTime(order.estimatedDelivery)}</p>
                   </div>
                 )}
-                {order.deliveredDate && (
+                {(order.deliveredDate || order.deliveredAt) && (
                   <div>
                     <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
                       <FiPackage className="text-xs" />
                       Delivered
                     </p>
-                    <p className="font-semibold text-xs text-gray-800">{formatDateTime(order.deliveredDate)}</p>
+                    <p className="font-semibold text-xs text-gray-800">
+                      {formatDateTime(order.deliveredDate || order.deliveredAt)}
+                    </p>
                   </div>
                 )}
               </div>
@@ -430,8 +432,8 @@ const OrderDetail = () => {
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0"></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800">Delivered</p>
-                    {order.deliveredDate && (
-                      <p className="text-xs text-gray-500">{formatDateTime(order.deliveredDate)}</p>
+                    {(order.deliveredDate || order.deliveredAt) && (
+                      <p className="text-xs text-gray-500">{formatDateTime(order.deliveredDate || order.deliveredAt)}</p>
                     )}
                   </div>
                 </div>
@@ -441,8 +443,8 @@ const OrderDetail = () => {
                   <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800">Cancelled</p>
-                    {order.cancelledDate && (
-                      <p className="text-xs text-gray-500">{formatDateTime(order.cancelledDate)}</p>
+                    {(order.cancelledDate || order.cancelledAt) && (
+                      <p className="text-xs text-gray-500">{formatDateTime(order.cancelledDate || order.cancelledAt)}</p>
                     )}
                   </div>
                 </div>

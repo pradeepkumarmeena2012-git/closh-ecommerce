@@ -36,13 +36,47 @@ const Dashboard = () => {
   });
   const [revenueData, setRevenueData] = useState([]);
 
-  // Normalize API revenue data {_id, revenue, orders} → {date, revenue, orders}
-  const normalizeRevenueData = (data) =>
+  const mapUiPeriodToApiPeriod = (uiPeriod) => {
+    if (uiPeriod === "today" || uiPeriod === "week") return "daily";
+    if (uiPeriod === "month") return "weekly";
+    return "monthly";
+  };
+
+  const getDateFromBucket = (bucket = "", apiPeriod = "monthly") => {
+    if (!bucket) return new Date();
+
+    if (apiPeriod === "daily") {
+      const d = new Date(bucket);
+      return Number.isNaN(d.getTime()) ? new Date() : d;
+    }
+
+    if (apiPeriod === "weekly") {
+      const [yearStr, weekStr] = String(bucket).split("-");
+      const year = Number(yearStr);
+      const week = Number(weekStr);
+      if (Number.isNaN(year) || Number.isNaN(week)) return new Date();
+
+      const firstDay = new Date(year, 0, 1);
+      const dayOffset = (week - 1) * 7;
+      return new Date(
+        firstDay.getFullYear(),
+        firstDay.getMonth(),
+        firstDay.getDate() + dayOffset
+      );
+    }
+
+    const monthlyDate = new Date(`${bucket}-01`);
+    return Number.isNaN(monthlyDate.getTime()) ? new Date() : monthlyDate;
+  };
+
+  const normalizeRevenueData = (data, apiPeriod) =>
     (data || []).map((item) => ({
-      date: item._id ? new Date(item._id + '-01').toISOString() : new Date().toISOString(),
+      date: getDateFromBucket(item._id, apiPeriod).toISOString(),
+      bucket: item._id || "",
       revenue: item.revenue || 0,
       orders: item.orders || 0,
     }));
+
   const [orderStatusData, setOrderStatusData] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
   const [customerGrowth, setCustomerGrowth] = useState([]);
@@ -51,6 +85,8 @@ const Dashboard = () => {
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
+      const apiPeriod = mapUiPeriodToApiPeriod(period);
+
       const [
         statsRes,
         revenueRes,
@@ -60,10 +96,10 @@ const Dashboard = () => {
         recentOrdersRes,
       ] = await Promise.allSettled([
         getDashboardStats(),
-        getRevenueData(period),
+        getRevenueData(apiPeriod),
         getOrderStatusBreakdown(),
         getTopProducts(),
-        getCustomerGrowth(period),
+        getCustomerGrowth(apiPeriod),
         getRecentOrders(),
       ]);
 
@@ -79,7 +115,7 @@ const Dashboard = () => {
         });
       }
       if (revenueRes.status === "fulfilled") {
-        setRevenueData(normalizeRevenueData(revenueRes.value.data));
+        setRevenueData(normalizeRevenueData(revenueRes.value.data, apiPeriod));
       }
       if (orderStatusRes.status === "fulfilled") {
         setOrderStatusData(orderStatusRes.value.data || []);
@@ -133,7 +169,7 @@ const Dashboard = () => {
           <ExportButton
             data={revenueData}
             headers={[
-              { label: "Period", accessor: (row) => row._id },
+              { label: "Period", accessor: (row) => row.bucket || row.date },
               { label: "Revenue", accessor: (row) => formatCurrency(row.revenue) },
               { label: "Orders", accessor: (row) => row.orders },
             ]}

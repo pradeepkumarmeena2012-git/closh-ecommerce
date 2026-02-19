@@ -3,34 +3,32 @@ import {
   FiSearch,
   FiDollarSign,
   FiCheckCircle,
-  FiXCircle,
-  FiUser
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import Badge from "../../../../shared/components/Badge";
 import AnimatedSelect from "../../components/AnimatedSelect";
-import { formatCurrency, formatDateTime } from "../../utils/adminHelpers";
+import { formatCurrency } from "../../utils/adminHelpers";
 import { useDeliveryStore } from "../../../../shared/store/deliveryStore";
 
 const CashCollection = () => {
-  const { deliveryBoys, isLoading, fetchDeliveryBoys, settleCash } = useDeliveryStore();
+  const { deliveryBoys, fetchDeliveryBoys, settleCash } = useDeliveryStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending"); // Default to pending collection
 
   useEffect(() => {
-    fetchDeliveryBoys({ search: searchQuery });
+    fetchDeliveryBoys({ search: searchQuery, page: 1, limit: 200 });
   }, [searchQuery, fetchDeliveryBoys]);
 
   const boysWithCash = deliveryBoys.filter(boy => {
-    const hasCash = boy.stats.cashInHand > 0;
+    const hasCash = (boy.cashInHand || 0) > 0;
     if (statusFilter === 'pending') return hasCash;
     if (statusFilter === 'settled') return !hasCash;
     return true;
   });
 
-  const totalCollected = deliveryBoys.reduce((sum, boy) => sum + (boy.stats.totalCashCollected || 0), 0);
-  const totalPending = deliveryBoys.reduce((sum, boy) => sum + (boy.stats.cashInHand || 0), 0);
+  const totalCollected = deliveryBoys.reduce((sum, boy) => sum + Number(boy.cashCollected || 0), 0);
+  const totalPending = deliveryBoys.reduce((sum, boy) => sum + Number(boy.cashInHand || 0), 0);
 
   const columns = [
     {
@@ -50,18 +48,18 @@ const CashCollection = () => {
       )
     },
     {
-      key: "stats.cashInHand",
+      key: "cashInHand",
       label: "Cash In Hand",
       sortable: true,
       render: (value) => (
         <div className="flex items-center gap-2">
           <FiDollarSign className="text-green-600" />
-          <span className="font-bold text-gray-800">{formatCurrency(value)}</span>
+          <span className="font-bold text-gray-800">{formatCurrency(value || 0)}</span>
         </div>
       ),
     },
     {
-      key: "stats.totalDeliveries",
+      key: "totalDeliveries",
       label: "Deliveries",
       sortable: true,
     },
@@ -70,10 +68,10 @@ const CashCollection = () => {
       label: "Actions",
       sortable: false,
       render: (_, row) =>
-        row.stats.cashInHand > 0 ? (
+        row.cashInHand > 0 ? (
           <button
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold flex items-center gap-2"
-            onClick={() => settleCash(row.id, row.stats.cashInHand)}>
+            onClick={() => settleCash(row.id, row.cashInHand)}>
             <FiCheckCircle />
             Settle Cash
           </button>
@@ -142,7 +140,6 @@ const CashCollection = () => {
         <DataTable
           data={boysWithCash}
           columns={columns}
-          loading={isLoading}
           pagination={true}
           itemsPerPage={10}
         />

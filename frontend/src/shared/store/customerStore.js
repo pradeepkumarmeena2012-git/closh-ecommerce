@@ -79,8 +79,14 @@ export const useCustomerStore = create(
           }));
 
           toast.success('Customer updated successfully');
+          return {
+            ...updatedCustomer,
+            id: updatedCustomer._id,
+            status: updatedCustomer.isActive ? 'active' : 'blocked'
+          };
         } catch (error) {
           set({ isLoading: false });
+          throw error;
         }
       },
 
@@ -112,8 +118,14 @@ export const useCustomerStore = create(
           }));
 
           toast.success(`Customer ${updatedCustomer.isActive ? 'activated' : 'blocked'} successfully`);
+          return {
+            ...updatedCustomer,
+            id: updatedCustomer._id,
+            status: updatedCustomer.isActive ? 'active' : 'blocked'
+          };
         } catch (error) {
           set({ isLoading: false });
+          throw error;
         }
       },
 

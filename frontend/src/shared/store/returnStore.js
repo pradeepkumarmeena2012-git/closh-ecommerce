@@ -18,8 +18,13 @@ export const useReturnStore = create((set, get) => ({
         try {
             const response = await adminService.getAllReturnRequests(params);
             set({
-                returnRequests: response.data.returnRequests,
-                pagination: response.data.pagination,
+                returnRequests: response.data.returnRequests || [],
+                pagination: response.data.pagination || {
+                    total: 0,
+                    page: 1,
+                    limit: 10,
+                    pages: 1,
+                },
                 isLoading: false
             });
         } catch (error) {
@@ -45,9 +50,10 @@ export const useReturnStore = create((set, get) => ({
         set({ isLoading: true });
         try {
             const response = await adminService.updateReturnRequestStatus(id, statusData);
+            const updatedReq = response.data;
             set((state) => ({
                 returnRequests: state.returnRequests.map((req) =>
-                    req.id === id ? { ...req, ...response.data } : req
+                    req.id === id ? { ...req, ...updatedReq } : req
                 ),
                 isLoading: false
             }));

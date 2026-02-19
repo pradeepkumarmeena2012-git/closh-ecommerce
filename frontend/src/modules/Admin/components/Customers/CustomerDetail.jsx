@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../../../shared/store/customerStore';
 import Badge from '../../../../shared/components/Badge';
 import { formatCurrency, formatDateTime } from '../../utils/adminHelpers';
-import toast from 'react-hot-toast';
 
 const CustomerDetail = ({ customer, onClose, onUpdate }) => {
   const navigate = useNavigate();
@@ -13,6 +12,7 @@ const CustomerDetail = ({ customer, onClose, onUpdate }) => {
   const isAppRoute = location.pathname.startsWith('/app');
   const { updateCustomer, toggleCustomerStatus, addActivity } = useCustomerStore();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: customer.name,
     email: customer.email,
@@ -25,24 +25,40 @@ const CustomerDetail = ({ customer, onClose, onUpdate }) => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSave = () => {
-    updateCustomer(customer.id, formData);
-    addActivity(customer.id, {
-      type: 'update',
-      description: 'Customer information updated',
-    });
-    setIsEditing(false);
-    onUpdate?.();
+  const handleSave = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await updateCustomer(customer.id, formData);
+      addActivity(customer.id, {
+        type: 'update',
+        description: 'Customer information updated',
+      });
+      setIsEditing(false);
+      onUpdate?.();
+    } catch (error) {
+      // Error toast handled by api interceptor
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleStatusToggle = () => {
+  const handleStatusToggle = async () => {
+    if (isSubmitting) return;
     const newStatus = customer.status === 'active' ? 'blocked' : 'active';
-    toggleCustomerStatus(customer.id);
-    addActivity(customer.id, {
-      type: 'status_change',
-      description: `Customer status changed to ${newStatus}`,
-    });
-    onUpdate?.();
+    setIsSubmitting(true);
+    try {
+      await toggleCustomerStatus(customer.id);
+      addActivity(customer.id, {
+        type: 'status_change',
+        description: `Customer status changed to ${newStatus}`,
+      });
+      onUpdate?.();
+    } catch (error) {
+      // Error toast handled by api interceptor
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -136,6 +152,7 @@ const CustomerDetail = ({ customer, onClose, onUpdate }) => {
                   <>
                     <button
                       onClick={handleSave}
+                      disabled={isSubmitting}
                       className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-sm"
                     >
                       Save
@@ -159,6 +176,7 @@ const CustomerDetail = ({ customer, onClose, onUpdate }) => {
                   <>
                     <button
                       onClick={handleStatusToggle}
+                      disabled={isSubmitting}
                       className={`px-4 py-2 rounded-lg transition-colors font-semibold text-sm ${
                         customer.status === 'active'
                           ? 'bg-red-600 text-white hover:bg-red-700'

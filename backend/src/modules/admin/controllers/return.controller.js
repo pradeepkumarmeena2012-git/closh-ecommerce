@@ -1,5 +1,6 @@
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import Order from '../../../models/Order.model.js';
+import User from '../../../models/User.model.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
@@ -11,6 +12,8 @@ import { asyncHandler } from '../../../utils/asyncHandler.js';
  */
 export const getAllReturnRequests = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, search = '', status } = req.query;
+    const numericPage = Number(page) || 1;
+    const numericLimit = Number(limit) || 10;
 
     const filter = {};
 
@@ -18,11 +21,34 @@ export const getAllReturnRequests = asyncHandler(async (req, res) => {
         filter.status = status;
     }
 
-    // Search by Return ID (Object ID) or Order ID (Object ID)
-    // Note: In a real scenario, we might want to search by customer name/email via population
+    // Search by return id, order number, customer fields, and reason text
     if (search) {
-        if (search.match(/^[0-9a-fA-F]{24}$/)) {
-            filter.$or = [{ _id: search }, { orderId: search }];
+        const regex = new RegExp(search, 'i');
+        const isObjectId = search.match(/^[0-9a-fA-F]{24}$/);
+
+        const [matchedOrders, matchedUsers] = await Promise.all([
+            Order.find({ orderId: regex }).select('_id').lean(),
+            User.find({
+                $or: [{ name: regex }, { email: regex }, { phone: regex }]
+            }).select('_id').limit(200).lean(),
+        ]);
+
+        const matchedOrderIds = matchedOrders.map((o) => o._id);
+        const matchedUserIds = matchedUsers.map((u) => u._id);
+
+        const orFilters = [
+            { reason: regex },
+            { 'items.name': regex },
+            ...(matchedOrderIds.length > 0 ? [{ orderId: { $in: matchedOrderIds } }] : []),
+            ...(matchedUserIds.length > 0 ? [{ userId: { $in: matchedUserIds } }] : []),
+        ];
+
+        if (isObjectId) {
+            orFilters.push({ _id: search }, { orderId: search });
+        }
+
+        if (orFilters.length > 0) {
+            filter.$or = orFilters;
         }
     }
 
@@ -30,8 +56,8 @@ export const getAllReturnRequests = asyncHandler(async (req, res) => {
         .populate('userId', 'name email phone')
         .populate('orderId', 'orderId total')
         .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit));
+        .skip((numericPage - 1) * numericLimit)
+        .limit(numericLimit);
 
     const total = await ReturnRequest.countDocuments(filter);
 
@@ -53,9 +79,9 @@ export const getAllReturnRequests = asyncHandler(async (req, res) => {
             returnRequests: normalizedRequests,
             pagination: {
                 total,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                pages: Math.ceil(total / limit)
+                page: numericPage,
+                limit: numericLimit,
+                pages: Math.ceil(total / numericLimit)
             }
         }, 'Return requests fetched successfully')
     );
@@ -69,7 +95,7 @@ export const getAllReturnRequests = asyncHandler(async (req, res) => {
 export const getReturnRequestById = asyncHandler(async (req, res) => {
     const request = await ReturnRequest.findById(req.params.id)
         .populate('userId', 'name email phone')
-        .populate('orderId')
+        .populate('orderId', 'orderId total createdAt')
         .populate('vendorId', 'shopName email');
 
     if (!request) {
@@ -85,6 +111,8 @@ export const getReturnRequestById = asyncHandler(async (req, res) => {
             email: request.userId.email,
             phone: request.userId.phone
         } : { name: 'Guest', email: 'N/A' },
+        orderId: request.orderId?.orderId || 'N/A',
+        orderRefId: request.orderId?._id || null,
         requestDate: request.createdAt
     };
 
@@ -101,10 +129,22 @@ export const getReturnRequestById = asyncHandler(async (req, res) => {
 export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
     const { status, adminNote, refundStatus } = req.body;
 
-    const request = await ReturnRequest.findById(req.params.id);
+    const request = await ReturnRequest.findById(req.params.id)
+        .populate('userId', 'name email phone')
+        .populate('orderId', 'orderId total');
 
     if (!request) {
         throw new ApiError(404, 'Return request not found');
+    }
+
+    const allowedStatuses = ['pending', 'approved', 'processing', 'rejected', 'completed'];
+    const allowedRefundStatuses = ['pending', 'processed', 'failed'];
+
+    if (status && !allowedStatuses.includes(status)) {
+        throw new ApiError(400, `Status must be one of: ${allowedStatuses.join(', ')}`);
+    }
+    if (refundStatus && !allowedRefundStatuses.includes(refundStatus)) {
+        throw new ApiError(400, `Refund status must be one of: ${allowedRefundStatuses.join(', ')}`);
     }
 
     if (status) request.status = status;
@@ -118,7 +158,17 @@ export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
         // Logic for approved return
     }
 
-    res.status(200).json(
-        new ApiResponse(200, request, 'Return request status updated successfully')
-    );
+    const normalized = {
+        ...request._doc,
+        id: request._id,
+        customer: request.userId ? {
+            name: request.userId.name,
+            email: request.userId.email,
+            phone: request.userId.phone
+        } : { name: 'Guest', email: 'N/A' },
+        orderId: request.orderId?.orderId || 'N/A',
+        requestDate: request.createdAt
+    };
+
+    res.status(200).json(new ApiResponse(200, normalized, 'Return request status updated successfully'));
 });

@@ -71,11 +71,14 @@ router.get('/customers', ...adminAuth, customerController.getAllCustomers);
 router.get('/customers/:id', ...adminAuth, customerController.getCustomerById);
 router.put('/customers/:id', ...adminAuth, customerController.updateCustomerDetail);
 router.patch('/customers/:id/status', ...adminAuth, customerController.updateCustomerStatus);
+router.delete('/customers/:customerId/addresses/:addressId', ...adminAuth, customerController.deleteCustomerAddress);
 
 // ─── Delivery ─────────────────────────────────────────────────────────────────
 router.get('/delivery-boys', ...adminAuth, deliveryController.getAllDeliveryBoys);
 router.post('/delivery-boys', ...adminAuth, deliveryController.createDeliveryBoy);
 router.get('/delivery-boys/:id', ...adminAuth, deliveryController.getDeliveryBoyById);
+router.put('/delivery-boys/:id', ...adminAuth, deliveryController.updateDeliveryBoy);
+router.delete('/delivery-boys/:id', ...adminAuth, deliveryController.deleteDeliveryBoy);
 router.patch('/delivery-boys/:id/status', ...adminAuth, deliveryController.updateDeliveryBoyStatus);
 router.post('/delivery-boys/:id/settle-cash', ...adminAuth, deliveryController.settleCash);
 

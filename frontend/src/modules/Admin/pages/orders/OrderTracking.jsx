@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   FiSearch,
   FiMapPin,
@@ -15,6 +15,7 @@ import { getAllOrders } from "../../services/adminService";
 
 const OrderTracking = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,6 +51,16 @@ const OrderTracking = () => {
       (order.id || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (order.customer?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  useEffect(() => {
+    const orderId = searchParams.get("orderId");
+    if (!orderId || orders.length === 0) return;
+    const matched = orders.find((o) => o.id === orderId);
+    if (matched) {
+      setSelectedOrder(matched);
+      setSearchQuery(orderId);
+    }
+  }, [orders, searchParams]);
 
   const getTrackingSteps = (status) => {
     const steps = [
@@ -157,12 +168,16 @@ const OrderTracking = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <DataTable
-              data={filteredOrders}
-              columns={columns}
-              pagination={true}
-              itemsPerPage={10}
-            />
+            {isLoading ? (
+              <div className="p-8 text-center text-gray-500">Loading orders...</div>
+            ) : (
+              <DataTable
+                data={filteredOrders}
+                columns={columns}
+                pagination={true}
+                itemsPerPage={10}
+              />
+            )}
           </div>
         </div>
 

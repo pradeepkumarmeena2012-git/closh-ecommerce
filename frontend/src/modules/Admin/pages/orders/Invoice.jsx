@@ -69,10 +69,10 @@ const Invoice = () => {
     }));
 
   // Calculate totals
-  const subtotal = order.subtotal || order.total || 0;
-  const tax = order.tax || 0;
-  const discount = order.discount || 0;
-  const shipping = order.shipping || 0;
+  const subtotal = order.subtotal ?? order.total ?? 0;
+  const tax = order.tax ?? 0;
+  const discount = order.discount ?? 0;
+  const shipping = order.shipping ?? 0;
   const finalTotal =
     order.finalTotal !== undefined
       ? order.finalTotal

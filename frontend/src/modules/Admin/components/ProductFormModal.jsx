@@ -4,7 +4,12 @@ import { FiSave, FiX, FiUpload } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
 import { useBrandStore } from "../../../shared/store/brandStore";
-import { getProductById, createProduct, updateProduct } from "../services/adminService";
+import {
+  getProductById,
+  createProduct,
+  updateProduct,
+  getAllVendors,
+} from "../services/adminService";
 import CategorySelector from "./CategorySelector";
 import AnimatedSelect from "./AnimatedSelect";
 import toast from "react-hot-toast";
@@ -17,6 +22,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
 
   const { categories, initialize: initCategories } = useCategoryStore();
   const { brands, initialize: initBrands } = useBrandStore();
+  const [vendors, setVendors] = useState([]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,6 +34,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     categoryId: null,
     subcategoryId: null,
     brandId: null,
+    vendorId: "",
     stock: "in_stock",
     stockQuantity: "",
     totalAllowedQuantity: "",
@@ -57,10 +64,31 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     relatedProducts: [],
   });
 
+  const extractId = (value) => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") return value._id || value.id || "";
+    return String(value);
+  };
+
   useEffect(() => {
     initCategories();
     initBrands();
   }, [initCategories, initBrands]);
+
+  useEffect(() => {
+    const fetchVendors = async () => {
+      try {
+        const response = await getAllVendors({ status: "approved", limit: 200 });
+        const vendorRows = response.data?.vendors || [];
+        setVendors(vendorRows);
+      } catch (error) {
+        setVendors([]);
+      }
+    };
+
+    fetchVendors();
+  }, []);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -69,9 +97,13 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         const product = response.data;
 
         if (product) {
+          const productCategoryId = extractId(product.categoryId);
+          const productBrandId = extractId(product.brandId);
+          const productVendorId = extractId(product.vendorId);
+
           // Determine if categoryId is a subcategory
           const category = categories.find(
-            (cat) => cat.id === product.categoryId || cat._id === product.categoryId
+            (cat) => String(cat.id) === String(productCategoryId) || String(cat._id) === String(productCategoryId)
           );
           const isSubcategory = category && category.parentId;
 
@@ -84,11 +116,12 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
             images: product.images || [],
             categoryId: isSubcategory
               ? category.parentId
-              : product.categoryId || null,
+              : productCategoryId || null,
             subcategoryId: isSubcategory
-              ? product.categoryId
+              ? productCategoryId
               : product.subcategoryId || null,
-            brandId: product.brandId || null,
+            brandId: productBrandId || null,
+            vendorId: productVendorId || "",
             stock: product.stock || "in_stock",
             stockQuantity: product.stockQuantity || "",
             totalAllowedQuantity: product.totalAllowedQuantity || "",
@@ -142,6 +175,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         categoryId: null,
         subcategoryId: null,
         brandId: null,
+        vendorId: "",
         stock: "in_stock",
         stockQuantity: "",
         totalAllowedQuantity: "",
@@ -264,6 +298,10 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       toast.error("Please fill in all required fields");
       return;
     }
+    if (!formData.vendorId) {
+      toast.error("Please select a vendor");
+      return;
+    }
 
     // Determine final categoryId - use subcategoryId if selected, otherwise categoryId
     const finalCategoryId = formData.subcategoryId || formData.categoryId || null;
@@ -284,6 +322,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       categoryId: finalCategoryId,
       subcategoryId: formData.subcategoryId || null,
       brandId: formData.brandId || null,
+      vendorId: formData.vendorId || null,
     };
 
     try {
@@ -448,6 +487,25 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                                 value: String(brand.id),
                                 label: brand.name,
                               })),
+                          ]}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Vendor <span className="text-red-500">*</span>
+                        </label>
+                        <AnimatedSelect
+                          name="vendorId"
+                          value={formData.vendorId || ""}
+                          onChange={handleChange}
+                          placeholder="Select Vendor"
+                          options={[
+                            { value: "", label: "Select Vendor" },
+                            ...vendors.map((vendor) => ({
+                              value: String(vendor._id || vendor.id),
+                              label: vendor.storeName || vendor.name || "Vendor",
+                            })),
                           ]}
                         />
                       </div>

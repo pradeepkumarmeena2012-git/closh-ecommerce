@@ -11,6 +11,7 @@ const BrandForm = ({ brand, onClose, onSave }) => {
   const isAppRoute = location.pathname.startsWith("/app");
   const { createBrand, updateBrand } = useBrandStore();
   const isEdit = !!brand;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -40,7 +41,7 @@ const BrandForm = ({ brand, onClose, onSave }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
@@ -48,16 +49,21 @@ const BrandForm = ({ brand, onClose, onSave }) => {
       return;
     }
 
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
       if (isEdit) {
-        updateBrand(brand.id, formData);
+        await updateBrand(brand.id, formData);
       } else {
-        createBrand(formData);
+        await createBrand(formData);
       }
       onSave?.();
       onClose();
     } catch (error) {
       // Error handled in store
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -239,7 +245,11 @@ const BrandForm = ({ brand, onClose, onSave }) => {
                 <Button type="button" onClick={onClose} variant="secondary">
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" icon={FiSave}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  icon={FiSave}
+                  disabled={isSubmitting}>
                   {isEdit ? "Update Brand" : "Create Brand"}
                 </Button>
               </div>

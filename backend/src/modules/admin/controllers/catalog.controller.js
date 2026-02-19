@@ -9,16 +9,24 @@ import { slugify } from '../../../utils/slugify.js';
 // GET /api/admin/products
 export const getAllProducts = asyncHandler(async (req, res) => {
     const { page = 1, limit = 20, search, vendorId, categoryId, status } = req.query;
-    const skip = (page - 1) * limit;
+    const numericPage = Number(page) || 1;
+    const numericLimit = Number(limit) || 20;
+    const skip = (numericPage - 1) * numericLimit;
     const filter = {};
     if (search) filter.$text = { $search: search };
     if (vendorId) filter.vendorId = vendorId;
     if (categoryId) filter.categoryId = categoryId;
     if (status) filter.stock = status;
 
-    const products = await Product.find(filter).populate('vendorId', 'storeName').populate('categoryId', 'name').sort({ createdAt: -1 }).skip(skip).limit(Number(limit));
+    const products = await Product.find(filter)
+        .populate('vendorId', 'storeName')
+        .populate('categoryId', 'name')
+        .populate('brandId', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(numericLimit);
     const total = await Product.countDocuments(filter);
-    res.status(200).json(new ApiResponse(200, { products, total, page: Number(page), pages: Math.ceil(total / limit) }, 'Products fetched.'));
+    res.status(200).json(new ApiResponse(200, { products, total, page: numericPage, pages: Math.ceil(total / numericLimit) }, 'Products fetched.'));
 });
 
 // GET /api/admin/products/:id
@@ -34,7 +42,23 @@ export const getProductById = asyncHandler(async (req, res) => {
 
 // POST /api/admin/products
 export const createProduct = asyncHandler(async (req, res) => {
-    const product = await Product.create(req.body);
+    const { name, stockQuantity = 0, stock, ...rest } = req.body;
+    const slug = slugify(name) + '-' + Date.now();
+
+    const numericStockQuantity = Number(stockQuantity) || 0;
+    const normalizedStock = stock || (numericStockQuantity <= 0
+        ? 'out_of_stock'
+        : numericStockQuantity <= 10
+            ? 'low_stock'
+            : 'in_stock');
+
+    const product = await Product.create({
+        name,
+        slug,
+        stock: normalizedStock,
+        stockQuantity: numericStockQuantity,
+        ...rest,
+    });
     res.status(201).json(new ApiResponse(201, product, 'Product created.'));
 });
 
@@ -42,7 +66,24 @@ export const createProduct = asyncHandler(async (req, res) => {
 
 // PUT /api/admin/products/:id
 export const updateProduct = asyncHandler(async (req, res) => {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const payload = { ...req.body };
+    if (payload.name) {
+        payload.slug = slugify(payload.name) + '-' + Date.now();
+    }
+
+    if (payload.stockQuantity !== undefined) {
+        const numericStockQuantity = Number(payload.stockQuantity) || 0;
+        payload.stockQuantity = numericStockQuantity;
+        if (!payload.stock) {
+            payload.stock = numericStockQuantity <= 0
+                ? 'out_of_stock'
+                : numericStockQuantity <= 10
+                    ? 'low_stock'
+                    : 'in_stock';
+        }
+    }
+
+    const product = await Product.findByIdAndUpdate(req.params.id, payload, { new: true, runValidators: true });
     if (!product) throw new ApiError(404, 'Product not found.');
     res.status(200).json(new ApiResponse(200, product, 'Product updated.'));
 });
@@ -97,13 +138,19 @@ export const createBrand = asyncHandler(async (req, res) => {
 
 // PUT /api/admin/brands/:id
 export const updateBrand = asyncHandler(async (req, res) => {
-    const brand = await Brand.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const payload = { ...req.body };
+    if (payload.name) {
+        payload.slug = slugify(payload.name);
+    }
+
+    const brand = await Brand.findByIdAndUpdate(req.params.id, payload, { new: true, runValidators: true });
     if (!brand) throw new ApiError(404, 'Brand not found.');
     res.status(200).json(new ApiResponse(200, brand, 'Brand updated.'));
 });
 
 // DELETE /api/admin/brands/:id
 export const deleteBrand = asyncHandler(async (req, res) => {
-    await Brand.findByIdAndDelete(req.params.id);
+    const brand = await Brand.findByIdAndDelete(req.params.id);
+    if (!brand) throw new ApiError(404, 'Brand not found.');
     res.status(200).json(new ApiResponse(200, null, 'Brand deleted.'));
 });

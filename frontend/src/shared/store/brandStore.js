@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { brands as initialBrands } from '../../data/brands';
 import { getAllBrands, createBrand, updateBrand, deleteBrand } from '../../modules/Admin/services/adminService';
 import toast from 'react-hot-toast';
 

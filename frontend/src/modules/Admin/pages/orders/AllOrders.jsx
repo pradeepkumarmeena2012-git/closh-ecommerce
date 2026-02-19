@@ -467,18 +467,19 @@ const AllOrders = () => {
     let filtered = orders;
 
     if (searchQuery) {
+      const q = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (order) =>
-          order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          order.customer.name
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          order.customer.email.toLowerCase().includes(searchQuery.toLowerCase())
+          (order.id || "").toLowerCase().includes(q) ||
+          (order.customer?.name || "").toLowerCase().includes(q) ||
+          (order.customer?.email || "").toLowerCase().includes(q)
       );
     }
 
     if (selectedStatus !== "all") {
-      filtered = filtered.filter((order) => order.status === selectedStatus);
+      filtered = filtered.filter(
+        (order) => (order.status || "").toLowerCase() === selectedStatus
+      );
     }
 
     // Filter by date range
@@ -788,6 +789,7 @@ const AllOrders = () => {
               { value: "shipped", label: "Shipped" },
               { value: "delivered", label: "Delivered" },
               { value: "cancelled", label: "Cancelled" },
+              { value: "returned", label: "Returned" },
             ]}
             className="w-full sm:w-auto min-w-[140px]"
           />
@@ -874,12 +876,18 @@ const AllOrders = () => {
         </div>
       </div>
 
-      <DataTable
-        data={filteredOrders}
-        columns={columns}
-        pagination={true}
-        itemsPerPage={10}
-      />
+      {isLoading ? (
+        <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-center text-gray-500">
+          Loading orders...
+        </div>
+      ) : (
+        <DataTable
+          data={filteredOrders}
+          columns={columns}
+          pagination={true}
+          itemsPerPage={10}
+        />
+      )}
 
       <ConfirmModal
         isOpen={deleteModal.isOpen}

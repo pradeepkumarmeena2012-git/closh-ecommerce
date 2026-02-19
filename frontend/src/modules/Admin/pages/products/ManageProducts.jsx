@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit, FiTrash2, FiFilter } from "react-icons/fi";
+import { FiSearch, FiEdit, FiTrash2, FiPlus } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import ExportButton from "../../components/ExportButton";
@@ -16,7 +15,6 @@ import { getAllProducts, deleteProduct } from "../../services/adminService";
 import toast from "react-hot-toast";
 
 const ManageProducts = () => {
-  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const { categories, initialize: initCategories } = useCategoryStore();
   const { brands, initialize: initBrands } = useBrandStore();
@@ -119,7 +117,7 @@ const ManageProducts = () => {
       key: "stockQuantity",
       label: "Stock",
       sortable: true,
-      render: (value) => value.toLocaleString(),
+      render: (value) => Number(value || 0).toLocaleString(),
     },
     {
       key: "stock",
@@ -190,6 +188,13 @@ const ManageProducts = () => {
             View, edit, and manage your product catalog
           </p>
         </div>
+        <button
+          onClick={() => setProductFormModal({ isOpen: true, productId: "new" })}
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-semibold"
+        >
+          <FiPlus />
+          Add Product
+        </button>
       </div>
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
@@ -227,6 +232,18 @@ const ManageProducts = () => {
                 ...categories
                   .filter((cat) => cat.isActive !== false)
                   .map((cat) => ({ value: String(cat.id), label: cat.name })),
+              ]}
+              className="w-full sm:w-auto min-w-[160px]"
+            />
+
+            <AnimatedSelect
+              value={selectedBrand}
+              onChange={(e) => setSelectedBrand(e.target.value)}
+              options={[
+                { value: "all", label: "All Brands" },
+                ...brands
+                  .filter((brand) => brand.isActive !== false)
+                  .map((brand) => ({ value: String(brand.id), label: brand.name })),
               ]}
               className="w-full sm:w-auto min-w-[160px]"
             />
