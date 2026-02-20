@@ -5,22 +5,27 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import MobileLayout from "../components/Layout/MobileLayout";
 import PageTransition from '../../../shared/components/PageTransition';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const MobileVerification = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [codes, setCodes] = useState(['', '', '', '']);
-  const [isLoading, setIsLoading] = useState(false);
+  const { verifyOTP, resendOTP, isLoading } = useAuthStore();
+  const [codes, setCodes] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
 
-  const email = location.state?.email || 'your email';
+  const email = location.state?.email;
 
   // Focus first input on mount
   useEffect(() => {
+    if (!email) {
+      navigate('/register', { replace: true });
+      return;
+    }
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
-  }, []);
+  }, [email, navigate]);
 
   const handleChange = (index, value) => {
     // Only allow single digit
@@ -31,7 +36,7 @@ const MobileVerification = () => {
     setCodes(newCodes);
 
     // Auto-focus next input
-    if (value && index < 3) {
+    if (value && index < codes.length - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -46,10 +51,10 @@ const MobileVerification = () => {
   const handlePaste = (e) => {
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text').trim();
-    if (pastedData.length === 4 && /^\d+$/.test(pastedData)) {
+    if (pastedData.length === codes.length && /^\d+$/.test(pastedData)) {
       const newCodes = pastedData.split('');
       setCodes(newCodes);
-      inputRefs.current[3]?.focus();
+      inputRefs.current[codes.length - 1]?.focus();
     }
   };
 
@@ -57,26 +62,28 @@ const MobileVerification = () => {
     e.preventDefault();
     const verificationCode = codes.join('');
 
-    if (verificationCode.length !== 4) {
+    if (verificationCode.length !== codes.length) {
       toast.error('Please enter the complete verification code');
       return;
     }
 
-    setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await verifyOTP(email, verificationCode);
       toast.success('Verification successful!');
       navigate('/');
     } catch (error) {
       toast.error('Invalid verification code. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleResend = () => {
-    toast.success('Verification code sent to your email');
+  const handleResend = async () => {
+    if (!email) return;
+    try {
+      await resendOTP(email);
+      toast.success('Verification code sent to your email');
+    } catch (error) {
+      toast.error(error?.message || 'Failed to resend code. Please try again.');
+    }
   };
 
   return (
@@ -119,7 +126,7 @@ const MobileVerification = () => {
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">Verification code</h2>
                 <p className="text-sm text-gray-600">
                   Enter the verification code we've sent to your{' '}
-                  <span className="font-medium text-gray-900">{email}</span>
+                  <span className="font-medium text-gray-900">{email || 'email'}</span>
                 </p>
               </div>
 

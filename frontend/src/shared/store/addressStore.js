@@ -1,76 +1,125 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import api from '../utils/api';
+
+const normalizeAddress = (address) => ({
+  ...address,
+  id: address?.id || address?._id,
+});
 
 export const useAddressStore = create(
   persist(
     (set, get) => ({
-      addresses: [
-        {
-          id: '1',
-          name: 'Home',
-          fullName: 'John Doe',
-          phone: '1234567890',
-          address: '123 Main Street',
-          city: 'New York',
-          state: 'NY',
-          zipCode: '10001',
-          country: 'United States',
-          isDefault: true,
-        },
-        {
-          id: '2',
-          name: 'Work',
-          fullName: 'John Doe',
-          phone: '1234567890',
-          address: '456 Business Ave',
-          city: 'New York',
-          state: 'NY',
-          zipCode: '10002',
-          country: 'United States',
-          isDefault: false,
-        },
-      ],
+      addresses: [],
+      isLoading: false,
+      hasFetched: false,
+
+      fetchAddresses: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await api.get('/user/addresses');
+          const payload = response?.data ?? response;
+          const list = Array.isArray(payload)
+            ? payload.map(normalizeAddress)
+            : [];
+          set({ addresses: list, isLoading: false, hasFetched: true });
+          return list;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
 
       // Add a new address
-      addAddress: (address) => {
-        const state = get();
-        const newAddress = {
-          ...address,
-          id: Date.now().toString(),
-          isDefault: state.addresses.length === 0,
-        };
-        
-        set((state) => ({
-          addresses: [...state.addresses, newAddress],
-        }));
-        
-        return newAddress;
+      addAddress: async (address) => {
+        set({ isLoading: true });
+        try {
+          const state = get();
+          const payload = {
+            ...address,
+            phone: String(address?.phone || '').replace(/\D/g, '').slice(-10),
+            isDefault: state.addresses.length === 0 || Boolean(address?.isDefault),
+          };
+          const response = await api.post('/user/addresses', payload);
+          const created = normalizeAddress(response?.data ?? response);
+
+          set((curr) => ({
+            addresses: payload.isDefault
+              ? [...curr.addresses.map((addr) => ({ ...addr, isDefault: false })), created]
+              : [...curr.addresses, created],
+            isLoading: false,
+          }));
+
+          return created;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
       },
 
       // Update an existing address
-      updateAddress: (id, updatedAddress) => {
-        set((state) => ({
-          addresses: state.addresses.map((addr) =>
-            addr.id === id ? { ...addr, ...updatedAddress } : addr
-          ),
-        }));
+      updateAddress: async (id, updatedAddress) => {
+        set({ isLoading: true });
+        try {
+          const payload = {
+            ...updatedAddress,
+            phone: String(updatedAddress?.phone || '').replace(/\D/g, '').slice(-10),
+          };
+          const response = await api.put(`/user/addresses/${id}`, payload);
+          const updated = normalizeAddress(response?.data ?? response);
+
+          set((state) => ({
+            addresses: state.addresses.map((addr) =>
+              String(addr.id) === String(id)
+                ? updated
+                : updated.isDefault
+                  ? { ...addr, isDefault: false }
+                  : addr
+            ),
+            isLoading: false,
+          }));
+          return updated;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
       },
 
       // Delete an address
-      deleteAddress: (id) => {
-        set((state) => ({
-          addresses: state.addresses.filter((addr) => addr.id !== id),
-        }));
+      deleteAddress: async (id) => {
+        set({ isLoading: true });
+        try {
+          await api.delete(`/user/addresses/${id}`);
+          set((state) => ({
+            addresses: state.addresses.filter((addr) => String(addr.id) !== String(id)),
+            isLoading: false,
+          }));
+          return true;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
       },
 
       // Set default address
-      setDefaultAddress: (id) => {
-        set((state) => ({
-          addresses: state.addresses.map((addr) => ({
-            ...addr,
-            isDefault: addr.id === id,
-          })),
-        }));
+      setDefaultAddress: async (id) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.patch(`/user/addresses/${id}/default`);
+          const updated = normalizeAddress(response?.data ?? response);
+
+          set((state) => ({
+            addresses: state.addresses.map((addr) => ({
+              ...addr,
+              isDefault: String(addr.id) === String(updated.id),
+            })),
+            isLoading: false,
+          }));
+          return updated;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
       },
 
       // Get default address
@@ -83,6 +132,10 @@ export const useAddressStore = create(
       getAddresses: () => {
         const state = get();
         return state.addresses;
+      },
+
+      resetAddresses: () => {
+        set({ addresses: [], hasFetched: false });
       },
     }),
     {

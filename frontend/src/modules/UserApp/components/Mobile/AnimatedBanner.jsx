@@ -7,11 +7,9 @@ import { FiArrowRight, FiZap, FiTag } from "react-icons/fi";
 import sneakersImg from "../../../../../data/products/sneakers.png";
 import watchImg from "../../../../../data/products/stylish watch.png";
 import sunglassImg from "../../../../../data/products/sunglass.png";
-import beltImg from "../../../../../data/products/belt.png";
 
 const AnimatedBanner = () => {
   const [currentBanner, setCurrentBanner] = useState(0);
-  const [ripples, setRipples] = useState([]);
 
   const banners = [
     {
@@ -55,30 +53,6 @@ const AnimatedBanner = () => {
     }, 4000);
     return () => clearInterval(interval);
   }, [banners.length]);
-
-  // Ripple effect handler
-  const handleRipple = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
-    // Ensure valid numbers
-    if (isNaN(x) || isNaN(y)) return;
-
-    const newRipple = {
-      id: Date.now(),
-      x: Math.max(0, x),
-      y: Math.max(0, y),
-    };
-
-    setRipples((prev) => [...prev, newRipple]);
-
-    setTimeout(() => {
-      setRipples((prev) => prev.filter((r) => r.id !== newRipple.id));
-    }, 600);
-  };
 
   return (
     <div className="px-4 py-3">
@@ -176,8 +150,6 @@ const AnimatedBanner = () => {
                 {/* Content */}
                 <Link
                   to={banner.link}
-                  onClick={handleRipple}
-                  onTouchStart={handleRipple}
                   className="relative z-10 h-full flex pt-2 justify-between group">
                   <div className="flex-1">
                     <motion.div

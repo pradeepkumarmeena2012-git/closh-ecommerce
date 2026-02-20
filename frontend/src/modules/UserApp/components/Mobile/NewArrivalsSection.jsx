@@ -1,12 +1,10 @@
 import { motion } from "framer-motion";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { FiTag } from "react-icons/fi";
 import LazyImage from "../../../../shared/components/LazyImage";
-import { getNewArrivals } from "../../../../data/products";
+import { getNewArrivals } from "../../data/catalogData";
 
 const NewArrivalsSection = () => {
-  const location = useLocation();
-  const isMobileApp = location.pathname.startsWith("/");
   const newArrivals = getNewArrivals(6);
 
   if (newArrivals.length === 0) {

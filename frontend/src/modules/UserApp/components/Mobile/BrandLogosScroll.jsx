@@ -1,12 +1,11 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { brands } from '../../../../data/brands';
-import LazyImage from '../../../../shared/components/LazyImage';
+import { getCatalogBrands } from '../../data/catalogData';
 
 const BrandLogosScroll = () => {
     const navigate = useNavigate();
     // Use existing brands, can be expanded to 8-10 when more brands are added
-    const displayBrands = brands.slice(0, 10);
+    const displayBrands = getCatalogBrands().slice(0, 10);
 
     return (
         <section className="bg-transparent w-full overflow-hidden">

@@ -531,5 +531,6 @@ export const getProductsByBrand = (brandId) => {
 };
 
 export const getProductsByVendor = (vendorId) => {
-  return products.filter((p) => p.vendorId === parseInt(vendorId));
+  const targetId = String(vendorId ?? "").trim();
+  return products.filter((p) => String(p.vendorId ?? "").trim() === targetId);
 };

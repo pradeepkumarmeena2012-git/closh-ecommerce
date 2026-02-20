@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FiFilter, FiArrowLeft, FiGrid, FiList, FiX, FiMapPin, FiCheckCircle, FiStar, FiShoppingBag, FiInfo } from "react-icons/fi";
+import { FiFilter, FiArrowLeft, FiGrid, FiList, FiX, FiCheckCircle, FiStar, FiShoppingBag } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import MobileLayout from "../components/Layout/MobileLayout";
 import ProductCard from "../../../shared/components/ProductCard";
 import ProductListItem from "../components/Mobile/ProductListItem";
-import { getProductsByVendor } from "../../../data/products";
-import { getVendorById } from "../../../data/vendors";
+import { getProductsByVendor, getVendorById } from "../data/catalogData";
 import PageTransition from "../../../shared/components/PageTransition";
 import useInfiniteScroll from "../../../shared/hooks/useInfiniteScroll";
 import LazyImage from "../../../shared/components/LazyImage";
@@ -15,7 +14,7 @@ import { getPlaceholderImage } from "../../../shared/utils/helpers";
 const Seller = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const vendorId = parseInt(id);
+    const vendorId = String(id ?? "").trim();
 
     // Get vendor information
     const vendor = useMemo(() => getVendorById(vendorId), [vendorId]);

@@ -1,26 +1,33 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const useInfiniteScroll = (items, itemsPerPage = 12, initialCount = 12) => {
-  const [displayedItems, setDisplayedItems] = useState([]);
-  const [hasMore, setHasMore] = useState(true);
+  const initialItems = Array.isArray(items) ? items : [];
+  const [displayedItems, setDisplayedItems] = useState(() =>
+    initialItems.slice(0, initialCount)
+  );
+  const [hasMore, setHasMore] = useState(initialItems.length > initialCount);
   const [isLoading, setIsLoading] = useState(false);
-  const observerRef = useRef(null);
   const loadMoreRef = useRef(null);
-  const prevItemsLengthRef = useRef(items?.length || 0);
-  const prevInitialCountRef = useRef(initialCount);
 
-  // Reset when items change (compare by length to avoid infinite loops from new array references)
-  useEffect(() => {
-    const itemsLength = items?.length || 0;
-    const itemsChanged = itemsLength !== prevItemsLengthRef.current || initialCount !== prevInitialCountRef.current;
-    
-    if (itemsChanged && items) {
-      prevItemsLengthRef.current = itemsLength;
-      prevInitialCountRef.current = initialCount;
-      setDisplayedItems(items.slice(0, initialCount));
-      setHasMore(itemsLength > initialCount);
+  const getItemKey = (item, index) => {
+    if (item && typeof item === 'object') {
+      if (item.id !== undefined && item.id !== null) return String(item.id);
+      if (item._id !== undefined && item._id !== null) return String(item._id);
+      if (item.slug) return String(item.slug);
+      if (item.name) return `name:${item.name}:${index}`;
     }
-  }, [items, initialCount]);
+    return `idx:${index}:${String(item)}`;
+  };
+
+  // Signature based reset handles same-length item set changes safely
+  const itemsSignature = initialItems
+    .map((item, index) => getItemKey(item, index))
+    .join('|');
+
+  useEffect(() => {
+    setDisplayedItems(initialItems.slice(0, initialCount));
+    setHasMore(initialItems.length > initialCount);
+  }, [itemsSignature, initialCount]);
 
   const loadMore = useCallback(() => {
     if (isLoading || !hasMore) return;
@@ -31,13 +38,13 @@ const useInfiniteScroll = (items, itemsPerPage = 12, initialCount = 12) => {
     setTimeout(() => {
       const currentCount = displayedItems.length;
       const nextCount = currentCount + itemsPerPage;
-      const newItems = items.slice(0, nextCount);
+      const newItems = initialItems.slice(0, nextCount);
       
       setDisplayedItems(newItems);
-      setHasMore(nextCount < items.length);
+      setHasMore(nextCount < initialItems.length);
       setIsLoading(false);
     }, 300);
-  }, [items, displayedItems.length, itemsPerPage, hasMore, isLoading]);
+  }, [initialItems, displayedItems.length, itemsPerPage, hasMore, isLoading]);
 
   // Intersection Observer for automatic loading
   useEffect(() => {

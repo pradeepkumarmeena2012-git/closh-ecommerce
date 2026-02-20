@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { FiThumbsUp, FiArrowRight } from "react-icons/fi";
 import ProductCard from "../../../../shared/components/ProductCard";
-import { getRecommendedProducts } from '../../../../data/products';
+import { getRecommendedProducts } from "../../data/catalogData";
 
 const RecommendedSection = () => {
   const recommended = useMemo(() => getRecommendedProducts(6), []);

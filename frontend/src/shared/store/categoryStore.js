@@ -14,12 +14,12 @@ export const useCategoryStore = create(
       initialize: async () => {
         set({ isLoading: true });
         try {
-          const isVendorArea =
+          const isAdminArea =
             typeof window !== 'undefined' &&
-            window.location.pathname.startsWith('/vendor');
-          const response = isVendorArea
-            ? await getPublicCategories()
-            : await getAllCategories();
+            window.location.pathname.startsWith('/admin');
+          const response = isAdminArea
+            ? await getAllCategories()
+            : await getPublicCategories();
           const normalizedCategories = response.data.map(cat => ({
             ...cat,
             id: cat._id // Ensure UI compatibility by aliasing _id to id

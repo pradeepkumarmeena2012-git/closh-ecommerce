@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiPackage, FiTruck, FiMapPin, FiCreditCard, FiRotateCw, FiArrowLeft, FiShoppingBag } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -15,15 +15,41 @@ import LazyImage from '../../../shared/components/LazyImage';
 const MobileOrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { getOrder, cancelOrder } = useOrderStore();
+  const { getOrder, cancelOrder, fetchOrderById } = useOrderStore();
   const { addItem } = useCartStore();
+  const [isResolving, setIsResolving] = useState(true);
   const order = getOrder(orderId);
 
   useEffect(() => {
-    if (!order) {
+    let mounted = true;
+    (async () => {
+      if (!order && orderId) {
+        await fetchOrderById(orderId);
+      }
+      if (mounted) setIsResolving(false);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [order, orderId, fetchOrderById]);
+
+  useEffect(() => {
+    if (!isResolving && !order) {
       navigate('/orders');
     }
-  }, [order, navigate]);
+  }, [isResolving, order, navigate]);
+
+  if (isResolving) {
+    return (
+      <PageTransition>
+        <MobileLayout showBottomNav={false} showCartBar={false}>
+          <div className="flex items-center justify-center min-h-[60vh] px-4">
+            <p className="text-gray-600">Loading order...</p>
+          </div>
+        </MobileLayout>
+      </PageTransition>
+    );
+  }
 
   if (!order) {
     return (
@@ -68,12 +94,16 @@ const MobileOrderDetail = () => {
     navigate('/checkout');
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (window.confirm('Are you sure you want to cancel this order?')) {
       if (['pending', 'processing'].includes(order.status)) {
-        cancelOrder(order.id);
-        toast.success('Order cancelled successfully');
-        navigate('/orders');
+        try {
+          await cancelOrder(order.id);
+          toast.success('Order cancelled successfully');
+          navigate('/orders');
+        } catch (error) {
+          toast.error(error?.message || 'Failed to cancel order');
+        }
       } else {
         toast.error('This order cannot be cancelled');
       }

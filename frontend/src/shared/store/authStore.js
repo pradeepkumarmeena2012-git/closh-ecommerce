@@ -9,36 +9,32 @@ export const useAuthStore = create(
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      pendingEmail: null,
 
       // Login action
       login: async (email, password, rememberMe = false) => {
         set({ isLoading: true });
         try {
-          // For now, using mock authentication
-          // Replace with actual API call when backend is ready
-          // const response = await api.post('/auth/login', { email, password });
-          
-          // Mock response for development
-          const mockUser = {
-            id: '1',
-            name: 'John Doe',
-            email: email,
-            phone: '+1234567890',
-            avatar: null,
-          };
-          const mockToken = 'mock-jwt-token-' + Date.now();
+          const response = await api.post('/user/auth/login', { email, password });
+          const payload = response?.data ?? response;
+          const accessToken = payload?.accessToken;
+          const user = payload?.user;
+
+          if (!accessToken || !user) {
+            throw new Error('Invalid login response from server.');
+          }
 
           set({
-            user: mockUser,
-            token: mockToken,
+            user,
+            token: accessToken,
             isAuthenticated: true,
+            pendingEmail: null,
             isLoading: false,
           });
 
-          // Store token in localStorage for API interceptor
-          localStorage.setItem('token', mockToken);
-          
-          return { success: true, user: mockUser };
+          localStorage.setItem('token', accessToken);
+
+          return { success: true, user };
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -49,31 +45,69 @@ export const useAuthStore = create(
       register: async (name, email, password, phone) => {
         set({ isLoading: true });
         try {
-          // For now, using mock registration
-          // Replace with actual API call when backend is ready
-          // const response = await api.post('/auth/register', { name, email, password, phone });
-          
-          // Mock response for development
-          const mockUser = {
-            id: '1',
-            name: name,
-            email: email,
-            phone: phone || '',
-            avatar: null,
+          const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+          const payload = {
+            name,
+            email,
+            password,
+            ...(normalizedPhone ? { phone: normalizedPhone } : {}),
           };
-          const mockToken = 'mock-jwt-token-' + Date.now();
+
+          await api.post('/user/auth/register', payload);
 
           set({
-            user: mockUser,
-            token: mockToken,
-            isAuthenticated: true,
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            pendingEmail: email,
             isLoading: false,
           });
 
-          // Store token in localStorage for API interceptor
-          localStorage.setItem('token', mockToken);
-          
-          return { success: true, user: mockUser };
+          localStorage.removeItem('token');
+
+          return { success: true, email };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Verify OTP and complete login
+      verifyOTP: async (email, otp) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/user/auth/verify-otp', { email, otp });
+          const payload = response?.data ?? response;
+          const accessToken = payload?.accessToken;
+          const user = payload?.user;
+
+          if (!accessToken || !user) {
+            throw new Error('Invalid OTP verification response from server.');
+          }
+
+          set({
+            user,
+            token: accessToken,
+            isAuthenticated: true,
+            pendingEmail: null,
+            isLoading: false,
+          });
+
+          localStorage.setItem('token', accessToken);
+          return { success: true, user };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Resend OTP
+      resendOTP: async (email) => {
+        set({ isLoading: true });
+        try {
+          await api.post('/user/auth/resend-otp', { email });
+          set({ isLoading: false });
+          return { success: true };
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -86,6 +120,7 @@ export const useAuthStore = create(
           user: null,
           token: null,
           isAuthenticated: false,
+          pendingEmail: null,
         });
         localStorage.removeItem('token');
       },
@@ -94,12 +129,18 @@ export const useAuthStore = create(
       updateProfile: async (profileData) => {
         set({ isLoading: true });
         try {
-          // Mock update - replace with actual API call
-          // const response = await api.put('/auth/profile', profileData);
-          
-          const currentUser = get().user;
-          const updatedUser = { ...currentUser, ...profileData };
-          
+          const response = await api.put('/user/auth/profile', {
+            name: profileData?.name,
+            phone: profileData?.phone,
+          });
+          const payload = response?.data ?? response;
+          const currentUser = get().user || {};
+          const updatedUser = {
+            ...currentUser,
+            ...payload,
+            email: currentUser.email || payload.email,
+          };
+
           set({
             user: updatedUser,
             isLoading: false,
@@ -116,9 +157,10 @@ export const useAuthStore = create(
       changePassword: async (currentPassword, newPassword) => {
         set({ isLoading: true });
         try {
-          // Mock change password - replace with actual API call
-          // await api.put('/auth/change-password', { currentPassword, newPassword });
-          
+          await api.post('/user/auth/change-password', {
+            currentPassword,
+            newPassword,
+          });
           set({ isLoading: false });
           return { success: true };
         } catch (error) {
@@ -131,12 +173,11 @@ export const useAuthStore = create(
       initialize: () => {
         const token = localStorage.getItem('token');
         if (token) {
-          // In a real app, verify token with backend
           const storedState = JSON.parse(localStorage.getItem('auth-storage') || '{}');
-          if (storedState.state?.user && storedState.state?.token) {
+          if (storedState.state?.user) {
             set({
               user: storedState.state.user,
-              token: storedState.state.token,
+              token,
               isAuthenticated: true,
             });
           }

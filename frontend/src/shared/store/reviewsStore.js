@@ -1,29 +1,100 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import api from '../utils/api';
+
+const isMongoObjectId = (value) => typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
+
+const normalizeReview = (review) => ({
+  ...review,
+  id: review?.id || review?._id || Date.now().toString(),
+  user: review?.user || review?.userId?.name || 'User',
+  date: review?.date || review?.createdAt || new Date().toISOString(),
+  helpfulCount: review?.helpfulCount || 0,
+  notHelpfulCount: review?.notHelpfulCount || 0,
+});
 
 export const useReviewsStore = create(
   persist(
     (set, get) => ({
       reviews: {},
       votes: {},
+      isLoading: false,
+      error: null,
 
-      // Add review for a product
-      addReview: (productId, review) => {
-        set((state) => {
-          const productReviews = state.reviews[productId] || [];
-          const newReview = {
-            ...review,
-            id: Date.now().toString(),
-            helpfulCount: 0,
-            notHelpfulCount: 0,
-          };
-          return {
+      fetchReviews: async (productId, options = {}) => {
+        if (!productId || !isMongoObjectId(String(productId))) {
+          return get().sortReviews(productId, options?.sort || 'newest');
+        }
+
+        set({ isLoading: true, error: null });
+        try {
+          const { sort = 'newest', page = 1, limit = 20 } = options;
+          const response = await api.get(
+            `/user/reviews/product/${productId}?sort=${encodeURIComponent(sort)}&page=${page}&limit=${limit}`
+          );
+          const payload = response?.data || {};
+          const fetched = Array.isArray(payload?.reviews)
+            ? payload.reviews.map(normalizeReview)
+            : [];
+
+          set((state) => ({
             reviews: {
               ...state.reviews,
-              [productId]: [...productReviews, newReview],
+              [productId]: fetched,
             },
-          };
-        });
+            isLoading: false,
+          }));
+
+          return fetched;
+        } catch (error) {
+          set({ isLoading: false, error: error?.message || 'Failed to fetch reviews' });
+          return get().sortReviews(productId, options?.sort || 'newest');
+        }
+      },
+
+      // Add review for a product
+      addReview: async (productId, review) => {
+        const normalizedProductId = String(productId);
+
+        if (!isMongoObjectId(normalizedProductId)) {
+          set((state) => {
+            const productReviews = state.reviews[normalizedProductId] || [];
+            const newReview = normalizeReview({
+              ...review,
+              id: Date.now().toString(),
+            });
+            return {
+              reviews: {
+                ...state.reviews,
+                [normalizedProductId]: [...productReviews, newReview],
+              },
+            };
+          });
+          return true;
+        }
+
+        try {
+          const response = await api.post('/user/reviews', {
+            productId: normalizedProductId,
+            orderId: review?.orderId,
+            rating: review?.rating,
+            comment: review?.comment,
+            images: review?.images || [],
+          });
+          const payload = response?.data;
+          if (payload) {
+            const added = normalizeReview(payload);
+            set((state) => ({
+              reviews: {
+                ...state.reviews,
+                [normalizedProductId]: [...(state.reviews[normalizedProductId] || []), added],
+              },
+            }));
+          }
+          return true;
+        } catch {
+          return false;
+        }
       },
 
       // Get reviews for a product
@@ -33,14 +104,49 @@ export const useReviewsStore = create(
       },
 
       // Vote on review helpfulness
-      voteHelpful: (productId, reviewId) => {
+      voteHelpful: async (productId, reviewId) => {
+        const normalizedProductId = String(productId);
+        const voteKey = `${normalizedProductId}_${reviewId}`;
+        if (get().votes[voteKey]) {
+          return false;
+        }
+
+        if (isMongoObjectId(normalizedProductId) && isMongoObjectId(String(reviewId))) {
+          try {
+            const response = await api.post(`/user/reviews/${reviewId}/helpful`);
+            const payload = response?.data;
+            const helpfulCount = payload?.helpfulCount;
+            set((state) => ({
+              reviews: {
+                ...state.reviews,
+                [normalizedProductId]: (state.reviews[normalizedProductId] || []).map((review) =>
+                  review.id === reviewId || review._id === reviewId
+                    ? {
+                      ...review,
+                      helpfulCount: typeof helpfulCount === 'number'
+                        ? helpfulCount
+                        : (review.helpfulCount || 0) + 1,
+                    }
+                    : review
+                ),
+              },
+              votes: {
+                ...state.votes,
+                [voteKey]: 'helpful',
+              },
+            }));
+            return true;
+          } catch {
+            return false;
+          }
+        }
+
         set((state) => {
-          const voteKey = `${productId}_${reviewId}`;
           if (state.votes[voteKey]) {
             return state; // Already voted
           }
 
-          const productReviews = state.reviews[productId] || [];
+          const productReviews = state.reviews[normalizedProductId] || [];
           const updatedReviews = productReviews.map((review) =>
             review.id === reviewId
               ? { ...review, helpfulCount: (review.helpfulCount || 0) + 1 }
@@ -50,7 +156,7 @@ export const useReviewsStore = create(
           return {
             reviews: {
               ...state.reviews,
-              [productId]: updatedReviews,
+              [normalizedProductId]: updatedReviews,
             },
             votes: {
               ...state.votes,
@@ -58,6 +164,7 @@ export const useReviewsStore = create(
             },
           };
         });
+        return true;
       },
 
       // Vote on review not helpful

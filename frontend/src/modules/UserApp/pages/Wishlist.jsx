@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FiHeart, FiArrowLeft, FiGrid, FiList } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
@@ -7,15 +7,23 @@ import SwipeableWishlistItem from "../components/Mobile/SwipeableWishlistItem";
 import WishlistGridItem from "../components/Mobile/WishlistGridItem";
 import { useWishlistStore } from "../../../shared/store/wishlistStore";
 import { useCartStore } from "../../../shared/store/useStore";
+import { useAuthStore } from "../../../shared/store/authStore";
 import toast from "react-hot-toast";
 import PageTransition from '../../../shared/components/PageTransition';
 import ProtectedRoute from "../../../shared/components/Auth/ProtectedRoute";
 
 const MobileWishlist = () => {
   const navigate = useNavigate();
-  const { items, removeItem, moveToCart, clearWishlist } = useWishlistStore();
+  const { isAuthenticated } = useAuthStore();
+  const { items, removeItem, moveToCart, clearWishlist, fetchWishlist, isLoading } = useWishlistStore();
   const { addItem } = useCartStore();
   const [viewMode, setViewMode] = useState("list"); // 'list' or 'grid'
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchWishlist().catch(() => null);
+    }
+  }, [isAuthenticated, fetchWishlist]);
 
   const handleMoveToCart = (item) => {
     const wishlistItem = moveToCart(item.id);
@@ -94,7 +102,11 @@ const MobileWishlist = () => {
 
             {/* Content */}
             <div className="px-4 py-4">
-              {items.length === 0 ? (
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-600">Loading wishlist...</p>
+                </div>
+              ) : items.length === 0 ? (
                 <EmptyWishlistState />
               ) : (
                 <WishlistItems

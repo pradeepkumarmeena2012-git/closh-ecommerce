@@ -6,9 +6,8 @@ import MobileLayout from "../components/Layout/MobileLayout";
 import ProductCard from '../../../shared/components/ProductCard';
 import ProductListItem from '../components/Mobile/ProductListItem';
 import SearchSuggestions from '../components/Mobile/SearchSuggestions';
-import { products } from '../../../data/products';
+import { getCatalogProducts, getApprovedVendors } from '../data/catalogData';
 import { categories } from '../../../data/categories';
-import { getApprovedVendors } from '../../../data/vendors';
 import PageTransition from '../../../shared/components/PageTransition';
 import useInfiniteScroll from '../../../shared/hooks/useInfiniteScroll';
 import toast from 'react-hot-toast';
@@ -108,7 +107,7 @@ const MobileSearch = () => {
   };
 
   const filteredProducts = useMemo(() => {
-    let result = products;
+    let result = getCatalogProducts();
 
     if (searchQuery) {
       result = result.filter((product) =>

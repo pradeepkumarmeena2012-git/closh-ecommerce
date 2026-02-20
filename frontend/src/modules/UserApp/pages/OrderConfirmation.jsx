@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FiCheckCircle, FiTruck, FiPackage, FiArrowLeft, FiEye } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -11,14 +11,40 @@ import LazyImage from '../../../shared/components/LazyImage';
 const MobileOrderConfirmation = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { getOrder } = useOrderStore();
+  const { getOrder, fetchOrderById } = useOrderStore();
+  const [isResolving, setIsResolving] = useState(true);
   const order = getOrder(orderId);
 
   useEffect(() => {
-    if (!order) {
+    let mounted = true;
+    (async () => {
+      if (!order && orderId) {
+        await fetchOrderById(orderId);
+      }
+      if (mounted) setIsResolving(false);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [order, orderId, fetchOrderById]);
+
+  useEffect(() => {
+    if (!isResolving && !order) {
       navigate('/');
     }
-  }, [order, navigate]);
+  }, [isResolving, order, navigate]);
+
+  if (isResolving) {
+    return (
+      <PageTransition>
+        <MobileLayout showBottomNav={false} showCartBar={false}>
+          <div className="flex items-center justify-center min-h-[60vh] px-4">
+            <p className="text-gray-600">Loading order...</p>
+          </div>
+        </MobileLayout>
+      </PageTransition>
+    );
+  }
 
   if (!order) {
     return (

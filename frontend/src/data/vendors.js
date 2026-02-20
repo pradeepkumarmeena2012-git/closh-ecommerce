@@ -149,9 +149,12 @@ export const vendors = [
   },
 ];
 
+const normalizeId = (value) => String(value ?? "").trim();
+
 // Get vendor by ID
 export const getVendorById = (id) => {
-  return vendors.find((v) => v.id === parseInt(id));
+  const targetId = normalizeId(id);
+  return vendors.find((v) => normalizeId(v.id) === targetId);
 };
 
 // Get vendors by status

@@ -76,3 +76,23 @@ export const updateProfile = asyncHandler(async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user.id, { name, phone }, { new: true, runValidators: true });
     res.status(200).json(new ApiResponse(200, user, 'Profile updated.'));
 });
+
+// POST /api/user/auth/change-password
+export const changePassword = asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        throw new ApiError(400, 'Current password and new password are required.');
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) throw new ApiError(404, 'User not found.');
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) throw new ApiError(400, 'Current password is incorrect.');
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json(new ApiResponse(200, null, 'Password changed successfully.'));
+});

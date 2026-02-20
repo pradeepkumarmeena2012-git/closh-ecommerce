@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import MobileLayout from "../components/Layout/MobileLayout";
 import ProductCard from "../../../shared/components/ProductCard";
 import ProductListItem from "../components/Mobile/ProductListItem";
-import { products } from "../../../data/products";
+import { getCatalogProducts } from "../data/catalogData";
 import { categories as fallbackCategories } from "../../../data/categories";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
 import PageTransition from "../../../shared/components/PageTransition";
@@ -75,7 +75,7 @@ const MobileCategory = () => {
     if (!category) return [];
 
     const keywords = categoryMap[categoryId] || [];
-    let result = products.filter((product) => {
+    let result = getCatalogProducts().filter((product) => {
       const productName = product.name.toLowerCase();
       return keywords.some((keyword) => productName.includes(keyword));
     });

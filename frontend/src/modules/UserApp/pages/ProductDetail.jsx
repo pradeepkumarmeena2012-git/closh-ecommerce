@@ -15,8 +15,11 @@ import { motion } from "framer-motion";
 import { useCartStore, useUIStore } from "../../../shared/store/useStore";
 import { useWishlistStore } from "../../../shared/store/wishlistStore";
 import { useReviewsStore } from "../../../shared/store/reviewsStore";
-import { getProductById, getSimilarProducts } from "../../../data/products";
-import { getVendorById } from "../../../data/vendors";
+import {
+  getProductById,
+  getSimilarProducts,
+  getVendorById,
+} from "../data/catalogData";
 import { formatPrice } from "../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import MobileLayout from "../components/Layout/MobileLayout";
@@ -44,7 +47,7 @@ const MobileProductDetail = () => {
     removeItem: removeFromWishlist,
     isInWishlist,
   } = useWishlistStore();
-  const { getReviews, sortReviews } = useReviewsStore();
+  const { fetchReviews, sortReviews } = useReviewsStore();
 
   const isFavorite = product ? isInWishlist(product.id) : false;
   const isInCart = product ? items.some((item) => item.id === product.id) : false;
@@ -55,6 +58,12 @@ const MobileProductDetail = () => {
       setSelectedVariant(product.variants.defaultVariant);
     }
   }, [product]);
+
+  useEffect(() => {
+    if (product?.id) {
+      fetchReviews(product.id, { sort: "newest", limit: 50 });
+    }
+  }, [product?.id, fetchReviews]);
 
   if (!product) {
     return (

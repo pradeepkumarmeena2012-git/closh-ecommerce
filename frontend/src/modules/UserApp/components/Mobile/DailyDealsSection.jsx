@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { FiClock, FiZap } from "react-icons/fi";
 import ProductCard from "../../../../shared/components/ProductCard";
-import { getDailyDeals } from "../../../../data/products";
+import { getDailyDeals } from "../../data/catalogData";
 
 const DailyDealsSection = () => {
   const dailyDeals = getDailyDeals().slice(0, 5);

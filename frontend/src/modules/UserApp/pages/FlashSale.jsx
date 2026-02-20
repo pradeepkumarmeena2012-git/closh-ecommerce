@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
 import ProductCard from '../../../shared/components/ProductCard';
 import ProductListItem from '../components/Mobile/ProductListItem';
-import { getFlashSale } from '../../../data/products';
+import { getFlashSale } from '../data/catalogData';
 import { categories } from '../../../data/categories';
 import PageTransition from '../../../shared/components/PageTransition';
 import useInfiniteScroll from '../../../shared/hooks/useInfiniteScroll';

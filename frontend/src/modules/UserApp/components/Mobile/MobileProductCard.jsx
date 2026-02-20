@@ -14,7 +14,7 @@ import useLongPress from "../../hooks/useLongPress";
 import LongPressMenu from "./LongPressMenu";
 import FlyingItem from "./FlyingItem";
 import VendorBadge from "../../../Vendor/components/VendorBadge";
-import { getVendorById } from "../../../../data/vendors";
+import { getVendorById } from "../../data/catalogData";
 
 const MobileProductCard = ({ product }) => {
   const { items, addItem, removeItem } = useCartStore();

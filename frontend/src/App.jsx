@@ -98,6 +98,7 @@ import PushConfig from "./modules/Admin/pages/firebase/PushConfig";
 import Authentication from "./modules/Admin/pages/firebase/Authentication";
 import RouteWrapper from "./shared/components/RouteWrapper";
 import ScrollToTop from "./shared/components/ScrollToTop";
+import AppBootstrap from "./shared/components/AppBootstrap";
 
 // Mobile App Routes
 import MobileHome from "./modules/UserApp/pages/Home";
@@ -122,6 +123,7 @@ import MobileFlashSale from "./modules/UserApp/pages/FlashSale";
 import MobileNewArrivals from "./modules/UserApp/pages/NewArrivals";
 import MobileTrackOrder from "./modules/UserApp/pages/TrackOrder";
 import MobileOrderConfirmation from "./modules/UserApp/pages/OrderConfirmation";
+import ComingSoon from "./modules/UserApp/pages/ComingSoon";
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
 import DeliveryProtectedRoute from "./modules/Delivery/components/DeliveryProtectedRoute";
@@ -175,7 +177,7 @@ const AppRoutes = () => {
         path="/"
         element={
           <RouteWrapper>
-            <MobileHome />
+            <ComingSoon />
           </RouteWrapper>
         }
       />
@@ -560,6 +562,7 @@ function App() {
           v7_startTransition: true,
           v7_relativeSplatPath: true,
         }}>
+        <AppBootstrap />
         <ScrollToTop />
         <AppRoutes />
         <CartDrawer />

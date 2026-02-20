@@ -5,13 +5,29 @@ import ApiError from '../utils/ApiError.js';
 import Product from '../models/Product.model.js';
 import Category from '../models/Category.model.js';
 import Brand from '../models/Brand.model.js';
+import Vendor from '../models/Vendor.model.js';
 import Coupon from '../models/Coupon.model.js';
 import Banner from '../models/Banner.model.js';
 
 const router = Router();
 
+const toPublicVendor = (vendorDoc) => {
+    const vendor = typeof vendorDoc?.toObject === 'function'
+        ? vendorDoc.toObject()
+        : (vendorDoc || {});
+
+    return {
+        ...vendor,
+        password: undefined,
+        otp: undefined,
+        otpExpiry: undefined,
+        bankDetails: undefined,
+        commissionRate: undefined,
+    };
+};
+
 // GET /api/products — list with filters
-router.get('/', asyncHandler(async (req, res) => {
+const listProducts = asyncHandler(async (req, res) => {
     const { page = 1, limit = 12, category, brand, vendor, search, sort = 'newest', flashSale, isNew, minPrice, maxPrice } = req.query;
     const skip = (page - 1) * limit;
     const filter = { isActive: true };
@@ -30,7 +46,10 @@ router.get('/', asyncHandler(async (req, res) => {
     const total = await Product.countDocuments(filter);
 
     res.status(200).json(new ApiResponse(200, { products, total, page: Number(page), pages: Math.ceil(total / limit) }, 'Products fetched.'));
-}));
+});
+
+router.get('/', listProducts);
+router.get('/products', listProducts);
 
 // GET /api/products/flash-sale
 router.get('/flash-sale', asyncHandler(async (req, res) => {
@@ -75,6 +94,80 @@ router.get('/categories/all', asyncHandler(async (req, res) => {
 router.get('/brands/all', asyncHandler(async (req, res) => {
     const brands = await Brand.find({ isActive: true }).sort({ name: 1 });
     res.status(200).json(new ApiResponse(200, brands, 'Brands fetched.'));
+}));
+
+// GET /api/vendors/all (public)
+router.get('/vendors/all', asyncHandler(async (req, res) => {
+    const { status = 'approved', page = 1, limit = 50, search } = req.query;
+    const numericPage = Math.max(parseInt(page, 10) || 1, 1);
+    const numericLimit = Math.max(parseInt(limit, 10) || 50, 1);
+    const skip = (numericPage - 1) * numericLimit;
+    const filter = {};
+
+    if (status && status !== 'all') {
+        filter.status = status;
+    }
+
+    const trimmedSearch = String(search || '').trim();
+    if (trimmedSearch) {
+        const safeRegex = new RegExp(trimmedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        filter.$or = [{ name: safeRegex }, { email: safeRegex }, { storeName: safeRegex }];
+    }
+
+    const vendors = await Vendor.find(filter)
+        .select('-password -otp -otpExpiry')
+        .sort({ rating: -1, reviewCount: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(numericLimit);
+    const total = await Vendor.countDocuments(filter);
+
+    res.status(200).json(new ApiResponse(200, {
+        vendors: vendors.map(toPublicVendor),
+        total,
+        page: numericPage,
+        pages: Math.ceil(total / numericLimit)
+    }, 'Vendors fetched.'));
+}));
+
+// GET /api/vendors/:id (public)
+router.get('/vendors/:id', asyncHandler(async (req, res) => {
+    const vendor = await Vendor.findById(req.params.id).select('-password -otp -otpExpiry');
+    if (!vendor) throw new ApiError(404, 'Vendor not found.');
+    res.status(200).json(new ApiResponse(200, toPublicVendor(vendor), 'Vendor detail fetched.'));
+}));
+
+// GET /api/vendors/:id/products (public)
+router.get('/vendors/:id/products', asyncHandler(async (req, res) => {
+    const { page = 1, limit = 20, sort = 'newest' } = req.query;
+    const numericPage = Math.max(parseInt(page, 10) || 1, 1);
+    const numericLimit = Math.max(parseInt(limit, 10) || 20, 1);
+    const skip = (numericPage - 1) * numericLimit;
+
+    const sortMap = {
+        newest: { createdAt: -1 },
+        oldest: { createdAt: 1 },
+        'price-asc': { price: 1 },
+        'price-desc': { price: -1 },
+        popular: { reviewCount: -1 },
+        rating: { rating: -1 },
+    };
+
+    const filter = { isActive: true, vendorId: req.params.id };
+    const products = await Product.find(filter)
+        .populate('categoryId', 'name')
+        .populate('brandId', 'name')
+        .populate('vendorId', 'storeName')
+        .sort(sortMap[sort] || { createdAt: -1 })
+        .skip(skip)
+        .limit(numericLimit);
+    const total = await Product.countDocuments(filter);
+
+    res.status(200).json(new ApiResponse(200, {
+        products,
+        total,
+        page: numericPage,
+        pages: Math.ceil(total / numericLimit)
+    }, 'Vendor products fetched.'));
 }));
 
 // POST /api/coupons/validate

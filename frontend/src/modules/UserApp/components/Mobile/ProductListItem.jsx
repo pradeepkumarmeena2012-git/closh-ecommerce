@@ -7,14 +7,10 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import LazyImage from '../../../../shared/components/LazyImage';
 import VendorBadge from "../../../Vendor/components/VendorBadge";
-import { getVendorById } from '../../../../data/vendors';
+import { getVendorById } from "../../data/catalogData";
 
 const ProductListItem = ({ product, index, isFlashSale = false }) => {
-  const location = window.location.pathname;
-  const isMobileApp = location.startsWith("/");
-  const productLink = isMobileApp
-    ? `/app/product/${product.id}`
-    : `/product/${product.id}`;
+  const productLink = `/product/${product.id}`;
   const { items, addItem, removeItem } = useCartStore();
   const triggerCartAnimation = useUIStore(
     (state) => state.triggerCartAnimation

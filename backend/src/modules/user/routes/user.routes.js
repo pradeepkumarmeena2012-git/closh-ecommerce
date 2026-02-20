@@ -16,6 +16,7 @@ router.post('/auth/resend-otp', otpLimiter, authController.resendOTP);
 router.post('/auth/login', authLimiter, authController.login);
 router.get('/auth/profile', authenticate, authController.getProfile);
 router.put('/auth/profile', authenticate, authController.updateProfile);
+router.post('/auth/change-password', authenticate, authController.changePassword);
 
 // Address routes (protected)
 router.get('/addresses', authenticate, addressController.getAddresses);
@@ -37,7 +38,7 @@ router.post('/reviews/:id/helpful', reviewController.voteHelpful);
 // Order routes (optionalAuth for guest checkout)
 router.post('/orders', optionalAuth, orderController.placeOrder);
 router.get('/orders', authenticate, orderController.getUserOrders);
-router.get('/orders/:id', orderController.getOrderDetail);
+router.get('/orders/:id', authenticate, orderController.getOrderDetail);
 router.patch('/orders/:id/cancel', authenticate, orderController.cancelOrder);
 
 export default router;

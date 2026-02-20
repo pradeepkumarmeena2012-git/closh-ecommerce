@@ -28,7 +28,7 @@ const MobileCheckout = () => {
   const navigate = useNavigate();
   const { items, getTotal, clearCart, getItemsByVendor } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
-  const { addresses, getDefaultAddress, addAddress } = useAddressStore();
+  const { addresses, getDefaultAddress, addAddress, fetchAddresses } = useAddressStore();
   const { createOrder } = useOrderStore();
 
   // Group items by vendor
@@ -57,6 +57,12 @@ const MobileCheckout = () => {
   });
 
   useEffect(() => {
+    if (isAuthenticated && !isGuest) {
+      fetchAddresses().catch(() => null);
+    }
+  }, [isAuthenticated, isGuest, fetchAddresses]);
+
+  useEffect(() => {
     if (isAuthenticated && user && !isGuest) {
       setFormData((prev) => ({
         ...prev,
@@ -81,7 +87,7 @@ const MobileCheckout = () => {
         }));
       }
     }
-  }, [isAuthenticated, user, isGuest, getDefaultAddress]);
+  }, [isAuthenticated, user, isGuest, getDefaultAddress, addresses]);
 
   const calculateShipping = () => {
     const total = getTotal();
@@ -145,11 +151,15 @@ const MobileCheckout = () => {
     });
   };
 
-  const handleNewAddress = (addressData) => {
-    const newAddress = addAddress(addressData);
-    handleSelectAddress(newAddress);
-    setShowAddressForm(false);
-    toast.success("Address added and selected!");
+  const handleNewAddress = async (addressData) => {
+    try {
+      const newAddress = await addAddress(addressData);
+      handleSelectAddress(newAddress);
+      setShowAddressForm(false);
+      toast.success("Address added and selected!");
+    } catch (error) {
+      toast.error(error?.message || "Failed to add address");
+    }
   };
 
   if (items.length === 0) {
@@ -177,43 +187,41 @@ const MobileCheckout = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (step === 1) {
       setStep(2);
     } else if (step === 2) {
-      const order = createOrder({
-        userId: isAuthenticated ? user?.id : null,
-        items: items,
-        shippingAddress: {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          zipCode: formData.zipCode,
-          state: formData.state,
-          country: formData.country,
-        },
-        paymentMethod: formData.paymentMethod,
-        subtotal: total,
-        shipping: shipping,
-        tax: tax,
-        discount: discount,
-        total: finalTotal,
-        couponCode: appliedCoupon ? couponCode : null,
-      });
+      try {
+        const order = await createOrder({
+          userId: isAuthenticated ? user?.id : null,
+          items: items,
+          shippingAddress: {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            city: formData.city,
+            zipCode: formData.zipCode,
+            state: formData.state,
+            country: formData.country,
+          },
+          paymentMethod: formData.paymentMethod,
+          subtotal: total,
+          shipping: shipping,
+          tax: tax,
+          discount: discount,
+          total: finalTotal,
+          couponCode: appliedCoupon ? couponCode : null,
+          shippingOption,
+        });
 
-      clearCart();
-
-      // Play success sound
-      // const audio = new Audio(successSound); // Commented out - file not found
-      // audio.play().catch((error) => {
-      //   console.log('Could not play sound:', error);
-      // });
-
-      toast.success("Order placed successfully!");
-      navigate(`/order-confirmation/${order.id}`);
+        clearCart();
+        toast.success("Order placed successfully!");
+        navigate(`/order-confirmation/${order.id}`);
+      } catch (error) {
+        toast.error(error?.message || "Failed to place order");
+      }
     }
   };
 

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { FiArrowLeft, FiFilter, FiX, FiSearch } from "react-icons/fi";
 import MobileLayout from "../components/Layout/MobileLayout";
 import { categories as fallbackCategories } from "../../../data/categories";
-import { products } from "../../../data/products";
+import { getCatalogProducts } from "../data/catalogData";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
 import PageTransition from "../../../shared/components/PageTransition";
 import LazyImage from "../../../shared/components/LazyImage";
@@ -111,7 +111,7 @@ const MobileCategories = () => {
     if (!selectedCategoryId) return [];
 
     const categoryKeywords = categoryMap[selectedCategoryId] || [];
-    let filtered = products.filter((product) => {
+    let filtered = getCatalogProducts().filter((product) => {
       const productName = product.name.toLowerCase();
       return categoryKeywords.some((keyword) => productName.includes(keyword));
     });

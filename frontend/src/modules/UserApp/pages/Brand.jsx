@@ -5,8 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import MobileLayout from "../components/Layout/MobileLayout";
 import ProductCard from "../../../shared/components/ProductCard";
 import ProductListItem from "../components/Mobile/ProductListItem";
-import { getProductsByBrand } from "../../../data/products";
-import { getBrandById } from "../../../data/brands";
+import { getProductsByBrand, getBrandById } from "../data/catalogData";
 import PageTransition from "../../../shared/components/PageTransition";
 import useInfiniteScroll from "../../../shared/hooks/useInfiniteScroll";
 import LazyImage from "../../../shared/components/LazyImage";
@@ -15,7 +14,7 @@ import { getPlaceholderImage } from "../../../shared/utils/helpers";
 const Brand = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const brandId = parseInt(id);
+    const brandId = String(id ?? "").trim();
 
     // Get brand information
     const brand = useMemo(() => getBrandById(brandId), [brandId]);

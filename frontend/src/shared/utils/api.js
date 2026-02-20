@@ -68,6 +68,16 @@ api.interceptors.response.use(
         }
       } else {
         localStorage.removeItem('token');
+        localStorage.removeItem('auth-storage');
+
+        const isAuthPage =
+          currentPath === '/login' ||
+          currentPath === '/register' ||
+          currentPath === '/verification';
+
+        if (!isAuthPage) {
+          window.location.href = '/login';
+        }
       }
     }
 

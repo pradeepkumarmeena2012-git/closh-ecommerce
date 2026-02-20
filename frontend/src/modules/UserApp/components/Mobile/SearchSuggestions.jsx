@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiSearch, FiX, FiClock } from 'react-icons/fi';
-import { products } from '../../../../data/products';
+import { getCatalogProducts } from '../../data/catalogData';
 
 const SearchSuggestions = ({ 
   query, 
@@ -13,7 +13,7 @@ const SearchSuggestions = ({
   if (!isOpen || !query) return null;
 
   // Filter products based on query
-  const suggestions = products
+  const suggestions = getCatalogProducts()
     .filter((product) =>
       product.name.toLowerCase().includes(query.toLowerCase())
     )

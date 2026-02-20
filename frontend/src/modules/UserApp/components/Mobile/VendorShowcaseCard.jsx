@@ -1,13 +1,11 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { FiStar, FiShoppingBag, FiCheckCircle, FiArrowRight } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import LazyImage from '../../../../shared/components/LazyImage';
 
 const VendorShowcaseCard = ({ vendor, index = 0 }) => {
-  const location = useLocation();
-  const vendorLink = `/seller/${vendor.id}`;
-
   if (!vendor) return null;
+  const vendorLink = `/seller/${vendor.id}`;
 
   return (
     <Link to={vendorLink}>

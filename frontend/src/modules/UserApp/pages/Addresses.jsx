@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { FiMapPin, FiEdit, FiTrash2, FiPlus, FiCheck, FiX, FiArrowLeft } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,10 +8,12 @@ import toast from 'react-hot-toast';
 import PageTransition from '../../../shared/components/PageTransition';
 import ProtectedRoute from '../../../shared/components/Auth/ProtectedRoute';
 import { useAddressStore } from '../../../shared/store/addressStore';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const MobileAddresses = () => {
   const navigate = useNavigate();
-  const { addresses, addAddress, updateAddress, deleteAddress, setDefaultAddress } =
+  const { isAuthenticated } = useAuthStore();
+  const { addresses, addAddress, updateAddress, deleteAddress, setDefaultAddress, fetchAddresses, isLoading } =
     useAddressStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
@@ -24,17 +25,26 @@ const MobileAddresses = () => {
     formState: { errors },
   } = useForm();
 
-  const onSubmit = (data) => {
-    if (editingAddress) {
-      updateAddress(editingAddress.id, data);
-      toast.success('Address updated successfully!');
-    } else {
-      addAddress(data);
-      toast.success('Address added successfully!');
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchAddresses().catch(() => null);
+  }, [isAuthenticated, fetchAddresses]);
+
+  const onSubmit = async (data) => {
+    try {
+      if (editingAddress) {
+        await updateAddress(editingAddress.id, data);
+        toast.success('Address updated successfully!');
+      } else {
+        await addAddress(data);
+        toast.success('Address added successfully!');
+      }
+      reset();
+      setIsFormOpen(false);
+      setEditingAddress(null);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to save address');
     }
-    reset();
-    setIsFormOpen(false);
-    setEditingAddress(null);
   };
 
   const handleEdit = (address) => {
@@ -43,10 +53,14 @@ const MobileAddresses = () => {
     setIsFormOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this address?')) {
-      deleteAddress(id);
-      toast.success('Address deleted successfully!');
+      try {
+        await deleteAddress(id);
+        toast.success('Address deleted successfully!');
+      } catch (error) {
+        toast.error(error?.message || 'Failed to delete address');
+      }
     }
   };
 
@@ -82,7 +96,11 @@ const MobileAddresses = () => {
 
             {/* Addresses List */}
             <div className="px-4 py-4">
-              {addresses.length === 0 ? (
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-600">Loading addresses...</p>
+                </div>
+              ) : addresses.length === 0 ? (
                 <div className="text-center py-12">
                   <FiMapPin className="text-6xl text-gray-300 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-800 mb-2">No addresses saved</h3>
@@ -128,7 +146,14 @@ const MobileAddresses = () => {
                       <div className="flex gap-2 pt-3 border-t border-gray-200">
                         {!address.isDefault && (
                           <button
-                            onClick={() => setDefaultAddress(address.id)}
+                            onClick={async () => {
+                              try {
+                                await setDefaultAddress(address.id);
+                                toast.success('Default address updated');
+                              } catch (error) {
+                                toast.error(error?.message || 'Failed to set default address');
+                              }
+                            }}
                             className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors"
                           >
                             Set as Default
@@ -211,8 +236,8 @@ const AddressFormModal = ({
             <input
               type="text"
               {...register('name', { required: 'Address label is required' })}
-              className={`w - full px - 4 py - 3 rounded - xl border - 2 ${errors.name ? 'border-red-300' : 'border-gray-200'
-                } focus: outline - none focus: ring - 2 focus: ring - primary - 500 text - base`}
+              className={`w-full px-4 py-3 rounded-xl border-2 ${errors.name ? 'border-red-300' : 'border-gray-200'
+                } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
               placeholder="Home, Work, etc."
             />
             {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
@@ -222,8 +247,8 @@ const AddressFormModal = ({
             <input
               type="text"
               {...register('fullName', { required: 'Full name is required' })}
-              className={`w - full px - 4 py - 3 rounded - xl border - 2 ${errors.fullName ? 'border-red-300' : 'border-gray-200'
-                } focus: outline - none focus: ring - 2 focus: ring - primary - 500 text - base`}
+              className={`w-full px-4 py-3 rounded-xl border-2 ${errors.fullName ? 'border-red-300' : 'border-gray-200'
+                } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
             />
             {errors.fullName && (
               <p className="mt-1 text-sm text-red-600">{errors.fullName.message}</p>
@@ -234,8 +259,8 @@ const AddressFormModal = ({
             <input
               type="tel"
               {...register('phone', { required: 'Phone number is required' })}
-              className={`w - full px - 4 py - 3 rounded - xl border - 2 ${errors.phone ? 'border-red-300' : 'border-gray-200'
-                } focus: outline - none focus: ring - 2 focus: ring - primary - 500 text - base`}
+              className={`w-full px-4 py-3 rounded-xl border-2 ${errors.phone ? 'border-red-300' : 'border-gray-200'
+                } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
             />
             {errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>}
           </div>
@@ -244,8 +269,8 @@ const AddressFormModal = ({
             <input
               type="text"
               {...register('address', { required: 'Address is required' })}
-              className={`w - full px - 4 py - 3 rounded - xl border - 2 ${errors.address ? 'border-red-300' : 'border-gray-200'
-                } focus: outline - none focus: ring - 2 focus: ring - primary - 500 text - base`}
+              className={`w-full px-4 py-3 rounded-xl border-2 ${errors.address ? 'border-red-300' : 'border-gray-200'
+                } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
             />
             {errors.address && (
               <p className="mt-1 text-sm text-red-600">{errors.address.message}</p>
@@ -257,8 +282,8 @@ const AddressFormModal = ({
               <input
                 type="text"
                 {...register('city', { required: 'City is required' })}
-                className={`w - full px - 4 py - 3 rounded - xl border - 2 ${errors.city ? 'border-red-300' : 'border-gray-200'
-                  } focus: outline - none focus: ring - 2 focus: ring - primary - 500 text - base`}
+                className={`w-full px-4 py-3 rounded-xl border-2 ${errors.city ? 'border-red-300' : 'border-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
               />
             </div>
             <div>
@@ -266,8 +291,8 @@ const AddressFormModal = ({
               <input
                 type="text"
                 {...register('state', { required: 'State is required' })}
-                className={`w - full px - 4 py - 3 rounded - xl border - 2 ${errors.state ? 'border-red-300' : 'border-gray-200'
-                  } focus: outline - none focus: ring - 2 focus: ring - primary - 500 text - base`}
+                className={`w-full px-4 py-3 rounded-xl border-2 ${errors.state ? 'border-red-300' : 'border-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
               />
             </div>
             <div>
@@ -275,8 +300,8 @@ const AddressFormModal = ({
               <input
                 type="text"
                 {...register('zipCode', { required: 'Zip code is required' })}
-                className={`w - full px - 4 py - 3 rounded - xl border - 2 ${errors.zipCode ? 'border-red-300' : 'border-gray-200'
-                  } focus: outline - none focus: ring - 2 focus: ring - primary - 500 text - base`}
+                className={`w-full px-4 py-3 rounded-xl border-2 ${errors.zipCode ? 'border-red-300' : 'border-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
               />
             </div>
           </div>
@@ -285,8 +310,8 @@ const AddressFormModal = ({
             <input
               type="text"
               {...register('country', { required: 'Country is required' })}
-              className={`w - full px - 4 py - 3 rounded - xl border - 2 ${errors.country ? 'border-red-300' : 'border-gray-200'
-                } focus: outline - none focus: ring - 2 focus: ring - primary - 500 text - base`}
+              className={`w-full px-4 py-3 rounded-xl border-2 ${errors.country ? 'border-red-300' : 'border-gray-200'
+                } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
             />
           </div>
           <div className="flex gap-3 pt-4">

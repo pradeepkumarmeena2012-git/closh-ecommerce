@@ -146,7 +146,7 @@ export const getUserOrders = asyncHandler(async (req, res) => {
 
 // GET /api/user/orders/:id
 export const getOrderDetail = asyncHandler(async (req, res) => {
-    const order = await Order.findOne({ orderId: req.params.id });
+    const order = await Order.findOne({ orderId: req.params.id, userId: req.user.id });
     if (!order) throw new ApiError(404, 'Order not found.');
     res.status(200).json(new ApiResponse(200, order, 'Order detail fetched.'));
 });

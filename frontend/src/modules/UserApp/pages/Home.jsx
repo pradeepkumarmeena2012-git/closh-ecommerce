@@ -15,8 +15,7 @@ import {
   getMostPopular,
   getTrending,
   getFlashSale,
-} from "../../../data/products";
-import { categories } from "../../../data/categories";
+} from "../data/catalogData";
 import PageTransition from "../../../shared/components/PageTransition";
 import usePullToRefresh from "../hooks/usePullToRefresh";
 import toast from "react-hot-toast";
@@ -24,9 +23,6 @@ import heroSlide1 from "../../../../data/hero/slide1.png";
 import heroSlide2 from "../../../../data/hero/slide2.png";
 import heroSlide3 from "../../../../data/hero/slide3.png";
 import heroSlide4 from "../../../../data/hero/slide4.png";
-import heroBanner2 from "../../../../data/hero/banner2.png";
-import babycareBanner from "../../../../data/banners/babycare-WEB.avif";
-import pharmacyBanner from "../../../../data/banners/pharmacy-WEB.avif";
 import stylishWatchImg from "../../../../data/products/stylish watch.png";
 
 const MobileHome = () => {
@@ -130,7 +126,6 @@ const MobileHome = () => {
   const {
     pullDistance,
     isPulling,
-    isRefreshing,
     elementRef,
     handleTouchStart,
     handleTouchMove,

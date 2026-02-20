@@ -1,14 +1,9 @@
-import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { FiArrowRight } from 'react-icons/fi';
 import VendorShowcaseCard from './VendorShowcaseCard';
-import { getApprovedVendors } from '../../../../data/vendors';
+import { getApprovedVendors } from '../../data/catalogData';
 
 const FeaturedVendorsSection = () => {
-  const location = useLocation();
-  const isMobileApp = location.pathname.startsWith('/');
-  const vendorsLink = isMobileApp ? '/search' : '/search';
-
   const approvedVendors = getApprovedVendors();
   const featuredVendors = approvedVendors
     .filter(v => v.isVerified)
@@ -25,7 +20,7 @@ const FeaturedVendorsSection = () => {
           <p className="text-xs text-gray-600 mt-0.5">Shop from trusted stores</p>
         </div>
         <Link
-          to={vendorsLink}
+          to="/search"
           className="flex items-center gap-1 text-sm text-primary-600 font-semibold hover:text-primary-700 transition-colors"
         >
           <span>See All</span>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiFilter } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 
 const MobileOrders = () => {
   const navigate = useNavigate();
-  const { getAllOrders } = useOrderStore();
+  const { getAllOrders, fetchUserOrders, isLoading } = useOrderStore();
   const { user } = useAuthStore();
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [showFilter, setShowFilter] = useState(false);
@@ -29,6 +29,12 @@ const MobileOrders = () => {
 
   const allOrders = getAllOrders(user?.id || null);
 
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserOrders(1, 50).catch(() => null);
+    }
+  }, [user?.id, fetchUserOrders]);
+
   const filteredOrders = useMemo(() => {
     if (selectedStatus === 'all') return allOrders;
     return allOrders.filter((order) => order.status === selectedStatus);
@@ -36,13 +42,9 @@ const MobileOrders = () => {
 
   // Pull to refresh handler
   const handleRefresh = async () => {
-    // Simulate refresh - in real app, this would fetch new orders
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        toast.success('Orders refreshed');
-        resolve();
-      }, 1000);
-    });
+    if (!user?.id) return;
+    await fetchUserOrders(1, 50);
+    toast.success('Orders refreshed');
   };
 
   const {
@@ -117,7 +119,11 @@ const MobileOrders = () => {
                 transition: isPulling ? 'none' : 'transform 0.3s ease-out',
               }}
             >
-              {filteredOrders.length === 0 ? (
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-600">Loading orders...</p>
+                </div>
+              ) : filteredOrders.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="text-6xl text-gray-300 mx-auto mb-4">📦</div>
                   <h3 className="text-xl font-bold text-gray-800 mb-2">No orders found</h3>
