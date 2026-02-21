@@ -3,6 +3,12 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { getProductById as getCatalogProductById } from "../../modules/UserApp/data/catalogData";
 import toast from "react-hot-toast";
 
+const normalizeVariantPart = (value) => String(value || "").trim().toLowerCase();
+const getVariantSignature = (variant = {}) =>
+  `${normalizeVariantPart(variant?.size)}|${normalizeVariantPart(variant?.color)}`;
+const getCartLineKey = (id, variant = {}) =>
+  `${String(id)}::${getVariantSignature(variant)}`;
+
 // Cart Store
 export const useCartStore = create(
   persist(
@@ -20,8 +26,9 @@ export const useCartStore = create(
           return;
         }
 
+        const lineKey = getCartLineKey(item.id, item.variant);
         const existingItem = get().items.find(
-          (i) => String(i.id) === String(item.id)
+          (i) => String(i.cartLineKey || getCartLineKey(i.id, i.variant)) === lineKey
         );
         const quantityToAdd = item.quantity || 1;
         const newQuantity = existingItem
@@ -41,6 +48,7 @@ export const useCartStore = create(
         // Include vendor information from product
         const itemWithVendor = {
           ...item,
+          cartLineKey: lineKey,
           vendorId: product.vendorId || item.vendorId || 1,
           vendorName: product.vendorName || item.vendorName || "Unknown Vendor",
         };
@@ -50,6 +58,7 @@ export const useCartStore = create(
             return {
               items: state.items.map((i) =>
                 String(i.id) === String(item.id)
+                && String(i.cartLineKey || getCartLineKey(i.id, i.variant)) === lineKey
                   ? {
                     ...i,
                     ...itemWithVendor,
@@ -81,13 +90,18 @@ export const useCartStore = create(
         const { triggerCartAnimation } = useUIStore.getState();
         triggerCartAnimation();
       },
-      removeItem: (id) =>
+      removeItem: (id, variant = null) =>
         set((state) => ({
-          items: state.items.filter((item) => String(item.id) !== String(id)),
+          items: state.items.filter((item) => {
+            if (String(item.id) !== String(id)) return true;
+            if (!variant) return false; // backwards-compatible: remove all variants for this product
+            const candidate = String(item.cartLineKey || getCartLineKey(item.id, item.variant));
+            return candidate !== getCartLineKey(id, variant);
+          }),
         })),
-      updateQuantity: (id, quantity) => {
+      updateQuantity: (id, quantity, variant = null) => {
         if (quantity <= 0) {
-          get().removeItem(id);
+          get().removeItem(id, variant);
           return;
         }
 
@@ -99,7 +113,14 @@ export const useCartStore = create(
 
         set((state) => ({
           items: state.items.map((item) =>
-            String(item.id) === String(id) ? { ...item, quantity } : item
+            (() => {
+              if (String(item.id) !== String(id)) return item;
+              if (!variant) return { ...item, quantity };
+              const candidate = String(item.cartLineKey || getCartLineKey(item.id, item.variant));
+              return candidate === getCartLineKey(id, variant)
+                ? { ...item, quantity }
+                : item;
+            })()
           ),
         }));
       },
