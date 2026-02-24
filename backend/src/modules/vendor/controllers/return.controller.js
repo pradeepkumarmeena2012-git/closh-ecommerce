@@ -4,9 +4,29 @@ import ApiError from '../../../utils/ApiError.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import Order from '../../../models/Order.model.js';
 import Product from '../../../models/Product.model.js';
+import Commission from '../../../models/Commission.model.js';
 import User from '../../../models/User.model.js';
 import Admin from '../../../models/Admin.model.js';
 import { createNotification } from '../../../services/notification.service.js';
+
+const enrichReturnItems = (request) => {
+    const orderItems = Array.isArray(request?.orderId?.items) ? request.orderId.items : [];
+    const returnItems = Array.isArray(request?.items) ? request.items : [];
+
+    return returnItems.map((item) => {
+        const productId = String(item?.productId || '');
+        const matchedOrderItem = orderItems.find(
+            (orderItem) => String(orderItem?.productId || '') === productId
+        );
+
+        return {
+            ...item,
+            name: item?.name || matchedOrderItem?.name || 'Unknown Product',
+            price: Number(item?.price ?? matchedOrderItem?.price ?? 0),
+            image: item?.image || matchedOrderItem?.image || '',
+        };
+    });
+};
 
 const normalizeReturnRequest = (requestDoc) => {
     const request = requestDoc.toObject ? requestDoc.toObject() : requestDoc;
@@ -26,6 +46,8 @@ const normalizeReturnRequest = (requestDoc) => {
         orderId: orderOrderId || String(orderRefId || ''),
         orderRefId: orderRefId ? String(orderRefId) : null,
         requestDate: request.createdAt,
+        rejectionReason: request.rejectionReason || request.adminNote || '',
+        items: enrichReturnItems(request),
     };
 };
 
@@ -74,7 +96,7 @@ export const getVendorReturnRequests = asyncHandler(async (req, res) => {
     const [requests, total] = await Promise.all([
         ReturnRequest.find(filter)
             .populate('userId', 'name email phone')
-            .populate('orderId', 'orderId total')
+            .populate('orderId', 'orderId total items vendorItems status paymentStatus')
             .sort({ createdAt: -1 })
             .skip((numericPage - 1) * numericLimit)
             .limit(numericLimit),
@@ -106,7 +128,7 @@ export const getVendorReturnRequestById = asyncHandler(async (req, res) => {
         vendorId: req.user.id,
     })
         .populate('userId', 'name email phone')
-        .populate('orderId', 'orderId total createdAt');
+        .populate('orderId', 'orderId total createdAt items vendorItems status paymentStatus');
 
     if (!request) throw new ApiError(404, 'Return request not found.');
 
@@ -117,7 +139,7 @@ export const getVendorReturnRequestById = asyncHandler(async (req, res) => {
 
 // PATCH /api/vendor/return-requests/:id/status
 export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => {
-    const { status, refundStatus } = req.body;
+    const { status, refundStatus, rejectionReason } = req.body;
     const allowedStatuses = ['pending', 'approved', 'processing', 'rejected', 'completed'];
     const allowedRefundStatuses = ['pending', 'processed', 'failed'];
     const statusTransitions = {
@@ -148,15 +170,20 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
         vendorId: req.user.id,
     })
         .populate('userId', 'name email phone')
-        .populate('orderId', 'orderId total');
+        .populate('orderId', 'orderId total items vendorItems status paymentStatus');
     if (!request) throw new ApiError(404, 'Return request not found.');
 
     const nextStatus = status || request.status;
     const nextRefundStatus = refundStatus || request.refundStatus;
+    const nextRejectionReason = rejectionReason !== undefined
+        ? String(rejectionReason || '').trim()
+        : String(request.rejectionReason || '');
     const statusUnchanged = !status || status === request.status;
     const refundUnchanged = !refundStatus || refundStatus === request.refundStatus;
+    const rejectionReasonUnchanged =
+        rejectionReason === undefined || nextRejectionReason === String(request.rejectionReason || '');
 
-    if (statusUnchanged && refundUnchanged) {
+    if (statusUnchanged && refundUnchanged && rejectionReasonUnchanged) {
         return res.status(200).json(
             new ApiResponse(200, normalizeReturnRequest(request), 'No changes applied.')
         );
@@ -179,6 +206,8 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
 
     request.status = nextStatus;
     if (refundStatus) request.refundStatus = nextRefundStatus;
+    if (rejectionReason !== undefined) request.rejectionReason = nextRejectionReason;
+    if (status !== 'rejected' && request.rejectionReason) request.rejectionReason = '';
     await request.save();
 
     // Keep lifecycle effects consistent when vendor processes returns.
@@ -187,7 +216,13 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
         if (linkedOrderId) {
             const order = await Order.findById(linkedOrderId);
             if (order && order.isDeleted !== true) {
-                if (status === 'approved' && !['cancelled', 'returned'].includes(order.status)) {
+                const vendorGroups = Array.isArray(order.vendorItems) ? order.vendorItems : [];
+                const uniqueVendorIds = [
+                    ...new Set(vendorGroups.map((group) => String(group?.vendorId || '')).filter(Boolean)),
+                ];
+                const isSingleVendorOrder = uniqueVendorIds.length <= 1;
+
+                if (status === 'approved' && isSingleVendorOrder && !['cancelled', 'returned'].includes(order.status)) {
                     order.status = 'returned';
                     await order.save();
                 }
@@ -204,6 +239,44 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
                         await product.save();
                     });
                     await Promise.all(stockRestores);
+
+                    // Reverse this vendor's commission on completed return.
+                    await Commission.updateMany(
+                        {
+                            orderId: order._id,
+                            vendorId: req.user.id,
+                            status: { $ne: 'cancelled' },
+                        },
+                        {
+                            $set: {
+                                status: 'cancelled',
+                                paidAt: null,
+                                settlementId: null,
+                            },
+                        }
+                    );
+
+                    // Mark full order returned/refunded only when every vendor in this order completed returns.
+                    const completedReturns = await ReturnRequest.find({
+                        orderId: order._id,
+                        status: 'completed',
+                    })
+                        .select('vendorId')
+                        .lean();
+
+                    const completedVendorSet = new Set(
+                        completedReturns.map((entry) => String(entry?.vendorId || '')).filter(Boolean)
+                    );
+                    const allVendorsCompleted =
+                        uniqueVendorIds.length > 0 && uniqueVendorIds.every((vendorId) => completedVendorSet.has(vendorId));
+
+                    if (allVendorsCompleted) {
+                        if (order.status !== 'cancelled') {
+                            order.status = 'returned';
+                        }
+                        order.paymentStatus = 'refunded';
+                        await order.save();
+                    }
                 }
             }
         }

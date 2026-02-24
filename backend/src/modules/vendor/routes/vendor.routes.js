@@ -28,6 +28,11 @@ import {
     verifyResetOtpSchema,
     resetPasswordSchema
 } from '../validators/auth.validator.js';
+import {
+    createProductSchema,
+    updateProductSchema,
+    productIdParamSchema,
+} from '../validators/product.validator.js';
 import { uploadSingle, uploadMultiple, uploadDocumentSingle } from '../../../middlewares/upload.js';
 
 const router = Router();
@@ -49,10 +54,10 @@ router.put('/auth/bank-details', ...vendorAuth, authController.updateBankDetails
 
 // Products
 router.get('/products', ...vendorAuth, productController.getVendorProducts);
-router.get('/products/:id', ...vendorAuth, productController.getVendorProductById);
-router.post('/products', ...vendorAuth, productController.createProduct);
-router.put('/products/:id', ...vendorAuth, productController.updateProduct);
-router.delete('/products/:id', ...vendorAuth, productController.deleteProduct);
+router.get('/products/:id', ...vendorAuth, validate(productIdParamSchema, 'params'), productController.getVendorProductById);
+router.post('/products', ...vendorAuth, validate(createProductSchema), productController.createProduct);
+router.put('/products/:id', ...vendorAuth, validate(productIdParamSchema, 'params'), validate(updateProductSchema), productController.updateProduct);
+router.delete('/products/:id', ...vendorAuth, validate(productIdParamSchema, 'params'), productController.deleteProduct);
 router.patch('/stock/:productId', ...vendorAuth, productController.updateStock);
 
 // Orders
