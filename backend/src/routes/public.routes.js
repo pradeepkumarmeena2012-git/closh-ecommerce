@@ -466,6 +466,20 @@ router.get('/campaigns', asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, campaigns, 'Campaigns fetched.'));
 }));
 
+// DIAGNOSTIC ALIAS: GET /api/deals (Redirects to daily_deal campaigns)
+router.get('/deals', asyncHandler(async (req, res) => {
+    const now = new Date();
+    const campaigns = await Campaign.find({
+        type: 'daily_deal',
+        isActive: true,
+        $and: [
+            { $or: [{ startDate: null }, { startDate: { $exists: false } }, { startDate: { $lte: now } }] },
+            { $or: [{ endDate: null }, { endDate: { $exists: false } }, { endDate: { $gte: now } }] }
+        ]
+    }).limit(10);
+    res.status(200).json(new ApiResponse(200, campaigns, 'Deals fetched via alias.'));
+}));
+
 // GET /api/campaigns/:slug
 router.get('/campaigns/:slug', asyncHandler(async (req, res) => {
     const slug = String(req.params.slug || '').trim().toLowerCase();

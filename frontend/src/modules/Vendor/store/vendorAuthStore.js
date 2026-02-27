@@ -120,7 +120,7 @@ export const useVendorAuthStore = create(
       logout: () => {
         const refreshToken = localStorage.getItem("vendor-refresh-token");
         if (refreshToken) {
-          api.post("/vendor/auth/logout", { refreshToken }).catch(() => {});
+          api.post("/vendor/auth/logout", { refreshToken }).catch(() => { });
         }
 
         set({
@@ -157,6 +157,25 @@ export const useVendorAuthStore = create(
         }
       },
 
+      updateLocation: async (latitude, longitude) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.put("/vendor/auth/location", {
+            latitude,
+            longitude,
+          });
+          const data = response?.data ?? response;
+          const updatedVendor = data && data.id ? data : (data?.vendor || get().vendor);
+          set({
+            vendor: updatedVendor,
+            isLoading: false,
+          });
+          return { success: true, vendor: updatedVendor };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
       // Initialize vendor auth state from localStorage
       initialize: () => {
         const token = localStorage.getItem("vendor-token");

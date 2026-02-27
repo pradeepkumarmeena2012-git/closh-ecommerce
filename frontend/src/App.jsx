@@ -38,6 +38,7 @@ import OrderTracking from "./modules/Admin/pages/orders/OrderTracking";
 import Invoice from "./modules/Admin/pages/orders/Invoice";
 // Products child pages
 import ManageProducts from "./modules/Admin/pages/products/ManageProducts";
+import PendingProducts from "./modules/Admin/pages/products/PendingProducts";
 import TaxPricing from "./modules/Admin/pages/products/TaxPricing";
 import ProductRatings from "./modules/Admin/pages/products/ProductRatings";
 
@@ -59,6 +60,7 @@ import AssignDelivery from "./modules/Admin/pages/delivery/AssignDelivery";
 import Vendors from "./modules/Admin/pages/Vendors";
 import ManageVendors from "./modules/Admin/pages/vendors/ManageVendors";
 import PendingApprovals from "./modules/Admin/pages/vendors/PendingApprovals";
+import RegisterVendor from "./modules/Admin/pages/vendors/RegisterVendor";
 import VendorDetail from "./modules/Admin/pages/vendors/VendorDetail";
 import CommissionRates from "./modules/Admin/pages/vendors/CommissionRates";
 import AdminVendorAnalytics from "./modules/Admin/pages/vendors/VendorAnalytics";
@@ -102,34 +104,29 @@ import RouteWrapper from "./shared/components/RouteWrapper";
 import ScrollToTop from "./shared/components/ScrollToTop";
 import AppBootstrap from "./shared/components/AppBootstrap";
 
-// Mobile App Routes
-import MobileHome from "./modules/UserApp/pages/Home";
-import MobileProductDetail from "./modules/UserApp/pages/ProductDetail";
-import MobileSeller from "./modules/UserApp/pages/Seller";
-import MobileCategory from "./modules/UserApp/pages/Category";
-import MobileBrand from "./modules/UserApp/pages/Brand";
-import MobileCategories from "./modules/UserApp/pages/categories";
-import MobileCheckout from "./modules/UserApp/pages/Checkout";
-import MobileSearch from "./modules/UserApp/pages/Search";
-import MobileLogin from "./modules/UserApp/pages/Login";
-import MobileRegister from "./modules/UserApp/pages/Register";
-import MobileVerification from "./modules/UserApp/pages/Verification";
-import MobileForgotPassword from "./modules/UserApp/pages/ForgotPassword";
-import MobileResetPassword from "./modules/UserApp/pages/ResetPassword";
-import MobileProfile from "./modules/UserApp/pages/Profile";
-import UserNotifications from "./modules/UserApp/pages/Notifications";
-import MobileOrders from "./modules/UserApp/pages/Orders";
-import MobileOrderDetail from "./modules/UserApp/pages/OrderDetail";
-import MobileAddresses from "./modules/UserApp/pages/Addresses";
-import MobileWishlist from "./modules/UserApp/pages/Wishlist";
-import MobileOffers from "./modules/UserApp/pages/Offers";
-import MobileDailyDeals from "./modules/UserApp/pages/DailyDeals";
-import MobileFlashSale from "./modules/UserApp/pages/FlashSale";
-import MobileNewArrivals from "./modules/UserApp/pages/NewArrivals";
-import MobileCampaignSale from "./modules/UserApp/pages/CampaignSale";
-import MobileTrackOrder from "./modules/UserApp/pages/TrackOrder";
-import MobileOrderConfirmation from "./modules/UserApp/pages/OrderConfirmation";
-import ComingSoon from "./modules/UserApp/pages/ComingSoon";
+// User Module Routes (main customer-facing frontend)
+import UserLayout from "./modules/user/components/Layout/UserLayout";
+import UserProviders from "./modules/user/components/Layout/UserProviders";
+import UserHomePage from "./modules/user/pages/Home/HomePage";
+import UserProductDetail from "./modules/user/pages/Product/ProductDetailsPage";
+import UserShopPage from "./modules/user/pages/Shop/ShopPage";
+import UserProductsPage from "./modules/user/pages/Products/ProductsPage";
+import UserCartPage from "./modules/user/pages/Cart/CartPage";
+import UserCheckoutPage from "./modules/user/pages/Checkout/CheckoutPage";
+import UserPaymentPage from "./modules/user/pages/Payment/PaymentPage";
+import UserLoginPage from "./modules/user/pages/Auth/LoginPage";
+import UserProfilePage from "./modules/user/pages/Profile/ProfilePage";
+import UserAccountPage from "./modules/user/pages/Profile/AccountPage";
+import UserLegalPage from "./modules/user/pages/Profile/LegalPage";
+import UserOrdersPage from "./modules/user/pages/Orders/OrdersPage";
+import UserOrderDetailPage from "./modules/user/pages/Orders/OrderDetailsPage";
+import UserOrderSuccessPage from "./modules/user/pages/Orders/OrderSuccessPage";
+import UserTrackOrderPage from "./modules/user/pages/Orders/TrackOrderPage";
+import UserAddressesPage from "./modules/user/pages/Addresses/AddressesPage";
+import UserWishlistPage from "./modules/user/pages/Wishlist/WishlistPage";
+import UserOffersPage from "./modules/user/pages/Offers/OffersPage";
+import UserEventsPage from "./modules/user/pages/Events/EventsPage";
+import UserReferPage from "./modules/user/pages/Refer/ReferPage";
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
 import DeliveryRegister from "./modules/Delivery/pages/Register";
@@ -184,11 +181,12 @@ import VendorLanguageSettings from "./modules/Vendor/pages/LanguageSettings";
 const AppRoutes = () => {
   return (
     <Routes>
+      {/* User Module Routes - wrapped in UserLayout (Header/Footer/BottomNav + Contexts) */}
       <Route
         path="/"
         element={
           <RouteWrapper>
-            <ComingSoon />
+            <UserLayout><UserHomePage /></UserLayout>
           </RouteWrapper>
         }
       />
@@ -196,7 +194,23 @@ const AppRoutes = () => {
         path="/home"
         element={
           <RouteWrapper>
-            <MobileHome />
+            <UserLayout><UserHomePage /></UserLayout>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/shop"
+        element={
+          <RouteWrapper>
+            <UserLayout><UserShopPage /></UserLayout>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/products"
+        element={
+          <RouteWrapper>
+            <UserLayout><UserProductsPage /></UserLayout>
           </RouteWrapper>
         }
       />
@@ -204,47 +218,15 @@ const AppRoutes = () => {
         path="/product/:id"
         element={
           <RouteWrapper>
-            <MobileProductDetail />
+            <UserLayout><UserProductDetail /></UserLayout>
           </RouteWrapper>
         }
       />
       <Route
-        path="/seller/:id"
+        path="/cart"
         element={
           <RouteWrapper>
-            <MobileSeller />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/category/:id"
-        element={
-          <RouteWrapper>
-            <MobileCategory />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/brand/:id"
-        element={
-          <RouteWrapper>
-            <MobileBrand />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/categories"
-        element={
-          <RouteWrapper>
-            <MobileCategories />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/search"
-        element={
-          <RouteWrapper>
-            <MobileSearch />
+            <UserLayout><UserCartPage /></UserLayout>
           </RouteWrapper>
         }
       />
@@ -253,49 +235,18 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <MobileCheckout />
+              <UserLayout><UserCheckoutPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
       />
-
       <Route
-        path="/login"
+        path="/payment"
         element={
           <RouteWrapper>
-            <MobileLogin />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <RouteWrapper>
-            <MobileRegister />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/verification"
-        element={
-          <RouteWrapper>
-            <MobileVerification />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/forgot-password"
-        element={
-          <RouteWrapper>
-            <MobileForgotPassword />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/reset-password"
-        element={
-          <RouteWrapper>
-            <MobileResetPassword />
+            <ProtectedRoute>
+              <UserLayout><UserPaymentPage /></UserLayout>
+            </ProtectedRoute>
           </RouteWrapper>
         }
       />
@@ -304,7 +255,7 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <MobileWishlist />
+              <UserLayout><UserWishlistPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
@@ -313,48 +264,76 @@ const AppRoutes = () => {
         path="/offers"
         element={
           <RouteWrapper>
-            <MobileOffers />
+            <UserLayout><UserOffersPage /></UserLayout>
           </RouteWrapper>
         }
       />
       <Route
-        path="/daily-deals"
+        path="/events"
         element={
           <RouteWrapper>
-            <MobileDailyDeals />
+            <UserLayout><UserEventsPage /></UserLayout>
           </RouteWrapper>
         }
       />
       <Route
-        path="/flash-sale"
-        element={
-          <RouteWrapper>
-            <MobileFlashSale />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/new-arrivals"
-        element={
-          <RouteWrapper>
-            <MobileNewArrivals />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/sale/:slug"
-        element={
-          <RouteWrapper>
-            <MobileCampaignSale />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/order-confirmation/:orderId"
+        path="/refer"
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <MobileOrderConfirmation />
+              <UserLayout><UserReferPage /></UserLayout>
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+
+      {/* Auth pages - UserProviders only (contexts but no Header/Footer) */}
+      <Route
+        path="/login"
+        element={
+          <RouteWrapper>
+            <UserLoginPage />
+          </RouteWrapper>
+        }
+      />
+
+      {/* Profile & Account */}
+      <Route
+        path="/profile"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <UserLayout><UserProfilePage /></UserLayout>
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/account"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <UserLayout><UserAccountPage /></UserLayout>
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/legal"
+        element={
+          <RouteWrapper>
+            <UserLayout><UserLegalPage /></UserLayout>
+          </RouteWrapper>
+        }
+      />
+
+      {/* Orders */}
+      <Route
+        path="/orders"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <UserLayout><UserOrdersPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
@@ -364,7 +343,17 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <MobileOrderDetail />
+              <UserLayout><UserOrderDetailPage /></UserLayout>
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/order-confirmation/:orderId"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <UserLayout><UserOrderSuccessPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
@@ -373,46 +362,18 @@ const AppRoutes = () => {
         path="/track-order/:orderId"
         element={
           <RouteWrapper>
-            <MobileTrackOrder />
+            <UserLayout><UserTrackOrderPage /></UserLayout>
           </RouteWrapper>
         }
       />
-      <Route
-        path="/profile"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <MobileProfile />
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/notifications"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserNotifications />
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/orders"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <MobileOrders />
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
+
+      {/* Addresses */}
       <Route
         path="/addresses"
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <MobileAddresses />
+              <UserLayout><UserAddressesPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
@@ -431,6 +392,7 @@ const AppRoutes = () => {
         <Route path="products" element={<Products />} />
         <Route path="products/:id" element={<ProductForm />} />
         <Route path="products/manage-products" element={<ManageProducts />} />
+        <Route path="products/pending" element={<PendingProducts />} />
         <Route path="products/tax-pricing" element={<TaxPricing />} />
         <Route path="products/product-ratings" element={<ProductRatings />} />
         <Route path="more" element={<More />} />
@@ -470,6 +432,7 @@ const AppRoutes = () => {
           path="vendors/vendor-analytics"
           element={<AdminVendorAnalytics />}
         />
+        <Route path="vendors/register" element={<RegisterVendor />} />
         <Route path="vendors/:id" element={<VendorDetail />} />
 
         <Route path="offers" element={<HomeSliders />} />
@@ -613,6 +576,7 @@ const AppRoutes = () => {
         <Route path="settings/payment-settings" element={<VendorSettings />} />
         <Route path="settings/shipping" element={<VendorSettings />} />
         <Route path="settings/shipping-settings" element={<VendorSettings />} />
+        <Route path="settings/location" element={<VendorSettings />} />
         <Route path="profile" element={<VendorSettings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -629,34 +593,36 @@ function App() {
           v7_startTransition: true,
           v7_relativeSplatPath: true,
         }}>
-        <AppBootstrap />
-        <ScrollToTop />
-        <AppRoutes />
-        <CartDrawer />
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: "#212121",
-              color: "#fff",
-            },
-            success: {
+        <UserProviders>
+          <AppBootstrap />
+          <ScrollToTop />
+          <AppRoutes />
+          <CartDrawer />
+          <Toaster
+            position="top-right"
+            toastOptions={{
               duration: 3000,
-              iconTheme: {
-                primary: "#388E3C",
-                secondary: "#fff",
+              style: {
+                background: "#212121",
+                color: "#fff",
               },
-            },
-            error: {
-              duration: 4000,
-              iconTheme: {
-                primary: "#FF6161",
-                secondary: "#fff",
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: "#388E3C",
+                  secondary: "#fff",
+                },
               },
-            },
-          }}
-        />
+              error: {
+                duration: 4000,
+                iconTheme: {
+                  primary: "#FF6161",
+                  secondary: "#fff",
+                },
+              },
+            }}
+          />
+        </UserProviders>
       </Router>
     </ErrorBoundary>
   );

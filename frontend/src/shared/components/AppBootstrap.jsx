@@ -42,6 +42,10 @@ const AppBootstrap = () => {
     let cancelled = false;
 
     const syncCatalog = async () => {
+      // Small delay to let initial mounting stabilize
+      await new Promise(r => setTimeout(r, 100));
+      if (cancelled) return;
+
       try {
         const [productsRes, vendorsRes, brandsRes] = await Promise.allSettled([
           api.get("/products", { params: { page: 1, limit: 500 } }),
@@ -57,8 +61,12 @@ const AppBootstrap = () => {
             ? payload.products.map(normalizeProduct)
             : [];
           if (list.length) {
-            localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(list));
-            updated = true;
+            const current = localStorage.getItem(PRODUCTS_CACHE_KEY);
+            const nextStr = JSON.stringify(list);
+            if (current !== nextStr) {
+              localStorage.setItem(PRODUCTS_CACHE_KEY, nextStr);
+              updated = true;
+            }
           }
         }
 
@@ -68,8 +76,12 @@ const AppBootstrap = () => {
             ? payload.vendors.map(normalizeVendor)
             : [];
           if (list.length) {
-            localStorage.setItem(VENDORS_CACHE_KEY, JSON.stringify(list));
-            updated = true;
+            const current = localStorage.getItem(VENDORS_CACHE_KEY);
+            const nextStr = JSON.stringify(list);
+            if (current !== nextStr) {
+              localStorage.setItem(VENDORS_CACHE_KEY, nextStr);
+              updated = true;
+            }
           }
         }
 
@@ -77,8 +89,12 @@ const AppBootstrap = () => {
           const payload = brandsRes.value?.data;
           const list = Array.isArray(payload) ? payload.map(normalizeBrand) : [];
           if (list.length) {
-            localStorage.setItem(BRANDS_CACHE_KEY, JSON.stringify(list));
-            updated = true;
+            const current = localStorage.getItem(BRANDS_CACHE_KEY);
+            const nextStr = JSON.stringify(list);
+            if (current !== nextStr) {
+              localStorage.setItem(BRANDS_CACHE_KEY, nextStr);
+              updated = true;
+            }
           }
         }
 

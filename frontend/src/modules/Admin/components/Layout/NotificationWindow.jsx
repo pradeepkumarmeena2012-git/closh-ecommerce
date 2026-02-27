@@ -44,12 +44,20 @@ const NotificationWindow = ({ isOpen, onClose, position = 'right' }) => {
       order_cancelled: 'bg-red-100 text-red-600',
       payment_failed: 'bg-yellow-100 text-yellow-600',
       order_delivered: 'bg-green-100 text-green-600',
+      product_approval: 'bg-purple-100 text-purple-600',
     };
     return colors[type] || 'bg-gray-100 text-gray-600';
   };
 
   const handleNotificationClick = (notification) => {
     markAsRead(notification._id);
+
+    if (notification.data?.type === 'product_approval') {
+      navigate('/admin/products/pending');
+      onClose();
+      return;
+    }
+
     const orderId = notification.orderId || notification.data?.orderId;
     if (orderId) {
       navigate('/admin/orders');

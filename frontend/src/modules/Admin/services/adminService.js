@@ -75,6 +75,9 @@ export const updateProduct = (id, data) =>
 export const deleteProduct = (id) =>
     api.delete(`/admin/products/${id}`);
 
+export const updateProductStatus = (id, approvalStatus) =>
+    api.patch(`/admin/products/${id}/approval-status`, { approvalStatus });
+
 export const getTaxPricingRules = () =>
     api.get('/admin/products/tax-pricing-rules');
 
@@ -122,6 +125,13 @@ export const getAllVendors = (params = {}) =>
 
 export const getVendorById = (id) =>
     api.get(`/admin/vendors/${id}`);
+
+export const registerVendor = (data) =>
+    api.post('/admin/vendors', data, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
 
 export const updateVendorStatus = (id, status, reason = '') =>
     api.patch(`/admin/vendors/${id}/status`, { status, reason });

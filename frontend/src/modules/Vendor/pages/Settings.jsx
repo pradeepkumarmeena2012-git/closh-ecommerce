@@ -6,11 +6,13 @@ import StoreSettings from './settings/StoreSettings';
 import PaymentSettings from './settings/PaymentSettings';
 import ShippingSettings from './settings/ShippingSettings';
 import ProfileSettings from './settings/ProfileSettings';
+import LocationSettings from './settings/LocationSettings';
+import { FiMapPin } from 'react-icons/fi';
 
 const VendorSettings = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Get active tab from URL or default to 'store'
   const getActiveTabFromUrl = () => {
     const path = location.pathname;
@@ -18,6 +20,7 @@ const VendorSettings = () => {
     if (path.includes('/shipping') || path.includes('/shipping-settings')) return 'shipping';
     if (path.includes('/profile')) return 'profile';
     if (path.includes('/store')) return 'store';
+    if (path.includes('/location')) return 'location';
     return 'store';
   };
 
@@ -37,6 +40,8 @@ const VendorSettings = () => {
       navigate('/vendor/settings/shipping');
     } else if (tabId === 'profile') {
       navigate('/vendor/profile');
+    } else if (tabId === 'location') {
+      navigate('/vendor/settings/location');
     }
   };
 
@@ -45,6 +50,7 @@ const VendorSettings = () => {
     { id: 'payment', label: 'Payment Settings', icon: FiCreditCard, component: PaymentSettings, route: '/vendor/settings/payment-settings' },
     { id: 'shipping', label: 'Shipping Settings', icon: FiTruck, component: ShippingSettings, route: '/vendor/settings/shipping-settings' },
     { id: 'profile', label: 'Profile', icon: FiUser, component: ProfileSettings, route: '/vendor/profile' },
+    { id: 'location', label: 'Shop Location', icon: FiMapPin, component: LocationSettings, route: '/vendor/settings/location' },
   ];
 
   const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component || StoreSettings;
@@ -71,11 +77,10 @@ const VendorSettings = () => {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-xs sm:text-sm ${
-                    activeTab === tab.id
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === tab.id
                       ? 'border-purple-600 text-purple-600 font-semibold'
                       : 'border-transparent text-gray-600 hover:text-gray-800'
-                  }`}
+                    }`}
                 >
                   <Icon className="text-base sm:text-lg" />
                   <span className="hidden xs:inline">{tab.label}</span>

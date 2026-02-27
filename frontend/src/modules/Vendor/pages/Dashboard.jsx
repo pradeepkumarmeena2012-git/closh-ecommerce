@@ -12,10 +12,13 @@ import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { useVendorProductStore } from "../store/vendorProductStore";
 import { getVendorOrders, getVendorEarnings } from "../services/vendorService";
 import { formatPrice } from "../../../shared/utils/helpers";
+import { FiMapPin, FiAlertCircle } from "react-icons/fi";
+import toast from "react-hot-toast";
 
 const VendorDashboard = () => {
   const navigate = useNavigate();
-  const { vendor } = useVendorAuthStore();
+  const { vendor, updateLocation } = useVendorAuthStore();
+  const [locationLoading, setLocationLoading] = useState(false);
   const { products, total: totalProductsCount, fetchProducts } = useVendorProductStore();
 
   const [stats, setStats] = useState({
@@ -31,6 +34,42 @@ const VendorDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const vendorId = vendor?.id;
+
+  const handleSetLocation = async () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setLocationLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await updateLocation(latitude, longitude);
+          if (res.success) {
+            toast.success("Shop location updated successfully!");
+          }
+        } catch (error) {
+          toast.error("Failed to update location. Please try again.");
+        } finally {
+          setLocationLoading(false);
+        }
+      },
+      (error) => {
+        setLocationLoading(false);
+        toast.error("Please allow location access to set your shop location.");
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
+  const isLocationSet = useMemo(() => {
+    return (
+      vendor?.shopLocation?.coordinates?.[0] !== 0 ||
+      vendor?.shopLocation?.coordinates?.[1] !== 0
+    );
+  }, [vendor]);
 
   useEffect(() => {
     if (!vendorId) return;
@@ -149,6 +188,42 @@ const VendorDashboard = () => {
         </div>
       </div>
 
+      {/* Location Warning */}
+      {!isLocationSet && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-orange-500 p-2 rounded-lg">
+              <FiAlertCircle className="text-white text-xl" />
+            </div>
+            <div>
+              <h3 className="font-bold text-orange-800">
+                Shop Location Not Set
+              </h3>
+              <p className="text-sm text-orange-700">
+                Please set your shop's GPS location to help customers find you
+                and for accurate delivery.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleSetLocation}
+            disabled={locationLoading}
+            className="w-full sm:w-auto px-6 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
+          >
+            {locationLoading ? (
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <FiMapPin />
+            )}
+            Set Current Location
+          </button>
+        </motion.div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, index) => (
@@ -216,6 +291,23 @@ const VendorDashboard = () => {
               <p className="text-sm text-gray-600">Check your earnings</p>
             </div>
           </button>
+
+          <button
+            onClick={handleSetLocation}
+            disabled={locationLoading}
+            className="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
+            <div className="bg-blue-500 p-2 rounded-lg">
+              {locationLoading ? (
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <FiMapPin className="text-white text-xl" />
+              )}
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-800">Set Shop Location</h3>
+              <p className="text-sm text-gray-600">Update your GPS coordinates</p>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -244,35 +336,35 @@ const VendorDashboard = () => {
                   vendorItem?.subtotal ?? order.totalAmount ?? order.total ?? 0;
 
                 return (
-                <div
-                  key={order._id ?? order.orderId}
-                  onClick={() =>
-                    navigate(`/vendor/orders/${order.orderId ?? order._id}`)
-                  }
-                  className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors">
-                  <div>
-                    <p className="font-semibold text-gray-800">
-                      {order.orderId ?? order._id}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-800">
-                      {formatPrice(displayAmount)}
-                    </p>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${displayStatus === "delivered"
+                  <div
+                    key={order._id ?? order.orderId}
+                    onClick={() =>
+                      navigate(`/vendor/orders/${order.orderId ?? order._id}`)
+                    }
+                    className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors">
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        {order.orderId ?? order._id}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-gray-800">
+                        {formatPrice(displayAmount)}
+                      </p>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${displayStatus === "delivered"
                           ? "bg-green-100 text-green-700"
                           : displayStatus === "pending"
                             ? "bg-yellow-100 text-yellow-700"
                             : "bg-blue-100 text-blue-700"
-                        }`}>
-                      {displayStatus}
-                    </span>
+                          }`}>
+                        {displayStatus}
+                      </span>
+                    </div>
                   </div>
-                </div>
                 );
               })}
             </div>
@@ -319,10 +411,10 @@ const VendorDashboard = () => {
                   </div>
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${product.stock === "in_stock"
-                        ? "bg-green-100 text-green-700"
-                        : product.stock === "low_stock"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
+                      ? "bg-green-100 text-green-700"
+                      : product.stock === "low_stock"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-red-100 text-red-700"
                       }`}>
                     {product.stock === "in_stock"
                       ? "In Stock"

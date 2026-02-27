@@ -271,3 +271,24 @@ export const updateBankDetails = asyncHandler(async (req, res) => {
 
     res.status(200).json(new ApiResponse(200, vendor, 'Bank details updated.'));
 });
+
+// PUT /api/vendor/auth/location
+export const updateLocation = asyncHandler(async (req, res) => {
+    const { latitude, longitude } = req.body;
+    if (latitude === undefined || longitude === undefined) {
+        throw new ApiError(400, 'Latitude and longitude are required.');
+    }
+
+    const vendor = await Vendor.findByIdAndUpdate(
+        req.user.id,
+        {
+            $set: {
+                'shopLocation.coordinates': [longitude, latitude],
+                'shopLocation.type': 'Point'
+            }
+        },
+        { new: true, runValidators: true }
+    ).select('-password -otp -otpExpiry');
+
+    res.status(200).json(new ApiResponse(200, vendor, 'Shop location updated successfully.'));
+});

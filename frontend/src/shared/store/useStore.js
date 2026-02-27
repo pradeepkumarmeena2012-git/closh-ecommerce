@@ -96,7 +96,7 @@ export const useCartStore = create(
             return {
               items: state.items.map((i) =>
                 String(i.id) === String(item.id)
-                && String(i.cartLineKey || getCartLineKey(i.id, i.variant)) === lineKey
+                  && String(i.cartLineKey || getCartLineKey(i.id, i.variant)) === lineKey
                   ? {
                     ...i,
                     ...itemWithVendor,
@@ -180,18 +180,14 @@ export const useCartStore = create(
       getTotal: () => {
         const authState = useAuthStore.getState();
         if (!authState?.isAuthenticated) {
-          if (get().items.length > 0 || get().ownerUserId) {
-            set({ items: [], ownerUserId: null });
-          }
           return 0;
         }
         const currentUserId = getCurrentAuthUserId();
         const ownerUserId = String(get().ownerUserId || "").trim();
         if (ownerUserId && currentUserId && ownerUserId !== currentUserId) {
-          set({ items: [], ownerUserId: currentUserId });
           return 0;
         }
-        const state = useCartStore.getState();
+        const state = get();
         return state.items.reduce(
           (total, item) => total + item.price * item.quantity,
           0
@@ -200,36 +196,28 @@ export const useCartStore = create(
       getItemCount: () => {
         const authState = useAuthStore.getState();
         if (!authState?.isAuthenticated) {
-          if (get().items.length > 0 || get().ownerUserId) {
-            set({ items: [], ownerUserId: null });
-          }
           return 0;
         }
         const currentUserId = getCurrentAuthUserId();
         const ownerUserId = String(get().ownerUserId || "").trim();
         if (ownerUserId && currentUserId && ownerUserId !== currentUserId) {
-          set({ items: [], ownerUserId: currentUserId });
           return 0;
         }
-        const state = useCartStore.getState();
+        const state = get();
         return state.items.reduce((count, item) => count + item.quantity, 0);
       },
       // Group items by vendor
       getItemsByVendor: () => {
         const authState = useAuthStore.getState();
         if (!authState?.isAuthenticated) {
-          if (get().items.length > 0 || get().ownerUserId) {
-            set({ items: [], ownerUserId: null });
-          }
           return [];
         }
         const currentUserId = getCurrentAuthUserId();
         const ownerUserId = String(get().ownerUserId || "").trim();
         if (ownerUserId && currentUserId && ownerUserId !== currentUserId) {
-          set({ items: [], ownerUserId: currentUserId });
           return [];
         }
-        const state = useCartStore.getState();
+        const state = get();
         const vendorGroups = {};
 
         state.items.forEach((item) => {

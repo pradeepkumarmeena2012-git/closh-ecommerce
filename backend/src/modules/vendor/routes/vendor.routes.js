@@ -51,6 +51,7 @@ router.post('/auth/logout', validate(logoutSchema), authController.logout);
 router.get('/auth/profile', ...vendorAuth, authController.getProfile);
 router.put('/auth/profile', ...vendorAuth, authController.updateProfile);
 router.put('/auth/bank-details', ...vendorAuth, authController.updateBankDetails);
+router.put('/auth/location', ...vendorAuth, authController.updateLocation);
 
 // Products
 router.get('/products', ...vendorAuth, productController.getVendorProducts);

@@ -57,7 +57,7 @@ const ManageProducts = () => {
       const normalizedProducts = products.map(p => ({
         ...p,
         id: p._id, // Map backend _id to frontend id
-        image: p.image || p.images?.[0] || "https://via.placeholder.com/50x50?text=Product",
+        image: p.image || p.images?.[0] || "https://placehold.co/50x50?text=Product",
         stock: p.stock || (p.stockQuantity > 5 ? "in_stock" : p.stockQuantity > 0 ? "low_stock" : "out_of_stock"),
       }));
       setProducts(normalizedProducts);
@@ -111,7 +111,7 @@ const ManageProducts = () => {
             alt={value}
             className="w-10 h-10 object-cover rounded-lg"
             onError={(e) => {
-              e.target.src = "https://via.placeholder.com/50x50?text=Product";
+              e.target.src = "https://placehold.co/50x50?text=Product";
             }}
           />
           <span className="font-medium">{value}</span>

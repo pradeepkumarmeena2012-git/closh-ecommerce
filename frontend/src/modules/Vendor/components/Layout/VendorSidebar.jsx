@@ -72,6 +72,7 @@ const getChildRoute = (parentRoute, childName) => {
     },
     "/vendor/settings": {
       "Store Settings": "/vendor/settings/store",
+      "Location Settings": "/vendor/settings/location",
       "Payment Settings": "/vendor/settings/payment",
       "Shipping Settings": "/vendor/settings/shipping",
     },
@@ -180,10 +181,9 @@ const VendorSidebar = ({ isOpen, onClose }) => {
         <div
           className={`
             flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer
-            ${
-              active
-                ? "bg-primary-600 text-white shadow-sm"
-                : "text-gray-300 hover:bg-slate-700"
+            ${active
+              ? "bg-primary-600 text-white shadow-sm"
+              : "text-gray-300 hover:bg-slate-700"
             }
           `}
           onClick={() => {
@@ -194,9 +194,8 @@ const VendorSidebar = ({ isOpen, onClose }) => {
             }
           }}>
           <Icon
-            className={`text-xl flex-shrink-0 ${
-              active ? "text-white" : "text-gray-400"
-            }`}
+            className={`text-xl flex-shrink-0 ${active ? "text-white" : "text-gray-400"
+              }`}
           />
           <span className="font-medium flex-1 text-sm">{item.title}</span>
           {hasChildren && (
@@ -233,10 +232,9 @@ const VendorSidebar = ({ isOpen, onClose }) => {
                       }
                       className={`
                         px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer
-                        ${
-                          isChildActive
-                            ? "bg-primary-500/20 text-white font-medium"
-                            : "text-gray-400 hover:bg-slate-700"
+                        ${isChildActive
+                          ? "bg-primary-500/20 text-white font-medium"
+                          : "text-gray-400 hover:bg-slate-700"
                         }
                       `}>
                       {child}

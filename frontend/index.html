@@ -7,8 +7,10 @@
     <title>Appzeto multi vendor E-commerce</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Outer wrapper protects React root from browser extension DOM injection -->
+    <div id="root-container">
+      <div id="root"></div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
-

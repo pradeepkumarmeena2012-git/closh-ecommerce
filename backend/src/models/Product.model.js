@@ -63,6 +63,12 @@ const productSchema = new mongoose.Schema(
         relatedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
         faqs: [{ question: String, answer: String }],
         tags: [String],
+        approvalStatus: {
+            type: String,
+            enum: ['pending', 'approved', 'rejected'],
+            default: 'pending',
+            index: true
+        },
     },
     { timestamps: true }
 );

@@ -8,17 +8,17 @@ export const registerSchema = Joi.object({
 });
 
 export const loginSchema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().required(),
     password: Joi.string().required(),
 });
 
 export const otpSchema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().required(),
     otp: Joi.string().length(6).required(),
 });
 
 export const resendOtpSchema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().required(),
 });
 
 export const refreshTokenSchema = Joi.object({
@@ -30,16 +30,16 @@ export const logoutSchema = Joi.object({
 });
 
 export const forgotPasswordSchema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().required(),
 });
 
 export const verifyResetOtpSchema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().required(),
     otp: Joi.string().length(6).required(),
 });
 
 export const resetPasswordSchema = Joi.object({
-    email: Joi.string().email().required(),
+    email: Joi.string().required(),
     password: Joi.string().min(6).required(),
     confirmPassword: Joi.string().valid(Joi.ref('password')).required().messages({
         'any.only': 'Confirm password must match password.',

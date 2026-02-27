@@ -97,8 +97,25 @@ const ManageProducts = () => {
       render: (value) => value?.toLocaleString() || 0,
     },
     {
+      key: "approvalStatus",
+      label: "Approval",
+      sortable: true,
+      render: (value) => (
+        <Badge
+          variant={
+            value === "approved"
+              ? "success"
+              : value === "rejected"
+                ? "error"
+                : "warning"
+          }>
+          {(value || "pending").toUpperCase()}
+        </Badge>
+      ),
+    },
+    {
       key: "stock",
-      label: "Status",
+      label: "Stock Status",
       sortable: true,
       render: (value) => (
         <Badge

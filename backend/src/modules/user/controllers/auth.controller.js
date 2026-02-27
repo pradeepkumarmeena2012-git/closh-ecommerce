@@ -53,10 +53,16 @@ export const register = asyncHandler(async (req, res) => {
 
 // POST /api/user/auth/verify-otp
 export const verifyOTP = asyncHandler(async (req, res) => {
-    const { email, otp } = req.body;
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const { email: identifier, otp } = req.body;
+    const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
 
-    const user = await User.findOne({ email: normalizedEmail }).select('+otp +otpExpiry');
+    // Search by email OR phone
+    const user = await User.findOne({
+        $or: [
+            { email: normalizedIdentifier },
+            { phone: normalizedIdentifier }
+        ]
+    }).select('+otp +otpExpiry');
     if (!user) throw new ApiError(404, 'User not found.');
     if (user.otp !== otp) throw new ApiError(400, 'Invalid OTP.');
     if (user.otpExpiry < Date.now()) throw new ApiError(400, 'OTP has expired. Please request a new one.');
@@ -132,11 +138,17 @@ export const logout = asyncHandler(async (req, res) => {
 
 // POST /api/user/auth/resend-otp
 export const resendOTP = asyncHandler(async (req, res) => {
-    const { email } = req.body;
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
+    const { email: identifier } = req.body;
+    const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
+
+    const user = await User.findOne({
+        $or: [
+            { email: normalizedIdentifier },
+            { phone: normalizedIdentifier }
+        ]
+    });
     if (!user) throw new ApiError(404, 'User not found.');
-    if (user.isVerified) throw new ApiError(400, 'Email already verified.');
+    if (user.isVerified) throw new ApiResponse(200, null, 'Already verified.');
 
     await sendOTP(user, 'email_verification');
     res.status(200).json(new ApiResponse(200, null, 'OTP resent successfully.'));

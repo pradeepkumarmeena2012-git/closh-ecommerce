@@ -39,6 +39,19 @@ const vendorSchema = new mongoose.Schema(
             zipCode: String,
             country: String,
         },
+        gstNumber: { type: String, trim: true },
+        shopAddress: { type: String, trim: true },
+        shopLocation: {
+            type: {
+                type: String,
+                enum: ['Point'],
+                default: 'Point',
+            },
+            coordinates: {
+                type: [Number], // [longitude, latitude]
+                default: [0, 0],
+            },
+        },
         bankDetails: {
             accountName: { type: String, select: false },
             accountNumber: { type: String, select: false },

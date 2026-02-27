@@ -244,7 +244,7 @@ const sanitizeBrandPayload = (payload = {}) => {
 
 // GET /api/admin/products
 export const getAllProducts = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20, search, vendorId, categoryId, status, includeInactive = 'false' } = req.query;
+    const { page = 1, limit = 20, search, vendorId, categoryId, status, approvalStatus, includeInactive = 'false' } = req.query;
     const numericPage = Number(page) || 1;
     const numericLimit = Number(limit) || 20;
     const skip = (numericPage - 1) * numericLimit;
@@ -253,7 +253,8 @@ export const getAllProducts = asyncHandler(async (req, res) => {
     if (vendorId) filter.vendorId = vendorId;
     if (categoryId) filter.categoryId = categoryId;
     if (status) filter.stock = status;
-    if (String(includeInactive) !== 'true') {
+    if (approvalStatus) filter.approvalStatus = approvalStatus;
+    if (String(includeInactive) !== 'true' && !approvalStatus) {
         filter.isActive = { $ne: false };
     }
 
@@ -353,6 +354,32 @@ export const updateProduct = asyncHandler(async (req, res) => {
     const product = await Product.findByIdAndUpdate(req.params.id, payload, { new: true, runValidators: true });
     if (!product) throw new ApiError(404, 'Product not found.');
     res.status(200).json(new ApiResponse(200, product, 'Product updated.'));
+});
+
+// PATCH /api/admin/products/:id/approval-status
+export const updateProductStatus = asyncHandler(async (req, res) => {
+    const { approvalStatus } = req.body;
+    if (!['approved', 'rejected', 'pending'].includes(approvalStatus)) {
+        throw new ApiError(400, 'Invalid approval status.');
+    }
+
+    const payload = { approvalStatus };
+    if (approvalStatus === 'approved') {
+        payload.isActive = true;
+        payload.isVisible = true;
+    } else {
+        payload.isActive = false;
+        payload.isVisible = false;
+    }
+
+    const product = await Product.findByIdAndUpdate(
+        req.params.id,
+        payload,
+        { new: true, runValidators: true }
+    );
+
+    if (!product) throw new ApiError(404, 'Product not found.');
+    res.status(200).json(new ApiResponse(200, product, `Product ${approvalStatus} successfully.`));
 });
 
 // DELETE /api/admin/products/:id

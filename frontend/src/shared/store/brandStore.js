@@ -11,15 +11,19 @@ export const useBrandStore = create(
 
       // Initialize brands
       initialize: async () => {
+        // Guard: Don't initialize if already loading or already have data
+        const state = get();
+        if (state.isLoading || state.brands.length > 0) return;
+
         set({ isLoading: true });
         try {
-          const isVendorArea =
+          const isAdminArea =
             typeof window !== 'undefined' &&
-            window.location.pathname.startsWith('/vendor');
-          const response = isVendorArea
-            ? await getPublicBrands()
-            : await getAllBrands();
-          const normalizedBrands = response.data.map(brand => ({
+            window.location.pathname.startsWith('/admin');
+          const response = isAdminArea
+            ? await getAllBrands()
+            : await getPublicBrands();
+          const normalizedBrands = (response?.data || []).map(brand => ({
             ...brand,
             id: brand._id // Ensure UI compatibility by aliasing _id to id
           }));
@@ -33,7 +37,7 @@ export const useBrandStore = create(
       // Get all brands
       getBrands: () => {
         const state = get();
-        if (state.brands.length === 0) {
+        if (state.brands.length === 0 && !state.isLoading) {
           state.initialize();
         }
         return get().brands;

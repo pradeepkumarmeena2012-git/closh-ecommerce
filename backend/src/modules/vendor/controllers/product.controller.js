@@ -2,6 +2,8 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Product from '../../../models/Product.model.js';
+import Admin from '../../../models/Admin.model.js';
+import { createNotification } from '../../../services/notification.service.js';
 import { slugify } from '../../../utils/slugify.js';
 
 const deriveStockStatus = (stockQuantity = 0, lowStockThreshold = 10) => {
@@ -257,14 +259,43 @@ export const createProduct = asyncHandler(async (req, res) => {
         slug,
         vendorId: req.user.id,
         ...rest,
-        price,
+        originalPrice: price, // This is what the vendor wants to be paid
+        price: 0, // Admin will set the final customer price including margin
         variants: normalizedVariants,
         faqs: sanitizeFaqs(rest.faqs),
         stockQuantity: finalStockQuantity,
         lowStockThreshold,
         stock,
+        approvalStatus: 'pending',
+        isActive: false, // Hidden until approved
+        isVisible: false,
     });
-    res.status(201).json(new ApiResponse(201, product, 'Product created.'));
+
+    // Notify all active admins about new product approval request
+    try {
+        const admins = await Admin.find({ isActive: true }).select('_id');
+        await Promise.all(
+            admins.map((admin) =>
+                createNotification({
+                    recipientId: admin._id,
+                    recipientType: 'admin',
+                    title: 'New Product for Approval',
+                    message: `Vendor ${req.user.id} added a new product: "${name}". Please review and approve.`,
+                    type: 'system',
+                    data: {
+                        productId: String(product._id),
+                        productName: product.name,
+                        vendorId: String(req.user.id),
+                        type: 'product_approval'
+                    },
+                })
+            )
+        );
+    } catch (err) {
+        console.error('Failed to send product approval notifications to admins:', err);
+    }
+
+    res.status(201).json(new ApiResponse(201, product, 'Product created and sent for admin approval.'));
 });
 
 // PUT /api/vendor/products/:id

@@ -8,6 +8,7 @@ import {
   getProductById,
   createProduct,
   updateProduct,
+  updateProductStatus,
   getAllVendors,
   uploadAdminImage,
 } from "../services/adminService";
@@ -15,6 +16,7 @@ import CategorySelector from "./CategorySelector";
 import AnimatedSelect from "./AnimatedSelect";
 import toast from "react-hot-toast";
 import Button from "./Button";
+import { formatPrice } from "../../../shared/utils/helpers";
 
 const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
   const location = useLocation();
@@ -74,6 +76,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     seoDescription: "",
     relatedProducts: [],
     faqs: [],
+    approvalStatus: "pending",
   });
 
   const extractId = (value) => {
@@ -170,6 +173,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
             seoDescription: product.seoDescription || "",
             relatedProducts: product.relatedProducts || [],
             faqs: Array.isArray(product.faqs) ? product.faqs : [],
+            approvalStatus: product.approvalStatus || "pending",
           });
         }
       } catch (error) {
@@ -225,6 +229,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         seoDescription: "",
         relatedProducts: [],
         faqs: [],
+        approvalStatus: "pending",
       });
     }
   }, [isOpen, isEdit, productId, onClose, categories]);
@@ -368,13 +373,13 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     const combinations =
       sizes.length > 0 && colors.length > 0
         ? sizes.flatMap((size) =>
-            colors.map((color) => ({ key: createVariantKey(size, color) }))
-          )
+          colors.map((color) => ({ key: createVariantKey(size, color) }))
+        )
         : sizes.length > 0
-        ? sizes.map((size) => ({ key: createVariantKey(size, "") }))
-        : colors.length > 0
-        ? colors.map((color) => ({ key: createVariantKey("", color) }))
-        : [];
+          ? sizes.map((size) => ({ key: createVariantKey(size, "") }))
+          : colors.length > 0
+            ? colors.map((color) => ({ key: createVariantKey("", color) }))
+            : [];
 
     const nextPrices = {};
     const nextStockMap = {};
@@ -450,12 +455,12 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     const colors = Array.isArray(formData?.variants?.colors) ? formData.variants.colors : [];
     const attributes = Array.isArray(formData?.variants?.attributes)
       ? formData.variants.attributes
-          .map((attr) => ({
-            name: String(attr?.name || "").trim(),
-            key: normalizeVariantPart(attr?.name || ""),
-            values: Array.isArray(attr?.values) ? attr.values.filter(Boolean) : [],
-          }))
-          .filter((attr) => attr.name && attr.key && attr.values.length > 0)
+        .map((attr) => ({
+          name: String(attr?.name || "").trim(),
+          key: normalizeVariantPart(attr?.name || ""),
+          values: Array.isArray(attr?.values) ? attr.values.filter(Boolean) : [],
+        }))
+        .filter((attr) => attr.name && attr.key && attr.values.length > 0)
       : [];
     if (attributes.length > 0) {
       let combos = [{}];
@@ -641,6 +646,37 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       onClose();
     } catch (error) {
       // Error is handled in interceptor
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!formData.price || !formData.stockQuantity) {
+      toast.error("Please fill in price and stock before approving");
+      return;
+    }
+
+    try {
+      // First update the status and activation fields
+      await updateProductStatus(productId, "approved");
+
+      // Then save the rest of the form (prices, etc)
+      const submissionData = {
+        ...formData,
+        price: parseFloat(formData.price),
+        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
+        stockQuantity: parseInt(formData.stockQuantity),
+        isActive: true,
+        isVisible: true,
+        approvalStatus: "approved"
+      };
+
+      await updateProduct(productId, submissionData);
+      toast.success("Product approved and saved successfully");
+
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (error) {
+      // Error handled by interceptor
     }
   };
 
@@ -830,12 +866,29 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                   {/* Pricing */}
                   <div>
                     <h3 className="text-lg font-bold text-gray-800 mb-4">
-                      Pricing
+                      Pricing & Margin
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Price <span className="text-red-500">*</span>
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <label className="block text-sm font-bold text-blue-700 mb-2">
+                          Cost Price (Vendor)
+                        </label>
+                        <input
+                          type="number"
+                          name="originalPrice"
+                          value={formData.originalPrice}
+                          onChange={handleChange}
+                          min="0"
+                          step="0.01"
+                          className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                          placeholder="Vendor's quoted price"
+                        />
+                        <p className="mt-1 text-xs text-blue-600">This is the original price from vendor.</p>
+                      </div>
+
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+                        <label className="block text-sm font-bold text-green-700 mb-2">
+                          Selling Price (Admin/Customer) <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="number"
@@ -845,24 +898,23 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           required
                           min="0"
                           step="0.01"
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full px-3 py-2 text-sm border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                          placeholder="Final price for customers"
                         />
+                        <p className="mt-1 text-xs text-green-600">Include your margin in this price.</p>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Original Price (for discount)
-                        </label>
-                        <input
-                          type="number"
-                          name="originalPrice"
-                          value={formData.originalPrice}
-                          onChange={handleChange}
-                          min="0"
-                          step="0.01"
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        />
-                      </div>
+                      {formData.price && formData.originalPrice && parseFloat(formData.originalPrice) > 0 && (
+                        <div className="md:col-span-2 text-right">
+                          <span className="text-sm font-bold text-gray-700">
+                            Calculated Margin:
+                            <span className={parseFloat(formData.price) - parseFloat(formData.originalPrice) >= 0 ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
+                              {formatPrice(parseFloat(formData.price) - parseFloat(formData.originalPrice))}
+                              ({(((parseFloat(formData.price) - parseFloat(formData.originalPrice)) / parseFloat(formData.originalPrice)) * 100).toFixed(2)}%)
+                            </span>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1560,6 +1612,17 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                       size="sm">
                       Cancel
                     </Button>
+
+                    {isEdit && formData.approvalStatus === 'pending' && (
+                      <Button
+                        type="button"
+                        onClick={handleApprove}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        size="sm">
+                        Approve & Save
+                      </Button>
+                    )}
+
                     <Button
                       type="submit"
                       variant="primary"

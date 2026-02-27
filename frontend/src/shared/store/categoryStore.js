@@ -19,6 +19,10 @@ export const useCategoryStore = create(
 
       // Initialize categories
       initialize: async () => {
+        // Guard: Don't initialize if already loading or already have data
+        const state = get();
+        if (state.isLoading || state.categories.length > 0) return;
+
         set({ isLoading: true });
         try {
           const isAdminArea =
@@ -27,7 +31,7 @@ export const useCategoryStore = create(
           const response = isAdminArea
             ? await getAllCategories()
             : await getPublicCategories();
-          const normalizedCategories = response.data.map(cat => ({
+          const normalizedCategories = (response?.data || []).map(cat => ({
             ...cat,
             id: cat._id // Ensure UI compatibility by aliasing _id to id
           }));
@@ -41,7 +45,7 @@ export const useCategoryStore = create(
       // Get all categories
       getCategories: () => {
         const state = get();
-        if (state.categories.length === 0) {
+        if (state.categories.length === 0 && !state.isLoading) {
           state.initialize();
         }
         return get().categories;

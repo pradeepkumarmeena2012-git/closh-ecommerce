@@ -157,9 +157,18 @@ export const useSettingsStore = create(
 
       // Initialize settings
       initialize: () => {
+        const state = get();
         const savedSettings = localStorage.getItem("admin-settings");
         if (savedSettings) {
-          set({ settings: JSON.parse(savedSettings) });
+          try {
+            const parsed = JSON.parse(savedSettings);
+            // Only update if current state is different to avoid re-render loops
+            if (JSON.stringify(parsed) !== JSON.stringify(state.settings)) {
+              set({ settings: parsed });
+            }
+          } catch (e) {
+            set({ settings: defaultSettings });
+          }
         } else {
           set({ settings: defaultSettings });
           localStorage.setItem(

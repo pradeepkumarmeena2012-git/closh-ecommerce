@@ -56,6 +56,7 @@ import {
     vendorStatusUpdateSchema,
     vendorCommissionUpdateSchema,
     vendorCommissionsQuerySchema,
+    registerVendorSchema,
 } from '../validators/vendor.validator.js';
 import {
     marketingIdParamSchema,
@@ -97,6 +98,7 @@ router.post('/products', ...adminAuth, validate(createProductSchema), catalogCon
 router.put('/products/tax-pricing-rules', ...adminAuth, validate(taxPricingRulesSchema), catalogController.updateTaxPricingRules);
 
 router.put('/products/:id', ...adminAuth, validate(updateProductSchema), catalogController.updateProduct);
+router.patch('/products/:id/approval-status', ...adminAuth, catalogController.updateProductStatus);
 router.delete('/products/:id', ...adminAuth, catalogController.deleteProduct);
 
 // ─── Categories ───────────────────────────────────────────────────────────────
@@ -113,6 +115,7 @@ router.put('/brands/:id', ...adminAuth, validate(brandIdParamSchema, 'params'), 
 router.delete('/brands/:id', ...adminAuth, validate(brandIdParamSchema, 'params'), catalogController.deleteBrand);
 
 // ─── Vendors ──────────────────────────────────────────────────────────────────
+router.post('/vendors', ...adminAuth, uploadSingle('document'), validate(registerVendorSchema), vendorController.registerVendor);
 router.get('/vendors', ...adminAuth, validate(vendorListQuerySchema, 'query'), vendorController.getAllVendors);
 router.get('/vendors/pending', ...adminAuth, (req, res, next) => { req.query.status = 'pending'; next(); }, validate(vendorListQuerySchema, 'query'), vendorController.getAllVendors);
 router.get('/vendors/:id', ...adminAuth, validate(vendorIdParamSchema, 'params'), vendorController.getVendorDetail);

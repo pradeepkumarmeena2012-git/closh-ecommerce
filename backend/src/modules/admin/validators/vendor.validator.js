@@ -28,3 +28,13 @@ export const vendorCommissionsQuerySchema = Joi.object({
     status: Joi.string().valid('all', 'pending', 'paid', 'cancelled').optional(),
 });
 
+export const registerVendorSchema = Joi.object({
+    name: Joi.string().trim().min(2).max(100).required(),
+    storeName: Joi.string().trim().min(2).max(100).required(),
+    phone: Joi.string().trim().min(10).max(15).required(),
+    gstNumber: Joi.string().trim().min(15).max(15).required(), // GST is usually 15 chars
+    shopAddress: Joi.string().trim().min(5).max(500).required(),
+    email: Joi.string().trim().lowercase().email().required(),
+    password: Joi.string().trim().min(6).required(),
+});
+

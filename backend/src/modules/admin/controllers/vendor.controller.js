@@ -162,3 +162,42 @@ export const getVendorCommissions = asyncHandler(async (req, res) => {
         )
     );
 });
+
+// POST /api/admin/vendors
+export const registerVendor = asyncHandler(async (req, res) => {
+    const {
+        name,
+        storeName,
+        phone,
+        gstNumber,
+        shopAddress,
+        email,
+        password
+    } = req.body;
+
+    const existingVendor = await Vendor.findOne({ email });
+    if (existingVendor) {
+        throw new ApiError(400, 'Vendor with this email already exists.');
+    }
+
+    const vendor = await Vendor.create({
+        name,
+        storeName,
+        phone,
+        gstNumber,
+        shopAddress,
+        email,
+        password,
+        status: 'approved',
+        isVerified: true,
+        documents: {
+            gst: req.file ? req.file.path || req.file.url : undefined
+        }
+    });
+
+    const createdVendor = await Vendor.findById(vendor._id).select('-password');
+
+    res.status(201).json(
+        new ApiResponse(201, toApiVendor(createdVendor), 'Vendor registered successfully.')
+    );
+});

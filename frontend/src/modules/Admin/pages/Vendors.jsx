@@ -14,13 +14,23 @@ const Vendors = () => {
 
   const menuItems = [
     {
+      path: "/admin/vendors/register",
+      label: "Register Vendor",
+      icon: FiUsers,
+      gradient: "from-blue-600 via-blue-700 to-blue-800",
+      lightGradient: "from-blue-50/50 via-blue-100 to-blue-50/50",
+      shadowColor: "shadow-blue-500/20",
+      hoverShadow: "hover:shadow-blue-500/30",
+      description: "Quick register a new vendor",
+    },
+    {
       path: "/admin/vendors/manage-vendors",
       label: "Manage Vendors",
       icon: FiUsers,
-      gradient: "from-blue-500 via-blue-600 to-blue-700",
-      lightGradient: "from-blue-50 via-blue-100/80 to-blue-50",
-      shadowColor: "shadow-blue-500/20",
-      hoverShadow: "hover:shadow-blue-500/30",
+      gradient: "from-indigo-500 via-indigo-600 to-indigo-700",
+      lightGradient: "from-indigo-50 via-indigo-100/80 to-indigo-50",
+      shadowColor: "shadow-indigo-500/20",
+      hoverShadow: "hover:shadow-indigo-500/30",
       description: "View and manage all vendors",
     },
     {

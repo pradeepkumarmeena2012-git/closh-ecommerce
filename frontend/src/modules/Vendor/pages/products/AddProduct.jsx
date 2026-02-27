@@ -516,8 +516,8 @@ const AddProduct = () => {
           <h2 className="text-base font-bold text-gray-800 mb-2">Pricing</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Price <span className="text-red-500">*</span>
+              <label className="block text-xs font-bold text-gray-700 mb-1">
+                Your Selling Price (Cost to Admin/Store) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"

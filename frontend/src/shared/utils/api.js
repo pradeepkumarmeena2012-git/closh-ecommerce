@@ -209,7 +209,17 @@ api.interceptors.response.use(
           currentPath === '/verification' ||
           currentPath === '/forgot-password' ||
           currentPath === '/reset-password';
-        if (!isAuthPage) {
+
+        const isPublicPage =
+          currentPath === '/' ||
+          currentPath === '/home' ||
+          currentPath === '/shop' ||
+          currentPath.startsWith('/products') ||
+          currentPath.startsWith('/product/') ||
+          currentPath === '/offers' ||
+          currentPath === '/events';
+
+        if (!isAuthPage && !isPublicPage) {
           redirectTo(routeConfig.loginPath);
         }
       } else if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {

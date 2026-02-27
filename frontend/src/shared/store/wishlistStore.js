@@ -168,7 +168,6 @@ export const useWishlistStore = create(
 
       // Check if item is in wishlist
       isInWishlist: (id) => {
-        get().ensureHydrated();
         const state = get();
         const authState = useAuthStore.getState();
         if (!authState?.isAuthenticated || !state.hasFetched) {
@@ -196,7 +195,6 @@ export const useWishlistStore = create(
 
       // Get wishlist count
       getItemCount: () => {
-        get().ensureHydrated();
         const state = get();
         const authState = useAuthStore.getState();
         if (!authState?.isAuthenticated || !state.hasFetched) {
