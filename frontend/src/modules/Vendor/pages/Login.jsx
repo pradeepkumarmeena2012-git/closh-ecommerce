@@ -23,7 +23,7 @@ const VendorLogin = () => {
       const from = location.state?.from?.pathname || '/vendor/dashboard';
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     setFormData({

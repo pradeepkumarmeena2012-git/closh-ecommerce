@@ -6,7 +6,9 @@ const adminSchema = new mongoose.Schema(
         name: { type: String, required: true, trim: true },
         email: { type: String, required: true, unique: true, lowercase: true },
         password: { type: String, required: true, select: false },
-        role: { type: String, enum: ['admin', 'superadmin'], default: 'admin' },
+        role: { type: String, enum: ['admin', 'superadmin', 'employee'], default: 'admin' },
+        permissions: [{ type: String }], // List of permissions for employees/admins
+        addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
         avatar: { type: String },
         isActive: { type: Boolean, default: true },
         refreshTokenHash: { type: String, select: false },

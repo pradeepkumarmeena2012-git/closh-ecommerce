@@ -338,7 +338,7 @@ const ProductDetailsPage = () => {
                         </div>
 
                         {/* Actions - Inline */}
-                        <div className="flex gap-4 mb-8">
+                        <div className="flex gap-4 mb-6">
                             <button
                                 onClick={handleAddToCart}
                                 className="flex-[3] h-16 bg-black text-white rounded-[20px] font-black text-[14px] uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.15)] hover:bg-[#1a1a1a]"
@@ -357,6 +357,45 @@ const ProductDetailsPage = () => {
                                 <span className="hidden md:inline">Wishlist</span>
                             </button>
                         </div>
+
+                        {/* Vendor Info Section */}
+                        {product.vendorId && (
+                            <div className="mb-8 p-5 bg-white rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between hover:border-gray-200 transition-all group">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative">
+                                        {product.vendorId.storeLogo ? (
+                                            <img
+                                                src={product.vendorId.storeLogo}
+                                                alt={product.vendorId.storeName}
+                                                className="w-14 h-14 rounded-2xl object-cover border-2 border-gray-50 shadow-sm"
+                                            />
+                                        ) : (
+                                            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400">
+                                                <ShoppingCart size={24} />
+                                            </div>
+                                        )}
+                                        <div className="absolute -bottom-1 -right-1 bg-emerald-500 w-4 h-4 rounded-full border-2 border-white shadow-sm" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Sold By</p>
+                                        <h4 className="text-[16px] font-black text-black group-hover:text-blue-600 transition-colors">{product.vendorId.storeName}</h4>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <MapPin size={10} className="text-gray-400" />
+                                            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-tight">
+                                                {product.vendorId.address?.city ? `${product.vendorId.address.city}, ${product.vendorId.address.state}` : 'Verified Vendor'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                    <div className="flex items-center gap-1 bg-black text-white px-2.5 py-1 rounded-xl text-[12px] font-black shadow-lg">
+                                        {product.vendorId.rating || '4.5'} <Star size={10} className="fill-white" />
+                                    </div>
+                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Store Rating</p>
+                                </div>
+                            </div>
+                        )}
+
 
                         {/* USP Features */}
                         <div className="grid grid-cols-2 gap-4 mb-8">

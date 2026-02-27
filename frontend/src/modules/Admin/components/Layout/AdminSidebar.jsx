@@ -47,6 +47,7 @@ const iconMap = {
   Settings: FiSettings,
   Policies: FiShield,
   Firebase: FiDatabase,
+  "Staff Management": FiUsers,
 };
 
 // Helper function to convert child name to route path
@@ -366,7 +367,13 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
       {/* Navigation Menu */}
       <nav className="flex-1 overflow-y-auto p-3 scrollbar-admin lg:pb-3">
-        {adminMenu.map((item) => renderMenuItem(item))}
+        {adminMenu
+          .filter((item) => {
+            if (admin?.role === "superadmin") return true;
+            if (!item.permission) return true;
+            return admin?.permissions?.includes(item.permission);
+          })
+          .map((item) => renderMenuItem(item))}
       </nav>
     </div>
   );

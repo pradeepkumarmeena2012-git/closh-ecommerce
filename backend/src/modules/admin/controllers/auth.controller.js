@@ -21,9 +21,9 @@ export const login = asyncHandler(async (req, res) => {
     const isMatch = await admin.comparePassword(password);
     if (!isMatch) throw new ApiError(401, 'Invalid credentials.');
 
-    const { accessToken, refreshToken } = generateTokens({ id: admin._id, role: 'admin', email: admin.email });
+    const { accessToken, refreshToken } = generateTokens({ id: admin._id, role: admin.role, email: admin.email });
     await persistRefreshSession(admin, refreshToken);
-    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, admin: { id: admin._id, name: admin.name, email: admin.email, role: admin.role } }, 'Admin login successful.'));
+    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, admin: { id: admin._id, name: admin.name, email: admin.email, role: admin.role, permissions: admin.permissions } }, 'Admin login successful.'));
 });
 
 // POST /api/admin/auth/refresh
@@ -35,7 +35,7 @@ export const refresh = asyncHandler(async (req, res) => {
     if (!admin) throw new ApiError(401, 'Invalid refresh token.');
     if (!admin.isActive) throw new ApiError(403, 'Admin account is deactivated.');
 
-    const payloadRole = admin.role === 'superadmin' ? 'superadmin' : 'admin';
+    const payloadRole = admin.role;
     const tokens = await rotateRefreshSession(
         admin,
         { id: admin._id, role: payloadRole, email: admin.email },

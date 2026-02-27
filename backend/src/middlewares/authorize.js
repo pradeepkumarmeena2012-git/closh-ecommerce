@@ -20,6 +20,30 @@ export const authorize = (...roles) =>
     };
 
 /**
+ * Middleware to check if admin has specific permission
+ * Superadmins bypass all permission checks
+ */
+export const checkPermission = (permission) => async (req, res, next) => {
+    try {
+        if (!req.user) return next(new ApiError(401, 'Authentication required.'));
+
+        // Superadmin and Admin have all permissions
+        if (req.user.role === 'superadmin' || req.user.role === 'admin') return next();
+
+        const admin = await Admin.findById(req.user.id).select('permissions role isActive').lean();
+        if (!admin || !admin.isActive) return next(new ApiError(403, 'Account inactive or not found.'));
+
+        if (!admin.permissions || !admin.permissions.includes(permission)) {
+            return next(new ApiError(403, `Permission denied: ${permission} required.`));
+        }
+
+        next();
+    } catch (err) {
+        next(err);
+    }
+};
+
+/**
  * Enforce latest account state on every protected request.
  * Prevents stale tokens from bypassing suspension/deactivation.
  */
@@ -61,7 +85,7 @@ export const enforceAccountStatus = async (req, res, next) => {
             return next();
         }
 
-        if (role === 'admin' || role === 'superadmin') {
+        if (role === 'admin' || role === 'superadmin' || role === 'employee') {
             const admin = await Admin.findById(req.user.id).select('isActive').lean();
             if (!admin) return next(new ApiError(401, 'Account not found.'));
             if (!admin.isActive) return next(new ApiError(403, 'Admin account is deactivated.'));

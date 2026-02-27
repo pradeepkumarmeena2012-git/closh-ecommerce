@@ -2,11 +2,19 @@
   {
     "title": "Dashboard",
     "route": "/admin/dashboard",
+    "permission": "dashboard_view",
+    "children": []
+  },
+  {
+    "title": "Staff Management",
+    "route": "/admin/staff",
+    "permission": "staff_manage",
     "children": []
   },
   {
     "title": "Orders",
     "route": "/admin/orders",
+    "permission": "orders_manage",
     "children": [
       "All Orders",
       "Order Tracking"
@@ -15,11 +23,13 @@
   {
     "title": "Return Requests",
     "route": "/admin/return-requests",
+    "permission": "orders_manage",
     "children": []
   },
   {
     "title": "Products",
     "route": "/admin/products",
+    "permission": "products_manage",
     "children": [
       "Manage Products",
       "Product Approvals",
@@ -30,6 +40,7 @@
   {
     "title": "Categories",
     "route": "/admin/categories",
+    "permission": "categories_manage",
     "children": [
       "Manage Categories",
       "Category Order"
@@ -38,6 +49,7 @@
   {
     "title": "Brands",
     "route": "/admin/brands",
+    "permission": "brands_manage",
     "children": [
       "Manage Brands"
     ]
@@ -45,6 +57,7 @@
   {
     "title": "Customers",
     "route": "/admin/customers",
+    "permission": "customers_manage",
     "children": [
       "View Customers",
       "Addresses",
@@ -54,6 +67,7 @@
   {
     "title": "Delivery Management",
     "route": "/admin/delivery",
+    "permission": "delivery_manage",
     "children": [
       "Delivery Boys",
       "Cash Collection",
@@ -63,6 +77,7 @@
   {
     "title": "Vendors",
     "route": "/admin/vendors",
+    "permission": "vendors_manage",
     "children": [
       "Manage Vendors",
       "Pending Approvals",
@@ -73,6 +88,7 @@
   {
     "title": "Offers & Sliders",
     "route": "/admin/offers",
+    "permission": "marketing_manage",
     "children": [
       "Home Sliders",
       "Festival Offers"
@@ -81,17 +97,21 @@
   {
     "title": "Banners",
     "route": "/admin/banners",
+    "permission": "marketing_manage",
     "children": []
   },
   {
     "title": "Promo Codes",
     "route": "/admin/promocodes",
+    "permission": "marketing_manage",
     "children": []
   },
   {
     "title": "Notifications",
     "route": "/admin/notifications",
+    "permission": "notifications_manage",
     "children": [
+      "All Notifications",
       "Push Notifications",
       "Custom Messages"
     ]
@@ -99,6 +119,7 @@
   {
     "title": "Support Desk",
     "route": "/admin/support",
+    "permission": "support_manage",
     "children": [
       "Live Chat",
       "Ticket Types",
@@ -108,6 +129,7 @@
   {
     "title": "Reports",
     "route": "/admin/reports",
+    "permission": "reports_view",
     "children": [
       "Sales Report",
       "Inventory Report"
@@ -116,6 +138,7 @@
   {
     "title": "Analytics & Finance",
     "route": "/admin/finance",
+    "permission": "finance_view",
     "children": [
       "Revenue Overview",
       "Profit & Loss",
@@ -128,6 +151,7 @@
   {
     "title": "Settings",
     "route": "/admin/settings",
+    "permission": "settings_manage",
     "children": [
       "General",
       "Payment & Shipping",
@@ -140,6 +164,7 @@
   {
     "title": "Policies",
     "route": "/admin/policies",
+    "permission": "settings_manage",
     "children": [
       "Privacy Policy",
       "Refund Policy",
@@ -149,6 +174,7 @@
   {
     "title": "Firebase",
     "route": "/admin/firebase",
+    "permission": "settings_manage",
     "children": [
       "Push Config",
       "Authentication"

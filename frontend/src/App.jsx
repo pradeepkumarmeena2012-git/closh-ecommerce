@@ -23,6 +23,7 @@ import Categories from "./modules/Admin/pages/Categories";
 import Brands from "./modules/Admin/pages/Brands";
 import Customers from "./modules/Admin/pages/Customers";
 
+import StaffManagement from "./modules/Admin/pages/staff/StaffManagement";
 import Campaigns from "./modules/Admin/pages/Campaigns";
 import Banners from "./modules/Admin/pages/Banners";
 import Reviews from "./modules/Admin/pages/Reviews";
@@ -389,6 +390,7 @@ const AppRoutes = () => {
         }>
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="staff" element={<StaffManagement />} />
         <Route path="products" element={<Products />} />
         <Route path="products/:id" element={<ProductForm />} />
         <Route path="products/manage-products" element={<ManageProducts />} />

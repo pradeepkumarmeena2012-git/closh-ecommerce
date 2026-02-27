@@ -213,7 +213,10 @@ router.get('/similar/:id', asyncHandler(async (req, res) => {
 }));
 
 const getProductDetail = asyncHandler(async (req, res) => {
-    const product = await Product.findById(req.params.id).populate('categoryId', 'name').populate('brandId', 'name').populate('vendorId', 'storeName storeLogo rating');
+    const product = await Product.findById(req.params.id)
+        .populate('categoryId', 'name')
+        .populate('brandId', 'name')
+        .populate('vendorId', 'storeName storeLogo rating address shopLocation');
     if (!product) throw new ApiError(404, 'Product not found.');
     res.status(200).json(new ApiResponse(200, product, 'Product detail.'));
 });

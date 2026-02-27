@@ -42,12 +42,25 @@ export const useAdminAuthStore = create(
       logout: () => {
         const refreshToken = localStorage.getItem('adminRefreshToken');
         if (refreshToken) {
-          api.post('/admin/auth/logout', { refreshToken }).catch(() => {});
+          api.post('/admin/auth/logout', { refreshToken }).catch(() => { });
         }
 
-        set({ admin: null, token: null, refreshToken: null, isAuthenticated: false });
+        // Clear tokens from localStorage immediately
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminRefreshToken');
+        localStorage.removeItem('admin-auth-storage');
+
+        // Reset store state
+        set({
+          admin: null,
+          token: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          isLoading: false
+        });
+
+        // Force a page reload to clear any lingering React memory/state
+        window.location.href = '/admin/login';
       },
     }),
     {

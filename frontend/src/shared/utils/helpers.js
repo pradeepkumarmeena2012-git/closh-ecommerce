@@ -94,3 +94,18 @@ export const getPlaceholderImage = (
 
   return `data:image/svg+xml;base64,${btoa(svg)}`;
 };
+
+/**
+ * Decode JWT token payload
+ */
+export const decodeJwtPayload = (token) => {
+  try {
+    const parts = String(token || '').split('.');
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = window.atob(base64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};

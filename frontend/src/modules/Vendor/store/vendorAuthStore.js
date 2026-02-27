@@ -8,6 +8,7 @@ import {
   verifyVendorResetOTP,
   resetVendorPassword,
 } from "../services/vendorService";
+import { decodeJwtPayload } from "../../../shared/utils/helpers";
 
 export const useVendorAuthStore = create(
   persist(
@@ -185,13 +186,29 @@ export const useVendorAuthStore = create(
           );
           const refreshToken = localStorage.getItem("vendor-refresh-token");
           const persistedVendor = storedState.state?.vendor || null;
-          if (persistedVendor) {
+
+          // Check for token expiry
+          const payload = decodeJwtPayload(token);
+          const expiry = payload?.exp ? payload.exp * 1000 : 0;
+          const isExpired = expiry ? Date.now() >= expiry : false;
+
+          if (persistedVendor && !isExpired) {
             set({
               vendor: persistedVendor,
               token,
               refreshToken: refreshToken || null,
               isAuthenticated: true,
               isLoading: false,
+            });
+          } else if (isExpired) {
+            // Clear if expired
+            localStorage.removeItem("vendor-token");
+            localStorage.removeItem("vendor-refresh-token");
+            set({
+              vendor: null,
+              token: null,
+              refreshToken: null,
+              isAuthenticated: false,
             });
           }
         }

@@ -1,17 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
-
-const decodeJwtPayload = (token) => {
-  try {
-    const parts = String(token || '').split('.');
-    if (parts.length < 2) return null;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const json = window.atob(base64);
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-};
+import { decodeJwtPayload } from '../../../shared/utils/helpers';
+import { useEffect } from 'react';
 
 const VendorProtectedRoute = ({ children }) => {
   const { isAuthenticated, token, logout } = useVendorAuthStore();
@@ -22,6 +12,12 @@ const VendorProtectedRoute = ({ children }) => {
   const tokenExpiryMs =
     typeof payload?.exp === 'number' ? payload.exp * 1000 : null;
   const isExpired = tokenExpiryMs ? Date.now() >= tokenExpiryMs : false;
+
+  useEffect(() => {
+    if (isExpired && isAuthenticated) {
+      logout();
+    }
+  }, [isExpired, isAuthenticated, logout]);
 
   if (!isAuthenticated || !accessToken || isExpired || (role && role !== 'vendor')) {
     // If it's expired or wrong role, we should ideally call logout()

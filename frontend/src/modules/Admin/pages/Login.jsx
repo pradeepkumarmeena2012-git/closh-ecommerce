@@ -9,7 +9,7 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isAuthenticated, isLoading } = useAdminAuthStore();
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,10 +20,10 @@ const AdminLogin = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const from = location.state?.from?.pathname || '/admin/dashboard';
-      navigate(from, { replace: true });
+      // Force navigation to dashboard on login to prevent loading restricted legacy history pages 
+      navigate('/admin/dashboard', { replace: true });
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -34,7 +34,7 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.email || !formData.password) {
       toast.error('Please fill in all fields');
       return;
@@ -43,8 +43,7 @@ const AdminLogin = () => {
     try {
       await login(formData.email, formData.password, rememberMe);
       toast.success('Login successful!');
-      const from = location.state?.from?.pathname || '/admin/dashboard';
-      navigate(from, { replace: true });
+      navigate('/admin/dashboard', { replace: true });
     } catch (error) {
       toast.error(error.message || 'Invalid credentials');
     }

@@ -11,15 +11,18 @@ import NotificationWindow from './NotificationWindow';
 const AdminHeader = ({ onMenuClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAdminAuthStore();
+  const { admin, logout } = useAdminAuthStore();
   const { notifications, unreadCount, fetchNotifications } = useNotificationStore();
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Poll every minute
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+    const hasPermission = admin?.role === 'superadmin' || admin?.permissions?.includes('notifications_manage');
+    if (hasPermission) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 60000); // Poll every minute
+      return () => clearInterval(interval);
+    }
+  }, [fetchNotifications, admin]);
 
   const handleLogout = () => {
     logout();
@@ -82,25 +85,27 @@ const AdminHeader = ({ onMenuClick }) => {
         {/* Right: Notifications & Logout */}
         <div className="flex items-center gap-4">
           {/* Notifications */}
-          <div className="relative">
-            <Button
-              data-notification-button
-              onClick={toggleNotifications}
-              variant="icon"
-              className="text-gray-700"
-              icon={FiBell}
-            />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-            )}
+          {(admin?.role === 'superadmin' || admin?.permissions?.includes('notifications_manage')) && (
+            <div className="relative">
+              <Button
+                data-notification-button
+                onClick={toggleNotifications}
+                variant="icon"
+                className="text-gray-700"
+                icon={FiBell}
+              />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+              )}
 
-            {/* Notification Window - positioned relative to this container */}
-            <NotificationWindow
-              isOpen={showNotifications}
-              onClose={() => setShowNotifications(false)}
-              position="right"
-            />
-          </div>
+              {/* Notification Window - positioned relative to this container */}
+              <NotificationWindow
+                isOpen={showNotifications}
+                onClose={() => setShowNotifications(false)}
+                position="right"
+              />
+            </div>
+          )}
 
           {/* Logout Button */}
           <Button

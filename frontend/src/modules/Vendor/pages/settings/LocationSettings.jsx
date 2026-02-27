@@ -13,16 +13,10 @@ const LocationSettings = () => {
     const [isGettingLocation, setIsGettingLocation] = useState(false);
 
     useEffect(() => {
-        if (vendor?.location?.coordinates) {
+        if (vendor?.shopLocation?.coordinates) {
             setCoordinates({
-                latitude: vendor.location.coordinates[1] || "",
-                longitude: vendor.location.coordinates[0] || "",
-            });
-        } else if (vendor?.latitude && vendor?.longitude) {
-            // Support for flat fields if that's how they are stored
-            setCoordinates({
-                latitude: vendor.latitude,
-                longitude: vendor.longitude
+                latitude: vendor.shopLocation.coordinates[1] || "",
+                longitude: vendor.shopLocation.coordinates[0] || "",
             });
         }
     }, [vendor]);
@@ -138,9 +132,9 @@ const LocationSettings = () => {
                             <span className="font-mono bg-white px-2 py-1 rounded border">{coordinates.latitude}</span>
                             <span className="text-gray-400">,</span>
                             <span className="font-mono bg-white px-2 py-1 rounded border">{coordinates.longitude}</span>
-                            {vendor?.location?.coordinates &&
-                                parseFloat(coordinates.latitude) === vendor.location.coordinates[1] &&
-                                parseFloat(coordinates.longitude) === vendor.location.coordinates[0] && (
+                            {vendor?.shopLocation?.coordinates &&
+                                parseFloat(coordinates.latitude) === vendor.shopLocation.coordinates[1] &&
+                                parseFloat(coordinates.longitude) === vendor.shopLocation.coordinates[0] && (
                                     <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full flex items-center gap-1">
                                         <FiCheckCircle className="text-xs" /> Currently Saved
                                     </span>

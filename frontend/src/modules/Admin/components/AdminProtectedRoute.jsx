@@ -34,7 +34,7 @@ const AdminProtectedRoute = ({ children }) => {
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 
-  if (role && role !== 'admin' && role !== 'superadmin') {
+  if (role && role !== 'admin' && role !== 'superadmin' && role !== 'employee') {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminRefreshToken');
     localStorage.removeItem('admin-auth-storage');
