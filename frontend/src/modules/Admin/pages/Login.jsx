@@ -3,12 +3,28 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAdminAuthStore } from '../store/adminStore';
+import adminMenu from '../config/adminMenu.json';
 import toast from 'react-hot-toast';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated, isLoading } = useAdminAuthStore();
+  const { login, isAuthenticated, isLoading, admin } = useAdminAuthStore();
+
+  // Helper to find the first accessible route
+  const getRedirectPath = (adminData) => {
+    if (!adminData) return '/admin/dashboard';
+    if (adminData.role === 'superadmin') return '/admin/dashboard';
+    if (adminData.permissions?.includes('dashboard_view')) return '/admin/dashboard';
+
+    // Find the first accessible menu item
+    for (const item of adminMenu) {
+      if (!item.permission || adminData.permissions?.includes(item.permission)) {
+        return item.route;
+      }
+    }
+    return '/admin/dashboard';
+  };
 
   const [formData, setFormData] = useState({
     email: '',
@@ -19,11 +35,11 @@ const AdminLogin = () => {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      // Force navigation to dashboard on login to prevent loading restricted legacy history pages 
-      navigate('/admin/dashboard', { replace: true });
+    if (isAuthenticated && admin) {
+      const path = getRedirectPath(admin);
+      navigate(path, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, admin, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -41,9 +57,13 @@ const AdminLogin = () => {
     }
 
     try {
-      await login(formData.email, formData.password, rememberMe);
+      const result = await login(formData.email, formData.password, rememberMe);
       toast.success('Login successful!');
-      navigate('/admin/dashboard', { replace: true });
+      if (result && result.admin) {
+        navigate(getRedirectPath(result.admin), { replace: true });
+      } else {
+        navigate('/admin/dashboard', { replace: true });
+      }
     } catch (error) {
       toast.error(error.message || 'Invalid credentials');
     }

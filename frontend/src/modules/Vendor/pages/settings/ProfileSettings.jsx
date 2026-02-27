@@ -8,6 +8,7 @@ const ProfileSettings = () => {
   const { vendor, updateProfile, logout } = useVendorAuthStore();
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
     phone: '',
     currentPassword: '',
     newPassword: '',
@@ -20,6 +21,7 @@ const ProfileSettings = () => {
       setFormData((prev) => ({
         ...prev,
         name: vendor.name || '',
+        email: vendor.email || '',
         phone: vendor.phone || '',
       }));
     }
@@ -65,7 +67,7 @@ const ProfileSettings = () => {
     }
 
     try {
-      // In a real app, this would be an API call to change password
+      await useVendorAuthStore.getState().changePassword(formData.currentPassword, formData.newPassword);
       toast.success('Password changed successfully');
       setFormData({
         ...formData,
@@ -74,7 +76,7 @@ const ProfileSettings = () => {
         confirmPassword: '',
       });
     } catch (error) {
-      toast.error('Failed to change password');
+      toast.error(error.response?.data?.message || 'Failed to change password');
     }
   };
 
@@ -146,15 +148,15 @@ const ProfileSettings = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email <span className="text-red-500">*</span>
+                    Email <span className="text-gray-400 font-normal text-xs">(Cannot be changed)</span>
                   </label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    disabled
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed focus:outline-none"
                   />
                 </div>
 

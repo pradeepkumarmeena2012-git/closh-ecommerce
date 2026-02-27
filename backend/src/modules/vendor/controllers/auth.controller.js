@@ -250,6 +250,30 @@ export const updateProfile = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, vendor, 'Profile updated.'));
 });
 
+// PUT /api/vendor/auth/change-password
+export const changePassword = asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        throw new ApiError(400, 'Current and new password are required');
+    }
+
+    const vendor = await Vendor.findById(req.user.id).select('+password');
+    if (!vendor) {
+        throw new ApiError(404, 'Vendor not found');
+    }
+
+    const isMatch = await vendor.comparePassword(currentPassword);
+    if (!isMatch) {
+        throw new ApiError(401, 'Invalid current password');
+    }
+
+    vendor.password = newPassword;
+    await vendor.save();
+
+    res.status(200).json(new ApiResponse(200, null, 'Password changed successfully'));
+});
+
 // PUT /api/vendor/auth/bank-details
 export const updateBankDetails = asyncHandler(async (req, res) => {
     const { accountName, accountNumber, bankName, ifscCode } = req.body;

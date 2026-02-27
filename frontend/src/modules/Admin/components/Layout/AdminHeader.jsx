@@ -16,7 +16,10 @@ const AdminHeader = ({ onMenuClick }) => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    const hasPermission = admin?.role === 'superadmin' || admin?.permissions?.includes('notifications_manage');
+    const hasPermission = admin?.role === 'superadmin' ||
+      admin?.role === 'admin' ||
+      admin?.permissions?.includes('notifications_manage') ||
+      admin?.permissions?.includes('support_manage');
     if (hasPermission) {
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 60000); // Poll every minute
@@ -85,7 +88,7 @@ const AdminHeader = ({ onMenuClick }) => {
         {/* Right: Notifications & Logout */}
         <div className="flex items-center gap-4">
           {/* Notifications */}
-          {(admin?.role === 'superadmin' || admin?.permissions?.includes('notifications_manage')) && (
+          {(admin?.role === 'superadmin' || admin?.role === 'admin' || admin?.permissions?.includes('notifications_manage') || admin?.permissions?.includes('support_manage')) && (
             <div className="relative">
               <Button
                 data-notification-button

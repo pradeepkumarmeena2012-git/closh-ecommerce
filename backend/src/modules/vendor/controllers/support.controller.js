@@ -1,0 +1,84 @@
+import asyncHandler from '../../../utils/asyncHandler.js';
+import ApiResponse from '../../../utils/ApiResponse.js';
+import SupportTicket from '../../../models/SupportTicket.model.js';
+import Admin from '../../../models/Admin.model.js';
+import { createNotification } from '../../../services/notification.service.js';
+
+// POST /api/vendor/support/help-request
+export const submitHelpRequest = asyncHandler(async (req, res) => {
+    const { subject, message } = req.body;
+    const vendorId = req.user.id;
+
+    if (!subject || !message) {
+        return res.status(400).json(new ApiResponse(400, null, 'Subject and message are required.'));
+    }
+
+    // Create a support ticket
+    const ticket = await SupportTicket.create({
+        vendorId,
+        subject,
+        status: 'open',
+        priority: 'medium',
+        messages: [
+            {
+                senderId: vendorId,
+                senderType: 'vendor',
+                message,
+            }
+        ]
+    });
+
+    // Notify all active admins
+    const admins = await Admin.find({ isActive: true }).select('_id');
+    await Promise.all(
+        admins.map((admin) =>
+            createNotification({
+                recipientId: admin._id,
+                recipientType: 'admin',
+                title: 'New Vendor Help Request',
+                message: `Vendor Help Request: ${subject}`,
+                type: 'system',
+                data: {
+                    ticketId: String(ticket._id),
+                    vendorId: String(vendorId),
+                },
+            })
+        )
+    );
+
+    res.status(201).json(new ApiResponse(201, ticket, 'Help request submitted successfully.'));
+});
+
+// GET /api/vendor/support/tickets
+export const getVendorTickets = asyncHandler(async (req, res) => {
+    const vendorId = req.user.id;
+    const tickets = await SupportTicket.find({ vendorId })
+        .sort({ updatedAt: -1 });
+    res.status(200).json(new ApiResponse(200, tickets, 'Tickets fetched successfully.'));
+});
+
+// POST /api/vendor/support/tickets/:id/messages
+export const addVendorTicketMessage = asyncHandler(async (req, res) => {
+    const { message } = req.body;
+    const vendorId = req.user.id;
+    const ticketId = req.params.id;
+
+    if (!message) {
+        return res.status(400).json(new ApiResponse(400, null, 'Message is required.'));
+    }
+
+    const ticket = await SupportTicket.findOne({ _id: ticketId, vendorId });
+    if (!ticket) {
+        return res.status(404).json(new ApiResponse(404, null, 'Ticket not found.'));
+    }
+
+    ticket.messages.push({
+        senderId: vendorId,
+        senderType: 'vendor',
+        message,
+    });
+    ticket.status = 'open'; // reopen if it was closed or something
+    await ticket.save();
+
+    res.status(200).json(new ApiResponse(200, ticket.messages[ticket.messages.length - 1], 'Message added successfully.'));
+});

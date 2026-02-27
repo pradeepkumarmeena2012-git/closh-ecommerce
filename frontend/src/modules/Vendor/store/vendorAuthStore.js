@@ -158,6 +158,21 @@ export const useVendorAuthStore = create(
         }
       },
 
+      changePassword: async (currentPassword, newPassword) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.put("/vendor/auth/change-password", {
+            currentPassword,
+            newPassword,
+          });
+          set({ isLoading: false });
+          return { success: true, message: response?.data?.message || "Password changed successfully" };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
       updateLocation: async (latitude, longitude) => {
         set({ isLoading: true });
         try {

@@ -72,11 +72,18 @@ const Tickets = () => {
     },
     {
       key: 'customer',
-      label: 'Customer',
+      label: 'Requester',
       sortable: false,
       render: (_, row) => (
         <div>
-          <p className="font-medium">{row.customer?.name || 'Anonymous'}</p>
+          <p className="font-medium flex items-center gap-2">
+            {row.customer?.name || 'Anonymous'}
+            {row.vendorId ? (
+              <span className="text-[10px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">Vendor</span>
+            ) : row.userId ? (
+              <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">User</span>
+            ) : null}
+          </p>
           <p className="text-xs text-gray-500">{row.customer?.email}</p>
         </div>
       )
@@ -246,8 +253,11 @@ const Tickets = () => {
                 <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                   <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl">
                     <div>
-                      <p className="text-xs text-gray-500">Customer</p>
-                      <p className="font-semibold text-gray-800">{selectedTicket.customer?.name}</p>
+                      <p className="text-xs text-gray-500">Requester</p>
+                      <p className="font-semibold text-gray-800">
+                        {selectedTicket.customer?.name}
+                        {selectedTicket.vendorId ? ' (Vendor)' : selectedTicket.userId ? ' (User)' : ''}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Category</p>
@@ -276,8 +286,8 @@ const Tickets = () => {
                       {selectedTicket.messages?.map((msg, idx) => (
                         <div key={idx} className={`flex flex-col ${msg.senderType === 'admin' ? 'items-end' : 'items-start'}`}>
                           <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${msg.senderType === 'admin'
-                              ? 'bg-primary-600 text-white rounded-br-none'
-                              : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                            ? 'bg-primary-600 text-white rounded-br-none'
+                            : 'bg-gray-100 text-gray-800 rounded-bl-none'
                             }`}>
                             {msg.message}
                           </div>

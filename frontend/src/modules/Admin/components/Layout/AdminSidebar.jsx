@@ -48,6 +48,7 @@ const iconMap = {
   Policies: FiShield,
   Firebase: FiDatabase,
   "Staff Management": FiUsers,
+  "Attribute Management": FiGrid,
 };
 
 // Helper function to convert child name to route path
@@ -79,6 +80,11 @@ const getChildRoute = (parentRoute, childName) => {
       "Delivery Boys": "/admin/delivery/delivery-boys",
       "Cash Collection": "/admin/delivery/cash-collection",
       "Assign Delivery": "/admin/delivery/assign-delivery",
+    },
+    "/admin/attributes": {
+      "Attribute Sets": "/admin/attributes/sets",
+      "Attributes": "/admin/attributes/list",
+      "Attribute Values": "/admin/attributes/values",
     },
     "/admin/offers": {
       "Home Sliders": "/admin/offers/home-sliders",

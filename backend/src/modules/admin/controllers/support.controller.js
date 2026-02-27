@@ -3,6 +3,7 @@ import TicketType from '../../../models/TicketType.model.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
+import { createNotification } from '../../../services/notification.service.js';
 
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -36,7 +37,7 @@ export const getAllTickets = asyncHandler(async (req, res) => {
 
     const tickets = await SupportTicket.find(filter)
         .populate('userId', 'name email phone')
-        .populate('vendorId', 'shopName email')
+        .populate('vendorId', 'storeName email')
         .populate('ticketTypeId', 'name')
         .sort({ updatedAt: -1 })
         .skip((pageNumber - 1) * limitNumber)
@@ -53,7 +54,7 @@ export const getAllTickets = asyncHandler(async (req, res) => {
             email: ticket.userId.email,
             phone: ticket.userId.phone
         } : (ticket.vendorId ? {
-            name: ticket.vendorId.shopName,
+            name: ticket.vendorId.storeName || 'Vendor',
             email: ticket.vendorId.email
         } : { name: 'Anonymous' }),
         category: ticket.ticketTypeId ? ticket.ticketTypeId.name : 'General',
@@ -81,7 +82,7 @@ export const getAllTickets = asyncHandler(async (req, res) => {
 export const getTicketById = asyncHandler(async (req, res) => {
     const ticket = await SupportTicket.findById(req.params.id)
         .populate('userId', 'name email phone')
-        .populate('vendorId', 'shopName email')
+        .populate('vendorId', 'storeName email')
         .populate('ticketTypeId', 'name');
 
     if (!ticket) {
@@ -97,7 +98,7 @@ export const getTicketById = asyncHandler(async (req, res) => {
             email: ticket.userId.email,
             phone: ticket.userId.phone
         } : (ticket.vendorId ? {
-            name: ticket.vendorId.shopName,
+            name: ticket.vendorId.storeName || 'Vendor',
             email: ticket.vendorId.email
         } : { name: 'Anonymous' }),
         category: ticket.ticketTypeId ? ticket.ticketTypeId.name : 'General'
@@ -162,6 +163,27 @@ export const addTicketMessage = asyncHandler(async (req, res) => {
     }
 
     await ticket.save();
+
+    // Send notification to the vendor/user if applicable
+    if (ticket.vendorId) {
+        await createNotification({
+            recipientId: ticket.vendorId,
+            recipientType: 'vendor',
+            title: 'Support Ticket Reply',
+            message: `Admin responded to your ticket: ${ticket.subject}`,
+            type: 'system',
+            data: { ticketId: String(ticket._id) }
+        });
+    } else if (ticket.userId) {
+        await createNotification({
+            recipientId: ticket.userId,
+            recipientType: 'user',
+            title: 'Support Ticket Reply',
+            message: `Admin responded to your request: ${ticket.subject}`,
+            type: 'system',
+            data: { ticketId: String(ticket._id) }
+        });
+    }
 
     res.status(200).json(
         new ApiResponse(200, ticket.messages[ticket.messages.length - 1], 'Message added successfully')

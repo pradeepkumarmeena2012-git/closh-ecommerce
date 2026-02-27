@@ -22,9 +22,10 @@ import {
   FiBell,
   FiTruck,
   FiUsers,
-  FiMessageSquare,
   FiTrendingUp,
   FiFile,
+  FiHelpCircle,
+  FiMessageSquare,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
@@ -39,11 +40,9 @@ const iconMap = {
   "Stock Management": FiTrendingDown,
   "Wallet History": FiCreditCard,
   "Pickup Locations": FiMapPin,
-  Chat: FiMessageCircle,
+  Help: FiHelpCircle,
   Promotions: FiTag,
   Notifications: FiBell,
-  "Shipping Management": FiTruck,
-  Customers: FiUsers,
   "Support Tickets": FiMessageSquare,
   "Inventory Reports": FiBarChart2,
   "Performance Metrics": FiTrendingUp,

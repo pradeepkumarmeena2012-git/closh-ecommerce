@@ -162,13 +162,10 @@ import VendorEarnings from "./modules/Vendor/pages/Earnings";
 import VendorSettings from "./modules/Vendor/pages/Settings";
 import VendorStockManagement from "./modules/Vendor/pages/StockManagement";
 import VendorWalletHistory from "./modules/Vendor/pages/WalletHistory";
-import VendorChat from "./modules/Vendor/pages/Chat";
 import VendorReturnRequests from "./modules/Vendor/pages/ReturnRequests";
 import VendorReturnRequestDetail from "./modules/Vendor/pages/returns/ReturnRequestDetail";
 import VendorProductReviews from "./modules/Vendor/pages/ProductReviews";
-import VendorShippingManagement from "./modules/Vendor/pages/ShippingManagement";
-import VendorCustomers from "./modules/Vendor/pages/Customers";
-import VendorCustomerDetail from "./modules/Vendor/pages/CustomerDetail";
+import VendorHelp from "./modules/Vendor/pages/VendorHelp";
 import VendorInventoryReports from "./modules/Vendor/pages/InventoryReports";
 import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics";
 import VendorDocuments from "./modules/Vendor/pages/Documents";
@@ -549,7 +546,7 @@ const AppRoutes = () => {
         />
         <Route path="stock-management" element={<VendorStockManagement />} />
         <Route path="wallet-history" element={<VendorWalletHistory />} />
-        <Route path="chat" element={<VendorChat />} />
+        <Route path="help" element={<VendorHelp />} />
         <Route path="notifications" element={<VendorNotifications />} />
         <Route path="return-requests" element={<VendorReturnRequests />} />
         <Route
@@ -557,13 +554,7 @@ const AppRoutes = () => {
           element={<VendorReturnRequestDetail />}
         />
         <Route path="product-reviews" element={<VendorProductReviews />} />
-        <Route
-          path="shipping-management"
-          element={<VendorShippingManagement />}
-        />
         <Route path="pickup-locations" element={<VendorPickupLocations />} />
-        <Route path="customers/:id" element={<VendorCustomerDetail />} />
-        <Route path="customers" element={<VendorCustomers />} />
         <Route path="support-tickets" element={<VendorSupportTickets />} />
         <Route path="inventory-reports" element={<VendorInventoryReports />} />
         <Route

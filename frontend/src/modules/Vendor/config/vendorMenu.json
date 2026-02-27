@@ -41,18 +41,8 @@
         "children": []
     },
     {
-        "title": "Chat",
-        "route": "/vendor/chat",
-        "children": []
-    },
-    {
-        "title": "Shipping Management",
-        "route": "/vendor/shipping-management",
-        "children": []
-    },
-    {
-        "title": "Customers",
-        "route": "/vendor/customers",
+        "title": "Help",
+        "route": "/vendor/help",
         "children": []
     },
     {

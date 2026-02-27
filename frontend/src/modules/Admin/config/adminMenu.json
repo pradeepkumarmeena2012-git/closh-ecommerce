@@ -65,6 +65,16 @@
     ]
   },
   {
+    "title": "Attribute Management",
+    "route": "/admin/attributes",
+    "permission": "attributes_manage",
+    "children": [
+      "Attribute Sets",
+      "Attributes",
+      "Attribute Values"
+    ]
+  },
+  {
     "title": "Delivery Management",
     "route": "/admin/delivery",
     "permission": "delivery_manage",

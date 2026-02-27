@@ -35,6 +35,7 @@ const PERMISSIONS = [
     { id: 'reports_view', label: 'View Reports' },
     { id: 'finance_view', label: 'View Finance' },
     { id: 'settings_manage', label: 'Manage Settings' },
+    { id: 'attributes_manage', label: 'Manage Attributes' },
 ];
 
 const StaffManagement = () => {
@@ -148,7 +149,7 @@ const StaffManagement = () => {
         { id: 'custom', label: 'Custom Access', icon: FiShield, perms: [] },
         { id: 'inventory', label: 'Inventory Controller', icon: FiPackage, perms: ['products_manage', 'categories_manage', 'brands_manage', 'dashboard_view'] },
         { id: 'sales', label: 'Sales & Orders', icon: FiShoppingCart, perms: ['orders_manage', 'customers_manage', 'dashboard_view', 'delivery_manage'] },
-        { id: 'support', label: 'Support Lead', icon: FiHeadphones, perms: ['support_manage', 'customers_manage', 'dashboard_view'] },
+        { id: 'support', label: 'Support Lead', icon: FiHeadphones, perms: ['support_manage', 'customers_manage', 'dashboard_view', 'notifications_manage'] },
         { id: 'analyst', label: 'Business Analyst', icon: FiPieChart, perms: ['finance_view', 'reports_view', 'dashboard_view'] },
         { id: 'marketing', label: 'Marketing Specialist', icon: FiStar, perms: ['marketing_manage', 'dashboard_view'] },
     ];
