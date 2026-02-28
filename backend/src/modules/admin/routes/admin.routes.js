@@ -137,7 +137,10 @@ router.delete('/brands/:id', ...adminAuth, checkPermission('brands_manage'), val
 router.post('/vendors', ...adminAuth, checkPermission('vendors_manage'), uploadSingle('document'), validate(registerVendorSchema), vendorController.registerVendor);
 router.get('/vendors', ...adminAuth, checkPermission('vendors_manage'), validate(vendorListQuerySchema, 'query'), vendorController.getAllVendors);
 router.get('/vendors/pending', ...adminAuth, checkPermission('vendors_manage'), (req, res, next) => { req.query.status = 'pending'; next(); }, validate(vendorListQuerySchema, 'query'), vendorController.getAllVendors);
+router.get('/vendor-documents/pending', ...adminAuth, checkPermission('vendors_manage'), vendorController.getAllPendingDocuments);
 router.get('/vendors/:id', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), vendorController.getVendorDetail);
+router.get('/vendors/:id/documents', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), vendorController.getVendorDocuments);
+router.patch('/vendors/:id/documents/:documentId/status', ...adminAuth, checkPermission('vendors_manage'), vendorController.updateVendorDocumentStatus);
 router.get('/vendors/:id/commissions', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), validate(vendorCommissionsQuerySchema, 'query'), vendorController.getVendorCommissions);
 router.patch('/vendors/:id/status', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), validate(vendorStatusUpdateSchema), vendorController.updateVendorStatus);
 router.patch('/vendors/:id/commission', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), validate(vendorCommissionUpdateSchema), vendorController.updateCommissionRate);

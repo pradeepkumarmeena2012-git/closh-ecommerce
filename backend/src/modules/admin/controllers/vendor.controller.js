@@ -3,6 +3,7 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Vendor from '../../../models/Vendor.model.js';
 import Commission from '../../../models/Commission.model.js';
+import VendorDocument from '../../../models/VendorDocument.model.js';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
 
@@ -161,6 +162,54 @@ export const getVendorCommissions = asyncHandler(async (req, res) => {
             'Vendor commissions fetched.'
         )
     );
+});
+
+// GET /api/admin/vendors/:id/documents
+export const getVendorDocuments = asyncHandler(async (req, res) => {
+    const documents = await VendorDocument.find({ vendorId: req.params.id }).sort({ createdAt: -1 });
+    res.status(200).json(new ApiResponse(200, documents, 'Vendor documents fetched.'));
+});
+
+// GET /api/admin/vendor-documents/pending
+export const getAllPendingDocuments = asyncHandler(async (req, res) => {
+    const documents = await VendorDocument.find({ status: 'pending' })
+        .populate('vendorId', 'name storeName email storeLogo')
+        .sort({ createdAt: -1 });
+    res.status(200).json(new ApiResponse(200, documents, 'Pending vendor documents fetched.'));
+});
+
+// PATCH /api/admin/vendors/:id/documents/:documentId/status
+export const updateVendorDocumentStatus = asyncHandler(async (req, res) => {
+    const { documentId } = req.params;
+    const { status, reason } = req.body;
+
+    const allowed = ['approved', 'rejected', 'pending'];
+    if (!allowed.includes(status)) throw new ApiError(400, `Status must be one of: ${allowed.join(', ')}`);
+
+    const document = await VendorDocument.findOne({ _id: documentId, vendorId: req.params.id });
+    if (!document) throw new ApiError(404, 'Document not found.');
+
+    document.status = status;
+    await document.save();
+
+    const vendorMessage = status === 'approved'
+        ? `Your document "${document.name}" has been approved.`
+        : `Your document "${document.name}" has been rejected.${reason ? ` Reason: ${reason}` : ''}`;
+
+    await createNotification({
+        recipientId: req.params.id,
+        recipientType: 'vendor',
+        title: 'Document Status Updated',
+        message: vendorMessage,
+        type: 'system',
+        data: {
+            documentId: String(document._id),
+            status,
+            reason: reason || '',
+        },
+    });
+
+    res.status(200).json(new ApiResponse(200, document, `Document ${status} successfully.`));
 });
 
 // POST /api/admin/vendors

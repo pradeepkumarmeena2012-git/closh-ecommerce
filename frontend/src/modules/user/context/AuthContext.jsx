@@ -7,6 +7,7 @@ const AuthContext = createContext({
     isLoading: false,
     login: async () => ({ success: false }),
     loginWithOTP: async () => ({ success: false }),
+    resendOTP: async () => ({ success: false }),
     logout: () => { },
 });
 
@@ -26,6 +27,7 @@ export const AuthProvider = ({ children }) => {
     const isLoading = useAuthStore(state => state.isLoading);
     const storeLogin = useAuthStore(state => state.login);
     const storeVerifyOTP = useAuthStore(state => state.verifyOTP);
+    const storeResendOTP = useAuthStore(state => state.resendOTP);
     const storeLogout = useAuthStore(state => state.logout);
 
     const value = useMemo(() => ({
@@ -34,8 +36,9 @@ export const AuthProvider = ({ children }) => {
         isLoading,
         login: storeLogin,
         loginWithOTP: storeVerifyOTP || (async () => ({ success: false })),
+        resendOTP: storeResendOTP || (async () => ({ success: false })),
         logout: storeLogout,
-    }), [user, isAuthenticated, isLoading, storeLogin, storeVerifyOTP, storeLogout]);
+    }), [user, isAuthenticated, isLoading, storeLogin, storeVerifyOTP, storeResendOTP, storeLogout]);
 
     return (
         <AuthContext.Provider value={value}>

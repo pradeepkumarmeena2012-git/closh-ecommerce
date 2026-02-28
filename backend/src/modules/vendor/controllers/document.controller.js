@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import VendorDocument from '../../../models/VendorDocument.model.js';
+import Admin from '../../../models/Admin.model.js';
 import {
     uploadLocalFileToCloudinaryAndCleanupWithType,
     deleteFromCloudinary,
@@ -73,6 +74,25 @@ export const createVendorDocument = asyncHandler(async (req, res) => {
                 status: 'pending',
             },
         });
+
+        // Notify active admins about the new pending document
+        const admins = await Admin.find({ isActive: true }).select('_id');
+        await Promise.all(
+            admins.map((admin) =>
+                createNotification({
+                    recipientId: admin._id,
+                    recipientType: 'admin',
+                    title: 'New Vendor Document Pending',
+                    message: `A new document (${name}) was uploaded by a vendor and is pending approval.`,
+                    type: 'system',
+                    data: {
+                        documentId: String(document._id),
+                        vendorId: String(req.user.id),
+                        category: String(category),
+                    },
+                })
+            )
+        );
 
         res.status(201).json(new ApiResponse(201, document, 'Document uploaded.'));
     } catch (error) {

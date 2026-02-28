@@ -11,7 +11,7 @@ const LoginPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [resendTimer, setResendTimer] = useState(0);
 
-    const { loginWithOTP } = useAuth();
+    const { loginWithOTP, resendOTP } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -40,24 +40,31 @@ const LoginPage = () => {
         setError('');
         setIsLoading(true);
 
-        // Mock OTP sending
-        setTimeout(() => {
-            setIsLoading(false);
+        try {
+            // Using resendOTP as the way to request initial OTP for an existing account
+            await resendOTP(mobileNumber);
             setStep(2);
             setResendTimer(30);
-            // Auto-fill OTP for easy testing if needed, but let's keep it manual
-        }, 1500);
+        } catch (err) {
+            const message = err.response?.data?.message || err.message || 'Failed to send OTP. Please ensure the account exists.';
+            setError(message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleResendOTP = async () => {
         setError('');
         setIsLoading(true);
 
-        // Mock OTP sending
-        setTimeout(() => {
-            setIsLoading(false);
+        try {
+            await resendOTP(mobileNumber);
             setResendTimer(30);
-        }, 1500);
+        } catch (err) {
+            setError('Failed to resend OTP. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleVerifyOTP = async (e) => {

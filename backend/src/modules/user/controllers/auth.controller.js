@@ -55,17 +55,28 @@ export const register = asyncHandler(async (req, res) => {
 export const verifyOTP = asyncHandler(async (req, res) => {
     const { email: identifier, otp } = req.body;
     const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
-
-    // Search by email OR phone
+    console.log(`[VerifyOTP] Login request: ${normalizedIdentifier}, OTP: ${otp}`);
     const user = await User.findOne({
         $or: [
             { email: normalizedIdentifier },
             { phone: normalizedIdentifier }
         ]
     }).select('+otp +otpExpiry');
-    if (!user) throw new ApiError(404, 'User not found.');
-    if (user.otp !== otp) throw new ApiError(400, 'Invalid OTP.');
-    if (user.otpExpiry < Date.now()) throw new ApiError(400, 'OTP has expired. Please request a new one.');
+
+    if (!user) {
+        console.warn(`[VerifyOTP] User not found: ${normalizedIdentifier}`);
+        throw new ApiError(404, 'User not found.');
+    }
+
+    if (user.otp !== otp) {
+        console.warn(`[VerifyOTP] Invalid OTP for ${normalizedIdentifier}. Expected: ${user.otp}, Received: ${otp}`);
+        throw new ApiError(400, 'Invalid OTP.');
+    }
+
+    if (user.otpExpiry < Date.now()) {
+        console.warn(`[VerifyOTP] OTP expired for ${normalizedIdentifier}`);
+        throw new ApiError(400, 'OTP has expired. Please request a new one.');
+    }
 
     user.isVerified = true;
     user.otp = undefined;
@@ -148,10 +159,9 @@ export const resendOTP = asyncHandler(async (req, res) => {
         ]
     });
     if (!user) throw new ApiError(404, 'User not found.');
-    if (user.isVerified) throw new ApiResponse(200, null, 'Already verified.');
 
-    await sendOTP(user, 'email_verification');
-    res.status(200).json(new ApiResponse(200, null, 'OTP resent successfully.'));
+    await sendOTP(user, 'otp_request');
+    return res.status(200).json(new ApiResponse(200, null, 'OTP sent successfully.'));
 });
 
 // POST /api/user/auth/forgot-password

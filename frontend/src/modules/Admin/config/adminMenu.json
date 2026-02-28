@@ -90,6 +90,7 @@
     "permission": "vendors_manage",
     "children": [
       "Manage Vendors",
+      "Vendor Explorer",
       "Pending Approvals",
       "Commission Rates",
       "Vendor Analytics"

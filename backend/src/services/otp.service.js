@@ -7,7 +7,10 @@ import { sendEmail } from './email.service.js';
  * @param {string} type - Purpose label (for logging)
  */
 export const sendOTP = async (user, type = 'verification') => {
-    const otp = crypto.randomInt(100000, 999999).toString();
+    // Default OTP '123456' in development, random in production
+    const otp = process.env.NODE_ENV === 'production'
+        ? crypto.randomInt(100000, 999999).toString()
+        : '123456';
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     user.otp = otp;

@@ -14,10 +14,12 @@ import {
     FiCheckCircle,
     FiClock,
     FiXCircle,
-    FiSearch
+    FiSearch,
+    FiFileText,
+    FiDownload
 } from "react-icons/fi";
 import { useVendorStore } from "../../store/vendorStore";
-import { getAllProducts, getAllOrders } from "../../services/adminService";
+import { getAllProducts, getAllOrders, getVendorDocuments, updateVendorDocumentStatus } from "../../services/adminService";
 import Badge from "../../../../shared/components/Badge";
 import DataTable from "../../components/DataTable";
 import { formatPrice } from "../../../../shared/utils/helpers";
@@ -30,9 +32,11 @@ const VendorExplorer = () => {
     const [selectedVendorId, setSelectedVendorId] = useState(null);
     const [vendorProducts, setVendorProducts] = useState([]);
     const [vendorOrders, setVendorOrders] = useState([]);
+    const [vendorDocuments, setVendorDocuments] = useState([]);
     const [isLoadingProducts, setIsLoadingProducts] = useState(false);
     const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-    const [activeSubTab, setActiveSubTab] = useState("profile"); // profile, products, orders
+    const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+    const [activeSubTab, setActiveSubTab] = useState("profile"); // profile, products, orders, documents
     const [vendorSearch, setVendorSearch] = useState("");
 
     useEffect(() => {
@@ -51,8 +55,40 @@ const VendorExplorer = () => {
         if (selectedVendorId) {
             loadVendorProducts(selectedVendorId);
             loadVendorOrders(selectedVendorId);
+            loadVendorDocuments(selectedVendorId);
         }
     }, [selectedVendorId]);
+
+    const loadVendorDocuments = async (vendorId) => {
+        setIsLoadingDocuments(true);
+        try {
+            const response = await getVendorDocuments(vendorId);
+            const docs = response.data || [];
+            setVendorDocuments(docs.map(d => ({
+                ...d,
+                id: d._id,
+                date: d.createdAt || d.uploadedAt
+            })));
+        } catch (error) {
+            setVendorDocuments([]);
+        } finally {
+            setIsLoadingDocuments(false);
+        }
+    };
+
+    const handleDocumentStatusUpdate = async (documentId, newStatus) => {
+        try {
+            const response = await updateVendorDocumentStatus(selectedVendorId, documentId, newStatus);
+            if (response.success) {
+                toast.success(`Document ${newStatus} successfully.`);
+                setVendorDocuments(prev => prev.map(doc =>
+                    doc.id === documentId ? { ...doc, status: newStatus } : doc
+                ));
+            }
+        } catch (error) {
+            toast.error(error.message || `Failed to update document status to ${newStatus}`);
+        }
+    };
 
     const loadVendorProducts = async (vendorId) => {
         setIsLoadingProducts(true);
@@ -205,6 +241,77 @@ const VendorExplorer = () => {
         }
     ];
 
+    const documentColumns = [
+        {
+            key: "name",
+            label: "Document Name",
+            sortable: true,
+            render: (value, row) => (
+                <div>
+                    <span className="font-semibold text-gray-800 block text-sm">{value || row.fileName}</span>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold tracking-tight">
+                        {row.category || "Other"}
+                    </span>
+                </div>
+            )
+        },
+        {
+            key: "date",
+            label: "Uploaded",
+            sortable: true,
+            render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A',
+        },
+        {
+            key: "status",
+            label: "Status",
+            sortable: true,
+            render: (value) => (
+                <Badge
+                    variant={
+                        value === "approved" ? "success" :
+                            value === "pending" ? "warning" :
+                                value === "rejected" ? "error" : "info"
+                    }
+                >
+                    {String(value || "pending").toUpperCase()}
+                </Badge>
+            )
+        },
+        {
+            key: "actions",
+            label: "Actions",
+            sortable: false,
+            render: (_, row) => (
+                <div className="flex items-center gap-3">
+                    <a
+                        href={row.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-primary-600 font-bold text-xs hover:underline"
+                    >
+                        <FiDownload size={12} /> VIEW
+                    </a>
+                    {row.status === "pending" && (
+                        <>
+                            <button
+                                onClick={() => handleDocumentStatusUpdate(row.id, "approved")}
+                                className="flex items-center gap-1 text-green-600 font-bold text-xs hover:underline"
+                            >
+                                <FiCheckCircle size={12} /> APPROVE
+                            </button>
+                            <button
+                                onClick={() => handleDocumentStatusUpdate(row.id, "rejected")}
+                                className="flex items-center gap-1 text-red-600 font-bold text-xs hover:underline"
+                            >
+                                <FiXCircle size={12} /> REJECT
+                            </button>
+                        </>
+                    )}
+                </div>
+            )
+        }
+    ];
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -296,6 +403,7 @@ const VendorExplorer = () => {
                                             { id: "profile", label: "Registration Details", icon: FiInfo },
                                             { id: "products", label: "Products", icon: FiPackage },
                                             { id: "orders", label: "Orders", icon: FiShoppingBag },
+                                            { id: "documents", label: "Documents", icon: FiFileText },
                                         ].map((tab) => (
                                             <button
                                                 key={tab.id}
@@ -319,20 +427,29 @@ const VendorExplorer = () => {
                                                         <FiMapPin className="text-primary-500" /> Address Details
                                                     </h3>
                                                     <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-3">
-                                                        <div>
-                                                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Street</p>
-                                                            <p className="text-sm font-bold text-gray-700">{selectedVendor.address?.street || 'N/A'}</p>
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-4">
+                                                        {selectedVendor.shopAddress ? (
                                                             <div>
-                                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">City</p>
-                                                                <p className="text-sm font-bold text-gray-700">{selectedVendor.address?.city || 'N/A'}</p>
+                                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Shop Address</p>
+                                                                <p className="text-sm font-bold text-gray-700">{selectedVendor.shopAddress}</p>
                                                             </div>
-                                                            <div>
-                                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">State</p>
-                                                                <p className="text-sm font-bold text-gray-700">{selectedVendor.address?.state || 'N/A'}</p>
-                                                            </div>
-                                                        </div>
+                                                        ) : (
+                                                            <>
+                                                                <div>
+                                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Street</p>
+                                                                    <p className="text-sm font-bold text-gray-700">{selectedVendor.address?.street || 'N/A'}</p>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div>
+                                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">City</p>
+                                                                        <p className="text-sm font-bold text-gray-700">{selectedVendor.address?.city || 'N/A'}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">State</p>
+                                                                        <p className="text-sm font-bold text-gray-700">{selectedVendor.address?.state || 'N/A'}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -390,6 +507,24 @@ const VendorExplorer = () => {
                                                     pagination={true}
                                                     itemsPerPage={10}
                                                     isLoading={isLoadingOrders}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {activeSubTab === "documents" && (
+                                            <div className="animate-in fade-in duration-500">
+                                                <div className="flex items-center justify-between mb-4">
+                                                    <h3 className="text-lg font-black text-gray-800">Uploaded Documents</h3>
+                                                    <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                                        Total {vendorDocuments.length} Documents
+                                                    </div>
+                                                </div>
+                                                <DataTable
+                                                    data={vendorDocuments}
+                                                    columns={documentColumns}
+                                                    pagination={true}
+                                                    itemsPerPage={10}
+                                                    isLoading={isLoadingDocuments}
                                                 />
                                             </div>
                                         )}

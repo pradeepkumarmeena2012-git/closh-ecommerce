@@ -70,8 +70,7 @@
         "route": "/vendor/earnings",
         "children": [
             "Earnings Overview",
-            "Commission History",
-            "Settlement History"
+            "Commission History"
         ]
     },
     {

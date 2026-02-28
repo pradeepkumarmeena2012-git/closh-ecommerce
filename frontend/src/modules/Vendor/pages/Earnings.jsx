@@ -23,7 +23,6 @@ const Earnings = () => {
   const getActiveTab = () => {
     const path = location.pathname;
     if (path.includes("/commission-history")) return "commission";
-    if (path.includes("/settlement-history")) return "settlement";
     return "overview";
   };
 
@@ -90,8 +89,6 @@ const Earnings = () => {
       navigate("/vendor/earnings");
     } else if (tab === "commission") {
       navigate("/vendor/earnings/commission-history");
-    } else if (tab === "settlement") {
-      navigate("/vendor/earnings/settlement-history");
     }
   };
 
@@ -132,15 +129,6 @@ const Earnings = () => {
                 }`}>
               <FiFileText />
               <span>Commission History</span>
-            </button>
-            <button
-              onClick={() => handleTabChange("settlement")}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap text-sm ${activeTab === "settlement"
-                ? "border-purple-600 text-purple-600 font-semibold"
-                : "border-transparent text-gray-600 hover:text-gray-800"
-                }`}>
-              <FiCheckCircle />
-              <span>Settlement History</span>
             </button>
           </div>
         </div>
@@ -283,16 +271,16 @@ const Earnings = () => {
                               {commission.orderDisplayId ||
                                 (typeof commission.orderId === "object"
                                   ? commission.orderId?.orderId ||
-                                    commission.orderId?._id
+                                  commission.orderId?._id
                                   : commission.orderId)}
                             </h3>
                             <Badge
                               variant={
                                 (commission.effectiveStatus || commission.status) ===
-                                "paid"
+                                  "paid"
                                   ? "success"
                                   : (commission.effectiveStatus ||
-                                      commission.status) === "pending"
+                                    commission.status) === "pending"
                                     ? "warning"
                                     : "error"
                               }>
@@ -359,117 +347,7 @@ const Earnings = () => {
             </div>
           )}
 
-          {/* Settlement History Section */}
-          {(activeTab === "overview" || activeTab === "settlement") &&
-            settlements.length > 0 && (
-              <div>
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-800 mb-1">
-                        Settlement History
-                      </h2>
-                      <p className="text-sm text-gray-600">
-                        View your payment settlements
-                      </p>
-                    </div>
-                    <ExportButton
-                      data={settlements}
-                      headers={[
-                        {
-                          label: "Settlement ID",
-                          accessor: (row) => row._id || row.id,
-                        },
-                        {
-                          label: "Date",
-                          accessor: (row) =>
-                            new Date(row.createdAt).toLocaleDateString(),
-                        },
-                        {
-                          label: "Amount",
-                          accessor: (row) => formatPrice(row.amount),
-                        },
-                        {
-                          label: "Payment Method",
-                          accessor: (row) => row.paymentMethod,
-                        },
-                        {
-                          label: "Transaction ID",
-                          accessor: (row) => row.transactionId || "N/A",
-                        },
-                      ]}
-                      filename="vendor-settlements"
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    {settlements.map((settlement) => (
-                      <div
-                        key={settlement._id || settlement.id}
-                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold text-gray-800">
-                              {settlement._id || settlement.id}
-                            </h3>
-                            <Badge
-                              variant={
-                                settlement.status === "failed"
-                                  ? "error"
-                                  : "success"
-                              }
-                            >
-                              {String(settlement.status || "completed").toUpperCase()}
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                            <div>
-                              <p className="text-gray-600">Date Paid</p>
-                              <p className="font-semibold text-gray-800">
-                                {new Date(
-                                  settlement.createdAt
-                                ).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">Amount</p>
-                              <p className="font-semibold text-green-600">
-                                {formatPrice(settlement.amount)}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">Payment Method</p>
-                              <p className="font-semibold text-gray-800 capitalize">
-                                {settlement.paymentMethod?.replace("_", " ") ||
-                                  "N/A"}
-                              </p>
-                            </div>
-                            {settlement.transactionId && (
-                              <div>
-                                <p className="text-gray-600">Transaction ID</p>
-                                <p className="font-semibold text-gray-800 text-xs">
-                                  {settlement.transactionId}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-          {activeTab === "settlement" && settlements.length === 0 && (
-            <div className="text-center py-12">
-              <FiCheckCircle className="text-4xl text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 mb-2">No settlement records found</p>
-              <p className="text-sm text-gray-400">
-                Settlements will appear here once your commissions are paid
-              </p>
-            </div>
-          )}
+          {/* Removed Settlement History Section */}
 
         </div>
       </div>
