@@ -22,6 +22,13 @@ export const categoryColors = {
 
 export const CategoryProvider = ({ children }) => {
     const [activeCategory, setActiveCategory] = useState('For You');
+    const [activeSubCategory, setActiveSubCategory] = useState('All');
+
+    // Overriding the setter to reset subcategory to All when root category changes
+    const setCategoryWithReset = useCallback((newCategory) => {
+        setActiveCategory(newCategory);
+        setActiveSubCategory('All');
+    }, []);
 
     const getCategoryColor = useCallback((name) => {
         if (!name) return categoryColors['For You'];
@@ -37,10 +44,12 @@ export const CategoryProvider = ({ children }) => {
 
     const value = useMemo(() => ({
         activeCategory,
-        setActiveCategory,
+        setActiveCategory: setCategoryWithReset,
+        activeSubCategory,
+        setActiveSubCategory,
         getCategoryColor,
         categoryColors
-    }), [activeCategory, getCategoryColor]);
+    }), [activeCategory, setCategoryWithReset, activeSubCategory, getCategoryColor]);
 
     return (
         <CategoryContext.Provider value={value}>

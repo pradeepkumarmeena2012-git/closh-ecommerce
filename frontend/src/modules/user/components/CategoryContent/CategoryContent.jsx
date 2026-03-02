@@ -24,54 +24,70 @@ const CategoryContent = () => {
     }, [activeRoot, getCategoriesByParent]);
 
     if (isLoading && categories.length === 0) return (
-        <div className="flex items-center justify-center p-20 animate-pulse">
-            <div className="text-[10px] font-black uppercase tracking-widest text-gray-300">Syncing Collections...</div>
+        <div className="flex items-center justify-center p-20 animate-pulse bg-[#FAFAFA]">
+            <div className="text-[12px] font-premium font-black uppercase tracking-widest text-[#111111]/40">Syncing Collections...</div>
         </div>
     );
 
     if (!activeRoot && !isLoading) return (
-        <div className="flex flex-col items-center justify-center p-20 text-center">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Select a category to explore</p>
+        <div className="flex flex-col items-center justify-center p-20 text-center bg-[#FAFAFA]">
+            <p className="text-[12px] font-premium font-black uppercase tracking-[0.2em] text-[#111111]/40">Select a category to explore</p>
         </div>
     );
 
     return (
-        <div className="pb-20 bg-white min-h-screen">
+        <div className="pb-24 pt-8 bg-[#FAFAFA] min-h-screen">
             {/* Displaying subcategories as a grid in a single section for now, or group them if needed */}
-            <div className="px-4 pt-4">
-                <h3 className="text-[13px] font-black text-gray-900 mb-5 uppercase tracking-tight">
-                    {activeRoot.name} Collections
-                </h3>
+            <div className="px-6 mx-auto max-w-[1920px]">
+                <div className="flex items-end justify-between mb-8 pb-4 border-b border-black/5">
+                    <h3 className="text-[20px] md:text-[28px] font-premium font-black text-[#111111] uppercase tracking-tighter">
+                        {activeRoot.name} Collections
+                    </h3>
+                </div>
 
                 {subCategories.length === 0 ? (
-                    <div className="py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-100">
-                        <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No sub-collections found</p>
+                    <div className="py-24 text-center bg-white/50 backdrop-blur-xl rounded-[32px] border border-black/5 shadow-[0_8px_30px_rgba(0,0,0,0.02)]">
+                        <p className="font-premium text-[14px] font-black text-[#111111]/40 uppercase tracking-[0.2em] mb-6">No sub-collections curated yet</p>
                         <button
                             onClick={() => navigate(`/shop?category=${activeRoot.id}`)}
-                            className="mt-4 px-6 py-2 bg-black text-white text-[9px] font-black uppercase tracking-widest rounded-xl"
+                            className="px-8 py-3.5 bg-[#111111] text-[#FAFAFA] text-[11px] font-black uppercase tracking-widest rounded-full hover:bg-[#D4AF37] hover:text-[#111111] hover:shadow-[0_10px_30px_rgba(212,175,55,0.3)] transition-all duration-500 active:scale-95"
                         >
-                            View All Products
+                            View All {activeRoot.name}
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-8 gap-3 md:gap-5">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 md:gap-6">
                         {subCategories.map((item) => (
                             <div
                                 key={item.id}
-                                className="flex flex-col items-center group cursor-pointer"
+                                className="flex flex-col group cursor-pointer"
                                 onClick={() => navigate(`/shop?category=${activeRoot.id}&subCategory=${item.id}`)}
                             >
-                                <div className="w-full aspect-square bg-[#fafafa] rounded-2xl overflow-hidden mb-3 border-2 border-transparent group-hover:border-black/5 group-hover:shadow-xl transition-all p-1">
-                                    <div className="w-full h-full rounded-xl overflow-hidden shadow-inner relative">
-                                        <img
-                                            src={item.image || 'https://via.placeholder.com/200x200?text=Sub'}
-                                            alt={item.name}
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                        />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+                                {/* Premium Card Container */}
+                                <div className="w-full aspect-[4/5] bg-white rounded-[24px] overflow-hidden mb-4 border border-black/5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] group-hover:border-[#D4AF37]/30 group-hover:shadow-[0_15px_35px_rgba(212,175,55,0.15)] transition-all duration-500 relative">
+
+                                    {/* Image with extreme smooth scaling */}
+                                    <div className="absolute inset-0 p-1.5 md:p-2">
+                                        <div className="w-full h-full rounded-[18px] overflow-hidden relative group-hover:rounded-[14px] transition-all duration-500">
+                                            <img
+                                                src={item.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=500&fit=crop'}
+                                                alt={item.name}
+                                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] filter contrast-[0.95]"
+                                            />
+                                            {/* Subdued overlay for cinematic feel */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                        </div>
+                                    </div>
+
+                                    {/* Elevated Category Title (Hover State) */}
+                                    <div className="absolute bottom-4 left-0 w-full text-center opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 px-3 z-10">
+                                        <span className="block w-full py-2 bg-white/90 backdrop-blur-md rounded-xl text-[10px] font-black text-[#111111] uppercase tracking-[0.1em] shadow-sm">
+                                            Explore
+                                        </span>
                                     </div>
                                 </div>
-                                <span className="text-[9px] font-black text-gray-800 text-center uppercase tracking-tight leading-none px-1 group-hover:text-black">
+                                {/* Clean Base Title */}
+                                <span className="font-premium text-[11px] md:text-[12px] font-black text-[#111111]/70 text-center uppercase tracking-widest leading-none px-1 group-hover:text-[#111111] transition-colors duration-300">
                                     {item.name}
                                 </span>
                             </div>

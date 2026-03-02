@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AccountLayout from '../../components/Profile/AccountLayout';
-import { Camera } from 'lucide-react';
+import { Camera, Check } from 'lucide-react';
 
 const ProfilePage = () => {
     const { user } = useAuth();
@@ -19,6 +19,7 @@ const ProfilePage = () => {
             gender: 'Male',
             ageRange: '18-24',
             profession: 'Information Technology',
+            preferredFit: 'Tailored',
             phone: '9669002380',
             avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
         };
@@ -51,7 +52,7 @@ const ProfilePage = () => {
         localStorage.setItem('profileData', JSON.stringify(formData));
         setTimeout(() => {
             setIsSaving(false);
-            setSaveMessage('Profile updated successfully!');
+            setSaveMessage('Profile Updated');
             setTimeout(() => setSaveMessage(''), 3000);
         }, 800);
     };
@@ -59,17 +60,18 @@ const ProfilePage = () => {
     const genderOptions = ['Male', 'Female', 'Other'];
     const ageOptions = ['Below 18', '18-24', 'Above 24'];
     const professionOptions = [
-        'Human Resource', 'Information Technology', 'Other',
-        'Sales', 'Finance', 'Medical', 'Business', 'Management'
+        'Business', 'Finance', 'Information Technology',
+        'Human Resource', 'Management', 'Medical', 'Sales', 'Other'
     ];
+    const fitOptions = ['Slim', 'Tailored', 'Regular', 'Oversized'];
 
     if (!user) {
         return (
-            <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 px-4">
-                <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
-                    <h2 className="text-2xl font-bold mb-4">Account</h2>
-                    <p className="text-gray-500 mb-8">Login to view your profile and manage orders</p>
-                    <Link to="/login" className="block w-full py-3 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all no-underline">
+            <div className="min-h-[80vh] flex items-center justify-center bg-[#FAFAFA] px-4">
+                <div className="bg-white p-10 rounded-[32px] shadow-[0_8px_30px_rgba(0,0,0,0.04)] w-full max-w-md text-center border border-black/5">
+                    <h2 className="text-[28px] font-premium font-black text-[#111111] mb-4 tracking-tight">Account</h2>
+                    <p className="text-[13px] font-premium text-[#111111]/50 mb-8 tracking-wide">Login to view your bespoke profile and manage orders</p>
+                    <Link to="/login" className="block w-full py-4 bg-[#111111] text-[#FAFAFA] rounded-full text-[13px] font-black uppercase tracking-widest hover:bg-[#D4AF37] hover:text-[#111111] transition-all no-underline shadow-[0_10px_30px_rgba(17,17,17,0.2)] hover:shadow-[0_10px_30px_rgba(212,175,55,0.3)]">
                         Login / Sign Up
                     </Link>
                 </div>
@@ -79,9 +81,11 @@ const ProfilePage = () => {
 
     return (
         <AccountLayout>
-            <div className="max-w-[500px] mx-auto">
-                <div className="flex flex-col items-center mb-6">
-                    <div className="relative group">
+            <div className="max-w-[500px] mx-auto bg-[#FAFAFA] min-h-screen pb-20">
+
+                {/* Header & Avatar Section */}
+                <div className="flex flex-col items-center mb-10 pt-4">
+                    <div className="relative group cursor-pointer mb-5" onClick={triggerFileInput}>
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -89,157 +93,192 @@ const ProfilePage = () => {
                             accept="image/*"
                             className="hidden"
                         />
-                        <div
-                            onClick={triggerFileInput}
-                            className="w-24 h-24 md:w-28 md:h-28 rounded-3xl bg-yellow-400 overflow-hidden relative shadow-inner cursor-pointer"
-                        >
-                            <img
-                                src={formData.avatar}
-                                alt="User Avatar"
-                                className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                <Camera className="text-white" size={24} />
+                        <div className="w-28 h-28 md:w-32 md:h-32 rounded-full p-[3px] bg-gradient-to-tr from-[#111111] via-[#D4AF37] to-[#111111] shadow-[0_10px_30px_rgba(212,175,55,0.15)] group-hover:shadow-[0_15px_40px_rgba(212,175,55,0.3)] transition-all duration-500">
+                            <div className="w-full h-full rounded-full bg-[#111111] overflow-hidden relative border-4 border-[#FAFAFA]">
+                                <img
+                                    src={formData.avatar}
+                                    alt="User Avatar"
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                                />
+                                <div className="absolute inset-0 bg-[#111111]/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center">
+                                    <Camera className="text-[#D4AF37] w-8 h-8" strokeWidth={1.5} />
+                                </div>
                             </div>
                         </div>
-                        <button
-                            onClick={triggerFileInput}
-                            className="absolute -bottom-2 -right-2 bg-gray-800 text-white p-2 rounded-xl border-4 border-white shadow-md hover:bg-black transition-colors"
-                        >
-                            <Camera size={14} />
-                        </button>
+                    </div>
+                    <h2 className="text-[24px] font-premium font-black text-[#111111] tracking-tight">{formData.firstName} {formData.lastName}</h2>
+                    <div className="flex items-center gap-1.5 mt-1.5 opacity-80">
+                        <Check size={12} className="text-[#D4AF37]" strokeWidth={3} />
+                        <span className="text-[10px] font-premium font-black text-[#D4AF37] uppercase tracking-[0.2em]">Member Since 2024</span>
                     </div>
                 </div>
 
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4">
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={formData.firstName}
-                                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                                className="w-full px-5 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all font-medium text-gray-800"
-                                placeholder="First Name"
-                            />
-                        </div>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={formData.lastName}
-                                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                className="w-full px-5 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all font-medium text-gray-800"
-                                placeholder="Last Name"
-                            />
-                        </div>
-                        <div className="relative">
-                            <input
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full px-5 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all font-medium text-gray-800"
-                                placeholder="Email"
-                            />
-                        </div>
-                        <div className="relative">
-                            <label className="absolute -top-2.5 left-4 bg-white px-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Date of Birth</label>
-                            <input
-                                type="text"
-                                value={formData.dob}
-                                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                                className="w-full px-5 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all font-medium text-gray-800"
-                                placeholder="01/01/1970"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-5 pt-1">
-                        <div>
-                            <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Gender</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {genderOptions.map(opt => (
-                                    <button
-                                        key={opt}
-                                        onClick={() => setFormData({ ...formData, gender: opt })}
-                                        className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${formData.gender === opt
-                                            ? 'bg-gray-100 text-black border border-gray-200'
-                                            : 'bg-gray-50 text-gray-400 border border-transparent hover:bg-gray-100'
-                                            }`}
-                                    >
-                                        {opt}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Your age range</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {ageOptions.map(opt => (
-                                    <button
-                                        key={opt}
-                                        onClick={() => setFormData({ ...formData, ageRange: opt })}
-                                        className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${formData.ageRange === opt
-                                            ? 'bg-gray-100 text-black border border-gray-200'
-                                            : 'bg-gray-50 text-gray-400 border border-transparent hover:bg-gray-100'
-                                            }`}
-                                    >
-                                        {opt}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Your Profession</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {professionOptions.map(opt => (
-                                    <button
-                                        key={opt}
-                                        onClick={() => setFormData({ ...formData, profession: opt })}
-                                        className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${formData.profession === opt
-                                            ? 'bg-gray-100 text-black border border-gray-200'
-                                            : 'bg-gray-50 text-gray-400 border border-transparent hover:bg-gray-100'
-                                            }`}
-                                    >
-                                        {opt}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="relative">
-                            <label className="absolute -top-2.5 left-4 bg-white px-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Contact Number</label>
-                            <div className="flex items-center gap-3 w-full px-5 py-3 border border-gray-200 rounded-xl bg-gray-50/50">
-                                <div className="flex items-center gap-2 pr-3 border-r border-gray-200">
-                                    <img
-                                        src="https://flagcdn.com/w20/in.png"
-                                        alt="India Flag"
-                                        className="w-5 rounded-sm"
-                                    />
-                                    <span className="text-sm font-bold">+91</span>
-                                </div>
+                {/* Form Fields Section */}
+                <div className="space-y-5 px-2">
+                    {/* Basic Info */}
+                    <div className="grid grid-cols-1 gap-5">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="relative group">
+                                <label className="absolute -top-2.5 left-4 bg-[#FAFAFA] px-2 text-[9px] font-premium font-black text-[#111111]/40 uppercase tracking-[0.15em] z-10 transition-colors group-focus-within:text-[#D4AF37]">First Name</label>
                                 <input
                                     type="text"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    className="flex-1 bg-transparent border-none outline-none font-bold text-gray-800"
+                                    value={formData.firstName}
+                                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                    className="w-full px-5 py-3.5 bg-white border border-black/5 rounded-[16px] focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] outline-none transition-all font-premium font-medium text-[14px] text-[#111111] shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
+                                    placeholder="First Name"
+                                />
+                            </div>
+                            <div className="relative group">
+                                <label className="absolute -top-2.5 left-4 bg-[#FAFAFA] px-2 text-[9px] font-premium font-black text-[#111111]/40 uppercase tracking-[0.15em] z-10 transition-colors group-focus-within:text-[#D4AF37]">Last Name</label>
+                                <input
+                                    type="text"
+                                    value={formData.lastName}
+                                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                    className="w-full px-5 py-3.5 bg-white border border-black/5 rounded-[16px] focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] outline-none transition-all font-premium font-medium text-[14px] text-[#111111] shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
+                                    placeholder="Last Name"
                                 />
                             </div>
                         </div>
 
-                        <div className="pt-4">
+                        <div className="relative group">
+                            <label className="absolute -top-2.5 left-4 bg-[#FAFAFA] px-2 text-[9px] font-premium font-black text-[#111111]/40 uppercase tracking-[0.15em] z-10 transition-colors group-focus-within:text-[#D4AF37]">Email Address</label>
+                            <input
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full px-5 py-3.5 bg-white border border-black/5 rounded-[16px] focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] outline-none transition-all font-premium font-medium text-[14px] text-[#111111] shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
+                                placeholder="Email"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="relative group">
+                                <label className="absolute -top-2.5 left-4 bg-[#FAFAFA] px-2 text-[9px] font-premium font-black text-[#111111]/40 uppercase tracking-[0.15em] z-10 transition-colors group-focus-within:text-[#D4AF37]">Mobile Number</label>
+                                <div className="flex items-center gap-3 w-full px-5 py-3.5 bg-white border border-black/5 rounded-[16px] focus-within:ring-1 focus-within:ring-[#D4AF37] focus-within:border-[#D4AF37] transition-all shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                                    <div className="flex items-center gap-2 pr-3 border-r border-[#111111]/10">
+                                        <img src="https://flagcdn.com/w20/in.png" alt="India" className="w-4 rounded-sm shadow-sm" />
+                                        <span className="text-[13px] font-premium font-black text-[#111111]">+91</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        className="flex-1 bg-transparent border-none outline-none font-premium font-medium text-[14px] text-[#111111]"
+                                    />
+                                </div>
+                            </div>
+                            <div className="relative group">
+                                <label className="absolute -top-2.5 left-4 bg-[#FAFAFA] px-2 text-[9px] font-premium font-black text-[#111111]/40 uppercase tracking-[0.15em] z-10 transition-colors group-focus-within:text-[#D4AF37]">Date of Birth</label>
+                                <input
+                                    type="text"
+                                    value={formData.dob}
+                                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                                    className="w-full px-5 py-3.5 bg-white border border-black/5 rounded-[16px] focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] outline-none transition-all font-premium font-medium text-[14px] text-[#111111] shadow-[0_2px_10px_rgba(0,0,0,0.02)]"
+                                    placeholder="DD/MM/YYYY"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="w-full h-px bg-gradient-to-r from-transparent via-black/5 to-transparent my-6"></div>
+
+                    {/* Chips Sections */}
+                    <div className="space-y-7">
+                        {/* Preferred Fit (New Luxury Feature) */}
+                        <div>
+                            <h4 className="text-[10px] font-premium font-black text-[#111111]/40 uppercase tracking-[0.2em] mb-3 ml-1">Preferred Fit (Bespoke)</h4>
+                            <div className="flex flex-wrap gap-2.5">
+                                {fitOptions.map(opt => (
+                                    <button
+                                        key={opt}
+                                        onClick={() => setFormData({ ...formData, preferredFit: opt })}
+                                        className={`px-5 py-2 rounded-full text-[12px] font-premium font-bold transition-all duration-300 ${formData.preferredFit === opt
+                                            ? 'bg-[#111111] text-[#FAFAFA] shadow-[0_8px_20px_rgba(17,17,17,0.2)] scale-105'
+                                            : 'bg-white text-[#111111]/60 border border-black/5 hover:border-[#D4AF37]/50 hover:text-[#111111] hover:-translate-y-0.5 shadow-[0_2px_10px_rgba(0,0,0,0.02)]'
+                                            }`}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Gender */}
+                        <div>
+                            <h4 className="text-[10px] font-premium font-black text-[#111111]/40 uppercase tracking-[0.2em] mb-3 ml-1">Gender Identification</h4>
+                            <div className="flex flex-wrap gap-2.5">
+                                {genderOptions.map(opt => (
+                                    <button
+                                        key={opt}
+                                        onClick={() => setFormData({ ...formData, gender: opt })}
+                                        className={`px-5 py-2 rounded-full text-[12px] font-premium font-bold transition-all duration-300 ${formData.gender === opt
+                                            ? 'bg-[#111111] text-[#FAFAFA] shadow-[0_8px_20px_rgba(17,17,17,0.2)] scale-105'
+                                            : 'bg-white text-[#111111]/60 border border-black/5 hover:border-[#D4AF37]/50 hover:text-[#111111] hover:-translate-y-0.5 shadow-[0_2px_10px_rgba(0,0,0,0.02)]'
+                                            }`}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Age Range */}
+                        <div>
+                            <h4 className="text-[10px] font-premium font-black text-[#111111]/40 uppercase tracking-[0.2em] mb-3 ml-1">Age Demographics</h4>
+                            <div className="flex flex-wrap gap-2.5">
+                                {ageOptions.map(opt => (
+                                    <button
+                                        key={opt}
+                                        onClick={() => setFormData({ ...formData, ageRange: opt })}
+                                        className={`px-5 py-2 rounded-full text-[12px] font-premium font-bold transition-all duration-300 ${formData.ageRange === opt
+                                            ? 'bg-[#111111] text-[#FAFAFA] shadow-[0_8px_20px_rgba(17,17,17,0.2)] scale-105'
+                                            : 'bg-white text-[#111111]/60 border border-black/5 hover:border-[#D4AF37]/50 hover:text-[#111111] hover:-translate-y-0.5 shadow-[0_2px_10px_rgba(0,0,0,0.02)]'
+                                            }`}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Profession */}
+                        <div>
+                            <h4 className="text-[10px] font-premium font-black text-[#111111]/40 uppercase tracking-[0.2em] mb-3 ml-1">Current Profession</h4>
+                            <div className="flex flex-wrap gap-2.5">
+                                {professionOptions.map(opt => (
+                                    <button
+                                        key={opt}
+                                        onClick={() => setFormData({ ...formData, profession: opt })}
+                                        className={`px-4 py-2 rounded-full text-[11px] font-premium font-bold transition-all duration-300 ${formData.profession === opt
+                                            ? 'bg-[#111111] text-[#FAFAFA] shadow-[0_8px_20px_rgba(17,17,17,0.2)] scale-105'
+                                            : 'bg-white text-[#111111]/60 border border-black/5 hover:border-[#D4AF37]/50 hover:text-[#111111] hover:-translate-y-0.5 shadow-[0_2px_10px_rgba(0,0,0,0.02)]'
+                                            }`}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Save Action */}
+                        <div className="pt-8 pb-4 relative">
+                            {saveMessage && (
+                                <div className="absolute -top-2 left-0 w-full flex justify-center">
+                                    <span className="bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/20 px-4 py-1.5 rounded-full text-[10px] font-premium font-black tracking-[0.15em] uppercase animate-fade-in-up">
+                                        {saveMessage}
+                                    </span>
+                                </div>
+                            )}
                             <button
                                 onClick={handleSave}
                                 disabled={isSaving}
-                                className="w-full py-4 border-2 border-black rounded-xl font-extrabold text-[15px] uppercase tracking-widest hover:bg-black hover:text-white transition-all shadow-sm disabled:opacity-50 disabled:bg-gray-200 disabled:border-gray-200"
+                                className="group relative w-full py-4 bg-[#111111] rounded-full overflow-hidden disabled:opacity-70 transition-transform active:scale-95 shadow-[0_15px_30px_rgba(17,17,17,0.2)] hover:shadow-[0_15px_35px_rgba(212,175,55,0.25)]"
                             >
-                                {isSaving ? 'Saving...' : 'Edit'}
+                                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                                <span className="relative text-[#FAFAFA] font-premium font-black text-[13px] uppercase tracking-widest group-hover:text-[#D4AF37] transition-colors">
+                                    {isSaving ? 'Updating Profile...' : 'Save Profile Details'}
+                                </span>
                             </button>
-                            {saveMessage && (
-                                <p className="text-center text-green-600 font-bold mt-4 animate-bounce">
-                                    {saveMessage}
-                                </p>
-                            )}
                         </div>
                     </div>
                 </div>

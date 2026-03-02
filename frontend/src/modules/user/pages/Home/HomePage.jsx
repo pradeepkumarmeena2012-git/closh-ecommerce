@@ -11,7 +11,6 @@ const HomePage = () => {
         <>
             <HeroSection />
             <PromoBanners />
-            <CategoryBanners />
             <ProductGrid />
             <TrustBadges />
             <Newsletter />

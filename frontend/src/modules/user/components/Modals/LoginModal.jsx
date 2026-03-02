@@ -102,55 +102,59 @@ const LoginModal = ({ isOpen, onClose, onSuccess }) => {
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-[2px] animate-fadeIn"
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-[#111111]/60 backdrop-blur-xl animate-fadeIn"
             onClick={handleBackdropClick}
         >
-            <div className="bg-white w-full max-w-[400px] rounded-[32px] shadow-2xl relative overflow-hidden animate-scaleIn">
+            <div className="bg-[#FAFAFA] w-full max-w-[420px] rounded-[36px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] relative overflow-hidden animate-scaleIn border border-white/40">
+
+                {/* Decorative Top Glow */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-50" />
 
                 {/* Close Button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-6 right-6 z-20 w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors active:scale-95 text-gray-400 hover:text-black"
+                    className="absolute top-6 right-6 z-20 w-10 h-10 bg-white/50 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white transition-all duration-300 active:scale-95 text-[#878787] hover:text-[#111111] shadow-sm hover:shadow-md border border-gray-100"
                 >
-                    <X size={18} strokeWidth={2.5} />
+                    <X size={20} strokeWidth={2} />
                 </button>
 
                 {/* Back Button (for OTP step) */}
                 {step === 2 && (
                     <button
                         onClick={() => setStep(1)}
-                        className="absolute top-6 left-6 z-20 w-8 h-8 hover:bg-gray-50 rounded-full flex items-center justify-center transition-colors text-gray-400 hover:text-black"
+                        className="absolute top-6 left-6 z-20 w-10 h-10 bg-white/50 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white transition-all duration-300 active:scale-95 text-[#878787] hover:text-[#111111] shadow-sm hover:shadow-md border border-gray-100"
                     >
-                        <ChevronLeft size={20} strokeWidth={2.5} />
+                        <ChevronLeft size={22} strokeWidth={2} />
                     </button>
                 )}
 
-                <div className="p-8 pt-10 text-center">
+                <div className="p-10 pt-12 text-center">
                     {/* Icon */}
-                    <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl transform -rotate-3 group-hover:rotate-0 transition-transform">
-                        <Phone className="text-[#ffcc00]" size={24} />
+                    <div className="w-16 h-16 bg-[#111111] rounded-[20px] flex items-center justify-center mx-auto mb-8 shadow-[0_8px_16px_rgba(17,17,17,0.2)] transform -rotate-3 hover:rotate-0 hover:scale-105 transition-all duration-400 group relative">
+                        <div className="absolute inset-0 bg-[#D4AF37] blur-xl opacity-20 rounded-[20px] group-hover:opacity-40 transition-opacity duration-400"></div>
+                        <Phone className="text-[#D4AF37] relative z-10" size={28} strokeWidth={2} />
                     </div>
 
                     {/* Header */}
-                    <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-2">
-                        {step === 1 ? 'Login / Signup' : 'Verify OTP'}
+                    <h2 className="font-premium text-[28px] font-bold text-[#111111] mb-2 tracking-tight">
+                        {step === 1 ? 'Welcome Back' : 'Security Check'}
                     </h2>
-                    <p className="text-gray-400 font-bold text-[11px] uppercase tracking-widest max-w-[240px] mx-auto leading-relaxed mb-8">
+                    <p className="text-[#878787] text-[13px] font-medium max-w-[260px] mx-auto leading-relaxed mb-10">
                         {step === 1
-                            ? 'Enter your mobile number to get started'
-                            : `OTP sent to +91 ${mobileNumber}`}
+                            ? 'Enter your mobile number to securely sign in or create an account'
+                            : `We've sent a secure code to +91 ${mobileNumber}`}
                     </p>
 
                     {/* Form */}
                     <form onSubmit={step === 1 ? handleSendOTP : handleVerifyOTP} className="space-y-6">
                         {step === 1 ? (
-                            <div className="relative text-left">
-                                <label className="absolute -top-2 left-4 bg-white px-1 text-[9px] font-black text-gray-400 uppercase tracking-widest z-10">
+                            <div className="relative text-left group">
+                                <label className="absolute -top-2.5 left-4 bg-[#FAFAFA] px-2 text-[10px] font-bold text-[#878787] uppercase tracking-wider z-10 transition-colors group-focus-within:text-[#D4AF37]">
                                     Mobile Number
                                 </label>
-                                <div className="flex items-center relative gap-3 bg-gray-50/50 border border-gray-100 rounded-2xl p-1 focus-within:bg-white focus-within:border-black focus-within:shadow-md transition-all">
-                                    <div className="pl-4 pr-3 py-3 border-r border-gray-200">
-                                        <span className="text-[14px] font-black text-gray-900">+91</span>
+                                <div className="flex items-center relative gap-3 bg-white border border-gray-200 rounded-[20px] p-1.5 focus-within:border-[#D4AF37] focus-within:ring-4 focus-within:ring-[#D4AF37]/10 transition-all duration-300 shadow-sm hover:shadow-md">
+                                    <div className="pl-4 pr-3 py-3 border-r border-gray-100 flex items-center justify-center">
+                                        <span className="text-[15px] font-bold text-[#111111]">+91</span>
                                     </div>
                                     <input
                                         type="tel"
@@ -161,19 +165,19 @@ const LoginModal = ({ isOpen, onClose, onSuccess }) => {
                                             setMobileNumber(e.target.value.replace(/\D/g, ''));
                                             if (error) setError('');
                                         }}
-                                        className="w-full bg-transparent border-none outline-none text-[16px] font-bold placeholder:text-gray-300 placeholder:font-bold tracking-widest"
-                                        placeholder="00000 00000"
+                                        className="w-full bg-transparent border-none outline-none text-[16px] font-semibold text-[#111111] placeholder:text-gray-300 placeholder:font-medium tracking-wide"
+                                        placeholder="Enter your digits"
                                     />
                                 </div>
                             </div>
                         ) : (
-                            <div className="relative text-left">
-                                <label className="absolute -top-2 left-4 bg-white px-1 text-[9px] font-black text-gray-400 uppercase tracking-widest z-10">
-                                    Enter OTP
+                            <div className="relative text-left group">
+                                <label className="absolute -top-2.5 left-4 bg-[#FAFAFA] px-2 text-[10px] font-bold text-[#878787] uppercase tracking-wider z-10 transition-colors group-focus-within:text-[#D4AF37]">
+                                    Secure Code
                                 </label>
-                                <div className="flex items-center relative bg-gray-50/50 border border-gray-100 rounded-2xl focus-within:bg-white focus-within:border-black focus-within:shadow-md transition-all">
-                                    <div className="pl-4 py-4 text-gray-400">
-                                        <ShieldCheck size={18} />
+                                <div className="flex items-center relative bg-white border border-gray-200 rounded-[20px] focus-within:border-[#D4AF37] focus-within:ring-4 focus-within:ring-[#D4AF37]/10 transition-all duration-300 shadow-sm hover:shadow-md overflow-hidden">
+                                    <div className="pl-5 py-4 text-[#878787] group-focus-within:text-[#D4AF37] transition-colors">
+                                        <ShieldCheck size={20} strokeWidth={2} />
                                     </div>
                                     <input
                                         type="text"
@@ -184,56 +188,68 @@ const LoginModal = ({ isOpen, onClose, onSuccess }) => {
                                             setOtp(e.target.value.replace(/\D/g, ''));
                                             if (error) setError('');
                                         }}
-                                        className="w-full p-4 bg-transparent border-none outline-none text-[16px] font-black tracking-[0.5em] text-center pr-12"
+                                        className="w-full py-4 px-3 bg-transparent border-none outline-none text-[20px] font-bold tracking-[0.4em] text-[#111111] placeholder:text-gray-200"
                                         placeholder="••••••"
                                     />
                                 </div>
-                                <div className="flex justify-between items-center mt-3 px-1">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                                        <Timer size={10} /> {resendTimer > 0 ? `${resendTimer}s` : 'Ready'}
+                                <div className="flex justify-between items-center mt-4 px-2">
+                                    <span className="text-[11px] font-medium text-[#878787] flex items-center gap-1.5 bg-gray-100 px-2.5 py-1 rounded-full">
+                                        <Timer size={12} /> {resendTimer > 0 ? `00:${resendTimer.toString().padStart(2, '0')}` : 'Ready'}
                                     </span>
                                     <button
                                         type="button"
                                         onClick={() => setResendTimer(30)}
                                         disabled={resendTimer > 0}
-                                        className={`text-[10px] font-black text-black uppercase tracking-widest hover:underline ${resendTimer > 0 ? 'opacity-50' : ''}`}
+                                        className={`text-[12px] font-bold text-[#111111] hover:text-[#D4AF37] transition-colors ${resendTimer > 0 ? 'opacity-40 cursor-not-allowed hover:text-[#111111]' : ''}`}
                                     >
-                                        Resend OTP
+                                        Send new code
                                     </button>
                                 </div>
                             </div>
                         )}
 
                         {error && (
-                            <div className="bg-red-50 text-red-500 p-3 rounded-xl text-[11px] font-bold flex items-center gap-2 animate-pulse">
-                                <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
+                            <div className="bg-red-50 text-red-600 p-3.5 rounded-[16px] text-[13px] font-medium flex items-center gap-2.5 animate-shake border border-red-100">
+                                <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                                    <span className="w-1.5 h-1.5 bg-red-600 rounded-full" />
+                                </div>
                                 {error}
                             </div>
                         )}
 
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="w-full py-4 bg-black text-white rounded-[18px] font-black text-[12px] uppercase tracking-[0.2em] shadow-xl hover:bg-[#1a1a1a] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-70 group"
+                            disabled={loading || (step === 1 ? mobileNumber.length !== 10 : otp.length !== 6)}
+                            className="w-full py-4 bg-[#111111] text-white rounded-[20px] font-premium font-bold text-[15px] tracking-wide shadow-[0_8px_20px_rgba(17,17,17,0.2)] hover:bg-[#1A1A1A] hover:shadow-[0_12px_24px_rgba(17,17,17,0.3)] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed group relative overflow-hidden mt-8"
                         >
+                            {/* Button Shimmer Effect */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
+
                             {loading ? (
-                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                <div className="flex items-center gap-3">
+                                    <div className="w-5 h-5 border-[2.5px] border-white/20 border-t-[#D4AF37] rounded-full animate-spin" />
+                                    <span className="text-[#D4AF37]">Processing...</span>
+                                </div>
                             ) : (
                                 <>
-                                    {step === 1 ? 'Get OTP' : 'Verify & Login'}
-                                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                    {step === 1 ? 'Continue Securely' : 'Verify Identity'}
+                                    <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-[#D4AF37] group-hover:text-[#111111] transition-all duration-300">
+                                        <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                                    </div>
                                 </>
                             )}
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-6 border-t border-gray-50">
-                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-relaxed mb-4">
-                            By continuing, you agree to our<br />
-                            <span className="text-black cursor-pointer hover:underline">Terms of Service</span> & <span className="text-black cursor-pointer hover:underline">Privacy Policy</span>
+                    <div className="mt-10 pt-8 border-t border-gray-200/50 relative">
+                        {/* Decorative OR text container, if we wanted one, otherwise just clean divider */}
+
+                        <p className="text-[11px] font-medium text-[#878787] leading-relaxed mb-5">
+                            By continuing, you acknowledge our<br />
+                            <span className="text-[#111111] font-semibold cursor-pointer hover:text-[#D4AF37] transition-colors">Terms of Service</span> & <span className="text-[#111111] font-semibold cursor-pointer hover:text-[#D4AF37] transition-colors">Privacy Policy</span>
                         </p>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
-                            Having trouble? <span className="text-black font-black cursor-pointer hover:underline">Contact Support</span>
+                        <p className="text-[12px] font-medium text-[#878787] bg-white inline-block px-4 py-2 rounded-full border border-gray-100 shadow-sm">
+                            Need help? <span className="text-[#111111] font-bold cursor-pointer hover:text-[#D4AF37] transition-colors">Contact Support</span>
                         </p>
                     </div>
                 </div>

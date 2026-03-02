@@ -86,6 +86,24 @@ export default {
           900: '#331515',
         },
       },
+      keyframes: {
+        ticker: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+        'ticker-reverse': {
+          '0%': { transform: 'translateX(-50%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        }
+      },
+      animation: {
+        ticker: 'ticker 25s linear infinite',
+        'ticker-reverse': 'ticker-reverse 25s linear infinite',
+        shimmer: 'shimmer 2s infinite',
+      }
     },
   },
   plugins: [],

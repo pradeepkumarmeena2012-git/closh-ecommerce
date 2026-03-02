@@ -202,7 +202,7 @@ const AppRoutes = () => {
         path="/shop"
         element={
           <RouteWrapper>
-            <UserLayout><UserShopPage /></UserLayout>
+            <UserLayout variant="shop"><UserShopPage /></UserLayout>
           </RouteWrapper>
         }
       />
@@ -218,7 +218,7 @@ const AppRoutes = () => {
         path="/product/:id"
         element={
           <RouteWrapper>
-            <UserLayout><UserProductDetail /></UserLayout>
+            <UserLayout variant="product"><UserProductDetail /></UserLayout>
           </RouteWrapper>
         }
       />
@@ -303,7 +303,7 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <UserLayout><UserProfilePage /></UserLayout>
+              <UserLayout variant="account"><UserProfilePage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
@@ -313,7 +313,7 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <UserLayout><UserAccountPage /></UserLayout>
+              <UserLayout variant="account"><UserAccountPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
@@ -333,7 +333,7 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <UserLayout><UserOrdersPage /></UserLayout>
+              <UserLayout variant="account"><UserOrdersPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
@@ -343,7 +343,7 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <UserLayout><UserOrderDetailPage /></UserLayout>
+              <UserLayout variant="account"><UserOrderDetailPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
@@ -373,7 +373,7 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <UserLayout><UserAddressesPage /></UserLayout>
+              <UserLayout variant="account"><UserAddressesPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }

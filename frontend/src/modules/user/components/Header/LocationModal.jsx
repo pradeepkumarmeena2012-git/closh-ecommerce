@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { X, MapPin, Search, CheckCircle2, ChevronLeft, Loader2 } from 'lucide-react';
+import { X, MapPin, CheckCircle2, ChevronLeft, Loader2 } from 'lucide-react';
 import { useLocation as useLocationContext } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
@@ -87,8 +87,23 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     const navigate = useNavigate();
     const { addresses, activeAddress, updateActiveAddress, refreshAddresses } = useLocationContext();
     const { user } = useAuth();
-    const [pincode, setPincode] = useState('');
-    const [pincodeStatus, setPincodeStatus] = useState(null); // 'checking' | 'success' | 'error'
+
+    // Auto-open logic for post-login
+    const [isAutoOpen, setIsAutoOpen] = useState(false);
+
+    useEffect(() => {
+        const handleAutoOpen = () => setIsAutoOpen(true);
+        window.addEventListener('openLocationModal', handleAutoOpen);
+        return () => window.removeEventListener('openLocationModal', handleAutoOpen);
+    }, []);
+
+    const isModalOpen = isOpen || isAutoOpen;
+
+    const handleClose = () => {
+        if (isAutoOpen) setIsAutoOpen(false);
+        if (onClose) onClose();
+    };
+
     const [selectedAddressId, setSelectedAddressId] = useState(activeAddress?.id || null);
 
     // Map State
@@ -99,36 +114,26 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
 
     // Refresh addresses when modal opens
     useEffect(() => {
-        if (isOpen) {
+        if (isModalOpen) {
             refreshAddresses();
             setView('list'); // Reset view on open
-            setPincodeStatus(null);
         }
-    }, [isOpen, refreshAddresses]);
+    }, [isModalOpen, refreshAddresses]);
 
     // Update selection when activeAddress changes
     useEffect(() => {
         if (activeAddress) setSelectedAddressId(activeAddress.id);
     }, [activeAddress]);
 
-    if (!isOpen) return null;
+    if (!isModalOpen) return null;
 
     const handleAddNew = () => {
-        if (!isMandatory) onClose();
-        navigate('/addresses');
-    };
-
-    const handleCheckPincode = () => {
-        if (pincode.length !== 6) return;
-        setPincodeStatus('checking');
-        // Simple mock check
-        setTimeout(() => {
-            if (pincode.startsWith('45')) {
-                setPincodeStatus('success');
-            } else {
-                setPincodeStatus('error');
-            }
-        }, 1000);
+        if (!isMandatory) handleClose();
+        if (!user) {
+            window.dispatchEvent(new Event('openLoginModal'));
+        } else {
+            navigate('/addresses');
+        }
     };
 
     const handleConfirm = () => {
@@ -150,14 +155,14 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
             localStorage.setItem('userAddresses', JSON.stringify(updatedAddresses));
 
             updateActiveAddress(newAddress);
-            onClose();
+            handleClose();
             refreshAddresses();
         } else {
             const selected = addresses.find(a => a.id === selectedAddressId);
             if (selected) {
                 updateActiveAddress(selected);
             }
-            onClose();
+            handleClose();
         }
     };
 
@@ -186,134 +191,109 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     };
 
     return createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-start justify-center p-4 bg-black/60 backdrop-blur-[2px] animate-fadeIn overflow-y-auto">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-[#111111]/60 backdrop-blur-xl animate-fadeIn">
             {/* Modal Container */}
-            <div className={`bg-white w-full max-w-[450px] rounded-[32px] shadow-2xl relative flex flex-col mt-[8dvh] mb-10 max-h-[80dvh] overflow-hidden transition-all duration-500 ${isOpen ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-10 opacity-0 scale-95'}`}>
+            <div className={`bg-[#FAFAFA] w-full max-w-[420px] rounded-[36px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] relative flex flex-col max-h-[85vh] overflow-hidden transition-all duration-500 border border-white/40 ${isModalOpen ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-10 opacity-0 scale-95'}`}>
+
+                {/* Decorative Top Glow */}
+                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-50 z-50" />
 
                 {/* Header */}
-                <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-white sticky top-0 z-10">
-                    <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between p-6 border-b border-gray-200/50 bg-[#FAFAFA] sticky top-0 z-40">
+                    <div className="flex items-center gap-3">
                         {view === 'map' && (
-                            <button onClick={() => setView('list')} className="p-1 hover:bg-gray-100 rounded-full mr-1">
-                                <ChevronLeft size={20} />
+                            <button onClick={() => setView('list')} className="p-2 bg-white/50 backdrop-blur-md hover:bg-white rounded-full transition-all duration-300 shadow-sm border border-gray-100 text-[#878787] hover:text-[#111111] active:scale-95">
+                                <ChevronLeft size={20} strokeWidth={2} />
                             </button>
                         )}
-                        <h2 className="text-[16px] font-black uppercase tracking-tight text-gray-900">
-                            {view === 'map' ? 'Pin Location' : 'Select Delivery Location'}
+                        <h2 className="font-premium text-[20px] font-bold text-[#111111] tracking-tight">
+                            {view === 'map' ? 'Pin Location' : 'Delivery Address'}
                         </h2>
                     </div>
                     {!isMandatory && (
-                        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                            <X size={20} className="text-gray-500" />
+                        <button onClick={handleClose} className="w-10 h-10 bg-white/50 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white transition-all duration-300 active:scale-95 text-[#878787] hover:text-[#111111] shadow-sm border border-gray-100">
+                            <X size={20} strokeWidth={2} />
                         </button>
                     )}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto bg-[#fafafa] relative">
+                <div className="flex-1 overflow-y-auto bg-[#FAFAFA] relative scrollbar-nano">
                     {view === 'list' ? (
-                        <div className="p-5 space-y-5">
-                            {/* Enter Pincode Section */}
-                            <div className="bg-white p-4 rounded-[20px] shadow-sm border border-gray-100">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Enter Pincode</label>
-                                <div className="space-y-3">
-                                    <div className="flex gap-3">
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. 453331"
-                                            className="w-[180px] bg-gray-50 border border-transparent focus:bg-white focus:border-black rounded-xl px-4 py-3 text-[14px] font-bold outline-none transition-all placeholder:text-gray-400 placeholder:font-medium"
-                                            value={pincode}
-                                            onChange={(e) => {
-                                                setPincode(e.target.value);
-                                                setPincodeStatus(null);
-                                            }}
-                                            maxLength={6}
-                                        />
-                                        <button
-                                            onClick={handleCheckPincode}
-                                            disabled={pincodeStatus === 'checking' || pincode.length !== 6}
-                                            className="w-[100px] bg-black text-[#39ff14] rounded-xl font-black uppercase text-[12px] tracking-widest hover:bg-gray-900 active:scale-95 transition-all disabled:bg-gray-100 disabled:text-gray-400"
-                                        >
-                                            {pincodeStatus === 'checking' ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Check'}
-                                        </button>
-                                    </div>
-                                    {pincodeStatus === 'success' && (
-                                        <div className="flex items-center gap-2 text-green-600 animate-fadeInUp">
-                                            <CheckCircle2 size={14} />
-                                            <span className="text-[11px] font-bold uppercase tracking-tight">Delivery Available in this area</span>
-                                        </div>
-                                    )}
-                                    {pincodeStatus === 'error' && (
-                                        <div className="flex items-center gap-2 text-red-500 animate-fadeInUp">
-                                            <X size={14} />
-                                            <span className="text-[11px] font-bold uppercase tracking-tight">Currently not delivering to this pincode</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                        <div className="p-6 space-y-6">
 
                             {/* Use Current Location */}
                             <button
                                 onClick={handleUseCurrentLocation}
                                 disabled={loadingLocation}
-                                className="w-full bg-white p-4 rounded-[20px] shadow-sm border border-gray-100 flex items-center gap-4 group active:scale-[0.98] transition-all disabled:opacity-70"
+                                className="w-full bg-white p-5 rounded-[24px] shadow-sm border border-gray-200 flex items-center gap-4 group active:scale-[0.98] transition-all duration-300 hover:shadow-md hover:border-[#D4AF37]/30 disabled:opacity-60"
                             >
-                                <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center group-hover:bg-red-100 transition-colors">
-                                    {loadingLocation ? <Loader2 size={20} className="text-red-500 animate-spin" /> : <MapPin size={20} className="text-red-500" />}
+                                <div className="w-12 h-12 bg-[#111111] rounded-full flex items-center justify-center group-hover:bg-[#1A1A1A] group-hover:scale-105 transition-all duration-300 relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-[#D4AF37]/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    {loadingLocation ? <Loader2 size={20} className="text-[#D4AF37] animate-spin relative z-10" /> : <MapPin size={22} className="text-[#D4AF37] relative z-10" strokeWidth={2.5} />}
                                 </div>
                                 <div className="text-left flex-1">
-                                    <h4 className="text-[13px] font-black uppercase tracking-tight text-red-500">
-                                        {loadingLocation ? 'Getting location...' : 'Use Current Location'}
+                                    <h4 className="text-[14px] font-bold text-[#111111] group-hover:text-[#D4AF37] transition-colors">
+                                        {loadingLocation ? 'Fetching location...' : 'Current Location'}
                                     </h4>
-                                    <p className="text-[10px] font-bold text-gray-400 mt-0.5">Using GPS</p>
+                                    <p className="text-[12px] font-medium text-[#878787] mt-0.5">Use GPS for accurate delivery</p>
                                 </div>
-                                <div className="px-3">
-                                    <span className="text-red-500 font-bold">›</span>
+                                <div className="px-2">
+                                    <ChevronLeft size={16} className="text-[#D4AF37] rotate-180 opacity-0 group-hover:opacity-100 transition-opacity group-hover:translate-x-1 duration-300" strokeWidth={3} />
                                 </div>
                             </button>
 
                             {/* Saved Addresses */}
                             <div>
-                                <div className="flex items-center justify-between mb-4 px-1">
-                                    <h3 className="text-[12px] font-black uppercase tracking-widest text-gray-400">Saved Addresses</h3>
+                                <div className="flex items-center justify-between mb-4 px-2">
+                                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#878787]">Saved Addresses</h3>
                                     <button
                                         onClick={handleAddNew}
-                                        className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
+                                        className="text-[12px] font-bold text-[#111111] hover:text-[#D4AF37] transition-colors flex items-center gap-1"
                                     >
-                                        Add New
+                                        + Add New
                                     </button>
                                 </div>
 
                                 <div className="space-y-3">
                                     {addresses.length === 0 ? (
-                                        <div className="bg-white p-8 rounded-[24px] border border-dashed border-gray-200 text-center">
-                                            <p className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">No addresses found</p>
-                                            <button onClick={handleAddNew} className="mt-2 text-blue-600 font-black text-[10px] uppercase">Add your first address</button>
+                                        <div className="bg-white p-10 rounded-[28px] border border-dashed border-gray-200/80 text-center flex flex-col items-center justify-center">
+                                            <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                                                <MapPin size={20} className="text-[#878787]" />
+                                            </div>
+                                            <p className="text-[14px] font-bold text-[#111111] mb-1">No addresses found</p>
+                                            <p className="text-[12px] font-medium text-[#878787] mb-4">Please add a location to proceed</p>
+                                            <button onClick={handleAddNew} className="text-[#111111] font-bold text-[13px] bg-white border border-gray-200 px-5 py-2 rounded-full hover:border-[#D4AF37] hover:text-[#D4AF37] transition-all shadow-sm">
+                                                Add Address
+                                            </button>
                                         </div>
                                     ) : (
                                         addresses.map((addr) => (
                                             <div
                                                 key={addr.id}
                                                 onClick={() => setSelectedAddressId(addr.id)}
-                                                className={`relative p-5 bg-white rounded-[24px] border-2 cursor-pointer transition-all active:scale-[0.99] ${selectedAddressId === addr.id ? 'border-black shadow-md' : 'border-transparent shadow-sm hover:border-gray-200'}`}
+                                                className={`relative p-5 bg-white rounded-[24px] border-2 cursor-pointer transition-all duration-300 active:scale-[0.99] group ${selectedAddressId === addr.id ? 'border-[#D4AF37] shadow-[0_8px_16px_rgba(212,175,55,0.1)]' : 'border-transparent shadow-sm hover:shadow-md hover:border-gray-200'}`}
                                             >
                                                 <div className="flex justify-between items-start mb-2">
                                                     <div className="flex items-center gap-2">
-                                                        <h4 className="text-[14px] font-black text-gray-900">{addr.name}</h4>
-                                                        <span className="bg-gray-100 text-gray-500 text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider">{addr.type}</span>
+                                                        <h4 className="text-[15px] font-bold text-[#111111]">{addr.name}</h4>
+                                                        <span className="bg-gray-50 text-[#878787] border border-gray-100 text-[10px] font-bold uppercase px-2 py-0.5 rounded-lg tracking-wide">{addr.type}</span>
                                                     </div>
                                                     {selectedAddressId === addr.id && (
-                                                        <div className="w-5 h-5 bg-[#39ff14] rounded-full flex items-center justify-center">
-                                                            <CheckCircle2 size={12} className="text-black stroke-[3]" />
+                                                        <div className="w-6 h-6 bg-[#111111] rounded-full flex items-center justify-center shadow-sm">
+                                                            <CheckCircle2 size={14} className="text-[#D4AF37]" strokeWidth={2.5} />
                                                         </div>
                                                     )}
                                                 </div>
-                                                <p className="text-[12px] text-gray-500 font-medium leading-relaxed pr-8">
-                                                    {addr.address}, {addr.city} - <span className="text-gray-900 font-bold">{addr.pincode}</span>
+                                                <p className="text-[13px] text-[#878787] font-medium leading-relaxed pr-8 line-clamp-2">
+                                                    {addr.address}, {addr.city}
                                                 </p>
-                                                <p className="text-[11px] text-gray-400 font-bold mt-2 tracking-wide">
-                                                    Mobile: <span className="text-gray-600">{addr.mobile || addr.phone}</span>
-                                                </p>
+                                                <div className="flex items-center gap-3 mt-3">
+                                                    <span className="text-[12px] font-semibold text-[#111111] bg-gray-50 px-2.5 py-1 rounded-md">{addr.pincode}</span>
+                                                    <span className="text-[12px] text-[#878787] font-medium">
+                                                        Mobile: <span className="text-[#111111] font-semibold">{addr.mobile || addr.phone || '-'}</span>
+                                                    </span>
+                                                </div>
                                             </div>
                                         ))
                                     )}
@@ -323,7 +303,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                     ) : (
                         <div className="h-full flex flex-col">
                             {/* Map View */}
-                            <div className="flex-1 relative min-h-[300px]">
+                            <div className="flex-1 relative min-h-[350px]">
                                 {position && (
                                     <MapContainer
                                         center={position}
@@ -347,22 +327,22 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                 <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
                                     <button
                                         onClick={handleUseCurrentLocation}
-                                        className="w-10 h-10 bg-white rounded-xl shadow-lg flex items-center justify-center text-black hover:bg-gray-50 active:scale-95 transition-all"
+                                        className="w-12 h-12 bg-[#111111] rounded-full shadow-lg flex items-center justify-center hover:bg-[#1A1A1A] active:scale-95 transition-all group"
                                         title="Recenter to my location"
                                     >
-                                        <MapPin size={20} className="text-red-500" />
+                                        <MapPin size={20} className="text-[#D4AF37] group-hover:scale-110 transition-transform" />
                                     </button>
                                 </div>
 
                                 {/* Info Overlay on Map */}
-                                <div className="absolute bottom-4 left-4 right-4 bg-white p-4 rounded-2xl shadow-lg z-[1000] border border-gray-100">
+                                <div className="absolute bottom-5 left-5 right-5 bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-xl z-[1000] border border-white">
                                     <div className="flex items-start gap-3">
-                                        <div className="w-8 h-8 bg-red-50 rounded-full flex items-center justify-center shrink-0 mt-1">
-                                            <MapPin size={16} className="text-red-500" />
+                                        <div className="w-10 h-10 bg-[#111111] rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                                            <MapPin size={18} className="text-[#D4AF37]" />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Selected Location</p>
-                                            <p className="text-sm font-bold text-gray-900 line-clamp-2 mt-1">
+                                            <p className="text-[10px] font-bold text-[#878787] uppercase tracking-wider">Selected Location</p>
+                                            <p className="text-[14px] font-bold text-[#111111] line-clamp-2 mt-0.5 leading-snug">
                                                 {fetchedAddress ? fetchedAddress.formatted : 'Fetching address...'}
                                             </p>
                                         </div>
@@ -374,13 +354,16 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                 </div>
 
                 {/* Footer Action */}
-                <div className="p-4 bg-white border-t border-gray-100 sticky bottom-0 z-20">
+                <div className="p-6 bg-[#FAFAFA] border-t border-gray-200/50 sticky bottom-0 z-40">
                     <button
                         onClick={handleConfirm}
                         disabled={!selectedAddressId && view === 'list'}
-                        className="w-full py-4 bg-black text-white rounded-[20px] font-black text-[13px] uppercase tracking-[0.2em] hover:bg-[#1a1a1a] active:scale-95 transition-all shadow-xl disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+                        className="w-full py-4 bg-[#111111] text-white rounded-[20px] font-premium font-bold text-[15px] tracking-wide shadow-[0_8px_20px_rgba(17,17,17,0.2)] hover:bg-[#1A1A1A] hover:shadow-[0_12px_24px_rgba(17,17,17,0.3)] active:scale-[0.98] transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none group relative overflow-hidden"
                     >
-                        {view === 'map' ? 'Confirm Pinned Location' : 'Confirm Location'}
+                        {/* Button Shimmer Effect */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out" />
+
+                        <span className="relative z-10">{view === 'map' ? 'Confirm Pinned Location' : 'Confirm Selection'}</span>
                     </button>
                 </div>
             </div>

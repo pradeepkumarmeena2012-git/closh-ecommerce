@@ -1,0 +1,26 @@
+[
+  {
+    "_id": "69a01ad9dcf6bdf749efa1c9",
+    "title": "New Idea",
+    "image": "https://res.cloudinary.com/dfe2xogxj/image/upload/v1772100308/banners/bk2vrhnaiftonk0puewu.jpg",
+    "link": "",
+    "type": "home_slider",
+    "order": 1,
+    "isActive": true,
+    "createdAt": "2026-02-26T10:05:13.236Z",
+    "updatedAt": "2026-02-27T05:32:54.575Z",
+    "__v": 0
+  },
+  {
+    "_id": "69a01bc7dcf6bdf749efa20e",
+    "title": "Top Brand at your Home",
+    "image": "https://res.cloudinary.com/dfe2xogxj/image/upload/v1772100548/banners/fpmxkl7udfufrylr26qo.jpg",
+    "link": "",
+    "type": "side_banner",
+    "order": 1,
+    "isActive": true,
+    "createdAt": "2026-02-26T10:09:11.482Z",
+    "updatedAt": "2026-02-27T05:32:52.019Z",
+    "__v": 0
+  }
+]

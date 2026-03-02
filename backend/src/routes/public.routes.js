@@ -109,10 +109,25 @@ const listProducts = asyncHandler(async (req, res) => {
     const filter = { isActive: true };
 
     if (category) {
-        const categoryId = String(category);
-        const childCategories = await Category.find({ parentId: categoryId }).select('_id');
-        const categoryIds = [categoryId, ...childCategories.map((cat) => String(cat._id))];
-        filter.categoryId = { $in: categoryIds };
+        let categoryId = String(category);
+        const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(categoryId);
+
+        let shouldFilter = true;
+        if (!isValidObjectId) {
+            const catDoc = await Category.findOne({ name: { $regex: new RegExp(`^${category}$`, 'i') } });
+            if (catDoc) {
+                categoryId = String(catDoc._id);
+            } else {
+                shouldFilter = false;
+                filter.categoryId = null; // Force empty result if name not found
+            }
+        }
+
+        if (shouldFilter) {
+            const childCategories = await Category.find({ parentId: categoryId }).select('_id');
+            const categoryIds = [categoryId, ...childCategories.map((cat) => String(cat._id))];
+            filter.categoryId = { $in: categoryIds };
+        }
     }
     if (brand) filter.brandId = brand;
     if (vendor) filter.vendorId = vendor;

@@ -1,23 +1,37 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ProductCard from '../ProductCard/ProductCard';
 import { useProductStore } from '../../../../shared/store/productStore';
+import { useCategory } from '../../context/CategoryContext';
 
 const ProductGrid = () => {
+    const navigate = useNavigate();
     const { products, isLoading, fetchPublicProducts } = useProductStore();
+    const { activeCategory, getCategoryColor } = useCategory();
 
     useEffect(() => {
-        fetchPublicProducts({ limit: 8, sort: 'newest' });
-    }, [fetchPublicProducts]);
+        if (activeCategory === 'For You' || activeCategory === 'All') {
+            fetchPublicProducts({ limit: 12, sort: 'newest' });
+        } else {
+            fetchPublicProducts({ category: activeCategory, limit: 12 });
+        }
+    }, [activeCategory, fetchPublicProducts]);
 
-    // Fallback if no products are found yet
     const displayProducts = products.length > 0 ? products : [];
 
+    const dynamicTitle = activeCategory === 'For You' ? 'New Drops' : `${activeCategory} Collection`;
+    const themeColor = getCategoryColor(activeCategory) || '#111111';
+
     return (
-        <section className="py-4 md:py-6 bg-white">
+        <section id="product-grid" className="py-4 md:py-8 bg-[#FAFAFA] transition-colors duration-500">
             <div className="container px-4 md:px-8">
                 <div className="flex justify-between items-center mb-6 px-1">
-                    <h2 className="font-display text-[15px] md:text-xl font-black uppercase tracking-tight text-white px-3 py-1.5 bg-black rounded-sm leading-none">New Drops</h2>
-                    <button className="text-black font-black text-[10px] uppercase tracking-widest border-b-2 border-black pb-0.5" onClick={() => window.location.href = '/shop'}>View All</button>
+                    <h2
+                        className="font-premium text-[12px] md:text-[14px] font-black uppercase tracking-[0.2em] text-[#FAFAFA] bg-[#111111] px-5 py-2.5 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.1)] transition-colors duration-500"
+                    >
+                        {dynamicTitle}
+                    </h2>
+                    <button className="text-[#111111] font-black text-[10px] uppercase tracking-widest border-b-2 border-[#111111] pb-0.5 hover:text-[#D4AF37] hover:border-[#D4AF37] transition-colors" onClick={() => navigate('/shop')}>View All</button>
                 </div>
 
                 {isLoading && displayProducts.length === 0 ? (
