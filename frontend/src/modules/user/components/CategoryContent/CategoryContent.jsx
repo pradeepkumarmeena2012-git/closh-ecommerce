@@ -61,7 +61,7 @@ const CategoryContent = () => {
                             <div
                                 key={item.id}
                                 className="flex flex-col group cursor-pointer"
-                                onClick={() => navigate(`/shop?category=${activeRoot.id}&subCategory=${item.id}`)}
+                                onClick={() => navigate(`/products?category=${activeRoot.id}&subCategory=${item.id}`)}
                             >
                                 {/* Premium Card Container */}
                                 <div className="w-full aspect-[4/5] bg-white rounded-[24px] overflow-hidden mb-4 border border-black/5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] group-hover:border-[#D4AF37]/30 group-hover:shadow-[0_15px_35px_rgba(212,175,55,0.15)] transition-all duration-500 relative">

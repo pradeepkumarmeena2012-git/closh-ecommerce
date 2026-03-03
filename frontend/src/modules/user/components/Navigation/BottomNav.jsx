@@ -40,7 +40,7 @@ const BottomNav = () => {
     if (location.pathname === '/products') return null;
 
     return (
-        <div className={`fixed bottom-0 left-0 w-full h-[65px] bg-white border-t border-border-color flex md:hidden justify-around items-center z-[1000] shadow-[0_-2px_10px_rgba(0,0,0,0.05)] pb-1 transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
+        <div className={`fixed bottom-0 left-0 w-full h-[65px] md:h-[70px] bg-white/80 backdrop-blur-xl border-t border-white/20 flex md:hidden justify-around items-center z-[1000] shadow-[0_-10px_30px_rgba(0,0,0,0.08)] pb-safe transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
             <NavLink
                 to="/"
                 className={({ isActive }) => `flex flex-col items-center gap-1 text-[10px] font-bold uppercase tracking-wider no-underline ${isActive ? 'text-accent' : 'text-gray-400'}`}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { products } from '../../data';
+import { useProductStore } from '../../../../shared/store/productStore';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import { Filter, X, ChevronDown, ChevronUp, Star, Eye, ShoppingCart, Search, ArrowLeft, Heart, Share2, Check, MapPin } from 'lucide-react';
@@ -9,8 +9,10 @@ import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/Modals/LoginModal';
 import { useLocation as useLocationContext } from '../../context/LocationContext';
 import ProductCard from '../../components/ProductCard/ProductCard';
+import ProductSkeleton from '../../components/ProductCard/ProductSkeleton';
 
 const ProductsPage = () => {
+    const { products, isLoading, fetchPublicProducts } = useProductStore();
     const { toggleWishlist, isInWishlist, wishlistItems } = useWishlist();
     const { addToCart, getCartCount } = useCart();
     const { activeAddress } = useLocationContext();
@@ -74,20 +76,16 @@ const ProductsPage = () => {
         fits: []
     });
 
-    const [allProducts, setAllProducts] = useState([...products]);
-
     // Load admin products and attributes
     useEffect(() => {
-        // Load products
-        const savedProducts = localStorage.getItem('admin-products');
-        if (savedProducts) {
-            const parsedProducts = JSON.parse(savedProducts);
-            // Merge unique products
-            const merged = [...parsedProducts, ...products];
-            // Simple deduplication - prioritize admin if duplicate ID (though IDs should ideally be distinct)
-            const unique = Array.from(new Map(merged.map(item => [item.id, item])).values());
-            setAllProducts(unique);
-        }
+        // Fetch products based on URL params
+        const categoryToFetch = category || (selectedGender !== 'All' ? selectedGender : undefined);
+        fetchPublicProducts({
+            category: categoryToFetch,
+            subCategory: subCategoryFromUrl || undefined,
+            division: division || undefined,
+            sort: 'newest'
+        });
 
         // Load attribute sets from admin side
         const savedSets = localStorage.getItem('admin-attribute-sets');
@@ -105,15 +103,15 @@ const ProductsPage = () => {
 
             setFilterOptions(newOptions);
         }
-    }, []);
+    }, [category, subCategoryFromUrl, division, selectedGender, fetchPublicProducts]);
 
     // Mock unique values for filters
     const filterCategories = [
         'Brand', 'Sub Category', 'Product Type', 'Trend', 'Trend Type', 'Size', 'Fit', 'Fabric', 'Pattern', 'Closure Type', 'Neck Type', 'Rise Type', 'Length'
     ];
 
-    const brands = [...new Set(allProducts.map(p => p.brand))].filter(Boolean).sort();
-    const subCategories = [...new Set(allProducts.map(p => p.subCategory))].filter(Boolean);
+    const brands = [...new Set((products || []).map(p => p.brand))].filter(Boolean).sort();
+    const subCategories = [...new Set((products || []).map(p => p.subCategory))].filter(Boolean);
     // Use dynamic sizes
     const sizes = filterOptions.sizes;
 
@@ -123,7 +121,7 @@ const ProductsPage = () => {
 
     // Derived filtered products
     const filteredProducts = React.useMemo(() => {
-        let result = [...allProducts];
+        let result = [...(products || [])];
 
         // 1. Gender Filter (Manual override)
         if (selectedGender !== 'All') {
@@ -179,7 +177,7 @@ const ProductsPage = () => {
         }
 
         return result;
-    }, [headerSearchValue, selectedGender, selectedSort, selectedBrands, division, category, subCategoryFromUrl, allProducts]);
+    }, [headerSearchValue, selectedGender, selectedSort, selectedBrands, division, category, subCategoryFromUrl, products]);
 
     const handleSelectBrand = (brand) => {
         setSelectedBrands(prev =>
@@ -220,49 +218,97 @@ const ProductsPage = () => {
         <div className="bg-[#111111] min-h-screen pb-20 md:pb-0 text-[#FAFAFA] font-sans">
             {/* Universal Header - Mimics Mobile View for consistency */}
             <div className="sticky top-0 bg-[#0a0a0a]/90 backdrop-blur-xl z-[60] border-b border-white/10 shadow-sm">
-                <div className="container mx-auto flex items-center gap-4 px-4 py-3">
-                    <button className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors shrink-0" onClick={() => window.history.back()}>
-                        <ArrowLeft size={22} className="text-[#FAFAFA]" />
-                    </button>
-                    <div className="flex-1 flex flex-col items-center min-w-0">
-                        {isHeaderSearchOpen ? (
+                <div className="container mx-auto px-4 py-3 pb-0">
+                    {/* Top Row: Back, Title, Actions */}
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                            <button className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors shrink-0" onClick={() => window.history.back()}>
+                                <ArrowLeft size={16} className="text-[#FAFAFA]" />
+                            </button>
+                            <div className="flex flex-col">
+                                <h1 className="text-sm md:text-base font-premium font-black truncate leading-tight uppercase tracking-[0.2em] text-[#FAFAFA]">
+                                    {selectedBrands[0] || subCategoryFromUrl || category || "Products"}
+                                </h1>
+                                <p className="text-[10px] md:text-[11px] font-premium font-bold text-[#D4AF37] tracking-[0.1em]">{filteredProducts.length} Items</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                            <Link to="/wishlist" className="relative transition-colors group p-2 hover:bg-white/5 rounded-full">
+                                <Heart size={18} className="text-[#FAFAFA] group-hover:text-[#D4AF37] transition-colors" />
+                                {wishlistItems.length > 0 && (
+                                    <span className="absolute top-1 right-1 bg-[#111111] text-[#D4AF37] text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#D4AF37]">
+                                        {wishlistItems.length}
+                                    </span>
+                                )}
+                            </Link>
+                            <Link to="/cart" className="relative transition-colors group p-2 hover:bg-white/5 rounded-full">
+                                <ShoppingCart size={18} className="text-[#FAFAFA] group-hover:text-[#D4AF37] transition-colors" />
+                                {getCartCount() > 0 && (
+                                    <span className="absolute top-1 right-1 bg-[#D4AF37] text-[#111111] text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#111111] shadow-[0_0_8px_rgba(212,175,55,0.6)]">
+                                        {getCartCount()}
+                                    </span>
+                                )}
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Toolbar Row: Search, Sort, Filter, Clear All */}
+                    <div className="flex items-center gap-2 pb-3">
+                        {/* Search Bar */}
+                        <div className="relative flex-1 group">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-[#D4AF37] transition-colors" />
                             <input
-                                autoFocus
                                 type="text"
-                                placeholder="Search products..."
-                                className="w-full text-center text-[13px] font-premium font-black uppercase tracking-[0.2em] border-none outline-none py-2 bg-white/5 rounded-xl px-4 text-[#FAFAFA] placeholder:text-white/30 focus:ring-1 focus:ring-[#D4AF37]/50"
+                                placeholder={`Search in ${subCategoryFromUrl || category || 'products'}...`}
+                                className="w-full bg-[#1a1a1a] border border-white/10 rounded-full py-2.5 pl-9 pr-4 text-[11px] font-premium font-bold text-[#FAFAFA] placeholder:text-white/30 focus:outline-none focus:border-[#D4AF37]/50 focus:ring-1 focus:ring-[#D4AF37]/50 transition-all tracking-wider"
                                 value={headerSearchValue}
                                 onChange={(e) => setHeaderSearchValue(e.target.value)}
                             />
-                        ) : (
-                            <div className="text-center">
-                                <h1 className="text-sm md:text-base font-premium font-black truncate leading-tight uppercase tracking-[0.2em] text-[#FAFAFA]">{selectedBrands[0] || subCategoryFromUrl || category}</h1>
-                                <p className="text-[10px] md:text-[11px] font-premium font-bold text-[#D4AF37] tracking-[0.1em]">{filteredProducts.length} Items</p>
+                        </div>
+
+                        {/* Desktop Sort By Dropdown */}
+                        <div className="relative hidden md:block group/sort">
+                            <button
+                                className="flex items-center gap-2 px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-full text-[11px] font-premium font-black uppercase tracking-[0.1em] text-[#FAFAFA] hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 transition-all whitespace-nowrap"
+                            >
+                                Sort By <ChevronDown size={14} className="text-[#D4AF37]" />
+                            </button>
+                            <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-[0_20px_40px_rgba(0,0,0,0.6)] py-2 w-48 opacity-0 invisible group-hover/sort:opacity-100 group-hover/sort:visible transition-all z-50">
+                                {['Price: Low to High', 'Price: High to Low', 'Discount', 'Popularity', 'New Arrivals'].map(option => (
+                                    <button
+                                        key={option}
+                                        onClick={() => setSelectedSort(option)}
+                                        className={`w-full text-left px-5 py-3 text-[10px] font-premium font-black uppercase tracking-[0.15em] hover:bg-white/5 transition-colors ${selectedSort === option ? 'text-[#D4AF37] bg-white/5' : 'text-white/60'}`}
+                                    >
+                                        {option}
+                                    </button>
+                                ))}
                             </div>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-3 md:gap-4 shrink-0">
-                        <Search
-                            size={20}
-                            className="text-[#FAFAFA] cursor-pointer hidden md:block hover:text-[#D4AF37] transition-colors"
-                            onClick={() => setIsHeaderSearchOpen(!isHeaderSearchOpen)}
-                        />
-                        <Link to="/wishlist" className="relative transition-colors group">
-                            <Heart size={20} className="text-[#FAFAFA] group-hover:text-[#D4AF37] transition-colors" />
-                            {wishlistItems.length > 0 && (
-                                <span className="absolute -top-1.5 -right-1.5 bg-[#111111] text-[#D4AF37] text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#D4AF37]">
-                                    {wishlistItems.length}
-                                </span>
-                            )}
-                        </Link>
-                        <Link to="/cart" className="relative transition-colors group">
-                            <ShoppingCart size={20} className="text-[#FAFAFA] group-hover:text-[#D4AF37] transition-colors" />
-                            {getCartCount() > 0 && (
-                                <span className="absolute -top-1.5 -right-1.5 bg-[#D4AF37] text-[#111111] text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#111111] shadow-[0_0_8px_rgba(212,175,55,0.6)]">
-                                    {getCartCount()}
-                                </span>
-                            )}
-                        </Link>
+                        </div>
+
+                        {/* Mobile Sort By Trigger */}
+                        <button
+                            onClick={() => setIsSortOpen(true)}
+                            className="md:hidden flex items-center gap-1.5 px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-full text-[11px] font-premium font-black uppercase tracking-[0.1em] text-[#FAFAFA] hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 transition-all shrink-0"
+                        >
+                            Sort
+                        </button>
+
+                        {/* Desktop Filter Button (Replaces Sidebar) */}
+                        <button
+                            onClick={() => setIsFilterOpen(true)}
+                            className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-full text-[11px] font-premium font-black uppercase tracking-[0.1em] text-[#FAFAFA] hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 transition-all whitespace-nowrap shrink-0"
+                        >
+                            <Filter size={14} className="text-[#D4AF37]" /> Filters
+                        </button>
+
+                        <button
+                            onClick={clearFilters}
+                            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-premium font-black uppercase tracking-[0.15em] text-red-400 hover:text-red-300 hover:bg-white/10 transition-colors shrink-0"
+                        >
+                            Clear
+                        </button>
                     </div>
                 </div>
 
@@ -344,100 +390,46 @@ const ProductsPage = () => {
                     )}
                 </div>
 
-                <div className="flex gap-12">
-                    {/* Sidebar Filters - Desktop */}
-                    <aside className="hidden lg:block w-[260px] shrink-0">
-                        <div className="sticky top-24">
-                            <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
-                                <h2 className="text-lg font-premium font-black flex items-center gap-3 uppercase tracking-[0.2em] text-[#FAFAFA]">
-                                    <Filter size={18} className="text-[#D4AF37]" /> FILTERS
-                                </h2>
-                                <button onClick={clearFilters} className="text-[10px] font-premium font-black text-red-500 hover:text-red-400 uppercase tracking-[0.2em] transition-colors">
-                                    Clear All
+
+
+                {/* Main Content Grid - Full Width without Sidebar */}
+                <div className="w-full">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 md:gap-x-6 gap-y-8 md:gap-y-10">
+                        {isLoading ? (
+                            Array.from({ length: 10 }).map((_, idx) => (
+                                <div key={`skeleton-${idx}`}>
+                                    <ProductSkeleton />
+                                </div>
+                            ))
+                        ) : filteredProducts.length > 0 ? filteredProducts.map((product) => (
+                            <div key={product.id}>
+                                <ProductCard product={product} />
+                            </div>
+                        )) : (
+                            <div className="col-span-full py-24 text-center">
+                                <div className="w-24 h-24 bg-[#1a1a1a] border border-white/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                                    <Search size={40} className="text-[#D4AF37]/50" />
+                                </div>
+                                <h3 className="text-xl md:text-2xl font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA]">No products match filter</h3>
+                                <p className="mt-4 text-xs font-premium font-bold tracking-widest text-white/40 uppercase">Try adjusting your search or filters to find what you're looking for.</p>
+                                <button
+                                    onClick={clearFilters}
+                                    className="mt-8 px-10 py-4 bg-[#D4AF37] text-[#111111] text-[12px] font-premium font-black uppercase tracking-[0.3em] rounded-full active:scale-95 transition-all shadow-[0_10px_30px_rgba(212,175,55,0.2)] hover:bg-white hover:shadow-[#FAFAFA]/20"
+                                >
+                                    Reset Filters
                                 </button>
                             </div>
-
-                            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-200px)] pr-2 scrollbar-thin">
-                                <FilterSection title="Brand" id="brand">
-                                    <div className="space-y-4 pt-2">
-                                        {brands.map(brand => (
-                                            <label key={brand} className="flex items-center gap-3 cursor-pointer group">
-                                                <input
-                                                    type="checkbox"
-                                                    className="hidden"
-                                                    checked={selectedBrands.includes(brand)}
-                                                    onChange={() => handleSelectBrand(brand)}
-                                                />
-                                                <div className={`w-4 h-4 border rounded flex items-center justify-center transition-all ${selectedBrands.includes(brand) ? 'bg-[#D4AF37] border-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.4)] scale-110' : 'border-white/30 bg-white/5 group-hover:border-[#D4AF37]/50'
-                                                    }`}>
-                                                    {selectedBrands.includes(brand) && <Check size={10} className="text-[#111111]" strokeWidth={4} />}
-                                                </div>
-                                                <span className={`text-[12px] font-premium font-bold tracking-widest uppercase transition-colors ${selectedBrands.includes(brand) ? 'text-[#FAFAFA]' : 'text-white/50 group-hover:text-white/80'
-                                                    }`}>{brand}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </FilterSection>
-
-                                <FilterSection title="Sub Category" id="subCategory">
-                                    <div className="space-y-3 pt-2 flex flex-col items-start gap-1">
-                                        {subCategories.map(sub => (
-                                            <div key={sub} className="text-[12px] font-premium font-bold tracking-widest uppercase text-white/50 hover:text-[#D4AF37] cursor-pointer transition-colors border-b border-transparent hover:border-[#D4AF37]/30 pb-0.5">{sub}</div>
-                                        ))}
-                                    </div>
-                                </FilterSection>
-
-                                <FilterSection title="Product Type" id="productType" />
-                                <FilterSection title="Trend" id="trend" />
-                                <FilterSection title="Size" id="size">
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {sizes.map(size => (
-                                            <button key={size} className="border border-white/20 bg-white/5 py-2.5 text-[11px] font-premium font-black rounded-lg hover:border-[#D4AF37] hover:bg-[#D4AF37]/10 hover:text-[#D4AF37] transition-all tracking-[0.1em]">
-                                                {size}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </FilterSection>
-                                <FilterSection title="Fit" id="fit" />
-                                <FilterSection title="Fabric" id="fabric" />
-                                <FilterSection title="Pattern" id="pattern" />
-                                <FilterSection title="Closure Type" id="closureType" />
-                                <FilterSection title="Gender" id="gender" />
-                            </div>
-                        </div>
-                    </aside>
-
-                    {/* Main Content Grid */}
-                    <div className="flex-1">
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-10">
-                            {filteredProducts.length > 0 ? filteredProducts.map((product) => (
-                                <div key={product.id}>
-                                    <ProductCard product={product} />
-                                </div>
-                            )) : (
-                                <div className="col-span-full py-24 text-center">
-                                    <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <Search size={40} className="text-white/20" />
-                                    </div>
-                                    <h3 className="text-xl font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA]">No products match filter</h3>
-                                    <button
-                                        onClick={clearFilters}
-                                        className="mt-8 px-10 py-4 bg-[#D4AF37] text-[#111111] text-[12px] font-premium font-black uppercase tracking-[0.3em] rounded-2xl active:scale-95 transition-all shadow-[0_10px_30px_rgba(212,175,55,0.2)] hover:bg-[#b0902d]"
-                                    >
-                                        Reset Filters
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Gender Modal - Mobile */}
+            {/* Gender Modal */}
             {
                 isGenderOpen && (
-                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md animate-fadeIn">
-                        <div className="absolute bottom-0 left-0 w-full bg-[#111111] rounded-t-[32px] overflow-hidden animate-slideUp border-t border-white/10 shadow-[0_-20px_50px_rgba(0,0,0,0.8)]">
+                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md animate-fadeIn flex items-end md:items-center justify-center">
+                        <div className="absolute inset-0" onClick={() => setIsGenderOpen(false)} />
+                        <div className="relative w-full md:w-[400px] bg-[#111111] rounded-t-[32px] md:rounded-[32px] overflow-hidden animate-slideUp border border-white/10 md:shadow-[0_20px_50px_rgba(0,0,0,0.8)] shadow-[0_-20px_50px_rgba(0,0,0,0.8)] z-10">
                             <div className="flex items-center justify-between p-6 border-b border-white/10">
                                 <h3 className="text-[14px] font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA]">Select Gender</h3>
                                 <button onClick={() => setIsGenderOpen(false)} className="p-2.5 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors">
@@ -464,11 +456,12 @@ const ProductsPage = () => {
                 )
             }
 
-            {/* Sort Modal - Mobile */}
+            {/* Sort Modal - Mobile (Desktop uses dropdown) */}
             {
                 isSortOpen && (
-                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md animate-fadeIn">
-                        <div className="absolute bottom-0 left-0 w-full bg-[#111111] rounded-t-[32px] overflow-hidden animate-slideUp border-t border-white/10 shadow-[0_-20px_50px_rgba(0,0,0,0.8)]">
+                    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md animate-fadeIn flex items-end justify-center md:hidden">
+                        <div className="absolute inset-0" onClick={() => setIsSortOpen(false)} />
+                        <div className="relative w-full bg-[#111111] rounded-t-[32px] overflow-hidden animate-slideUp border-t border-white/10 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] z-10">
                             <div className="flex items-center justify-between p-6 border-b border-white/10">
                                 <h3 className="text-[14px] font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA]">Sort By</h3>
                                 <button onClick={() => setIsSortOpen(false)} className="p-2.5 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors">
@@ -495,82 +488,85 @@ const ProductsPage = () => {
                 )
             }
 
-            {/* Filter Modal - Mobile */}
+            {/* Filter Modal - Mobile & Desktop Drawer */}
             {
                 isFilterOpen && (
-                    <div className="fixed inset-0 z-[100] bg-[#111111] animate-slideUp flex flex-col pt-safe">
-                        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 shrink-0 bg-[#111111]">
-                            <h3 className="text-[14px] font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA] flex items-center gap-3">
-                                <Filter size={18} className="text-[#D4AF37]" /> Filters
-                            </h3>
-                            <button onClick={() => setIsFilterOpen(false)} className="p-2.5 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors">
-                                <X size={20} className="text-[#FAFAFA]" />
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto px-6 py-4 pb-32">
-                            <div className="space-y-4">
-                                <FilterSection title="Brand" id="brand">
-                                    <div className="space-y-4 pt-2">
-                                        {brands.map(brand => (
-                                            <label key={brand} className="flex items-center gap-4 cursor-pointer group">
-                                                <input
-                                                    type="checkbox"
-                                                    className="hidden"
-                                                    checked={selectedBrands.includes(brand)}
-                                                    onChange={() => handleSelectBrand(brand)}
-                                                />
-                                                <div className={`w-5 h-5 border rounded flex items-center justify-center transition-all ${selectedBrands.includes(brand) ? 'bg-[#D4AF37] border-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.4)] scale-110' : 'border-white/30 bg-white/5 group-hover:border-[#D4AF37]/50'
-                                                    }`}>
-                                                    {selectedBrands.includes(brand) && <Check size={12} className="text-[#111111]" strokeWidth={4} />}
-                                                </div>
-                                                <span className={`text-[13px] font-premium font-bold tracking-widest uppercase transition-colors ${selectedBrands.includes(brand) ? 'text-[#FAFAFA]' : 'text-white/50 group-hover:text-white/80'
-                                                    }`}>{brand}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </FilterSection>
-
-                                <FilterSection title="Sub Category" id="subCategory">
-                                    <div className="space-y-3 pt-2 flex flex-col items-start gap-1">
-                                        {subCategories.map(sub => (
-                                            <div key={sub} className="text-[13px] font-premium font-bold tracking-widest uppercase text-white/50 hover:text-[#D4AF37] cursor-pointer transition-colors border-b border-transparent hover:border-[#D4AF37]/30 pb-0.5">{sub}</div>
-                                        ))}
-                                    </div>
-                                </FilterSection>
-
-                                <FilterSection title="Size" id="size">
-                                    <div className="grid grid-cols-4 gap-3">
-                                        {sizes.map(size => (
-                                            <button key={size} className="border border-white/20 bg-white/5 py-4 text-[12px] font-premium font-black rounded-xl hover:border-[#D4AF37] hover:bg-[#D4AF37]/10 text-white/80 hover:text-[#D4AF37] transition-all tracking-[0.1em]">
-                                                {size}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </FilterSection>
-
-                                {/* Other sections as placeholders or implemented similarly */}
-                                <FilterSection title="Product Type" id="productType" />
-                                <FilterSection title="Trend" id="trend" />
-                                <FilterSection title="Fit" id="fit" />
-                                <FilterSection title="Fabric" id="fabric" />
-                                <FilterSection title="Pattern" id="pattern" />
+                    <div className="fixed inset-0 z-[100] flex justify-end">
+                        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setIsFilterOpen(false)} />
+                        <div className="relative w-full md:w-[420px] h-full bg-[#111111] animate-slideLeft flex flex-col pt-safe border-l border-white/10 shadow-[-20px_0_50px_rgba(0,0,0,0.8)]">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 shrink-0 bg-[#111111]">
+                                <h3 className="text-[14px] font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA] flex items-center gap-3">
+                                    <Filter size={18} className="text-[#D4AF37]" /> Filters
+                                </h3>
+                                <button onClick={() => setIsFilterOpen(false)} className="p-2.5 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors">
+                                    <X size={20} className="text-[#FAFAFA]" />
+                                </button>
                             </div>
-                        </div>
 
-                        <div className="border-t border-white/10 p-5 pl-safe pr-safe pb-safe flex gap-4 bg-[#111111]/95 backdrop-blur-xl fixed bottom-0 left-0 w-full shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-10">
-                            <button
-                                onClick={clearFilters}
-                                className="flex-1 py-4 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors rounded-[20px] text-[11px] font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA]"
-                            >
-                                Reset
-                            </button>
-                            <button
-                                onClick={() => setIsFilterOpen(false)}
-                                className="flex-[2] py-4 bg-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.2)] text-[#111111] rounded-[20px] text-[11px] font-premium font-black uppercase tracking-[0.2em] hover:bg-[#b0902d] transition-colors"
-                            >
-                                Apply Filters
-                            </button>
+                            <div className="flex-1 overflow-y-auto px-6 py-4 pb-32">
+                                <div className="space-y-4">
+                                    <FilterSection title="Brand" id="brand">
+                                        <div className="space-y-4 pt-2">
+                                            {brands.map(brand => (
+                                                <label key={brand} className="flex items-center gap-4 cursor-pointer group">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="hidden"
+                                                        checked={selectedBrands.includes(brand)}
+                                                        onChange={() => handleSelectBrand(brand)}
+                                                    />
+                                                    <div className={`w-5 h-5 border rounded flex items-center justify-center transition-all ${selectedBrands.includes(brand) ? 'bg-[#D4AF37] border-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.4)] scale-110' : 'border-white/30 bg-white/5 group-hover:border-[#D4AF37]/50'
+                                                        }`}>
+                                                        {selectedBrands.includes(brand) && <Check size={12} className="text-[#111111]" strokeWidth={4} />}
+                                                    </div>
+                                                    <span className={`text-[13px] font-premium font-bold tracking-widest uppercase transition-colors ${selectedBrands.includes(brand) ? 'text-[#FAFAFA]' : 'text-white/50 group-hover:text-white/80'
+                                                        }`}>{brand}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </FilterSection>
+
+                                    <FilterSection title="Sub Category" id="subCategory">
+                                        <div className="space-y-3 pt-2 flex flex-col items-start gap-1">
+                                            {subCategories.map(sub => (
+                                                <div key={sub} className="text-[13px] font-premium font-bold tracking-widest uppercase text-white/50 hover:text-[#D4AF37] cursor-pointer transition-colors border-b border-transparent hover:border-[#D4AF37]/30 pb-0.5">{sub}</div>
+                                            ))}
+                                        </div>
+                                    </FilterSection>
+
+                                    <FilterSection title="Size" id="size">
+                                        <div className="grid grid-cols-4 gap-3">
+                                            {sizes.map(size => (
+                                                <button key={size} className="border border-white/20 bg-white/5 py-4 text-[12px] font-premium font-black rounded-xl hover:border-[#D4AF37] hover:bg-[#D4AF37]/10 text-white/80 hover:text-[#D4AF37] transition-all tracking-[0.1em]">
+                                                    {size}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </FilterSection>
+
+                                    {/* Other sections as placeholders or implemented similarly */}
+                                    <FilterSection title="Product Type" id="productType" />
+                                    <FilterSection title="Trend" id="trend" />
+                                    <FilterSection title="Fit" id="fit" />
+                                    <FilterSection title="Fabric" id="fabric" />
+                                    <FilterSection title="Pattern" id="pattern" />
+                                </div>
+                            </div>
+
+                            <div className="border-t border-white/10 p-5 pl-safe pr-safe pb-safe flex gap-4 bg-[#111111]/95 backdrop-blur-xl absolute bottom-0 left-0 w-full shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-10">
+                                <button
+                                    onClick={clearFilters}
+                                    className="flex-1 py-4 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors rounded-[20px] text-[11px] font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA]"
+                                >
+                                    Reset
+                                </button>
+                                <button
+                                    onClick={() => setIsFilterOpen(false)}
+                                    className="flex-[2] py-4 bg-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.2)] text-[#111111] rounded-[20px] text-[11px] font-premium font-black uppercase tracking-[0.2em] hover:bg-[#b0902d] transition-colors"
+                                >
+                                    Apply Filters
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )
