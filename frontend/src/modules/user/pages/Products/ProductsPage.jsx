@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useProductStore } from '../../../../shared/store/productStore';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
-import { Filter, X, ChevronDown, ChevronUp, Star, Eye, ShoppingCart, Search, ArrowLeft, Heart, Share2, Check, MapPin } from 'lucide-react';
+import { Filter, X, ChevronDown, ChevronUp, Star, Eye, ShoppingCart, Search, ArrowLeft, Heart, Share2, Check, MapPin, Users, ArrowUpDown } from 'lucide-react';
 import LocationModal from '../../components/Header/LocationModal';
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/Modals/LoginModal';
@@ -112,8 +112,8 @@ const ProductsPage = () => {
 
     const brands = [...new Set((products || []).map(p => p.brand))].filter(Boolean).sort();
     const subCategories = [...new Set((products || []).map(p => p.subCategory))].filter(Boolean);
-    // Use dynamic sizes
-    const sizes = filterOptions.sizes;
+    // Use dynamic sizes with strict uniqueness
+    const sizes = [...new Set(filterOptions.sizes)].filter(Boolean);
 
     const toggleSection = (section) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -214,11 +214,25 @@ const ProductsPage = () => {
         </div>
     );
 
+    const getCategoryTheme = (catName) => {
+        const cat = (catName || '').toLowerCase();
+        if (cat === 'women' || cat === 'hello') return 'from-[#FF4081]/20 to-transparent';
+        if (cat === 'men\'s fashion' || cat === 'men') return 'from-[#4FC3F7]/20 to-transparent';
+        if (cat === 'beauty') return 'from-[#F06292]/20 to-transparent';
+        if (cat === 'accessories') return 'from-[#FFB300]/20 to-transparent';
+        if (cat === 'bottom wear') return 'from-[#9CCC65]/20 to-transparent';
+        return 'from-[#D4AF37]/10 to-transparent';
+    };
+    const headerTheme = getCategoryTheme(category || subCategoryFromUrl);
+
     return (
         <div className="bg-[#111111] min-h-screen pb-20 md:pb-0 text-[#FAFAFA] font-sans">
-            {/* Universal Header - Mimics Mobile View for consistency */}
-            <div className="sticky top-0 bg-[#0a0a0a]/90 backdrop-blur-xl z-[60] border-b border-white/10 shadow-sm">
-                <div className="container mx-auto px-4 py-3 pb-0">
+            {/* Universal Header - Mobile Only (Hidden on Desktop to prevent duplication) */}
+            <div className="sticky top-0 z-[60] border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.3)] md:hidden overflow-hidden">
+                <div className="absolute inset-0 bg-[#0a0a0a]/90 backdrop-blur-2xl z-0" />
+                <div className={`absolute inset-0 bg-gradient-to-b ${headerTheme} z-0 opacity-100 pointer-events-none`} />
+
+                <div className="container mx-auto px-4 py-3 pb-0 relative z-10">
                     {/* Top Row: Back, Title, Actions */}
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
@@ -226,14 +240,21 @@ const ProductsPage = () => {
                                 <ArrowLeft size={16} className="text-[#FAFAFA]" />
                             </button>
                             <div className="flex flex-col">
-                                <h1 className="text-sm md:text-base font-premium font-black truncate leading-tight uppercase tracking-[0.2em] text-[#FAFAFA]">
+                                <h1 className="text-[17px] font-premium font-black truncate uppercase tracking-[0.15em] text-[#FAFAFA] leading-tight mb-0.5 mt-0.5">
                                     {selectedBrands[0] || subCategoryFromUrl || category || "Products"}
                                 </h1>
-                                <p className="text-[10px] md:text-[11px] font-premium font-bold text-[#D4AF37] tracking-[0.1em]">{filteredProducts.length} Items</p>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[9px] font-premium font-bold text-[#D4AF37] uppercase tracking-[0.15em] whitespace-nowrap">
+                                        {filteredProducts.length} Items
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button onClick={() => setIsLocationModalOpen(true)} className="relative transition-colors group p-2 hover:bg-white/5 rounded-full">
+                                <MapPin size={18} className="text-[#FAFAFA] group-hover:text-[#D4AF37] transition-colors" />
+                            </button>
                             <Link to="/wishlist" className="relative transition-colors group p-2 hover:bg-white/5 rounded-full">
                                 <Heart size={18} className="text-[#FAFAFA] group-hover:text-[#D4AF37] transition-colors" />
                                 {wishlistItems.length > 0 && (
@@ -253,87 +274,51 @@ const ProductsPage = () => {
                         </div>
                     </div>
 
-                    {/* Toolbar Row: Search, Sort, Filter, Clear All */}
-                    <div className="flex items-center gap-2 pb-3">
+                    {/* Toolbar Row: Search (Mobile Only) */}
+                    <div className="flex items-center gap-2 pb-4 pt-1">
                         {/* Search Bar */}
                         <div className="relative flex-1 group">
-                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-[#D4AF37] transition-colors" />
+                            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-[#D4AF37] transition-colors" />
                             <input
                                 type="text"
                                 placeholder={`Search in ${subCategoryFromUrl || category || 'products'}...`}
-                                className="w-full bg-[#1a1a1a] border border-white/10 rounded-full py-2.5 pl-9 pr-4 text-[11px] font-premium font-bold text-[#FAFAFA] placeholder:text-white/30 focus:outline-none focus:border-[#D4AF37]/50 focus:ring-1 focus:ring-[#D4AF37]/50 transition-all tracking-wider"
+                                className="w-full bg-black/40 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] border border-white/5 rounded-full py-2.5 pl-9 pr-4 text-[11px] font-premium font-bold text-[#FAFAFA] placeholder:text-white/30 focus:outline-none focus:border-[#D4AF37]/50 focus:ring-1 focus:ring-[#D4AF37]/50 transition-all tracking-wider"
                                 value={headerSearchValue}
                                 onChange={(e) => setHeaderSearchValue(e.target.value)}
                             />
                         </div>
-
-                        {/* Desktop Sort By Dropdown */}
-                        <div className="relative hidden md:block group/sort">
-                            <button
-                                className="flex items-center gap-2 px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-full text-[11px] font-premium font-black uppercase tracking-[0.1em] text-[#FAFAFA] hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 transition-all whitespace-nowrap"
-                            >
-                                Sort By <ChevronDown size={14} className="text-[#D4AF37]" />
-                            </button>
-                            <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-[0_20px_40px_rgba(0,0,0,0.6)] py-2 w-48 opacity-0 invisible group-hover/sort:opacity-100 group-hover/sort:visible transition-all z-50">
-                                {['Price: Low to High', 'Price: High to Low', 'Discount', 'Popularity', 'New Arrivals'].map(option => (
-                                    <button
-                                        key={option}
-                                        onClick={() => setSelectedSort(option)}
-                                        className={`w-full text-left px-5 py-3 text-[10px] font-premium font-black uppercase tracking-[0.15em] hover:bg-white/5 transition-colors ${selectedSort === option ? 'text-[#D4AF37] bg-white/5' : 'text-white/60'}`}
-                                    >
-                                        {option}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Mobile Sort By Trigger */}
-                        <button
-                            onClick={() => setIsSortOpen(true)}
-                            className="md:hidden flex items-center gap-1.5 px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-full text-[11px] font-premium font-black uppercase tracking-[0.1em] text-[#FAFAFA] hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 transition-all shrink-0"
-                        >
-                            Sort
-                        </button>
-
-                        {/* Desktop Filter Button (Replaces Sidebar) */}
-                        <button
-                            onClick={() => setIsFilterOpen(true)}
-                            className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-[#1a1a1a] border border-white/10 rounded-full text-[11px] font-premium font-black uppercase tracking-[0.1em] text-[#FAFAFA] hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 transition-all whitespace-nowrap shrink-0"
-                        >
-                            <Filter size={14} className="text-[#D4AF37]" /> Filters
-                        </button>
-
-                        <button
-                            onClick={clearFilters}
-                            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-premium font-black uppercase tracking-[0.15em] text-red-400 hover:text-red-300 hover:bg-white/10 transition-colors shrink-0"
-                        >
-                            Clear
-                        </button>
                     </div>
                 </div>
 
-                <div className="border-t border-white/5">
-                    <div
-                        onClick={() => setIsLocationModalOpen(true)}
-                        className="container mx-auto flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-white/5 transition-all font-bold"
-                    >
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center shrink-0 border border-white/5">
-                                <MapPin size={14} className="text-[#FAFAFA]" />
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-[11px] font-black leading-tight flex items-center gap-2 text-[#FAFAFA] uppercase tracking-tight">
-                                    {activeAddress ? activeAddress.name : 'Select Location'}
-                                    {activeAddress?.type && (
-                                        <span className="text-[8px] font-black bg-[#D4AF37] text-[#111111] px-1.5 py-0.5 rounded shadow-[0_0_8px_rgba(212,175,55,0.4)] uppercase tracking-tighter">{activeAddress.type}</span>
-                                    )}
+                {/* Address Details Block (Similar to Home Page) */}
+                <div
+                    onClick={() => setIsLocationModalOpen(true)}
+                    className="border-t border-white/5 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent relative z-10 hidden"
+                >
+                    {/* Hiding the secondary block entirely since Location moved to Icons, 
+                        BUT maybe the user wants THIS block to look like Home's top label? 
+                        Let me just add the small elegant current location block to the top. Wait, user specifically said: 
+                        "adrees deteles jo home page pr aa rhi hai wo ani chahiye perfectly page ke accordign" */}
+                </div>
+                <div
+                    onClick={() => setIsLocationModalOpen(true)}
+                    className="border-t border-white/5 bg-black/20 backdrop-blur-sm relative z-10"
+                >
+                    <div className="container mx-auto flex items-center justify-between px-4 py-2 cursor-pointer group hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                            <span className="text-[10px] font-premium font-bold text-white/50 uppercase tracking-[0.1em] whitespace-nowrap">
+                                Delivering to:
+                            </span>
+                            <span className="text-[11px] font-premium font-black text-[#D4AF37] truncate max-w-[200px]">
+                                {activeAddress ? `${activeAddress.name}, ${activeAddress.city}` : 'Select Location'}
+                            </span>
+                            {activeAddress?.type && (
+                                <span className="text-[8px] font-black bg-[#D4AF37] text-black px-1.5 py-[1px] rounded uppercase tracking-wider ml-1">
+                                    {activeAddress.type}
                                 </span>
-                                <span className="text-[10px] font-bold truncate max-w-[200px] md:max-w-none text-white/50">
-                                    {activeAddress ? `${activeAddress.address}, ${activeAddress.city}` : 'Add an address to see delivery info'}
-                                </span>
-                            </div>
+                            )}
                         </div>
-                        <ChevronDown size={14} className="text-white/50" />
+                        <ChevronDown size={14} className="text-white/40 group-hover:text-[#D4AF37] transition-colors" />
                     </div>
                 </div>
             </div>
@@ -344,21 +329,33 @@ const ProductsPage = () => {
             />
 
             <div className="container mx-auto px-4 py-8 pb-32 md:pb-8">
-                {/* Desktop Breadcrumbs & Sorting - Refined */}
-                <div className="hidden md:block mb-8">
+                {/* Desktop Breadcrumbs & Tools - Hidden on Mobile */}
+                <div className="hidden md:flex flex-col mb-8 border-b border-white/10 pb-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-[11px] font-premium font-black text-white/50 uppercase tracking-[0.2em]">
-                            Home <span className="scale-75 text-white/20">›</span> {selectedBrands[0] || division} <span className="scale-75 text-white/20">›</span> {category}
+                            Home <span className="scale-75 text-white/20">›</span> {selectedBrands[0] || division || 'Shop'} <span className="scale-75 text-white/20">›</span> <span className="text-[#FAFAFA]">{category || subCategoryFromUrl || 'All'}</span>
                             <span className="ml-4 text-white/20 font-normal">|</span>
                             <span className="ml-4 text-[#D4AF37] font-black tracking-widest">{filteredProducts.length} ITEMS</span>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            <div className="relative group">
-                                <div className="flex items-center gap-2 border border-white/20 bg-white/5 px-6 py-2.5 rounded-xl text-[12px] font-premium font-black uppercase tracking-[0.2em] cursor-pointer hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 transition-all">
-                                    Sort By <ChevronDown size={14} className="text-[#D4AF37]" />
+                        <div className="flex items-center gap-3">
+                            {/* Search Local Grid */}
+                            <div className="relative w-64 group">
+                                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-[#D4AF37] transition-colors" />
+                                <input
+                                    type="text"
+                                    placeholder={`Search in ${subCategoryFromUrl || category || 'products'}...`}
+                                    className="w-full bg-[#1a1a1a] shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] border border-white/5 rounded-full py-2.5 pl-9 pr-4 text-[11px] font-premium font-bold text-[#FAFAFA] placeholder:text-white/30 focus:outline-none focus:border-[#D4AF37]/50 focus:ring-1 focus:ring-[#D4AF37]/50 transition-all tracking-wider"
+                                    value={headerSearchValue}
+                                    onChange={(e) => setHeaderSearchValue(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="relative group/sort z-20">
+                                <div className="flex items-center gap-2 border border-white/20 bg-white/5 px-6 py-2.5 rounded-full text-[11px] font-premium font-black uppercase tracking-[0.2em] cursor-pointer hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/10 transition-all">
+                                    Sort By: <span className="text-[#D4AF37] ml-1 max-w-[80px] truncate">{selectedSort}</span> <ChevronDown size={14} className="text-[#D4AF37]" />
                                 </div>
-                                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-[0_20px_40px_rgba(0,0,0,0.6)] py-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-[0_20px_40px_rgba(0,0,0,0.6)] py-2 w-56 opacity-0 invisible group-hover/sort:opacity-100 group-hover/sort:visible transition-all">
                                     {['Price: Low to High', 'Price: High to Low', 'Discount', 'Popularity', 'New Arrivals'].map(option => (
                                         <button
                                             key={option}
@@ -370,6 +367,22 @@ const ProductsPage = () => {
                                     ))}
                                 </div>
                             </div>
+
+                            <button
+                                onClick={() => setIsFilterOpen(true)}
+                                className="flex items-center gap-2 border border-[#D4AF37] bg-[#D4AF37] px-6 py-2.5 rounded-full text-[11px] font-premium font-black uppercase tracking-[0.2em] text-[#111111] cursor-pointer hover:bg-white hover:border-white transition-all shadow-[0_0_15px_rgba(212,175,55,0.2)]"
+                            >
+                                <Filter size={14} /> Filter
+                            </button>
+
+                            {(selectedBrands.length > 0 || headerSearchValue || selectedGender !== 'All' || selectedSizes.length > 0) && (
+                                <button
+                                    onClick={clearFilters}
+                                    className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-premium font-black uppercase tracking-[0.15em] text-red-400 hover:text-red-300 hover:bg-white/10 transition-colors shrink-0"
+                                >
+                                    Clear
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -406,15 +419,21 @@ const ProductsPage = () => {
                                 <ProductCard product={product} />
                             </div>
                         )) : (
-                            <div className="col-span-full py-24 text-center">
-                                <div className="w-24 h-24 bg-[#1a1a1a] border border-white/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                                    <Search size={40} className="text-[#D4AF37]/50" />
+                            <div className="col-span-full py-20 px-4 text-center flex flex-col items-center justify-center animate-fadeInUp">
+                                <div className="relative w-28 h-28 mb-8 flex items-center justify-center group">
+                                    <div className="absolute inset-0 bg-[#D4AF37]/10 rounded-full animate-ping opacity-50 duration-1000" />
+                                    <div className="absolute inset-2 bg-[#1a1a1a] border border-white/10 rounded-full flex items-center justify-center shadow-[inset_0_0_20px_rgba(0,0,0,0.8)] z-10 transition-transform group-hover:scale-110 duration-500">
+                                        <Search size={44} className="text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]" />
+                                    </div>
+                                    <div className="absolute -bottom-2 -right-2 bg-[#111111] w-10 h-10 rounded-full border border-white/10 flex items-center justify-center z-20">
+                                        <X size={18} className="text-red-400" />
+                                    </div>
                                 </div>
-                                <h3 className="text-xl md:text-2xl font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA]">No products match filter</h3>
-                                <p className="mt-4 text-xs font-premium font-bold tracking-widest text-white/40 uppercase">Try adjusting your search or filters to find what you're looking for.</p>
+                                <h3 className="text-[20px] md:text-2xl font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA] leading-tight mb-3">No <span className="text-[#D4AF37]">Matches</span> Found</h3>
+                                <p className="text-[11px] font-premium font-bold tracking-widest text-white/40 uppercase max-w-[280px] leading-relaxed">Adjust your filters or search query to discover more exclusive pieces.</p>
                                 <button
                                     onClick={clearFilters}
-                                    className="mt-8 px-10 py-4 bg-[#D4AF37] text-[#111111] text-[12px] font-premium font-black uppercase tracking-[0.3em] rounded-full active:scale-95 transition-all shadow-[0_10px_30px_rgba(212,175,55,0.2)] hover:bg-white hover:shadow-[#FAFAFA]/20"
+                                    className="mt-8 px-10 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] text-[#111111] text-[11px] font-premium font-black uppercase tracking-[0.2em] rounded-full active:scale-95 transition-all shadow-[0_10px_30px_rgba(212,175,55,0.25)] hover:shadow-[0_10px_40px_rgba(212,175,55,0.4)]"
                                 >
                                     Reset Filters
                                 </button>
@@ -571,24 +590,29 @@ const ProductsPage = () => {
                     </div>
                 )
             }
-            <div className="md:hidden fixed bottom-0 left-0 w-full bg-[#111111]/90 backdrop-blur-2xl border-t border-white/10 z-[50] flex h-16 shadow-[0_-8px_30px_rgba(0,0,0,0.5)]">
+            <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[360px] bg-[#1a1a1a]/85 backdrop-blur-xl border border-white/10 rounded-full z-[50] flex items-center justify-between h-14 shadow-[0_15px_40px_rgba(0,0,0,0.8)] px-1 py-1">
                 <button
                     onClick={() => setIsGenderOpen(true)}
-                    className="flex-1 flex items-center justify-center gap-2 text-[10px] font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA] border-r border-white/5 hover:bg-white/5 transition-colors"
+                    className={`flex-1 flex flex-col items-center justify-center h-full rounded-full transition-all duration-300 ${isGenderOpen ? 'bg-white/10 text-[#FAFAFA]' : 'text-white/60 hover:text-[#FAFAFA]'}`}
                 >
-                    Gender
+                    <Users size={16} className={`mb-0.5 ${selectedGender !== 'All' ? 'text-[#D4AF37]' : ''}`} />
+                    <span className="text-[8px] font-premium font-black uppercase tracking-[0.2em]">Gender</span>
                 </button>
+                <div className="w-[1px] h-6 bg-white/10" />
                 <button
                     onClick={() => setIsSortOpen(true)}
-                    className="flex-1 flex items-center justify-center gap-2 text-[10px] font-premium font-black uppercase tracking-[0.2em] text-[#FAFAFA] border-r border-white/5 hover:bg-white/5 transition-colors"
+                    className={`flex-1 flex flex-col items-center justify-center h-full rounded-full transition-all duration-300 ${isSortOpen ? 'bg-white/10 text-[#FAFAFA]' : 'text-white/60 hover:text-[#FAFAFA]'}`}
                 >
-                    Sort
+                    <ArrowUpDown size={16} className={`mb-0.5 ${selectedSort !== 'New Arrivals' && selectedSort !== 'Recommended' ? 'text-[#D4AF37]' : ''}`} />
+                    <span className="text-[8px] font-premium font-black uppercase tracking-[0.2em]">Sort</span>
                 </button>
+                <div className="w-[1px] h-6 bg-white/10" />
                 <button
                     onClick={() => setIsFilterOpen(true)}
-                    className="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] font-premium font-black uppercase tracking-[0.2em] text-[#D4AF37] hover:bg-[#D4AF37]/5 transition-colors"
+                    className={`flex-1 flex flex-col items-center justify-center h-full rounded-full transition-all duration-300 ${isFilterOpen ? 'bg-[#D4AF37]/20 text-[#D4AF37]' : 'text-[#D4AF37] hover:bg-white/5'}`}
                 >
-                    <Filter size={16} className="text-[#D4AF37]" /> Filter
+                    <Filter size={16} className="mb-0.5" />
+                    <span className="text-[8px] font-premium font-black uppercase tracking-[0.2em]">Filter</span>
                 </button>
             </div>
 

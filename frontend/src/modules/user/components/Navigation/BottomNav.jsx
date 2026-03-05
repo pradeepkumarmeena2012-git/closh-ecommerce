@@ -11,25 +11,39 @@ const BottomNav = () => {
     const [lastScrollY, setLastScrollY] = useState(0);
 
     useEffect(() => {
-        const handleScroll = () => {
-            const currentScrollY = window.scrollY;
-            const scrollHeight = document.documentElement.scrollHeight;
-            const clientHeight = document.documentElement.clientHeight;
-            const isAtBottom = currentScrollY + clientHeight >= scrollHeight - 80;
+        let ticking = false;
 
-            if (currentScrollY < 10) {
-                setIsVisible(true);
-            } else if (isAtBottom) {
-                // Hide at bottom to let footer shine as requested
-                setIsVisible(false);
-            } else if (currentScrollY > lastScrollY) {
-                // Scrolling Down
-                setIsVisible(false);
-            } else {
-                // Scrolling Up
-                setIsVisible(true);
+        const handleScroll = () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    const currentScrollY = window.scrollY;
+                    const scrollHeight = document.documentElement.scrollHeight;
+                    const clientHeight = document.documentElement.clientHeight;
+                    const isAtBottom = currentScrollY + clientHeight >= scrollHeight - 80;
+
+                    // Prevent iOS/Android rubber-banding (overscroll) from triggering nav updates
+                    if (currentScrollY <= 0) {
+                        setIsVisible(true);
+                    } else if (currentScrollY > scrollHeight - clientHeight) {
+                        setIsVisible(false);
+                    } else if (Math.abs(currentScrollY - lastScrollY) > 10) {
+                        // Only trigger if scrolled more than 10px to avoid micro-bounce jitters
+                        if (isAtBottom) {
+                            setIsVisible(false);
+                        } else if (currentScrollY > lastScrollY) {
+                            // Scrolling Down -> Hide Navigation
+                            setIsVisible(false);
+                        } else {
+                            // Scrolling Up -> Show Navigation
+                            setIsVisible(true);
+                        }
+                        setLastScrollY(currentScrollY);
+                    }
+
+                    ticking = false;
+                });
+                ticking = true;
             }
-            setLastScrollY(currentScrollY);
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
