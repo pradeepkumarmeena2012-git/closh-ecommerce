@@ -210,7 +210,7 @@ const AppRoutes = () => {
         path="/products"
         element={
           <RouteWrapper>
-            <UserLayout><UserProductsPage /></UserLayout>
+            <UserLayout variant="products"><UserProductsPage /></UserLayout>
           </RouteWrapper>
         }
       />
@@ -226,7 +226,7 @@ const AppRoutes = () => {
         path="/cart"
         element={
           <RouteWrapper>
-            <UserLayout><UserCartPage /></UserLayout>
+            <UserLayout variant="cart"><UserCartPage /></UserLayout>
           </RouteWrapper>
         }
       />
@@ -235,7 +235,7 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <UserLayout><UserCheckoutPage /></UserLayout>
+              <UserLayout variant="checkout"><UserCheckoutPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }
@@ -245,7 +245,7 @@ const AppRoutes = () => {
         element={
           <RouteWrapper>
             <ProtectedRoute>
-              <UserLayout><UserPaymentPage /></UserLayout>
+              <UserLayout variant="payment"><UserPaymentPage /></UserLayout>
             </ProtectedRoute>
           </RouteWrapper>
         }

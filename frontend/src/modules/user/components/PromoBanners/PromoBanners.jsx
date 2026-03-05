@@ -91,25 +91,42 @@ const PromoBanners = () => {
             {/* Ticker 1 */}
             <TickerBelt reverse={false} />
 
-            {/* Premium Discount Announcement Banner */}
-            <div className="bg-[#FAFAFA] py-3 md:py-5 overflow-hidden relative border-y border-gray-200/50 flex items-center justify-center shadow-sm">
-                {/* Elegant faint grid */}
-                <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#111 1px, transparent 1px), linear-gradient(90deg, #111 1px, transparent 1px)', backgroundSize: '50px 50px' }} />
+            {/* Horizontal Luxury Promo Banner */}
+            <div className="bg-[#FAFAFA] py-2 md:py-4 px-4 md:px-6 w-full flex justify-center mt-[-1px] mb-[-1px] relative z-10">
+                <div className="w-full max-w-[1200px] h-[90px] md:h-[110px] bg-gradient-to-r from-[#FFFAF0] to-white rounded-2xl md:rounded-[24px] relative overflow-hidden flex items-center justify-between shadow-[0_10px_30px_rgba(212,175,55,0.15)] group cursor-pointer border border-[#D4AF37]/30">
 
-                <div className="relative flex flex-col md:flex-row items-center gap-5 md:gap-20 scale-95 md:scale-100 origin-center">
-                    <div className="flex items-center gap-5">
-                        <span className="text-[#878787] font-bold uppercase text-[11px] [writing-mode:vertical-lr] rotate-180 tracking-[0.2em] opacity-60">Get</span>
-                        <div className="flex items-baseline gap-1.5 relative group">
-                            <span className="text-5xl md:text-[85px] font-premium font-black leading-none text-[#111111] tracking-tighter drop-shadow-[0_4px_12px_rgba(17,17,17,0.1)] group-hover:text-[#D4AF37] transition-colors duration-500">₹250</span>
-                            <span className="text-xl md:text-3xl font-premium font-bold text-[#111111] group-hover:text-[#D4AF37] transition-colors duration-500">OFF</span>
+                    {/* Gold Abstract Pattern */}
+                    <div className="absolute left-0 top-0 bottom-0 w-24 md:w-64 opacity-[0.4] pointer-events-none mix-blend-multiply" style={{ backgroundImage: 'repeating-radial-gradient(circle at 0% 50%, transparent, transparent 10px, #D4AF37 10px, #D4AF37 11px)' }} />
+
+                    {/* Right Background Text Effect (250) */}
+                    <div className="absolute right-[-2%] top-[-30%] bottom-[-50%] w-[50%] flex flex-col justify-center items-end opacity-[0.08] pointer-events-none rotate-[-10deg] select-none">
+                        <span className="text-[60px] md:text-[100px] font-premium font-black text-[#D4AF37] leading-[0.8]">₹250</span>
+                    </div>
+
+                    <div className="flex items-center flex-1 h-full pl-2 md:pl-6 z-10">
+                        {/* Left Icon (Shopping Bag) */}
+                        <div className="pr-4 md:pr-6 z-10 flex-shrink-0 relative h-full flex items-center justify-center">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-[#D4AF37]/20 blur-[12px] rounded-full"></div>
+                            <ShoppingBagIcon className="w-[50px] h-[50px] md:w-[70px] md:h-[70px] text-[#D4AF37] drop-shadow-lg transform group-hover:scale-105 group-hover:-rotate-3 transition-transform duration-500 relative z-10" />
+                        </div>
+
+                        {/* Text Details */}
+                        <div className="flex flex-col z-10 justify-center h-full">
+                            <h3 className="text-[#111111] text-[18px] md:text-[28px] font-black tracking-wide leading-none flex items-baseline drop-shadow-sm">
+                                EXCLUSIVE ₹250 OFF<span className="text-[#D4AF37] text-[12px] md:text-[16px] font-bold align-top ml-0.5">*</span>
+                            </h3>
+                            <p className="text-[#111111]/60 text-[12px] md:text-[14px] font-medium tracking-wide mt-1 md:mt-1.5 uppercase">
+                                On your first 2 orders
+                            </p>
                         </div>
                     </div>
 
-                    <div className="h-12 md:h-16 w-px bg-gradient-to-b from-transparent via-[#D4AF37]/40 to-transparent hidden md:block" />
-
-                    <div className="text-center md:text-left space-y-1 bg-white/60 backdrop-blur-sm px-6 py-3 rounded-[20px] border border-white shadow-sm hover:shadow-md transition-all">
-                        <p className="text-[#878787] font-medium text-[13px] md:text-[15px] tracking-wide uppercase">On your first 2 orders</p>
-                        <p className="text-[#111111] font-bold text-lg md:text-2xl tracking-tight">Use Code <span className="font-premium font-black text-[#D4AF37] px-2 bg-[#111111] rounded-lg ml-1 shadow-inner inline-block -translate-y-[2px]">FIRST50</span></p>
+                    {/* Right Side: Highlighted Coupon */}
+                    <div className="pr-4 md:pr-8 z-10 flex-shrink-0 flex items-center">
+                        <div className="flex items-center gap-2 bg-gradient-to-r from-[#D4AF37] to-[#C5A028] text-[#111111] px-3 md:px-5 py-2 md:py-3 rounded-xl md:rounded-2xl shadow-[0_8px_16px_rgba(212,175,55,0.4)] transform transition-all group-hover:scale-105 group-hover:shadow-[0_12px_24px_rgba(212,175,55,0.6)]">
+                            <span className="text-[#111111]/80 text-[9px] md:text-[11px] font-black uppercase tracking-widest hidden md:inline-block">CODE:</span>
+                            <span className="font-premium font-black text-[14px] md:text-[18px] tracking-widest leading-none">FIRST50</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -175,10 +192,18 @@ const PromoBanners = () => {
     );
 };
 
-// Internal Heart Component for Section Header
+// Internal Icons
 const Heart = ({ size, fill = "none", className }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+    </svg>
+);
+
+const ShoppingBagIcon = ({ className }) => (
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <path d="M16 8V6C16 3.79086 14.2091 2 12 2C9.79086 2 8 3.79086 8 6V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 8H20L21 21C21 21.5523 20.5523 22 20 22H4C3.44772 22 3 21.5523 3 21L4 8Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 11V13M15 11V13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
 );
 

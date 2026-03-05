@@ -226,7 +226,7 @@ const ProductDetailsPage = () => {
                         </div>
 
                         {/* Main Image */}
-                        <div className="flex-1 relative aspect-[3/4] lg:aspect-auto lg:h-[calc(100vh-280px)] lg:min-h-[650px] lg:max-h-[900px] rounded-[32px] md:rounded-[40px] overflow-hidden bg-[#1a1a1a] shadow-2xl group border border-white/10">
+                        <div className="flex-1 relative aspect-[3/4] lg:aspect-[4/5] lg:max-h-[600px] lg:max-w-[480px] lg:mx-auto w-full rounded-[32px] md:rounded-[40px] overflow-hidden bg-[#1a1a1a] shadow-2xl group border border-white/10">
                             <img src={productImages[activeImg]} alt={product.name} className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105" />
 
                             {/* Tags/Badges */}

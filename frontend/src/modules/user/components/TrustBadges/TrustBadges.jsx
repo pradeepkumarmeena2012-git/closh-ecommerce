@@ -15,7 +15,9 @@ const TrustBadges = () => {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12 max-w-6xl mx-auto">
                     {badges.map((badge) => (
                         <div key={badge.id} className="flex flex-col items-center gap-4 text-center group cursor-pointer">
-                            <div className="w-16 h-16 rounded-full flex items-center justify-center bg-white border border-black/5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] text-[#111111] group-hover:border-[#D4AF37]/50 group-hover:text-[#D4AF37] group-hover:shadow-[0_10px_25px_rgba(212,175,55,0.15)] group-hover:-translate-y-1 transition-all duration-500 ease-out">
+                            <div className="w-16 h-16 relative rounded-full flex items-center justify-center bg-white border border-black/5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] text-[#111111] group-hover:border-[#D4AF37]/50 group-hover:text-[#D4AF37] group-hover:shadow-[0_10px_25px_rgba(212,175,55,0.15)] group-hover:-translate-y-1 transition-all duration-500 ease-out">
+                                {/* Golden Ping Animation Layer */}
+                                <div className="absolute inset-0 rounded-full border-2 border-[#D4AF37]/0 group-hover:border-[#D4AF37]/40 group-hover:animate-ping opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                                 {badge.icon}
                             </div>
                             <span className="text-[10px] md:text-[11px] font-premium font-black uppercase tracking-[0.2em] text-[#111111]/70 group-hover:text-[#111111] transition-colors duration-300">

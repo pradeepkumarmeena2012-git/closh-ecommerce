@@ -41,6 +41,30 @@ const Header = ({ variant = 'default' }) => {
     const [searchSuggestions, setSearchSuggestions] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
 
+    // Auto-Hide Header Logic
+    const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+    const [lastScrollY, setLastScrollY] = useState(0);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            const currentScrollY = window.scrollY;
+            // Only apply on mobile where sticky real estate matters, and after 100px of scrolling
+            if (window.innerWidth < 768 && currentScrollY > 100) {
+                if (currentScrollY > lastScrollY) {
+                    setIsHeaderVisible(false); // Scrolling down - hide
+                } else {
+                    setIsHeaderVisible(true);  // Scrolling up - show
+                }
+            } else {
+                setIsHeaderVisible(true); // Always show at the top or on desktop
+            }
+            setLastScrollY(currentScrollY);
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [lastScrollY]);
+
     const handleSearchInput = async (value) => {
         setSearchQuery(value);
         if (value.trim().length > 2) {
@@ -90,8 +114,23 @@ const Header = ({ variant = 'default' }) => {
     const isSubcategoryMode = location.pathname === '/shop' && activeSubCategory !== 'All';
 
     const finalDisplayCategories = React.useMemo(() => {
+        // Premium fallback images for when DB images are missing
+        const fallbackMap = {
+            'Women': 'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=150&q=80',
+            'Men': 'https://images.unsplash.com/photo-1490367532201-b9bc1dc483f6?auto=format&fit=crop&w=150&q=80',
+            'Beauty': 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=150&q=80',
+            'Accessories': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=150&q=80',
+            'Footwear': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=150&q=80',
+            'Home': 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=150&q=80',
+            'Travel': 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=150&q=80',
+            'Default': 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=150&q=80' // A sleek aesthetic overall fallback
+        };
+
         if (!isSubcategoryMode) {
-            return storeCategories.filter(c => c.isActive);
+            return storeCategories.filter(c => c.isActive).map(c => ({
+                ...c,
+                image: c.image || fallbackMap[c.name] || fallbackMap['Default']
+            }));
         }
 
         // If in subcategory mode, we want to scroll siblings horizontally.
@@ -107,11 +146,12 @@ const Header = ({ variant = 'default' }) => {
             });
         }
 
+
         // Map them to mimic Root category structure { id, name, image }
         return subItems.map(item => ({
             id: item.name,
             name: item.name,
-            image: item.image || currentRootData.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=100&q=80'
+            image: item.image || currentRootData.image || fallbackMap[item.name] || fallbackMap['Default']
         }));
     }, [isSubcategoryMode, storeCategories, activeCategory, activeSubCategory]);
 
@@ -127,158 +167,187 @@ const Header = ({ variant = 'default' }) => {
         }
     }, [activeAddress, location.pathname]);
 
-    // Only show categories on Home and Shop pages, UNLESS variant is shop where we hide the large category bar
-    const showCategories = (location.pathname === '/' || location.pathname === '/home' || location.pathname === '/shop') && variant !== 'shop';
+    // Show categories on Home and Shop pages
+    const showCategories = (location.pathname === '/' || location.pathname === '/home' || location.pathname === '/shop');
+
+    const getHeaderTheme = (categoryName) => {
+        const name = categoryName?.toLowerCase() || '';
+
+        // Retain the yellow shade at the top, varying the bottom color based on the selected category
+        if (name === 'hello' || name === 'women') {
+            return 'bg-gradient-to-b from-[#FFEA00] via-[#FFEA00]/80 to-[#FF4081]/80'; // Yellow to Vibrant Pink
+        }
+        if (name === 'men\'s fashion' || name === 'mens' || name === 'men') {
+            return 'bg-gradient-to-b from-[#FFEA00] via-[#FFEA00]/80 to-[#4FC3F7]/80'; // Yellow to Light Blue
+        }
+        if (name === 'bottom wear') {
+            return 'bg-gradient-to-b from-[#FFEA00] via-[#FFEA00]/80 to-[#9CCC65]/80'; // Yellow to Light Green
+        }
+        if (name === 'beauty') {
+            return 'bg-gradient-to-b from-[#FFEA00] via-[#FFEA00]/80 to-[#F06292]/80'; // Yellow to Rose/Light Pink
+        }
+        if (name === 'accessories') {
+            return 'bg-gradient-to-b from-[#FFEA00] via-[#FFEA00]/80 to-[#FFB300]/80'; // Yellow to Amber
+        }
+
+        // Default Vibrant Split (Yellow -> Blue)
+        return 'bg-gradient-to-b from-[#FFEA00] via-[#FFEA00]/90 to-[#00B4D8]/80';
+    };
+
+    const currentHeaderBg = isSubcategoryMode ? getHeaderTheme(activeSubCategory) : getHeaderTheme(activeCategory);
 
     return (
-        <header className={`w-full relative z-[999] shadow-sm transition-colors duration-500 font-sans bg-[#111111] ${variant === 'shop' ? 'sticky top-0' : ''} ${['product', 'account'].includes(variant) ? 'hidden md:block' : ''}`}>
+        <header className={`w-full relative z-[999] shadow-sm font-sans ${currentHeaderBg} transition-all duration-300 ease-in-out ${variant === 'shop' ? 'sticky top-0' : ''} ${['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) ? 'hidden md:block' : ''}`}>
             {/* Top Colored Section - Premium Frosted Background */}
-            <div className={`relative z-[60] backdrop-blur-xl bg-black/10 ${variant === 'shop' ? 'border-b border-white/10' : ''}`}>
+            <div className={`relative z-[60] ${variant === 'shop' ? 'border-b border-black/5' : ''}`}>
 
-                {/* Location Bar / Address Bar - Luxury Edit (HIDDEN in shop variant) */}
+                {/* Location Bar / Address Bar - Vibrant Edit (HIDDEN in shop variant) */}
                 {variant !== 'shop' && (
                     <div
                         onClick={() => setIsLocationModalOpen(true)}
-                        className="px-4 py-3 flex justify-between items-center group cursor-pointer transition-colors border-b border-white/10"
+                        className="px-4 py-3 flex items-center justify-between group cursor-pointer transition-colors"
                     >
-                        <div className="flex items-center gap-4 overflow-hidden">
-                            {/* Delivery Time Badge - Elegant Gradient */}
-                            <div className="flex flex-col items-center justify-center bg-gradient-to-br from-white/20 to-white/5 border border-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl shadow-[0_4px_10px_rgba(0,0,0,0.1)] shrink-0 min-w-[55px]">
-                                <span className="text-[12px] font-black text-[#FAFAFA] tracking-tight leading-none flex flex-col items-center text-shadow-sm">
-                                    <span>60</span>
-                                    <span className="text-[7.5px] text-[#D4AF37] mt-0.5 tracking-widest uppercase font-bold drop-shadow-md">Mins</span>
-                                </span>
-                            </div>
-
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center shadow-inner transition-colors bg-white/10 group-hover:bg-[#D4AF37]/20 border border-white/5 shrink-0">
-                                <MapPin size={16} className="text-[#FAFAFA] group-hover:text-[#D4AF37] transition-colors" />
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-[14px] font-bold leading-tight flex items-center gap-2 text-[#FAFAFA] tracking-tight">
-                                    {activeAddress ? activeAddress.name : 'Select Location'} <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#D4AF37] bg-white/10 px-1.5 py-0.5 rounded-md">{activeAddress?.type}</span>
-                                </span>
-                                <span className="text-[11.5px] font-medium truncate max-w-[220px] text-white/50 group-hover:text-white/80 transition-colors">
-                                    {activeAddress ? `${activeAddress.address}, ${activeAddress.city}` : 'Add an address to see delivery info'}
-                                </span>
+                        {/* LEFT SIDE: 60 MINS Badge */}
+                        <div className="flex items-center">
+                            <div className="flex flex-col items-center justify-center bg-[#1a1a1a] rounded-[14px] px-3 py-1.5 shadow-md shrink-0 border border-black/10">
+                                <span className="text-[14px] font-black text-white leading-none tracking-tight">60</span>
+                                <span className="text-[9px] font-black text-[#FFC107] uppercase tracking-[0.2em] leading-none mt-1 drop-shadow-sm">MINS</span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <ChevronDown size={18} className="transition-transform duration-300 group-hover:rotate-180 text-white/50 group-hover:text-[#D4AF37]" />
-                            {/* Mobile Right Icons (Wishlist & Cart) */}
-                            <div className="flex md:hidden items-center gap-4 pl-3 border-l border-white/20">
-                                <Link to="/wishlist" onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon">
-                                    <Heart size={22} className="text-[#FAFAFA] group-hover/icon:text-[#D4AF37] transition-colors" />
-                                    {wishlistItems.length > 0 && (
-                                        <span className="absolute -top-1 -right-1 bg-[#111111] text-[#D4AF37] text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#D4AF37]">
-                                            {wishlistItems.length}
-                                        </span>
-                                    )}
-                                </Link>
-                                <Link to="/cart" onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon">
-                                    <ShoppingCart size={22} className="text-[#FAFAFA] group-hover/icon:text-[#D4AF37] transition-colors" />
-                                    {cartCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 bg-[#D4AF37] text-[#111111] text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#111111] shadow-[0_0_8px_rgba(212,175,55,0.6)]">
-                                            {cartCount}
-                                        </span>
-                                    )}
+
+                        {/* RIGHT SIDE: Location Icon and Details + Chevrons/Mobile Icons */}
+                        <div className="flex items-center gap-2 justify-end">
+                            <div className="w-10 h-10 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-black/10 shadow-md shrink-0 mr-1">
+                                <MapPin size={18} className="text-[#FFC107]" />
+                            </div>
+                            <div className="flex flex-col min-w-0 pr-2 pl-1 text-left">
+                                <span className="text-[14px] font-black leading-tight flex items-center gap-1.5 tracking-tight text-black">
+                                    Current Location <ChevronDown size={14} className="text-[#FFC107] drop-shadow-sm" />
+                                </span>
+                                <span className="text-[11.5px] font-bold truncate max-w-[220px] text-black/70 transition-colors flex items-center gap-1">
+                                    {activeAddress ? `${activeAddress.name}, ${activeAddress.address}` : 'Indore City, MP'}
+                                </span>
+                            </div>
+                            <ChevronRight size={16} className="transition-transform duration-300 group-hover:translate-x-1 text-black hidden md:block" />
+                            {/* Mobile Right Icons (Cart) */}
+                            <div className="flex md:hidden items-center justify-center w-10 h-10 rounded-full bg-white shadow-sm border border-black/5 ml-1">
+                                <Link to={user ? "/profile" : "/login"} onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[2px]">
+                                    <User size={20} className="text-gray-600 group-hover/icon:text-black transition-colors" />
                                 </Link>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Search Bar - Visible on All Screens */}
-                <div className="px-4 pb-4 pt-3 flex items-center gap-2 relative">
-                    <div className="relative flex-1 group">
-                        <input
-                            type="text"
-                            placeholder='Search for "Jackets"'
-                            className="w-full py-3.5 pl-6 pr-12 border border-black/5 rounded-2xl bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)] text-[14px] font-medium text-black outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-[#D4AF37]/50 transition-all duration-300"
-                            value={searchQuery}
-                            onChange={(e) => handleSearchInput(e.target.value)}
-                            onKeyDown={handleSearch}
-                        />
-                        <Search
-                            className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer group-hover:text-[#D4AF37] transition-colors"
-                            size={18}
-                            onClick={() => searchQuery.trim() && handleSearch({ key: 'Enter' })}
-                        />
+                {/* Search Bar & Wishlist Container - Seamless Collapse on Mobile Scroll */}
+                <div className={`px-4 transition-all duration-300 ease-in-out grid relative ${isHeaderVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                    <div className="overflow-hidden w-full flex items-center gap-3">
+                        <div className={`flex items-center gap-3 w-full ${variant === 'shop' ? 'pt-4 pb-4' : 'pt-2 pb-4'}`}>
+                            <div className="relative flex-1 group">
+                                <input
+                                    type="text"
+                                    placeholder='Search for "Jackets"'
+                                    className="w-full py-3.5 pl-4 pr-12 border-none rounded-2xl bg-white text-[14px] font-medium text-black outline-none placeholder:text-gray-400 shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300"
+                                    value={searchQuery}
+                                    onChange={(e) => handleSearchInput(e.target.value)}
+                                    onKeyDown={handleSearch}
+                                />
+                                <Search
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer group-hover:text-black transition-colors"
+                                    size={18}
+                                    onClick={() => searchQuery.trim() && handleSearch({ key: 'Enter' })}
+                                />
 
-                        {/* Premium Search Suggestions Dropdown */}
-                        {searchSuggestions.length > 0 && (
-                            <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FAFAFA] rounded-[24px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] overflow-hidden z-[1010] border border-[#111111]/5 animate-fadeInUp">
-                                <div className="p-4 border-b border-[#111111]/5 flex items-center justify-between bg-[#111111]/[0.02]">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#111111]/40">Products Found</span>
-                                    <span className="text-[10px] font-black text-[#D4AF37] uppercase tracking-wider hover:underline cursor-pointer">View All</span>
-                                </div>
-                                {searchSuggestions.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        onClick={() => handleSuggestionClick(item)}
-                                        className="px-5 py-3 hover:bg-[#111111]/5 flex items-center gap-4 cursor-pointer transition-colors border-b border-[#111111]/5 last:border-0 group/item"
-                                    >
-                                        <div className="w-12 h-14 rounded-xl overflow-hidden bg-[#111111]/5 shrink-0 shadow-sm">
-                                            <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover/item:scale-110" />
+                                {/* Premium Search Suggestions Dropdown */}
+                                {searchSuggestions.length > 0 && (
+                                    <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FAFAFA] rounded-2xl shadow-xl overflow-hidden z-[1010] border border-black/5 animate-fadeInUp">
+                                        <div className="p-4 border-b border-black/5 flex items-center justify-between bg-black/[0.02]">
+                                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">Products Found</span>
+                                            <span className="text-[10px] font-black text-black uppercase tracking-wider hover:underline cursor-pointer">View All</span>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-[13px] font-bold text-[#111111] truncate mb-1 group-hover/item:text-[#D4AF37] transition-colors">{item.name}</h4>
-                                            <p className="text-[10px] font-black uppercase text-[#111111]/40 tracking-tight">{item.brand} <span className="text-[8px] mx-1 opacity-50">•</span> <span className="text-[#D4AF37]">₹{item.discountedPrice}</span></p>
-                                        </div>
-                                        <ChevronRight size={16} className="text-[#111111]/20 group-hover/item:text-[#D4AF37] group-hover/item:translate-x-1 transition-all" />
+                                        {searchSuggestions.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                onClick={() => handleSuggestionClick(item)}
+                                                className="px-5 py-3 hover:bg-black/5 flex items-center gap-4 cursor-pointer transition-colors border-b border-black/5 last:border-0 group/item"
+                                            >
+                                                <div className="w-12 h-14 rounded-xl overflow-hidden bg-black/5 shrink-0 shadow-sm">
+                                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover/item:scale-110" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="text-[13px] font-bold text-black truncate mb-1">{item.name}</h4>
+                                                    <p className="text-[10px] font-black uppercase text-black/40 tracking-tight">{item.brand} <span className="text-[8px] mx-1 opacity-50">•</span> <span className="text-black">₹{item.discountedPrice}</span></p>
+                                                </div>
+                                                <ChevronRight size={16} className="text-black/20 group-hover/item:text-black group-hover/item:translate-x-1 transition-all" />
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                )}
                             </div>
-                        )}
+                            {/* Wishlist Icon for Mobile Shop View */}
+                            {variant === 'shop' && (
+                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)] shrink-0 group/headerHeart active:scale-75 transition-transform duration-300">
+                                    <Link to="/wishlist" onClick={(e) => e.stopPropagation()} className="relative flex items-center justify-center w-full h-full">
+                                        <Heart size={20} className="text-black transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] group-hover/headerHeart:scale-110 group-active/headerHeart:scale-50" />
+                                        {wishlistItems?.length > 0 && (
+                                            <span className="absolute top-[8px] right-[8px] bg-red-500 border-[1.5px] border-white text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                                                {wishlistItems.length}
+                                            </span>
+                                        )}
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <div className="hidden md:flex flex-col border-t border-white/5">
+                <div className="hidden md:flex flex-col border-t border-black/5">
                     <div className="flex items-center justify-between px-8 py-3">
                         <Link to="/" className="no-underline group">
-                            <h1 className="font-premium text-[32px] font-black tracking-tighter drop-shadow-md transition-all duration-500 text-[#FAFAFA] group-hover:text-[#D4AF37]">
-                                Clothify<span className="text-[#D4AF37] text-[40px] leading-none group-hover:text-[#FAFAFA]">.</span>
+                            <h1 className="font-premium text-[32px] font-black tracking-tighter drop-shadow-md transition-all duration-500 text-black group-hover:text-black/80">
+                                Clothify<span className="text-black text-[40px] leading-none">.</span>
                             </h1>
                         </Link>
 
                         <div className="flex items-center gap-10">
                             <div
-                                className="flex items-center gap-2.5 text-[12px] font-black uppercase tracking-[0.15em] cursor-pointer transition-colors py-2 group text-[#FAFAFA] hover:text-[#D4AF37]"
+                                className="flex items-center gap-2.5 text-[12px] font-black uppercase tracking-[0.15em] cursor-pointer transition-colors py-2 group text-black/70 hover:text-black"
                                 onMouseEnter={() => setIsMegaMenuOpen(true)}
                             >
-                                <LayoutGrid size={18} className="text-white/50 group-hover:text-[#D4AF37] transition-colors" />
+                                <LayoutGrid size={18} className="text-black/50 group-hover:text-black transition-colors" />
                                 Categories
                             </div>
                             <div
                                 onClick={() => setIsDiscoverOpen(true)}
-                                className="flex items-center gap-2.5 text-[12px] font-black uppercase tracking-[0.15em] cursor-pointer transition-colors group text-[#FAFAFA] hover:text-[#D4AF37]"
+                                className="flex items-center gap-2.5 text-[12px] font-black uppercase tracking-[0.15em] cursor-pointer transition-colors group text-black/70 hover:text-black"
                             >
-                                <Compass size={18} className="text-white/50 group-hover:text-[#D4AF37] transition-colors group-hover:animate-spin-slow" />
+                                <Compass size={18} className="text-black/50 group-hover:text-black transition-colors group-hover:animate-spin-slow" />
                                 Discover
                             </div>
-                            <Link to="/wishlist" className="relative flex items-center gap-2.5 text-[12px] font-black uppercase tracking-[0.15em] no-underline transition-colors group text-[#FAFAFA] hover:text-[#D4AF37]">
-                                <Heart size={18} className="text-white/50 group-hover:text-[#D4AF37] transition-colors" />
+                            <Link to="/wishlist" className="relative flex items-center gap-2.5 text-[12px] font-black uppercase tracking-[0.15em] no-underline transition-colors group text-black/70 hover:text-black">
+                                <Heart size={18} className="text-black/50 group-hover:text-black transition-colors" />
                                 Wishlist
                                 {wishlistItems.length > 0 && (
-                                    <span className="absolute -top-2.5 -right-3 bg-[#111111] border border-[#D4AF37] text-[#D4AF37] text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                                    <span className="absolute -top-2.5 -right-3 bg-white border border-black text-black text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">
                                         {wishlistItems.length}
                                     </span>
                                 )}
                             </Link>
-                            <Link to="/cart" className="relative transition-colors group text-[#FAFAFA] hover:text-[#D4AF37]">
+                            <Link to="/cart" className="relative transition-colors group text-black/70 hover:text-black">
                                 <ShoppingCart size={24} className="group-hover:scale-110 transition-transform" />
                                 {cartCount > 0 && (
-                                    <span className="absolute -top-2.5 -right-2.5 bg-[#D4AF37] border-2 border-[#111111] text-[#111111] text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(212,175,55,0.4)]">
+                                    <span className="absolute -top-2.5 -right-2.5 bg-black border-2 border-white text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
                                         {cartCount}
                                     </span>
                                 )}
                             </Link>
                             <Link
                                 to={user ? "/profile" : "/login"}
-                                className="transition-all flex flex-col items-center group relative text-[#FAFAFA] hover:text-[#D4AF37]"
+                                className="transition-all flex flex-col items-center group relative text-black/70 hover:text-black"
                             >
-                                <User size={24} className={user ? 'text-[#D4AF37]' : ''} />
+                                <User size={24} className={user ? 'text-black' : ''} />
                                 {!user && (
-                                    <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all text-[#D4AF37]">
+                                    <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all text-black">
                                         Login
                                     </span>
                                 )}
@@ -300,71 +369,60 @@ const Header = ({ variant = 'default' }) => {
                 onMouseEnter={() => setIsMegaMenuOpen(false)}
             />
 
-            {/* Premium Category Tabs */}
+            {/* Dynamic Category Tabs */}
             {showCategories && (
-                <div
-                    className="relative z-[30] transition-colors duration-500 ease-in-out border-b border-white/10 bg-[#111111]"
-                >
-                    <div className="flex overflow-x-auto scrollbar-hide gap-2 md:gap-4 px-4 md:px-8 py-4 items-start scroll-smooth snap-x snap-mandatory">
-                        {finalDisplayCategories.map((cat) => {
-                            const isSelected = isSubcategoryMode ? (activeSubCategory === cat.name) : (activeCategory === cat.name);
+                <div className={`relative z-[30] transition-all duration-300 ease-in-out grid ${isHeaderVisible ? 'grid-rows-[1fr] opacity-100 mt-1 mb-2' : 'grid-rows-[0fr] opacity-0 mt-0 mb-0'}`}>
+                    <div className="overflow-hidden">
+                        <div className="flex overflow-x-auto scrollbar-hide gap-1 md:gap-4 px-2 md:px-8 pt-2 items-end scroll-smooth snap-x snap-mandatory min-h-[105px]">
+                            {finalDisplayCategories.map((cat, idx) => {
+                                const isSelected = isSubcategoryMode ? (activeSubCategory === cat.name) : (activeCategory === cat.name);
 
-                            return (
-                                <button
-                                    key={cat.id}
-                                    className="flex flex-col items-center shrink-0 w-20 md:w-28 snap-center outline-none group py-1"
-                                    onClick={() => {
-                                        if (isSubcategoryMode) {
-                                            setActiveSubCategory(cat.name);
-                                        } else {
-                                            setActiveCategory(cat.name);
-                                            if (location.pathname === '/' || location.pathname === '/home') {
-                                                setTimeout(() => {
-                                                    const grid = document.getElementById('product-grid');
-                                                    if (grid) {
-                                                        grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                    }
-                                                }, 50);
-                                            } else if (location.pathname !== '/shop') {
-                                                navigate('/shop');
+                                return (
+                                    <button
+                                        key={cat.id || idx}
+                                        className={`relative flex flex-col items-center shrink-0 w-[80px] md:w-[94px] snap-center outline-none group pt-3 pb-3 px-1 transition-all duration-300 ${isSelected ? 'bg-white rounded-t-[24px]' : 'hover:-translate-y-1'}`}
+                                        onClick={() => {
+                                            if (isSubcategoryMode) {
+                                                setActiveSubCategory(cat.name);
+                                            } else {
+                                                setActiveCategory(cat.name);
+                                                if (location.pathname === '/' || location.pathname === '/home') {
+                                                    setTimeout(() => {
+                                                        const grid = document.getElementById('product-grid');
+                                                        if (grid) {
+                                                            grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                        }
+                                                    }, 50);
+                                                } else if (location.pathname !== '/shop') {
+                                                    navigate('/shop');
+                                                }
                                             }
-                                        }
-                                    }}
-                                >
-                                    {/* Outer Square (The Background Highlight) */}
-                                    <div
-                                        className={`flex items-center justify-center rounded-[20px] transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:-translate-y-1.5 group-active:scale-95 ${isSelected
-                                            ? 'w-16 h-16 md:w-[84px] md:h-[84px] bg-[#FAFAFA] shadow-[0_10px_30px_rgba(212,175,55,0.3)] ring-2 ring-[#D4AF37]/50 ring-offset-2 ring-offset-[#111111]'
-                                            : 'w-16 h-16 md:w-[84px] md:h-[84px] bg-white/5 border border-white/10 group-hover:bg-white/10 group-hover:border-[#D4AF37]/50 group-hover:shadow-[0_15px_30px_-5px_rgba(212,175,55,0.2)]'
-                                            }`}
+                                        }}
                                     >
-                                        {/* Inner Image Container */}
-                                        <div
-                                            className={`rounded-2xl overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isSelected
-                                                ? 'w-[56px] h-[56px] md:w-[76px] md:h-[76px] border-[1.5px] border-[#111111]'
-                                                : 'w-14 h-14 md:w-[76px] md:h-[76px] opacity-80 group-hover:opacity-100 group-hover:scale-105'
+                                        {/* Inner Image Container (Circles) - Match screenshot styling */}
+                                        <div className="w-[60px] h-[60px] md:w-[72px] md:h-[72px] rounded-full overflow-hidden bg-white shadow-sm shrink-0 flex items-center justify-center p-[2px]">
+                                            <div className="w-full h-full rounded-full overflow-hidden border border-white">
+                                                <img
+                                                    src={cat.image}
+                                                    alt={cat.name}
+                                                    className={`w-full h-full object-cover transition-transform duration-[800ms] ${isSelected ? 'scale-110' : 'group-hover:scale-110'}`}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Category Text */}
+                                        <span
+                                            className={`mt-2 text-[10.5px] md:text-[11.5px] text-center transition-all duration-300 leading-tight block w-full truncate px-1 ${isSelected
+                                                ? 'text-black font-black drop-shadow-md'
+                                                : 'text-black/70 font-bold group-hover:text-black'
                                                 }`}
                                         >
-                                            <img
-                                                src={cat.image}
-                                                alt={cat.name}
-                                                className="w-full h-full object-cover transition-transform duration-[1500ms] group-hover:scale-110"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Category Text */}
-                                    <span
-                                        className={`mt-2 text-[10px] md:text-[11px] font-bold text-center transition-all duration-500 uppercase tracking-[0.15em] ${isSelected
-                                            ? 'text-[#FAFAFA] drop-shadow-md scale-105'
-                                            : 'text-white/50 group-hover:text-[#FAFAFA]'
-                                            }`}
-                                    >
-                                        {cat.name}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                                            {cat.name}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             )}

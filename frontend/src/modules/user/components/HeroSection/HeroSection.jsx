@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBannerStore } from '../../../../shared/store/bannerStore';
+import { useCategory } from '../../context/CategoryContext';
 
 const HeroSection = () => {
     const navigate = useNavigate();
     const { banners, initialize } = useBannerStore();
+    const { activeCategory, activeSubCategory, isSubcategoryMode } = useCategory();
     const [currentSlide, setCurrentSlide] = useState(0);
 
     useEffect(() => {
@@ -36,12 +38,37 @@ const HeroSection = () => {
 
     if (activeBanners.length === 0) return null;
 
+    const getHeroTheme = (categoryName) => {
+        const name = categoryName?.toLowerCase() || '';
+
+        if (name === 'hello' || name === 'women') {
+            return 'from-[#FF4081]/80 to-[#FAFAFA]'; // Pink to White
+        }
+        if (name === 'men\'s fashion' || name === 'mens' || name === 'men') {
+            return 'from-[#4FC3F7]/80 to-[#FAFAFA]'; // Light Blue to White
+        }
+        if (name === 'bottom wear') {
+            return 'from-[#9CCC65]/80 to-[#FAFAFA]'; // Light Green to White
+        }
+        if (name === 'beauty') {
+            return 'from-[#F06292]/80 to-[#FAFAFA]'; // Rose to White
+        }
+        if (name === 'accessories') {
+            return 'from-[#FFB300]/80 to-[#FAFAFA]'; // Amber to White
+        }
+
+        // Default
+        return 'from-[#00B4D8]/80 to-[#FAFAFA]';
+    };
+
+    const currentHeroBg = isSubcategoryMode ? getHeroTheme(activeSubCategory) : getHeroTheme(activeCategory);
+
     return (
-        <section className="w-full bg-[#FAFAFA] px-4 md:px-6 lg:px-12 py-4 md:py-8 font-sans">
+        <section className={`w-full bg-gradient-to-b ${currentHeroBg} md:px-6 lg:px-12 py-0 md:py-8 font-sans transition-colors duration-500`}>
             <div className="max-w-[1600px] mx-auto">
-                <div className={`grid grid-cols-1 ${sideBanner ? 'lg:grid-cols-4' : 'lg:grid-cols-1'} gap-4 md:gap-6`}>
-                    {/* Main Slider (3/4 on Large Screens) */}
-                    <div className={`relative h-[400px] md:h-[500px] lg:h-[600px] overflow-hidden rounded-[40px] md:rounded-[48px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] ${sideBanner ? 'lg:col-span-3' : 'lg:col-span-1'}`}>
+                <div className={`grid grid-cols-1 ${sideBanner ? 'lg:grid-cols-4' : 'lg:grid-cols-1'} gap-0 md:gap-4 lg:gap-6`}>
+                    {/* Main Slider (3/4 on Large Screens) - Edge-to-Edge on Mobile */}
+                    <div className={`relative h-[55vh] md:h-[500px] lg:h-[600px] overflow-hidden rounded-none md:rounded-[40px] lg:rounded-[48px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] ${sideBanner ? 'lg:col-span-3' : 'lg:col-span-1'}`}>
                         <div className="w-full h-full relative">
                             {activeBanners.map((banner, index) => (
                                 <div
@@ -49,25 +76,26 @@ const HeroSection = () => {
                                     className={`absolute top-0 left-0 w-full h-full flex items-center transition-all duration-1000 ${index === currentSlide ? 'opacity-100 z-[1]' : 'opacity-0'
                                         }`}
                                 >
-                                    {/* Ultra-Premium Background with Deep Onyx Gradient & Ken Burns Effect */}
+                                    {/* Ultra-Premium Background with Deep Onyx Gradient & Parallax/Ken Burns Effect */}
                                     <div
-                                        className={`absolute inset-0 bg-cover bg-center transition-transform duration-10000 ease-in-out ${index === currentSlide ? 'scale-110' : 'scale-100'}`}
-                                        style={{ backgroundImage: `url(${banner.image})` }}
+                                        className={`absolute inset-0 bg-cover bg-center transition-transform duration-[12000ms] ease-out ${index === currentSlide ? 'scale-110 translate-y-0' : 'scale-100 translate-y-4'}`}
+                                        style={{ backgroundImage: `url(${banner.image})`, backgroundAttachment: window.innerWidth > 768 ? 'fixed' : 'scroll' }}
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-r from-[#111111]/90 via-[#111111]/50 to-transparent" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-[#111111]/90 via-[#111111]/40 to-transparent" />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-[#111111]/80 via-[#111111]/20 to-transparent" />
 
                                     <div className="container relative z-10 mx-auto px-8 md:px-16 lg:px-24 text-[#FAFAFA]">
-                                        <div className="max-w-[700px]">
-                                            <div className="flex items-center gap-4 mb-6 md:mb-8 animate-fadeInUp">
-                                                <div className="w-16 h-[1px] bg-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.8)]" />
-                                                <span className="text-[11px] md:text-[13px] font-bold uppercase tracking-[0.5em] text-[#D4AF37] drop-shadow-sm">The Edit</span>
+                                        <div className="max-w-[700px] mt-auto md:mt-0 mb-8 md:mb-0">
+                                            <div className="flex items-center gap-4 mb-4 md:mb-8 animate-fadeInUp">
+                                                <div className="w-12 md:w-16 h-[1px] bg-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.8)]" />
+                                                <span className="text-[10px] md:text-[13px] font-bold uppercase tracking-[0.5em] text-[#D4AF37] drop-shadow-sm">The Edit</span>
                                             </div>
-                                            <h2 className="font-premium text-4xl md:text-6xl lg:text-[80px] font-black mb-6 md:mb-10 uppercase tracking-tighter leading-[0.9] drop-shadow-[0_15px_15px_rgba(17,17,17,0.8)] animate-fadeInUp delay-150">
+                                            <h2 className="font-premium text-5xl md:text-6xl lg:text-[80px] font-black mb-4 md:mb-10 uppercase tracking-tighter leading-[0.85] drop-shadow-[0_15px_15px_rgba(17,17,17,0.8)] animate-fadeInUp delay-150">
                                                 {banner.title.split(' ').map((word, i) => (
                                                     <span key={i} className={i % 2 === 1 ? 'text-[#D4AF37]' : 'text-white'}>{word} </span>
                                                 ))}
                                             </h2>
-                                            <p className="hidden md:block text-sm md:text-lg mb-10 md:mb-14 font-medium opacity-90 max-w-[500px] leading-relaxed border-l-[3px] border-[#D4AF37] pl-6 animate-fadeInRight delay-300 backdrop-blur-md bg-[#111111]/30 py-3 pr-6 rounded-r-2xl shadow-inner border-y border-r border-[#111111]/40">
+                                            <p className="hidden md:block text-sm md:text-lg mb-8 md:mb-14 font-medium opacity-90 max-w-[500px] leading-relaxed border-l-[3px] border-[#D4AF37] pl-6 animate-fadeInRight delay-300 backdrop-blur-md bg-[#111111]/40 py-3 pr-6 rounded-r-2xl shadow-inner border-y border-r border-[#111111]/50">
                                                 {banner.subtitle}
                                             </p>
                                             <div className="flex items-center gap-6 animate-fadeInUp delay-500">

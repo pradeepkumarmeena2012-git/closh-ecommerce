@@ -54,11 +54,64 @@ const Footer = () => {
     };
 
     return (
-        <footer className="bg-[#111111] pt-10 md:pt-20 pb-20 md:pb-8 border-t border-white/10 text-[#FAFAFA] overflow-hidden font-sans relative">
-            {/* Soft Ambient Top Glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[1px] bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent" />
+        <footer className="bg-[#111111] pt-0 md:pt-20 pb-0 md:pb-8 border-t border-white/10 text-[#FAFAFA] overflow-hidden font-sans relative w-full">
+            {/* Soft Ambient Top Glow (Desktop) */}
+            <div className="hidden md:block absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[1px] bg-gradient-to-r from-transparent via-[#D4AF37]/30 to-transparent" />
 
-            <div className="container mx-auto px-4 md:px-12 relative z-10">
+            {/* Premium Mobile App Footer (From User Screenshot) */}
+            <div className="flex flex-col md:hidden w-full relative pb-[80px]">
+                {/* Newsletter Block */}
+                <div className="relative py-14 px-6 flex flex-col items-center justify-center text-center overflow-hidden border-b border-white/5 bg-[#111111]">
+                    {/* Abstract Dark Grid Background */}
+                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+                    <h2 className="text-[28px] font-premium font-black tracking-tight text-[#FAFAFA] leading-[1.15] z-10 mb-5 uppercase drop-shadow-md">
+                        Join The <span className="text-[#D4AF37] italic font-light drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">Inner<br />Circle</span>
+                    </h2>
+
+                    <p className="text-[#FAFAFA]/50 text-[10px] font-bold uppercase tracking-[0.05em] leading-relaxed max-w-[280px] z-10 mb-8 px-2 font-sans">
+                        Exclusive early access to new drops, VIP sales, and highly curated luxury edits delivered to your inbox.
+                    </p>
+
+                    <div className="w-full max-w-[320px] z-10 space-y-4">
+                        <input
+                            type="email"
+                            placeholder="Enter your email address"
+                            className="w-full bg-[#1a1a1a] text-[#FAFAFA] font-bold text-[13px] px-6 py-4 rounded-[24px] border border-white/5 placeholder-[#FAFAFA]/30 focus:outline-none focus:border-[#D4AF37]/50 transition-colors shadow-inner"
+                        />
+                        <button className="w-full bg-[#FAFAFA] text-[#111111] font-black text-[11px] uppercase tracking-widest px-6 py-4 rounded-[24px] hover:bg-[#D4AF37] transition-colors shadow-[0_5px_15px_rgba(250,250,250,0.15)] active:scale-95">
+                            Subscribe
+                        </button>
+                    </div>
+                </div>
+
+                {/* Brand & Social/App Block */}
+                <div className="py-12 px-6 flex flex-col items-center bg-[#0a0a0a]">
+                    <h1 className="font-premium text-[36px] font-black tracking-tighter drop-shadow-md text-[#FAFAFA] mb-8">
+                        Clothify<span className="text-[#D4AF37]">.</span>
+                    </h1>
+
+                    <div className="flex items-center gap-4 mb-10">
+                        {[Instagram, Facebook, Twitter].map((Icon, idx) => (
+                            <a key={idx} href="#" className="w-12 h-12 rounded-full bg-[#1a1a1a] flex items-center justify-center hover:bg-[#D4AF37] hover:text-[#111111] transition-all duration-300 border border-white/5 shadow-sm text-[#FAFAFA]/70 hover:scale-110 active:scale-95">
+                                <Icon size={18} strokeWidth={1.5} />
+                            </a>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-3 w-full max-w-[320px]">
+                        <button className="flex-1 bg-[#FAFAFA] text-[#111111] rounded-[16px] py-4 text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all active:scale-95 shadow-[0_4px_10px_rgba(250,250,250,0.1)] flex justify-center">
+                            Google Play
+                        </button>
+                        <button className="flex-1 bg-[#222222] text-[#FAFAFA] rounded-[16px] py-4 text-[10px] font-black uppercase tracking-widest border border-white/5 hover:bg-[#333] transition-all active:scale-95 shadow-inner flex justify-center">
+                            App Store
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Desktop Full Footer */}
+            <div className="hidden md:block container mx-auto px-4 md:px-12 relative z-10">
 
                 {/* Top Section - Smart & App-like Layout */}
                 <div className="flex flex-col md:flex-row justify-between items-center md:items-start gap-6 md:gap-8 mb-6 md:mb-16 pb-6 md:pb-10 border-b border-white/10">

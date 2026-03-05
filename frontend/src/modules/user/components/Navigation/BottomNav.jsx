@@ -11,25 +11,39 @@ const BottomNav = () => {
     const [lastScrollY, setLastScrollY] = useState(0);
 
     useEffect(() => {
-        const handleScroll = () => {
-            const currentScrollY = window.scrollY;
-            const scrollHeight = document.documentElement.scrollHeight;
-            const clientHeight = document.documentElement.clientHeight;
-            const isAtBottom = currentScrollY + clientHeight >= scrollHeight - 80;
+        let ticking = false;
 
-            if (currentScrollY < 10) {
-                setIsVisible(true);
-            } else if (isAtBottom) {
-                // Hide at bottom to let footer shine as requested
-                setIsVisible(false);
-            } else if (currentScrollY > lastScrollY) {
-                // Scrolling Down
-                setIsVisible(false);
-            } else {
-                // Scrolling Up
-                setIsVisible(true);
+        const handleScroll = () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    const currentScrollY = window.scrollY;
+                    const scrollHeight = document.documentElement.scrollHeight;
+                    const clientHeight = document.documentElement.clientHeight;
+                    const isAtBottom = currentScrollY + clientHeight >= scrollHeight - 80;
+
+                    // Prevent iOS/Android rubber-banding (overscroll) from triggering nav updates
+                    if (currentScrollY <= 0) {
+                        setIsVisible(true);
+                    } else if (currentScrollY > scrollHeight - clientHeight) {
+                        setIsVisible(false);
+                    } else if (Math.abs(currentScrollY - lastScrollY) > 10) {
+                        // Only trigger if scrolled more than 10px to avoid micro-bounce jitters
+                        if (isAtBottom) {
+                            setIsVisible(false);
+                        } else if (currentScrollY > lastScrollY) {
+                            // Scrolling Down -> Hide Navigation
+                            setIsVisible(false);
+                        } else {
+                            // Scrolling Up -> Show Navigation
+                            setIsVisible(true);
+                        }
+                        setLastScrollY(currentScrollY);
+                    }
+
+                    ticking = false;
+                });
+                ticking = true;
             }
-            setLastScrollY(currentScrollY);
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
@@ -40,7 +54,7 @@ const BottomNav = () => {
     if (location.pathname === '/products') return null;
 
     return (
-        <div className={`fixed bottom-0 left-0 w-full h-[65px] bg-white border-t border-border-color flex md:hidden justify-around items-center z-[1000] shadow-[0_-2px_10px_rgba(0,0,0,0.05)] pb-1 transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
+        <div className={`fixed bottom-0 left-0 w-full h-[65px] md:h-[70px] bg-white/80 backdrop-blur-xl border-t border-white/20 flex md:hidden justify-around items-center z-[1000] shadow-[0_-10px_30px_rgba(0,0,0,0.08)] pb-safe transition-transform duration-300 ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
             <NavLink
                 to="/"
                 className={({ isActive }) => `flex flex-col items-center gap-1 text-[10px] font-bold uppercase tracking-wider no-underline ${isActive ? 'text-accent' : 'text-gray-400'}`}
