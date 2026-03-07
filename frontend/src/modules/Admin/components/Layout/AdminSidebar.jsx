@@ -19,7 +19,6 @@ import {
   FiSettings,
   FiGlobe,
   FiShield,
-  FiDatabase,
   FiChevronDown,
   FiX,
   FiUser,
@@ -41,12 +40,12 @@ const iconMap = {
   Banners: FiImage,
   "Promo Codes": FiPercent,
   Notifications: FiBell,
-  "Support Desk": FiMessageCircle,
+  "Customer Support": FiMessageCircle,
+  "Vendor Support": FiMessageCircle,
   Reports: FiFileText,
   "Analytics & Finance": FiBarChart2,
   Settings: FiSettings,
   Policies: FiShield,
-  Firebase: FiDatabase,
   "Staff Management": FiUsers,
   "Attribute Management": FiGrid,
 };
@@ -95,10 +94,13 @@ const getChildRoute = (parentRoute, childName) => {
       "Push Notifications": "/admin/notifications/push-notifications",
       "Custom Messages": "/admin/notifications/custom-messages",
     },
-    "/admin/support": {
-      "Live Chat": "/admin/support/live-chat",
-      "Ticket Types": "/admin/support/ticket-types",
-      Tickets: "/admin/support/tickets",
+    "/admin/customer-support": {
+      "Live Chat": "/admin/customer-support/live-chat",
+      "Tickets": "/admin/customer-support/tickets",
+    },
+    "/admin/vendor-support": {
+      "Live Chat": "/admin/vendor-support/live-chat",
+      "Tickets": "/admin/vendor-support/tickets",
     },
     "/admin/reports": {
       "Sales Report": "/admin/reports/sales-report",
@@ -125,10 +127,6 @@ const getChildRoute = (parentRoute, childName) => {
       "Privacy Policy": "/admin/policies/privacy-policy",
       "Refund Policy": "/admin/policies/refund-policy",
       "Terms & Conditions": "/admin/policies/terms-conditions",
-    },
-    "/admin/firebase": {
-      "Push Config": "/admin/firebase/push-config",
-      Authentication: "/admin/firebase/authentication",
     },
   };
 

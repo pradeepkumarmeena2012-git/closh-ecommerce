@@ -24,7 +24,7 @@ import { useProductStore } from '../../../../shared/store/productStore';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import LocationModal from '../../components/Header/LocationModal';
-import { useLocation as useLocationContext } from '../../context/LocationContext';
+import { useUserLocation } from '../../context/LocationContext';
 
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/Modals/LoginModal';
@@ -35,7 +35,7 @@ const ProductDetailsPage = () => {
     const { user } = useAuth();
     const { addToCart, cart, getCartCount } = useCart();
     const { toggleWishlist, isInWishlist } = useWishlist();
-    const { activeAddress } = useLocationContext();
+    const { activeAddress } = useUserLocation();
     const { fetchProductById } = useProductStore();
 
     const [product, setProduct] = useState(null);

@@ -256,4 +256,3 @@ export const useWishlistStore = create(
     }
   )
 );
-

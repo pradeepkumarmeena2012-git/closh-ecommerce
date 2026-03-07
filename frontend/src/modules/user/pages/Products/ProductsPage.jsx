@@ -7,7 +7,7 @@ import { Filter, X, ChevronDown, ChevronUp, Star, Eye, ShoppingCart, Search, Arr
 import LocationModal from '../../components/Header/LocationModal';
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/Modals/LoginModal';
-import { useLocation as useLocationContext } from '../../context/LocationContext';
+import { useUserLocation } from '../../context/LocationContext';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import ProductSkeleton from '../../components/ProductCard/ProductSkeleton';
 
@@ -15,7 +15,7 @@ const ProductsPage = () => {
     const { products, isLoading, fetchPublicProducts } = useProductStore();
     const { toggleWishlist, isInWishlist, wishlistItems } = useWishlist();
     const { addToCart, getCartCount } = useCart();
-    const { activeAddress } = useLocationContext();
+    const { activeAddress } = useUserLocation();
     const { user } = useAuth();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();

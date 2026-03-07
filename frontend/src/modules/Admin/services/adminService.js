@@ -343,12 +343,12 @@ export const sendPushNotification = (data) =>
 export const sendCustomMessage = (data) =>
     api.post('/admin/notifications/message', data);
 
-// ─── Policies ─────────────────────────────────────────────────────────────────
-export const getPolicy = (type) =>
-    api.get(`/admin/policies/${type}`);
+// ─── Settings & Policies ───────────────────────────────────────────────────
+export const getAdminSetting = (key) =>
+    api.get(`/admin/settings/${key}`);
 
-export const updatePolicy = (type, content) =>
-    api.put(`/admin/policies/${type}`, { content });
+export const updateAdminSetting = (key, value) =>
+    api.put(`/admin/settings/${key}`, { value });
 
 // ─── Header Notifications ─────────────────────────────────────────────────────
 export const getAdminNotifications = (params) => api.get('/admin/notifications', { params });

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { useLocation } from '../../context/LocationContext';
+import { useUserLocation } from '../../context/LocationContext';
 import { useAddressStore } from '../../../../shared/store/addressStore';
 import api from '../../../../shared/utils/api';
 import {
@@ -27,7 +27,7 @@ const CheckoutPage = () => {
     const navigate = useNavigate();
     const { cart, getCartTotal, removeFromCart, updateQuantity, clearCart, addToCart } = useCart();
     const { user } = useAuth();
-    const { activeAddress } = useLocation();
+    const { activeAddress } = useUserLocation();
     const { fetchAddresses } = useAddressStore();
 
     const [isCouponOpen, setIsCouponOpen] = useState(true);

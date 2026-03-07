@@ -1,15 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
-import { FiMessageCircle, FiSend, FiUser } from 'react-icons/fi';
+import { FiMessageCircle, FiSend, FiUser, FiCheckCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useSupportStore } from '../../../../shared/store/supportStore';
 
-const LiveChat = () => {
+const LiveChat = ({ type = 'customer' }) => {
   const {
     tickets,
     isLoading,
     fetchTickets,
     fetchTicketById,
     addReply,
+    updateTicketStatus,
     selectedTicket,
     joinTicketRoom,
     leaveTicketRoom
@@ -17,8 +18,8 @@ const LiveChat = () => {
   const [newMessage, setNewMessage] = useState('');
 
   useEffect(() => {
-    fetchTickets({ limit: 200 });
-  }, [fetchTickets]);
+    fetchTickets({ limit: 200, type });
+  }, [fetchTickets, type]);
 
   const chats = useMemo(() => {
     return (tickets || [])
@@ -53,7 +54,12 @@ const LiveChat = () => {
     if (sent) setNewMessage('');
   };
 
-
+  const handleResolve = async () => {
+    if (!selectedTicket?.id) return;
+    if (window.confirm('Are you sure you want to resolve this ticket?')) {
+      await updateTicketStatus(selectedTicket.id, 'resolved');
+    }
+  };
 
   return (
     <motion.div
@@ -62,8 +68,12 @@ const LiveChat = () => {
       className="space-y-6"
     >
       <div className="lg:hidden">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Live Chat</h1>
-        <p className="text-sm sm:text-base text-gray-600">Manage customer support chats</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+          {type === 'customer' ? 'Customer' : 'Vendor'} Live Chat
+        </h1>
+        <p className="text-sm sm:text-base text-gray-600">
+          Manage {type === 'customer' ? 'customer' : 'vendor'} support chats
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -95,9 +105,15 @@ const LiveChat = () => {
                   )}
                 </div>
                 <p className="text-sm text-gray-600 truncate">{chat.lastMessage}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {chat.lastActivity ? new Date(chat.lastActivity).toLocaleTimeString() : 'N/A'}
-                </p>
+                <div className="flex justify-between items-center mt-1">
+                  <p className="text-xs text-gray-400">
+                    {chat.lastActivity ? new Date(chat.lastActivity).toLocaleTimeString() : 'N/A'}
+                  </p>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full uppercase font-bold ${chat.status === 'open' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'
+                    }`}>
+                    {chat.status}
+                  </span>
+                </div>
               </div>
             ))}
             {!isLoading && chats.length === 0 && (
@@ -110,9 +126,26 @@ const LiveChat = () => {
 
         {selectedTicket ? (
           <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-800">{selectedTicket.customer?.name || 'Anonymous'}</h3>
-              <p className="text-xs text-gray-500">Ticket ID: {selectedTicket.id}</p>
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-800">{selectedTicket.customer?.name || 'Anonymous'}</h3>
+                <p className="text-xs text-gray-500">Ticket ID: {selectedTicket.id}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${selectedTicket.status === 'resolved' ? 'bg-green-100 text-green-700' :
+                    selectedTicket.status === 'open' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                  {selectedTicket.status}
+                </span>
+                {selectedTicket.status !== 'resolved' && (
+                  <button
+                    onClick={handleResolve}
+                    className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <FiCheckCircle /> Resolve
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex-1 p-4 overflow-y-auto space-y-4 max-h-[500px]">
               {(selectedTicket.messages || []).map((msg, idx) => (

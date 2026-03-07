@@ -594,6 +594,10 @@ router.get('/orders/track/:id', asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, trackingInfo, 'Order tracking info.'));
 }));
 
+// GET /api/settings/:key
+import { getSetting } from '../modules/admin/controllers/settings.controller.js';
+router.get('/settings/:key', getSetting);
+
 // Legacy support: GET /api/:id (only ObjectId-like values to avoid swallowing unknown routes)
 router.get('/:id([a-fA-F0-9]{24})', getProductDetail);
 

@@ -123,6 +123,7 @@ import UserRegisterPage from "./modules/user/pages/Auth/RegisterPage";
 import UserProfilePage from "./modules/user/pages/Profile/ProfilePage";
 import UserAccountPage from "./modules/user/pages/Profile/AccountPage";
 import UserLegalPage from "./modules/user/pages/Profile/LegalPage";
+import UserSupportPage from "./modules/user/pages/Profile/SupportPage";
 import UserOrdersPage from "./modules/user/pages/Orders/OrdersPage";
 import UserOrderDetailPage from "./modules/user/pages/Orders/OrderDetailsPage";
 import UserOrderSuccessPage from "./modules/user/pages/Orders/OrderSuccessPage";
@@ -329,7 +330,17 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/legal"
+        path="/support"
+        element={
+          <RouteWrapper>
+            <ProtectedRoute>
+              <UserLayout variant="account"><UserSupportPage /></UserLayout>
+            </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/legal/:pageId"
         element={
           <RouteWrapper>
             <UserLayout><UserLegalPage /></UserLayout>
@@ -466,9 +477,10 @@ const AppRoutes = () => {
           element={<CustomMessages />}
         />
         <Route path="support" element={<Tickets />} />
-        <Route path="support/live-chat" element={<LiveChat />} />
-        <Route path="support/ticket-types" element={<TicketTypes />} />
-        <Route path="support/tickets" element={<Tickets />} />
+        <Route path="customer-support/live-chat" element={<LiveChat type="customer" />} />
+        <Route path="customer-support/tickets" element={<Tickets type="customer" />} />
+        <Route path="vendor-support/live-chat" element={<LiveChat type="vendor" />} />
+        <Route path="vendor-support/tickets" element={<Tickets type="vendor" />} />
         <Route path="reports/sales-report" element={<SalesReport />} />
         <Route path="reports/inventory-report" element={<InventoryReport />} />
         <Route path="reports/earnings-report" element={<EarningsReport />} />

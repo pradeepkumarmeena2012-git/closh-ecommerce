@@ -233,4 +233,9 @@ router.get('/notifications', ...adminAuth, checkPermission('notifications_manage
 router.put('/notifications/:id/read', ...adminAuth, checkPermission('notifications_manage'), notificationController.markAsRead);
 router.put('/notifications/read-all', ...adminAuth, checkPermission('notifications_manage'), notificationController.markAllAsRead);
 
+// ─── Settings & Policies ──────────────────────────────────────────────────────
+import * as settingsController from '../controllers/settings.controller.js';
+router.get('/settings/:key', ...adminAuth, settingsController.getSetting);
+router.put('/settings/:key', ...adminAuth, checkPermission('settings_manage'), settingsController.updateSetting);
+
 export default router;

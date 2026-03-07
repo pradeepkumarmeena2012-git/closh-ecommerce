@@ -1,31 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiSave, FiFileText } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { getAdminSetting, updateAdminSetting } from '../../services/adminService';
 
 const PrivacyPolicy = () => {
-  const [content, setContent] = useState(`Privacy Policy
+  const [content, setContent] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-Last updated: ${new Date().toLocaleDateString()}
+  useEffect(() => {
+    const fetchPolicy = async () => {
+      try {
+        const res = await getAdminSetting('privacy_policy');
+        if (res?.data) {
+          setContent(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching privacy policy:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPolicy();
+  }, []);
 
-1. Information We Collect
-We collect information that you provide directly to us, including when you create an account, make a purchase, or contact us for support.
-
-2. How We Use Your Information
-We use the information we collect to provide, maintain, and improve our services, process transactions, and communicate with you.
-
-3. Information Sharing
-We do not sell, trade, or rent your personal information to third parties without your consent.
-
-4. Data Security
-We implement appropriate security measures to protect your personal information.
-
-5. Your Rights
-You have the right to access, update, or delete your personal information at any time.`);
-
-  const handleSave = () => {
-    toast.success('Privacy policy saved successfully');
+  const handleSave = async () => {
+    try {
+      await updateAdminSetting('privacy_policy', content);
+      toast.success('Privacy policy saved successfully');
+    } catch (err) {
+      toast.error('Failed to save policy');
+    }
   };
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-gray-400 font-bold uppercase tracking-widest animate-pulse">Loading Policy...</div>;
+  }
 
   return (
     <motion.div

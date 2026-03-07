@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import SupportTicket from '../../../models/SupportTicket.model.js';
 import Admin from '../../../models/Admin.model.js';
+import Vendor from '../../../models/Vendor.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 
@@ -13,6 +14,9 @@ export const submitHelpRequest = asyncHandler(async (req, res) => {
     if (!subject || !message) {
         return res.status(400).json(new ApiResponse(400, null, 'Subject and message are required.'));
     }
+
+    const vendor = await Vendor.findById(vendorId);
+    const vendorName = vendor?.name || vendor?.storeName || 'Vendor';
 
     // Create a support ticket
     const ticket = await SupportTicket.create({
@@ -29,9 +33,18 @@ export const submitHelpRequest = asyncHandler(async (req, res) => {
                 senderType: 'vendor',
                 message,
                 createdAt: new Date()
+            },
+            {
+                senderId: null, // System/Admin message
+                senderType: 'admin',
+                message: `Hello ${vendorName}, how can we help you?`,
+                createdAt: new Date()
             }
         ]
     });
+
+    ticket.isReadByAdmin = true;
+    await ticket.save();
 
     // Notify all active admins
     const admins = await Admin.find({ isActive: true }).select('_id');
@@ -50,6 +63,14 @@ export const submitHelpRequest = asyncHandler(async (req, res) => {
             })
         )
     );
+
+    // Emit real-time for admins
+    emitEvent('admin_support', 'new_ticket', {
+        ...ticket._doc,
+        id: ticket._id,
+        customer: { name: req.user.storeName || 'Vendor' },
+        type: 'vendor'
+    });
 
     res.status(201).json(new ApiResponse(201, ticket, 'Help request submitted successfully.'));
 });

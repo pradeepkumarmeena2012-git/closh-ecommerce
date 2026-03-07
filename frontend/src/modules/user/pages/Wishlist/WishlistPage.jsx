@@ -4,12 +4,12 @@ import { ShoppingBag, X, Heart, Search, MapPin, ChevronDown, ArrowLeft } from 'l
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
 import LocationModal from '../../components/Header/LocationModal';
-import { useLocation as useLocationContext } from '../../context/LocationContext';
+import { useUserLocation } from '../../context/LocationContext';
 
 const WishlistPage = () => {
     const { wishlistItems, toggleWishlist } = useWishlist();
     const { addToCart } = useCart();
-    const { activeAddress } = useLocationContext();
+    const { activeAddress } = useUserLocation();
     const navigate = useNavigate();
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [addedItems, setAddedItems] = useState({});

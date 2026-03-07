@@ -1,31 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiSave, FiFileText } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { getAdminSetting, updateAdminSetting } from '../../services/adminService';
 
 const TermsConditions = () => {
-  const [content, setContent] = useState(`Terms & Conditions
+  const [content, setContent] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-Last updated: ${new Date().toLocaleDateString()}
+  useEffect(() => {
+    const fetchPolicy = async () => {
+      try {
+        const res = await getAdminSetting('terms_policy');
+        if (res?.data) {
+          setContent(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching terms policy:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPolicy();
+  }, []);
 
-1. Acceptance of Terms
-By accessing and using this website, you accept and agree to be bound by the terms and provision of this agreement.
-
-2. Use License
-Permission is granted to temporarily download one copy of the materials on our website for personal, non-commercial transitory viewing only.
-
-3. Disclaimer
-The materials on our website are provided on an 'as is' basis. We make no warranties, expressed or implied.
-
-4. Limitations
-In no event shall our company or its suppliers be liable for any damages arising out of the use or inability to use the materials on our website.
-
-5. Revisions
-We may revise these terms of service at any time without notice. By using this website you are agreeing to be bound by the then current version of these terms.`);
-
-  const handleSave = () => {
-    toast.success('Terms & conditions saved successfully');
+  const handleSave = async () => {
+    try {
+      await updateAdminSetting('terms_policy', content);
+      toast.success('Terms & conditions saved successfully');
+    } catch (err) {
+      toast.error('Failed to save policy');
+    }
   };
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-gray-400 font-bold uppercase tracking-widest animate-pulse">Loading Policy...</div>;
+  }
 
   return (
     <motion.div

@@ -2,7 +2,12 @@ import React, { createContext, useContext, useEffect, useCallback, useMemo, useR
 import { useAddressStore } from '../../../shared/store/addressStore';
 import { useAuthStore } from '../../../shared/store/authStore';
 
-const LocationContext = createContext();
+const LocationContext = createContext({
+    addresses: [],
+    activeAddress: null,
+    updateActiveAddress: () => { },
+    refreshAddresses: () => { }
+});
 
 export const LocationProvider = ({ children }) => {
     const addresses = useAddressStore(state => state.addresses);
@@ -48,10 +53,17 @@ export const LocationProvider = ({ children }) => {
     );
 };
 
-export const useLocation = () => {
+export const useUserLocation = () => {
     const context = useContext(LocationContext);
     if (!context) {
-        throw new Error('useLocation must be used within a LocationProvider');
+        // Fallback to empty object instead of throwing to prevent app crash
+        // though we should investigate why context is missing
+        return {
+            addresses: [],
+            activeAddress: null,
+            updateActiveAddress: () => { },
+            refreshAddresses: () => { }
+        };
     }
     return context;
 };

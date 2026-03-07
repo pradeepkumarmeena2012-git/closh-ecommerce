@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { useLocation as useLocationContext } from '../../context/LocationContext';
+import { useUserLocation } from '../../context/LocationContext';
 import LocationModal from '../../components/Header/LocationModal';
 import {
     ArrowLeft,
@@ -40,7 +40,7 @@ const PaymentPage = () => {
     const location = useLocation();
     const { cart, getCartTotal, clearCart } = useCart();
     const { user } = useAuth();
-    const { addresses, activeAddress, updateActiveAddress, refreshAddresses } = useLocationContext();
+    const { addresses, activeAddress, updateActiveAddress, refreshAddresses } = useUserLocation();
     const { createOrder } = useOrderStore();
 
     // Get address from checkout navigation OR from context

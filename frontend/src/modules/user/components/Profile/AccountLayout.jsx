@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileSidebar from './ProfileSidebar';
 import { History, ShieldCheck, RefreshCcw, Truck, ChevronLeft, MapPin, ChevronDown } from 'lucide-react';
-import { useLocation as useLocationContext } from '../../context/LocationContext';
+import { useUserLocation } from '../../context/LocationContext';
 import LocationModal from '../../components/Header/LocationModal';
 
 const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { activeAddress } = useLocationContext();
+    const { activeAddress } = useUserLocation();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 

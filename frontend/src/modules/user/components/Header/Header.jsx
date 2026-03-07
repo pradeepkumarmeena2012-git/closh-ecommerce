@@ -4,7 +4,7 @@ import { Search, MapPin, User, ShoppingCart, X, LayoutGrid, Compass, Heart, Chev
 import MegaMenu from './MegaMenu';
 import DiscoverModal from './DiscoverModal';
 import LocationModal from './LocationModal';
-import { useLocation as useLocationContext } from '../../context/LocationContext';
+import { useUserLocation } from '../../context/LocationContext';
 
 import api from '../../../../shared/utils/api';
 import { useCategoryStore } from '../../../../shared/store/categoryStore';
@@ -19,7 +19,7 @@ const Header = ({ variant = 'default' }) => {
     const { user } = useAuth();
     const { wishlistItems } = useWishlist();
     const { activeCategory, setActiveCategory, activeSubCategory, setActiveSubCategory, getCategoryColor } = useCategory();
-    const { activeAddress } = useLocationContext();
+    const { activeAddress } = useUserLocation();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
     const [isDiscoverOpen, setIsDiscoverOpen] = useState(false);

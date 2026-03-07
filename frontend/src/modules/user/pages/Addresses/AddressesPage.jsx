@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import AccountLayout from '../../components/Profile/AccountLayout';
 import { MapPin, Search, X, Home, Briefcase, MapPin as MapPinIcon, ChevronLeft, Loader2, Navigation, Target, Plus } from 'lucide-react';
-import { useLocation as useLocationContext } from '../../context/LocationContext';
+import { useUserLocation } from '../../context/LocationContext';
 import { useAddressStore } from '../../../../shared/store/addressStore';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -87,7 +87,7 @@ const fetchAddress = async (lat, lng, setAddress) => {
 };
 
 const AddressesPage = () => {
-    const { addresses, refreshAddresses } = useLocationContext();
+    const { addresses, activeAddress, updateActiveAddress, refreshAddresses } = useUserLocation();
     const { user } = useAuth();
     const [view, setView] = useState('list'); // 'list' | 'map' | 'form'
     const [loadingLocation, setLoadingLocation] = useState(false);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FiSearch, FiEye, FiMessageSquare, FiSend, FiX } from 'react-icons/fi';
+import { FiSearch, FiEye, FiMessageSquare, FiSend, FiX, FiCheckCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import DataTable from '../../components/DataTable';
 import Badge from '../../../../shared/components/Badge';
@@ -8,10 +8,10 @@ import AnimatedSelect from '../../components/AnimatedSelect';
 import { useSupportStore } from '../../../../shared/store/supportStore';
 import { formatDateTime } from '../../utils/adminHelpers';
 
-const Tickets = () => {
+const Tickets = ({ type = 'customer' }) => {
   const location = useLocation();
   const isAppRoute = location.pathname.startsWith('/app');
-  const { tickets, isLoading, fetchTickets, addReply, pagination } = useSupportStore();
+  const { tickets, isLoading, fetchTickets, addReply, updateTicketStatus, pagination } = useSupportStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -21,14 +21,24 @@ const Tickets = () => {
   useEffect(() => {
     fetchTickets({
       search: searchQuery,
-      status: statusFilter === 'all' ? undefined : statusFilter
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      type
     });
-  }, [searchQuery, statusFilter, fetchTickets]);
+  }, [searchQuery, statusFilter, fetchTickets, type]);
 
   const handleViewTicket = async (ticketRow) => {
     setSelectedTicket(ticketRow);
     const updated = await useSupportStore.getState().fetchTicketById(ticketRow.id);
     if (updated) setSelectedTicket(updated);
+  };
+
+  const handleResolve = async () => {
+    if (!selectedTicket?.id) return;
+    const success = await updateTicketStatus(selectedTicket.id, 'resolved');
+    if (success) {
+      const updated = await useSupportStore.getState().fetchTicketById(selectedTicket.id);
+      if (updated) setSelectedTicket(updated);
+    }
   };
 
   const handleReply = async () => {
@@ -143,8 +153,12 @@ const Tickets = () => {
       className="space-y-6"
     >
       <div className="lg:hidden">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Support Tickets</h1>
-        <p className="text-sm sm:text-base text-gray-600">Manage customer support tickets</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+          {type === 'customer' ? 'Customer' : 'Vendor'} Support Tickets
+        </h1>
+        <p className="text-sm sm:text-base text-gray-600">
+          Manage {type === 'customer' ? 'customer' : 'vendor'} support tickets
+        </p>
       </div>
 
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
@@ -242,12 +256,22 @@ const Tickets = () => {
               >
                 <div className="flex items-center justify-between mb-4 flex-shrink-0">
                   <h3 className="text-lg font-bold text-gray-800">#{selectedTicket.id} - {selectedTicket.subject}</h3>
-                  <button
-                    onClick={() => setSelectedTicket(null)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <FiX />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {selectedTicket.status !== 'resolved' && (
+                      <button
+                        onClick={handleResolve}
+                        className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        <FiCheckCircle size={14} /> Resolve
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSelectedTicket(null)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <FiX />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-6 pr-2">

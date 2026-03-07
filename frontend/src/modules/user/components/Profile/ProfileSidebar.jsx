@@ -9,7 +9,8 @@ import {
     Calendar,
     Users,
     LogOut,
-    ChevronRight
+    ChevronRight,
+    MessageSquare
 } from 'lucide-react';
 
 const ProfileSidebar = () => {
@@ -26,6 +27,7 @@ const ProfileSidebar = () => {
         { id: 'profile', label: 'Profile', path: '/profile', icon: <User size={18} /> },
         { id: 'addresses', label: 'Addresses', path: '/addresses', icon: <MapPin size={18} /> },
         { id: 'orders', label: 'My Orders', path: '/orders', icon: <ShoppingBag size={18} /> },
+        { id: 'support', label: 'Live Support', path: '/support', icon: <MessageSquare size={18} /> },
         { id: 'offers', label: 'My Offers', path: '/offers', icon: <Tag size={18} /> },
         { id: 'events', label: 'Events', path: '/events', icon: <Calendar size={18} /> },
         { id: 'refer', label: 'Refer and Earn', path: '/refer', icon: <Users size={18} /> },

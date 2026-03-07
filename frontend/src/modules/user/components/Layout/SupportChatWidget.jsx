@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiMessageCircle, FiX, FiSend, FiMinus } from 'react-icons/fi';
+import { FiMessageCircle, FiX, FiSend, FiMinus, FiLoader } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSupportStore } from '../../../../shared/store/supportStore';
 import { useAuthStore } from '../../../../shared/store/authStore';
@@ -17,7 +17,8 @@ const SupportChatWidget = () => {
         addReply,
         createTicket,
         joinTicketRoom,
-        leaveTicketRoom
+        leaveTicketRoom,
+        isLoading
     } = useSupportStore();
 
     const [message, setMessage] = useState('');
@@ -54,11 +55,10 @@ const SupportChatWidget = () => {
     const handleCreateTicket = async (e) => {
         e.preventDefault();
         if (!newTicketData.subject || !newTicketData.message) return;
-        const success = await createTicket(newTicketData, 'customer');
-        if (success) {
+        const ticket = await createTicket(newTicketData, 'customer');
+        if (ticket) {
             setNewTicketData({ subject: '', message: '' });
-            fetchTickets({}, 'customer');
-            setView('list');
+            handleOpenTicket(ticket.id || ticket._id);
         }
     };
 
@@ -107,7 +107,12 @@ const SupportChatWidget = () => {
                         </div>
 
                         {/* Content */}
-                        <div className="flex-1 overflow-y-auto bg-gray-50 flex flex-col">
+                        <div className="flex-1 overflow-y-auto bg-gray-50 flex flex-col relative">
+                            {isLoading && (
+                                <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-50 flex items-center justify-center">
+                                    <FiLoader className="text-3xl text-primary-600 animate-spin" />
+                                </div>
+                            )}
                             {view === 'list' && (
                                 <div className="p-4 space-y-4">
                                     <div className="flex items-center justify-between mb-2">
@@ -251,6 +256,19 @@ const SupportChatWidget = () => {
                                             <FiSend />
                                         </button>
                                     </div>
+                                </div>
+                            )}
+                            {view === 'chat' && !selectedTicket && !isLoading && (
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white">
+                                    <FiMessageCircle className="text-4xl text-gray-200 mb-4" />
+                                    <h4 className="font-bold text-gray-700">Ticket not found</h4>
+                                    <p className="text-xs text-gray-500 mt-2">We couldn't load this conversation.</p>
+                                    <button
+                                        onClick={() => setView('list')}
+                                        className="mt-6 text-sm text-primary-600 font-bold hover:underline"
+                                    >
+                                        Back to list
+                                    </button>
                                 </div>
                             )}
                         </div>

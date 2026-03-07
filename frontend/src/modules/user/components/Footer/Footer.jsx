@@ -6,42 +6,42 @@ const footerSections = [
     {
         title: 'Customer Care',
         items: [
-            { name: 'Contact Us', icon: HelpCircle },
-            { name: 'Track Order', icon: Package },
-            { name: "FAQ's", icon: HelpCircle }
+            { name: 'Contact Us', icon: HelpCircle, path: '/legal/contact' },
+            { name: 'Track Order', icon: Package, path: '/orders' },
+            { name: "FAQ's", icon: HelpCircle, path: '/legal/faq' }
         ]
     },
     {
         title: 'Quick Links',
         items: [
-            { name: 'Offer Zone', icon: null },
-            { name: 'Premium Brands', icon: null },
-            { name: 'Sitemap', icon: null }
+            { name: 'Offer Zone', icon: null, path: '/offers' },
+            { name: 'Premium Brands', icon: null, path: '/shop' },
+            { name: 'Sitemap', icon: null, path: '/' }
         ]
     },
     {
         title: 'Top Categories',
         items: [
-            { name: 'The Essentials', icon: null },
-            { name: 'Outerwear', icon: null },
-            { name: 'Athleisure', icon: null },
-            { name: 'Dresses', icon: null }
+            { name: 'The Essentials', icon: null, path: '/shop' },
+            { name: 'Outerwear', icon: null, path: '/shop' },
+            { name: 'Athleisure', icon: null, path: '/shop' },
+            { name: 'Dresses', icon: null, path: '/shop' }
         ]
     },
     {
         title: 'The Company',
         items: [
-            { name: 'Who are we', icon: null },
-            { name: 'Careers', icon: Briefcase }
+            { name: 'Who are we', icon: null, path: '/legal/about' },
+            { name: 'Careers', icon: Briefcase, path: '/' }
         ]
     },
     {
         title: 'Legal & Policies',
         items: [
-            { name: 'Terms & Conditions', icon: null },
-            { name: 'Privacy Policy', icon: ShieldCheck },
-            { name: 'Refund Policy', icon: CreditCard },
-            { name: 'Return Policy', icon: null }
+            { name: 'Terms & Conditions', icon: null, path: '/legal/terms' },
+            { name: 'Privacy Policy', icon: ShieldCheck, path: '/legal/privacy' },
+            { name: 'Refund Policy', icon: CreditCard, path: '/legal/refund' },
+            { name: 'Return Policy', icon: null, path: '/legal/refund' }
         ]
     }
 ];
@@ -170,10 +170,10 @@ const Footer = () => {
                                     <ul className="space-y-3 md:space-y-3 pl-4 md:pl-0">
                                         {section.items.map(item => (
                                             <li key={item.name} className="group relative">
-                                                <div className="text-[10px] md:text-[12px] font-bold text-white/40 md:text-white/50 uppercase tracking-[0.15em] cursor-pointer hover:text-[#FAFAFA] transition-colors flex items-center gap-2">
+                                                <Link to={item.path || '#'} className="no-underline text-[10px] md:text-[12px] font-bold text-white/40 md:text-white/50 uppercase tracking-[0.15em] cursor-pointer hover:text-[#FAFAFA] transition-colors flex items-center gap-2">
                                                     {item.icon && <item.icon size={10} className="text-[#D4AF37] opacity-60 md:opacity-100" />}
                                                     {item.name}
-                                                </div>
+                                                </Link>
                                             </li>
                                         ))}
                                     </ul>

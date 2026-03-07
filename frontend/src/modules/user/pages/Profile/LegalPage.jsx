@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
+import { getPublicSetting } from '../../../../shared/services/settingsService';
 
 // Initial/Fallback data in case nothing is in localStorage/Admin yet
 const DEFAULT_LEGAL_DATA = {
@@ -71,22 +72,52 @@ const DEFAULT_LEGAL_DATA = {
 const LegalPage = () => {
     const { pageId } = useParams();
     const [pageContent, setPageContent] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const keyMap = {
+        'terms': 'terms_policy',
+        'privacy': 'privacy_policy',
+        'refund': 'refund_policy',
+        'about': 'about_us',
+        'contact': 'contact_info'
+    };
 
     useEffect(() => {
-        // 1. Try to get from localStorage (Admin updates will set this)
-        const storedData = localStorage.getItem(`legal_content_${pageId}`);
+        const fetchContent = async () => {
+            setIsLoading(true);
+            try {
+                const key = keyMap[pageId];
+                if (key) {
+                    const res = await getPublicSetting(key);
+                    if (res?.data) {
+                        setPageContent({
+                            title: DEFAULT_LEGAL_DATA[pageId]?.title || 'Information',
+                            content: res.data
+                        });
+                        return;
+                    }
+                }
 
-        if (storedData) {
-            setPageContent(JSON.parse(storedData));
-        } else {
-            // 2. Fallback to default bundled data
-            setPageContent(DEFAULT_LEGAL_DATA[pageId] || {
-                title: 'Information',
-                content: '<p class="text-gray-500 font-bold uppercase text-[10px] tracking-widest">Coming soon...</p>'
-            });
-        }
+                // Fallback to default bundled data
+                setPageContent(DEFAULT_LEGAL_DATA[pageId] || {
+                    title: 'Information',
+                    content: '<p class="text-gray-500 font-bold uppercase text-[10px] tracking-widest">Coming soon...</p>'
+                });
+            } catch (err) {
+                console.error('Error fetching legal content:', err);
+                setPageContent(DEFAULT_LEGAL_DATA[pageId] || {
+                    title: 'Information',
+                    content: '<p class="text-gray-500 font-bold uppercase text-[10px] tracking-widest">Coming soon...</p>'
+                });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchContent();
     }, [pageId]);
 
+    if (isLoading) return <div className="p-20 text-center text-gray-400 font-bold uppercase tracking-widest animate-pulse">Loading...</div>;
     if (!pageContent) return null;
 
     return (

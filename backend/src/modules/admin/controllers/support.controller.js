@@ -14,11 +14,17 @@ const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g,
  * @access  Private (Admin)
  */
 export const getAllTickets = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, search = '', status, priority } = req.query;
+    const { page = 1, limit = 10, search = '', status, priority, type } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const limitNumber = Math.max(parseInt(limit, 10) || 10, 1);
 
     const filter = {};
+
+    if (type === 'customer') {
+        filter.userId = { $ne: null };
+    } else if (type === 'vendor') {
+        filter.vendorId = { $ne: null };
+    }
 
     if (status && status !== 'all') {
         filter.status = status;
@@ -133,8 +139,32 @@ export const updateTicketStatus = asyncHandler(async (req, res) => {
 
     await ticket.save();
 
+    // Re-fetch or populate to get full details for the response
+    const updatedTicket = await SupportTicket.findById(ticket._id)
+        .populate('userId', 'name email phone')
+        .populate('vendorId', 'storeName email')
+        .populate('ticketTypeId', 'name');
+
+    // Normalize
+    const normalized = {
+        ...updatedTicket._doc,
+        id: updatedTicket._id,
+        customer: updatedTicket.userId ? {
+            name: updatedTicket.userId.name,
+            email: updatedTicket.userId.email,
+            phone: updatedTicket.userId.phone
+        } : (updatedTicket.vendorId ? {
+            name: updatedTicket.vendorId.storeName || 'Vendor',
+            email: updatedTicket.vendorId.email
+        } : { name: 'Anonymous' }),
+        category: updatedTicket.ticketTypeId ? updatedTicket.ticketTypeId.name : 'General'
+    };
+
+    // Emit real-time update
+    emitEvent(`ticket_${ticket._id}`, 'ticket_status_updated', normalized);
+
     res.status(200).json(
-        new ApiResponse(200, ticket, 'Ticket status updated successfully')
+        new ApiResponse(200, normalized, 'Ticket status updated successfully')
     );
 });
 

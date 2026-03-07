@@ -1,31 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiSave, FiFileText } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { getAdminSetting, updateAdminSetting } from '../../services/adminService';
 
 const RefundPolicy = () => {
-  const [content, setContent] = useState(`Refund Policy
+  const [content, setContent] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-Last updated: ${new Date().toLocaleDateString()}
+  useEffect(() => {
+    const fetchPolicy = async () => {
+      try {
+        const res = await getAdminSetting('refund_policy');
+        if (res?.data) {
+          setContent(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching refund policy:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPolicy();
+  }, []);
 
-1. Refund Eligibility
-Items must be returned within 30 days of purchase in their original condition with tags attached.
-
-2. Refund Process
-To initiate a refund, please contact our customer service team. Refunds will be processed within 5-7 business days.
-
-3. Non-Refundable Items
-Certain items such as personalized products, digital goods, and perishable items are not eligible for refunds.
-
-4. Return Shipping
-Customers are responsible for return shipping costs unless the item was defective or incorrect.
-
-5. Refund Methods
-Refunds will be issued to the original payment method used for the purchase.`);
-
-  const handleSave = () => {
-    toast.success('Refund policy saved successfully');
+  const handleSave = async () => {
+    try {
+      await updateAdminSetting('refund_policy', content);
+      toast.success('Refund policy saved successfully');
+    } catch (err) {
+      toast.error('Failed to save policy');
+    }
   };
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-gray-400 font-bold uppercase tracking-widest animate-pulse">Loading Policy...</div>;
+  }
 
   return (
     <motion.div

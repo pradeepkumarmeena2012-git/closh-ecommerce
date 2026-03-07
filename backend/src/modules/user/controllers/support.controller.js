@@ -1,5 +1,6 @@
 import SupportTicket from '../../../models/SupportTicket.model.js';
 import Admin from '../../../models/Admin.model.js';
+import User from '../../../models/User.model.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import { ApiError } from '../../../utils/ApiError.js';
@@ -12,7 +13,7 @@ import { emitEvent } from '../../../services/socket.service.js';
  * @access  Private (Customer)
  */
 export const getUserTickets = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
+    const userId = req.user.id;
     const tickets = await SupportTicket.find({ userId })
         .sort({ updatedAt: -1 });
 
@@ -25,7 +26,7 @@ export const getUserTickets = asyncHandler(async (req, res) => {
  * @access  Private (Customer)
  */
 export const getUserTicketById = asyncHandler(async (req, res) => {
-    const userId = req.user._id;
+    const userId = req.user.id;
     const { id } = req.params;
 
     const ticket = await SupportTicket.findOne({ _id: id, userId });
@@ -47,11 +48,15 @@ export const getUserTicketById = asyncHandler(async (req, res) => {
  */
 export const createSupportTicket = asyncHandler(async (req, res) => {
     const { subject, message, ticketTypeId } = req.body;
-    const userId = req.user._id;
+    const userId = req.user.id;
 
     if (!subject || !message) {
         throw new ApiError(400, 'Subject and message are required');
     }
+
+    // Fetch user to get their name for the automated reply
+    const user = await User.findById(userId);
+    const userName = user?.name || 'User';
 
     const ticket = await SupportTicket.create({
         userId,
@@ -68,9 +73,18 @@ export const createSupportTicket = asyncHandler(async (req, res) => {
                 senderType: 'user',
                 message,
                 createdAt: new Date()
+            },
+            {
+                senderId: null, // System/Admin message
+                senderType: 'admin',
+                message: `Hello ${userName}, how can we help you?`, // Updated to use fetched userName
+                createdAt: new Date()
             }
         ]
     });
+
+    ticket.isReadByAdmin = true;
+    await ticket.save();
 
     // Notify admins
     const admins = await Admin.find({ isActive: true }).select('_id');
@@ -85,6 +99,14 @@ export const createSupportTicket = asyncHandler(async (req, res) => {
         })
     ));
 
+    // Emit real-time for admins
+    emitEvent('admin_support', 'new_ticket', {
+        ...ticket._doc,
+        id: ticket._id,
+        customer: { name: req.user.name, email: req.user.email },
+        type: 'customer'
+    });
+
     res.status(201).json(new ApiResponse(201, ticket, 'Support ticket created successfully'));
 });
 
@@ -96,7 +118,7 @@ export const createSupportTicket = asyncHandler(async (req, res) => {
 export const addUserTicketMessage = asyncHandler(async (req, res) => {
     const { message } = req.body;
     const { id } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.id;
 
     const ticket = await SupportTicket.findOne({ _id: id, userId });
     if (!ticket) {

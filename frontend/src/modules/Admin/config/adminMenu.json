@@ -128,12 +128,20 @@
     ]
   },
   {
-    "title": "Support Desk",
-    "route": "/admin/support",
+    "title": "Customer Support",
+    "route": "/admin/customer-support",
     "permission": "support_manage",
     "children": [
       "Live Chat",
-      "Ticket Types",
+      "Tickets"
+    ]
+  },
+  {
+    "title": "Vendor Support",
+    "route": "/admin/vendor-support",
+    "permission": "support_manage",
+    "children": [
+      "Live Chat",
       "Tickets"
     ]
   },
@@ -181,15 +189,6 @@
       "Privacy Policy",
       "Refund Policy",
       "Terms & Conditions"
-    ]
-  },
-  {
-    "title": "Firebase",
-    "route": "/admin/firebase",
-    "permission": "settings_manage",
-    "children": [
-      "Push Config",
-      "Authentication"
     ]
   }
 ]

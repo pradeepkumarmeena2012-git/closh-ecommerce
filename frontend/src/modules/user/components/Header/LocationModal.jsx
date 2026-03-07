@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, MapPin, CheckCircle2, ChevronLeft, Loader2 } from 'lucide-react';
-import { useLocation as useLocationContext } from '../../context/LocationContext';
+import { useUserLocation } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAddressStore } from '../../../../shared/store/addressStore';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
@@ -89,7 +89,7 @@ const fetchAddress = async (lat, lng, setAddress) => {
 
 const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     const navigate = useNavigate();
-    const { addresses, activeAddress, updateActiveAddress, refreshAddresses } = useLocationContext();
+    const { addresses, activeAddress, updateActiveAddress, refreshAddresses } = useUserLocation();
     const { user } = useAuth();
 
     // Auto-open logic for post-login
