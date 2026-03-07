@@ -5,6 +5,7 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 class SocketService {
     constructor() {
         this.socket = null;
+        this.rooms = new Set();
     }
 
     connect() {
@@ -14,10 +15,17 @@ class SocketService {
             withCredentials: true,
             autoConnect: true,
             reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000,
         });
 
         this.socket.on('connect', () => {
             console.log('🔌 Connected to Socket.io server');
+            // Re-join all rooms on reconnection
+            this.rooms.forEach(room => {
+                this.socket.emit('join_room', room);
+                console.log(`🏠 Re-joined room: ${room}`);
+            });
         });
 
         this.socket.on('disconnect', () => {
@@ -30,16 +38,25 @@ class SocketService {
     }
 
     joinRoom(room) {
-        if (this.socket) {
+        this.rooms.add(room);
+        if (this.socket && this.socket.connected) {
             this.socket.emit('join_room', room);
             console.log(`🏠 Joined room: ${room}`);
+        } else if (this.socket) {
+            console.log(`🏠 Queuing join for room: ${room} (waiting for connection)`);
+        }
+    }
+
+    leaveRoom(room) {
+        this.rooms.delete(room);
+        if (this.socket) {
+            this.socket.emit('leave_room', room);
         }
     }
 
     on(event, callback) {
-        if (this.socket) {
-            this.socket.on(event, callback);
-        }
+        if (!this.socket) this.connect();
+        this.socket.on(event, callback);
     }
 
     off(event) {
@@ -52,6 +69,7 @@ class SocketService {
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
+            this.rooms.clear();
         }
     }
 }

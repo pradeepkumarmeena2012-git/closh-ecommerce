@@ -89,8 +89,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     const currentStatus = String(vendorItem.status || 'pending').trim().toLowerCase();
 
     const transitionMap = {
-        pending: ['accepted', 'cancelled'],
-        accepted: ['ready_for_pickup', 'cancelled'],
+        pending: ['accepted', 'processing', 'ready_for_pickup', 'cancelled'],
+        accepted: ['accepted', 'ready_for_pickup', 'cancelled', 'processing'],
+        processing: ['processing', 'ready_for_pickup', 'cancelled', 'accepted'],
         ready_for_pickup: ['ready_for_pickup', 'picked_up', 'cancelled'], // picked_up by delivery partner
         picked_up: ['picked_up', 'out_for_delivery'],
         out_for_delivery: ['out_for_delivery', 'delivered'],
@@ -103,6 +104,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         throw new ApiError(409, `Cannot move order from "${currentStatus}" to "${status}". Allowed: ${allowedNextStatuses.join(', ')}`);
     }
 
+    const vendor = await mongoose.model('Vendor').findById(req.user.id);
+    const storeName = vendor?.storeName || req.user.email || 'Store';
+
     // Update only this vendor's items status
     order.vendorItems = order.vendorItems.map((vi) =>
         vi.vendorId.toString() === req.user.id ? { ...vi.toObject(), status } : vi
@@ -111,7 +115,6 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     await order.save();
 
     if (status === 'ready_for_pickup') {
-        const vendor = await mongoose.model('Vendor').findById(req.user.id);
         if (vendor && vendor.shopLocation) {
             order.pickupLocation = vendor.shopLocation;
             await order.save();
@@ -124,17 +127,24 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         emitEvent('delivery_partners', 'order_ready_for_pickup', {
             orderId: order.orderId,
             pickupLocation: order.pickupLocation,
-            vendorName: vendor?.storeName || 'Store'
+            vendorName: storeName
         });
     }
+
+    // Notify VENDOR in real-time (for multi-tab / cross-device sync)
+    emitEvent(`vendor_${req.user.id}`, 'order_updated', {
+        orderId: order.orderId,
+        status: status,
+        message: `Order ${order.orderId} moved to ${status.replace(/_/g, ' ')}.`
+    });
 
     // Notify Customer in real-time
     if (order.userId) {
         emitEvent(`user_${order.userId}`, 'order_status_updated', {
             orderId: order.orderId,
             status: status,
-            vendorName: req.user.storeName,
-            message: `Your order ${order.orderId} is now ${status.replace(/_/g, ' ')}.`
+            vendorName: storeName,
+            message: `Your order ${order.orderId} has been ${status.replace(/_/g, ' ')} by ${storeName}.`
         });
     }
 

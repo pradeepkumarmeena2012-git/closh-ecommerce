@@ -30,11 +30,13 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
     const displayAmount = vendorItem?.subtotal ?? order.totalAmount ?? order.total ?? 0;
     const orderId = order.orderId ?? order._id;
 
+    const nextStatus = ['pending', 'accepted', 'processing'].includes(currentStatus) ? 'ready_for_pickup' : null;
+    const nextActionLabel = 'Mark Ready';
+
     const handleDragEnd = async (event, info) => {
-        if (info.offset.x >= 180 && !isUpdating) {
+        if (info.offset.x >= 180 && !isUpdating && nextStatus) {
             setIsUpdating(true);
             try {
-                const nextStatus = currentStatus === 'pending' ? 'ready_for_pickup' : (currentStatus === 'ready_for_pickup' ? 'delivered' : 'ready_for_pickup');
                 const res = await updateOrderStatus(orderId, nextStatus);
                 if (res.success) {
                     setIsSuccess(true);
@@ -73,7 +75,7 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
         );
     }
 
-    const nextActionLabel = currentStatus === 'pending' ? 'Accept Order' : (currentStatus === 'ready_for_pickup' ? 'Mark Delivered' : 'Mark Ready');
+
 
     return (
         <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">

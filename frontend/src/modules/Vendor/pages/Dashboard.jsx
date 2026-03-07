@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -73,72 +73,82 @@ const VendorDashboard = () => {
     );
   }, [vendor]);
 
+  const loadDashboardData = useCallback(async () => {
+    if (!vendorId) return;
+    setIsLoading(true);
+    try {
+      // Fetch orders and earnings in parallel
+      const [ordersRes, earningsRes, pendingRes, acceptedRes, processingRes] = await Promise.all([
+        getVendorOrders({ page: 1, limit: 5 }),
+        getVendorEarnings(),
+        getVendorOrders({ page: 1, limit: 1, status: "pending" }),
+        getVendorOrders({ page: 1, limit: 1, status: "accepted" }),
+        getVendorOrders({ page: 1, limit: 1, status: "processing" }),
+      ]);
+
+      const ordersData = ordersRes?.data ?? ordersRes;
+      const earningsData = earningsRes?.data ?? earningsRes;
+      const pendingData = pendingRes?.data ?? pendingRes;
+      const acceptedData = acceptedRes?.data ?? acceptedRes;
+      const processingData = processingRes?.data ?? processingRes;
+
+      const orders = ordersData?.orders ?? [];
+      const summary = earningsData?.summary ?? {};
+      const pendingCount =
+        Number(pendingData?.total || 0) +
+        Number(acceptedData?.total || 0) +
+        Number(processingData?.total || 0);
+
+      setStats((prev) => ({
+        ...prev,
+        totalOrders: ordersData?.total ?? orders.length,
+        pendingOrders: pendingCount,
+        totalEarnings: summary.totalEarnings ?? 0,
+        pendingEarnings: summary.pendingEarnings ?? 0,
+      }));
+
+      setRecentOrders(orders);
+    } catch {
+      // errors handled by api.js toast
+    } finally {
+      setIsLoading(false);
+    }
+  }, [vendorId]);
+
   useEffect(() => {
     if (!vendorId) return;
 
-    // Load products into the product store (reuse if already fetched)
     if (products.length === 0) {
       fetchProducts();
     }
 
-    const loadDashboardData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch orders and earnings in parallel
-        const [ordersRes, earningsRes, pendingRes, processingRes] = await Promise.all([
-          getVendorOrders({ page: 1, limit: 5 }),
-          getVendorEarnings(),
-          getVendorOrders({ page: 1, limit: 1, status: "pending" }),
-          getVendorOrders({ page: 1, limit: 1, status: "accepted" }), // Changed from processing to accepted
-        ]);
-
-        const ordersData = ordersRes?.data ?? ordersRes;
-        const earningsData = earningsRes?.data ?? earningsRes;
-        const pendingData = pendingRes?.data ?? pendingRes;
-        const processingData = processingRes?.data ?? processingRes;
-
-        const orders = ordersData?.orders ?? [];
-        const summary = earningsData?.summary ?? {};
-        const pending =
-          Number(pendingData?.total || 0) + Number(processingData?.total || 0);
-
-        setStats((prev) => ({
-          ...prev,
-          totalOrders: ordersData?.total ?? orders.length,
-          pendingOrders: pending,
-          totalEarnings: summary.totalEarnings ?? 0,
-          pendingEarnings: summary.pendingEarnings ?? 0,
-        }));
-
-        setRecentOrders(orders);
-      } catch {
-        // errors handled by api.js toast
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadDashboardData();
 
-    // Socket implementation
-    if (vendorId) {
-      socketService.connect();
-      socketService.joinRoom(`vendor_${vendorId}`);
-      socketService.on("order_created", (newOrder) => {
-        toast.success(`🎉 New Order #${newOrder.orderId} received!`, { duration: 5000 });
-        loadDashboardData();
-        // Play notification sound if desired
-      });
-      socketService.on("order_picked_up", () => loadDashboardData());
-      socketService.on("order_delivered", () => loadDashboardData());
-    }
+    socketService.connect();
+    socketService.joinRoom(`vendor_${vendorId}`);
+
+    socketService.on("order_created", (newOrder) => {
+      toast.success(`🎉 New Order #${newOrder.orderId} received!`, { duration: 5000 });
+      loadDashboardData();
+    });
+    socketService.on("order_picked_up", () => loadDashboardData());
+    socketService.on("order_delivered", () => loadDashboardData());
+    socketService.on("order_updated", () => loadDashboardData());
+
+    // Fallback Polling (Every 30 seconds) for environments where Sockets might be unstable (like Vercel)
+    const pollInterval = setInterval(() => {
+      console.log("🔄 Polling dashboard data...");
+      loadDashboardData();
+    }, 30000);
 
     return () => {
+      clearInterval(pollInterval);
       socketService.off("order_created");
       socketService.off("order_picked_up");
       socketService.off("order_delivered");
+      socketService.off("order_updated");
     };
-  }, [vendorId, fetchProducts, products.length]);
+  }, [vendorId, fetchProducts, loadDashboardData, products.length]);
 
   // Sync product counts whenever the product store updates
   useEffect(() => {
@@ -356,15 +366,14 @@ const VendorDashboard = () => {
                 const displayStatus = (vendorItem?.status || order.status || 'pending').toLowerCase();
 
                 // If it's an actionable order, show the swipe card
-                if (['pending', 'processing'].includes(displayStatus)) {
+                if (['pending', 'accepted', 'processing'].includes(displayStatus)) {
                   return (
                     <SwipeOrderCard
                       key={order._id ?? order.orderId}
                       order={order}
                       onStatusUpdate={() => {
                         // Refresh dashboard data after update
-                        // We could also manually update the local state but reload is safer for stats
-                        // loadDashboardData(); 
+                        loadDashboardData();
                       }}
                     />
                   );
