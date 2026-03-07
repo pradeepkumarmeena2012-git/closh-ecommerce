@@ -198,7 +198,15 @@ api.interceptors.response.use(
       error.response?.data?.message ||
       error.message ||
       'Something went wrong';
-    toast.error(message);
+
+    // Suppress toast for GPS location update rate limits (429 on profile update)
+    const is429 = error.response?.status === 429;
+    const isLocationUpdate =
+      originalRequest.url?.includes('/delivery/auth/profile') &&
+      originalRequest.method?.toLowerCase() === 'put';
+    if (!is429 || !isLocationUpdate) {
+      toast.error(message);
+    }
 
     if (error.response?.status === 401) {
       const activeScope = pathScope;

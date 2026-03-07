@@ -1,47 +1,27 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-const orderSchema = new mongoose.Schema({
-    orderId: String,
-    status: String,
-    deliveryBoyId: mongoose.Schema.Types.ObjectId,
-    isDeleted: Boolean
-}, { strict: false });
+import Order from './src/models/Order.model.js';
 
-const Order = mongoose.models.Order || mongoose.model('Order', orderSchema, 'orders');
-
-async function checkOrders() {
+async function check() {
     try {
         await mongoose.connect(process.env.MONGO_URI);
-        console.log('Connected to MongoDB');
-
-        const orders = await Order.find({
-            isDeleted: { $ne: true }
-        }).select('orderId status deliveryBoyId createdAt').limit(20);
-
-        console.log('\n--- Current Orders Status (Limit 20) ---');
-        if (orders.length === 0) {
-            console.log('No orders found in database.');
-        } else {
-            orders.forEach(o => {
-                console.log(`ID: ${o.orderId} | Status: ${o.status} | DeliveryBoy: ${o.deliveryBoyId || 'NONE'}`);
-            });
-        }
-
-        const availableOrders = await Order.find({
-            status: 'ready_for_delivery',
-            deliveryBoyId: { $exists: false },
-            isDeleted: { $ne: true }
-        });
-
-        console.log(`\nAvailable for Delivery Count: ${availableOrders.length}`);
-
-        await mongoose.disconnect();
+        console.log('Connected to DB');
+        const orders = await Order.find({ status: 'delivered' }).limit(5).lean();
+        console.log('Delivered Orders count:', await Order.countDocuments({ status: 'delivered' }));
+        console.log('Sample Delivered Orders:', JSON.stringify(orders, null, 2));
+        process.exit(0);
     } catch (err) {
-        console.error('Error:', err);
+        console.error(err);
+        process.exit(1);
     }
 }
 
-checkOrders();
+check();

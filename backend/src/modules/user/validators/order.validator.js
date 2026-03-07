@@ -21,7 +21,9 @@ export const placeOrderSchema = Joi.object({
     }).required(),
     paymentMethod: Joi.string().valid('card', 'cash', 'cod', 'bank', 'wallet', 'upi').required(),
     couponCode: Joi.string().optional().allow(''),
-    shippingOption: Joi.string().valid('standard', 'express', 'try_and_buy', 'check_and_buy').default('standard'),
+    shippingOption: Joi.string().valid('standard', 'express', 'try_and_buy', 'check_and_buy', 'online').default('online'),
+    orderType: Joi.string().valid('check_and_buy', 'try_and_buy').required(),
+    deliveryType: Joi.string().valid('online').default('online'),
 });
 
 export const createReturnRequestSchema = Joi.object({

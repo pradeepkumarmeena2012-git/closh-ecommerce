@@ -17,6 +17,7 @@ const normalizeVendorGroup = (group) => ({
 
 const normalizeOrder = (order) => {
   const id = order?.id || order?.orderId || order?._id;
+  const shipping = order?.shippingAddress || {};
   return {
     ...order,
     id,
@@ -26,6 +27,17 @@ const normalizeOrder = (order) => {
     vendorItems: Array.isArray(order?.vendorItems)
       ? order.vendorItems.map(normalizeVendorGroup)
       : [],
+    // Map backend shippingAddress to UI address object
+    address: {
+      ...shipping,
+      address: shipping.address || '',
+      locality: shipping.locality || '',
+      city: shipping.city || '',
+      state: shipping.state || '',
+      pincode: shipping.zipCode || shipping.pincode || '',
+      mobile: shipping.phone || shipping.mobile || '',
+      name: shipping.name || order?.guestInfo?.name || 'Customer',
+    }
   };
 };
 
@@ -46,6 +58,7 @@ const buildIdempotencyKey = (payload, userId = null) => {
     paymentMethod: payload?.paymentMethod || "",
     couponCode: payload?.couponCode || "",
     shippingOption: payload?.shippingOption || "standard",
+    orderType: payload?.orderType || "check_and_buy",
   });
 
   let hash = 0;
@@ -94,6 +107,7 @@ export const useOrderStore = create(
             paymentMethod: orderData.paymentMethod,
             couponCode: orderData.couponCode || undefined,
             shippingOption: orderData.shippingOption || 'standard',
+            orderType: orderData.orderType || 'check_and_buy',
           };
           const idempotencyKey = buildIdempotencyKey(payload, orderData.userId);
 

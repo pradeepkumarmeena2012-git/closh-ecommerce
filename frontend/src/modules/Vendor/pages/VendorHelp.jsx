@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiMessageSquare, FiSend, FiMail, FiPhoneCall, FiClock, FiPlus, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
+import socketService from '../../../shared/utils/socket';
 
 const VendorHelp = () => {
     const [tickets, setTickets] = useState([]);
@@ -19,6 +20,49 @@ const VendorHelp = () => {
     useEffect(() => {
         fetchTickets();
     }, []);
+
+    // Real-time: join ticket room when a ticket is selected
+    useEffect(() => {
+        if (!selectedTicket) return;
+        const ticketId = selectedTicket._id;
+        socketService.connect();
+
+        // Wait for connection before joining room
+        const doJoin = () => {
+            socketService.joinRoom(`ticket_${ticketId}`);
+            console.log(`📡 Vendor joined support room: ticket_${ticketId}`);
+        };
+
+        if (socketService.socket?.connected) {
+            doJoin();
+        } else {
+            socketService.socket?.once('connect', doJoin);
+        }
+
+        const handler = (message) => {
+            setSelectedTicket((prev) => {
+                if (!prev || prev._id !== ticketId) return prev;
+
+                // Prevent duplicate messages
+                const isDuplicate = prev.messages.some(m =>
+                    m.message === message.message &&
+                    m.senderType === message.senderType &&
+                    String(m.createdAt) === String(message.createdAt)
+                );
+                if (isDuplicate) return prev;
+
+                return {
+                    ...prev,
+                    messages: [...prev.messages, message]
+                };
+            });
+        };
+        socketService.on('new_support_message', handler);
+
+        return () => {
+            socketService.off('new_support_message');
+        };
+    }, [selectedTicket?._id]);
 
     const fetchTickets = async () => {
         setIsLoading(true);
@@ -71,28 +115,38 @@ const VendorHelp = () => {
 
         if (!replyMessage.trim() || !selectedTicket) return;
 
+        // Optimistic update: show message immediately
+        const optimisticMsg = {
+            senderId: 'vendor',
+            senderType: 'vendor',
+            message: replyMessage.trim(),
+            createdAt: new Date().toISOString()
+        };
+
+        const previousTicket = { ...selectedTicket, messages: [...selectedTicket.messages] };
+
+        setSelectedTicket({
+            ...selectedTicket,
+            messages: [...selectedTicket.messages, optimisticMsg],
+            status: 'open'
+        });
+        setReplyMessage('');
+
         setIsSubmitting(true);
         try {
-            const response = await api.post(`/vendor/support/tickets/${selectedTicket._id}/messages`, {
-                message: replyMessage
+            await api.post(`/vendor/support/tickets/${selectedTicket._id}/messages`, {
+                message: optimisticMsg.message
             });
-            const newMessage = response.data;
-            if (newMessage) {
-                setSelectedTicket({
-                    ...selectedTicket,
-                    messages: [...selectedTicket.messages, newMessage],
-                    status: 'open'
-                });
 
-                // Update in ticket list
-                setTickets(tickets.map(t =>
-                    t._id === selectedTicket._id
-                        ? { ...t, messages: [...t.messages, newMessage], status: 'open' }
-                        : t
-                ));
-            }
-            setReplyMessage('');
+            // Update in ticket list
+            setTickets(tickets.map(t =>
+                t._id === selectedTicket._id
+                    ? { ...t, status: 'open' }
+                    : t
+            ));
         } catch (error) {
+            // Rollback on failure
+            setSelectedTicket(previousTicket);
             toast.error(error.response?.data?.message || 'Failed to send message.');
         } finally {
             setIsSubmitting(false);

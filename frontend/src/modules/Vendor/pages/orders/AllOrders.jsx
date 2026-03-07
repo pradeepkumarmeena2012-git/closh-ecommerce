@@ -173,6 +173,16 @@ const AllOrders = () => {
       },
     },
     {
+      key: 'orderType',
+      label: 'Type',
+      sortable: true,
+      render: (value) => (
+        <span className={`px-2 py-0.5 ${value === 'try_and_buy' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-blue-100 text-blue-700 border-blue-200'} text-[10px] font-black rounded-lg border uppercase tracking-tighter shadow-sm animate-pulse`}>
+          {value?.replace(/_/g, ' ') || 'STANDARD'}
+        </span>
+      ),
+    },
+    {
       key: 'actions',
       label: 'Actions',
       sortable: false,

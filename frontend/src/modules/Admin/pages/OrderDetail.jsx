@@ -13,7 +13,8 @@ import {
   FiTag,
   FiPackage,
   FiClock,
-  FiMail
+  FiMail,
+  FiCamera
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
@@ -137,7 +138,14 @@ const OrderDetail = () => {
             <FiArrowLeft className="text-lg text-gray-600" />
           </button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{order.id}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{order.id}</h1>
+              {order.orderType && order.orderType !== 'standard' && (
+                <span className={`px-2 py-0.5 ${order.orderType === 'try_and_buy' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-blue-50 text-blue-700 border-blue-100'} text-[10px] font-black rounded-lg border uppercase tracking-tighter shadow-sm animate-pulse`}>
+                  {order.orderType.replace(/_/g, ' ')}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500">{formatDateTime(order.date)}</p>
           </div>
         </div>
@@ -197,7 +205,7 @@ const OrderDetail = () => {
                 />
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div>
                   <p className="text-xs text-gray-500 mb-0.5">Total</p>
                   <p className="font-bold text-gray-800 text-lg">{formatCurrency(order.total)}</p>
@@ -218,6 +226,14 @@ const OrderDetail = () => {
                     {order.paymentStatus || (order.paymentMethod === 'cash' ? 'Pending' : 'Paid')}
                   </Badge>
                 </div>
+                {(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-0.5">Cash Settlement</p>
+                    <Badge variant={order.isCashSettled ? 'delivered' : 'pending'} className="text-[10px] font-black uppercase">
+                      {order.isCashSettled ? 'Settled to Office' : 'Pending Settlement'}
+                    </Badge>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -313,10 +329,27 @@ const OrderDetail = () => {
                 </div>
               )}
             </div>
+
+            {/* Special Instructions (Try & Buy / Check & Buy) */}
+            {order.deliveryType && order.deliveryType !== 'standard' && (
+              <div className={`mt-4 p-3 rounded-lg border-l-4 ${order.deliveryType === 'try_and_buy' ? 'bg-orange-50 border-orange-500' : 'bg-blue-50 border-blue-500'}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <FiClock className={order.deliveryType === 'try_and_buy' ? 'text-orange-600' : 'text-blue-600'} />
+                  <h2 className="text-sm font-black uppercase text-gray-800">
+                    {order.deliveryType.replace(/_/g, ' ')} Instruction
+                  </h2>
+                </div>
+                <p className="text-xs text-gray-600 font-medium">
+                  {order.deliveryType === 'try_and_buy'
+                    ? "Rider will wait for the customer to try the clothes. Returns may be handled on the spot."
+                    : "Rider will allow the customer to inspect the package before finalizing the delivery."}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Tracking & Delivery Compact */}
-          {(order.trackingNumber || order.estimatedDelivery || order.deliveredDate || order.deliveredAt) && (
+          {(order.trackingNumber || order.deliveredDate || order.deliveredAt) && (
             <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
                 <FiTruck className="text-primary-600 text-base" />
@@ -329,15 +362,13 @@ const OrderDetail = () => {
                     <p className="font-semibold text-xs text-gray-800 font-mono">{order.trackingNumber}</p>
                   </div>
                 )}
-                {order.estimatedDelivery && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
-                      <FiClock className="text-xs" />
-                      Est. Delivery
-                    </p>
-                    <p className="font-semibold text-xs text-gray-800">{formatDateTime(order.estimatedDelivery)}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
+                    <FiClock className="text-xs" />
+                    Delivery Type
+                  </p>
+                  <p className="font-semibold text-xs text-primary-600 uppercase">Instant (60 Mins)</p>
+                </div>
                 {(order.deliveredDate || order.deliveredAt) && (
                   <div>
                     <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
@@ -347,6 +378,50 @@ const OrderDetail = () => {
                     <p className="font-semibold text-xs text-gray-800">
                       {formatDateTime(order.deliveredDate || order.deliveredAt)}
                     </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Proof of Delivery Card */}
+          {(order.pickupPhoto || order.deliveryPhoto) && (
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+                <FiCamera className="text-primary-600 text-base" />
+                Proof of Delivery
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {order.pickupPhoto && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Pickup Proof (from Vendor)</p>
+                    <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 group">
+                      <img
+                        src={order.pickupPhoto}
+                        alt="Pickup Proof"
+                        className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                        onClick={() => window.open(order.pickupPhoto, '_blank')}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <span className="text-white text-[10px] font-bold uppercase tracking-widest">Click to View</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {order.deliveryPhoto && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Delivery Proof (to Customer)</p>
+                    <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 group">
+                      <img
+                        src={order.deliveryPhoto}
+                        alt="Delivery Proof"
+                        className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                        onClick={() => window.open(order.deliveryPhoto, '_blank')}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <span className="text-white text-[10px] font-bold uppercase tracking-widest">Click to View</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -458,7 +533,7 @@ const OrderDetail = () => {
             <div className="space-y-1.5">
               {order.trackingNumber && (
                 <button
-                  onClick={() => window.open(`/track-order/${order.id}`, '_blank')}
+                  onClick={() => navigate(`/admin/orders/order-tracking?orderId=${order.id}`)}
                   className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-xs font-semibold"
                 >
                   <FiTruck className="text-sm" />

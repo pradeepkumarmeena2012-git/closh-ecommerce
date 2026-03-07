@@ -1,5 +1,7 @@
 import { useOrderStore } from '../../../../shared/store/orderStore';
+import { useAddressStore } from '../../../../shared/store/addressStore';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -48,7 +50,7 @@ const PaymentPage = () => {
     const [showLocationModal, setShowLocationModal] = useState(false); // Header-style location modal
 
     const [paymentMethod, setPaymentMethod] = useState('');
-    const [deliveryType, setDeliveryType] = useState('standard');
+    const [deliveryType, setDeliveryType] = useState(location.state?.deliveryType === 'standard' ? 'check_and_buy' : (location.state?.deliveryType || 'check_and_buy'));
     const [isProcessing, setIsProcessing] = useState(false);
     const [expandedOption, setExpandedOption] = useState('');
     const isNavigatingToSuccess = React.useRef(false);
@@ -207,7 +209,7 @@ const PaymentPage = () => {
                 shippingAddress: {
                     name: currentAddress.fullName || currentAddress.name || user?.name || "Customer",
                     email: user?.email || "user@test.com",
-                    phone: currentAddress.mobile || currentAddress.phone || user?.mobile || user?.phone || "0000000000",
+                    phone: currentAddress.mobile || currentAddress.phone || user?.mobile || user?.phone || "N/A",
                     address: currentAddress.address || "Street Address",
                     city: currentAddress.city || "City",
                     state: currentAddress.state || "State",
@@ -216,7 +218,9 @@ const PaymentPage = () => {
                 },
                 paymentMethod: normalizedPaymentMethod,
                 couponCode: appliedPromo?.code || "",
-                shippingOption: ['standard', 'express', 'try_and_buy', 'check_and_buy'].includes(deliveryType) ? deliveryType : 'standard'
+                shippingOption: 'online',
+                orderType: ['try_and_buy', 'check_and_buy'].includes(deliveryType) ? deliveryType : 'check_and_buy',
+                deliveryType: 'online'
             };
 
             const response = await createOrder(orderPayload);
@@ -340,9 +344,13 @@ const PaymentPage = () => {
                                     {currentAddress.pincode ? `, ${currentAddress.pincode}` : ''}
                                 </span>
                             </div>
-                            {currentAddress.mobile && (
-                                <p className="text-[12px] text-gray-500 mt-1">Mobile: <span className="font-bold text-gray-700">{currentAddress.mobile}</span></p>
-                            )}
+                            {(() => {
+                                const phone = currentAddress.phone || currentAddress.mobile || user?.phone || user?.mobile;
+                                if (phone && phone !== "0000000000" && phone !== "N/A") {
+                                    return <p className="text-[12px] text-gray-500 mt-1">Mobile: <span className="font-bold text-gray-700">{phone}</span></p>;
+                                }
+                                return <p className="text-[12px] text-red-500 mt-1 font-medium">Please add a mobile number in your profile.</p>;
+                            })()}
                             <button
                                 onClick={() => setShowAddressSheet(true)}
                                 className="mt-3 text-[12px] font-bold text-[#e53e70] flex items-center gap-1 hover:gap-2 transition-all"
@@ -397,9 +405,8 @@ const PaymentPage = () => {
                     </div>
                     <div className="p-4 grid grid-cols-1 gap-3">
                         {[
-                            { id: 'standard', title: 'Standard Delivery', desc: 'Secure delivery to your doorstep', icon: Package },
-                            { id: 'try_and_buy', title: 'Try and Buy', desc: 'Try at your doorstep before you keep it', icon: Heart },
                             { id: 'check_and_buy', title: 'Check and Buy', desc: 'Check the product quality before you pay', icon: ShieldCheck },
+                            { id: 'try_and_buy', title: 'Try and Buy', desc: 'Try at your doorstep before you keep it', icon: Heart },
                         ].map((type) => (
                             <label
                                 key={type.id}
@@ -756,9 +763,12 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
     const [isAnimating, setIsAnimating] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
+    const [editingAddress, setEditingAddress] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isCheckingPincode, setIsCheckingPincode] = useState(false);
     const [pincode, setPincode] = useState('');
     const [newAddress, setNewAddress] = useState({
-        name: '', mobile: '', pincode: '', address: '', locality: '', city: '', state: '', type: 'Home'
+        name: '', phone: '', zipCode: '', address: '', locality: '', city: '', state: '', type: 'Home'
     });
 
     useEffect(() => {
@@ -792,16 +802,107 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
         }, 300);
     };
 
-    const handleSaveNewAddress = (e) => {
+    const handleCheckPincode = async () => {
+        if (!pincode || pincode.length !== 6) {
+            toast.error('Please enter a valid 6-digit pincode');
+            return;
+        }
+
+        setIsCheckingPincode(true);
+        try {
+            // Use existing geocode proxy to find city/state from pincode
+            const response = await api.get(`/geocode?lat=20.5937&lon=78.9629&q=${pincode}, India`);
+            const data = response?.data || response;
+
+            if (data && data.address) {
+                const addr = data.address;
+                setNewAddress(prev => ({
+                    ...prev,
+                    zipCode: pincode,
+                    city: addr.city || addr.town || addr.village || addr.district || '',
+                    state: addr.state || ''
+                }));
+                setShowAddForm(true);
+                toast.success(`Found: ${addr.city || addr.district || 'Location'} in ${addr.state}`);
+            } else {
+                // Fallback: If Nominatim reverse lookup via dummy lat/lon doesn't work, we still proceed to form
+                setShowAddForm(true);
+                setNewAddress(prev => ({ ...prev, zipCode: pincode }));
+            }
+        } catch (error) {
+            console.error("Pincode check error:", error);
+            setShowAddForm(true);
+            setNewAddress(prev => ({ ...prev, zipCode: pincode }));
+        } finally {
+            setIsCheckingPincode(false);
+        }
+    };
+
+    const handleSaveNewAddress = async (e) => {
         e.preventDefault();
-        const existing = JSON.parse(localStorage.getItem('userAddresses') || '[]');
-        const addressWithId = { ...newAddress, id: Date.now() };
-        const updated = [...existing, addressWithId];
-        localStorage.setItem('userAddresses', JSON.stringify(updated));
-        refreshAddresses();
-        onSelectAddress(addressWithId);
-        setShowAddForm(false);
-        setNewAddress({ name: '', mobile: '', pincode: '', address: '', locality: '', city: '', state: '', type: 'Home' });
+        setIsSaving(true);
+        try {
+            const payload = {
+                name: newAddress.type,
+                fullName: newAddress.name,
+                phone: newAddress.phone,
+                address: newAddress.address,
+                city: newAddress.city,
+                state: newAddress.state,
+                zipCode: newAddress.zipCode,
+                locality: newAddress.locality,
+                country: 'India',
+                isDefault: addresses.length === 0
+            };
+
+            let result;
+            if (editingAddress) {
+                result = await useAddressStore.getState().updateAddress(editingAddress.id || editingAddress._id, payload);
+            } else {
+                result = await useAddressStore.getState().addAddress(payload);
+            }
+
+            if (result) {
+                toast.success(editingAddress ? 'Address updated' : 'Address saved');
+                refreshAddresses();
+                onSelectAddress(result);
+                setShowAddForm(false);
+                setEditingAddress(null);
+                setNewAddress({ name: '', phone: '', zipCode: '', address: '', locality: '', city: '', state: '', type: 'Home' });
+            }
+        } catch (error) {
+            console.error("Save address error:", error);
+            toast.error(error.response?.data?.message || 'Failed to save address');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleEditAddress = (addr) => {
+        setEditingAddress(addr);
+        setNewAddress({
+            name: addr.fullName || addr.name || '',
+            phone: addr.phone || addr.mobile || '',
+            zipCode: addr.zipCode || addr.pincode || '',
+            address: addr.address || '',
+            locality: addr.locality || '',
+            city: addr.city || '',
+            state: addr.state || '',
+            type: addr.type || 'Home'
+        });
+        setShowAddForm(true);
+    };
+
+    const handleDeleteAddress = async (id) => {
+        if (window.confirm('Are you sure you want to delete this address?')) {
+            try {
+                await useAddressStore.getState().deleteAddress(id);
+                toast.success('Address deleted');
+                refreshAddresses();
+            } catch (error) {
+                toast.error('Failed to delete address');
+            }
+        }
     };
 
     if (!isVisible) return null;
@@ -845,8 +946,12 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
                             onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                             className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-[14px] font-medium outline-none focus:border-black transition-colors bg-gray-50 focus:bg-white"
                         />
-                        <button className="px-5 py-3 text-[12px] font-bold text-[#e53e70] uppercase tracking-wide hover:bg-pink-50 rounded-xl transition-colors whitespace-nowrap">
-                            Check Pincode
+                        <button
+                            onClick={handleCheckPincode}
+                            disabled={isCheckingPincode}
+                            className={`px-5 py-3 text-[12px] font-bold text-[#e53e70] uppercase tracking-wide hover:bg-pink-50 rounded-xl transition-colors whitespace-nowrap ${isCheckingPincode ? 'opacity-50' : ''}`}
+                        >
+                            {isCheckingPincode ? 'Checking...' : 'Check Pincode'}
                         </button>
                     </div>
                 </div>
@@ -888,16 +993,23 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-[14px] font-black text-gray-900">Select Saved Address</h3>
                         <button
-                            onClick={() => setShowAddForm(!showAddForm)}
+                            onClick={() => {
+                                setEditingAddress(null);
+                                setNewAddress({ name: '', phone: '', zipCode: '', address: '', locality: '', city: '', state: '', type: 'Home' });
+                                setShowAddForm(!showAddForm);
+                            }}
                             className="text-[12px] font-bold text-[#e53e70] flex items-center gap-1 hover:gap-2 transition-all"
                         >
-                            Add New <ChevronRight size={14} />
+                            {showAddForm ? 'Cancel' : 'Add New'} <ChevronRight size={14} />
                         </button>
                     </div>
 
-                    {/* Add New Address Form (Inline) */}
+                    {/* Add/Edit Address Form (Inline) */}
                     {showAddForm && (
                         <div className="mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 animate-fadeInUp">
+                            <h4 className="text-[12px] font-black text-gray-900 uppercase tracking-widest mb-3">
+                                {editingAddress ? 'Edit Address' : 'New Address'}
+                            </h4>
                             <form onSubmit={handleSaveNewAddress} className="space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
                                     <input
@@ -911,8 +1023,8 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
                                         required
                                         placeholder="Mobile"
                                         className="w-full px-3 py-2.5 bg-white rounded-xl outline-none border border-gray-200 focus:border-black text-[13px] font-medium transition-colors"
-                                        value={newAddress.mobile}
-                                        onChange={e => setNewAddress({ ...newAddress, mobile: e.target.value })}
+                                        value={newAddress.phone}
+                                        onChange={e => setNewAddress({ ...newAddress, phone: e.target.value })}
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -920,8 +1032,8 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
                                         required
                                         placeholder="Pincode"
                                         className="w-full px-3 py-2.5 bg-white rounded-xl outline-none border border-gray-200 focus:border-black text-[13px] font-medium transition-colors"
-                                        value={newAddress.pincode}
-                                        onChange={e => setNewAddress({ ...newAddress, pincode: e.target.value })}
+                                        value={newAddress.zipCode}
+                                        onChange={e => setNewAddress({ ...newAddress, zipCode: e.target.value })}
                                     />
                                     <input
                                         required
@@ -971,16 +1083,20 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
                                 <div className="flex gap-3 pt-1">
                                     <button
                                         type="button"
-                                        onClick={() => setShowAddForm(false)}
+                                        onClick={() => {
+                                            setShowAddForm(false);
+                                            setEditingAddress(null);
+                                        }}
                                         className="flex-1 py-2.5 text-[11px] font-black uppercase rounded-xl hover:bg-gray-200 transition-colors border border-gray-200"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex-1 py-2.5 bg-black text-white text-[11px] font-black uppercase rounded-xl hover:bg-gray-800 transition-colors"
+                                        disabled={isSaving}
+                                        className="flex-1 py-2.5 bg-black text-white text-[11px] font-black uppercase rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50"
                                     >
-                                        Save & Deliver Here
+                                        {isSaving ? 'Saving...' : editingAddress ? 'Update & Deliver' : 'Save & Deliver'}
                                     </button>
                                 </div>
                             </form>
@@ -1026,7 +1142,7 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
                                                 <MapPin size={14} className={`mt-0.5 flex-shrink-0 ${isSelected ? 'text-[#e53e70]' : 'text-gray-400'}`} />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                        <span className="text-[13px] font-black text-gray-900">{addr.name}{addr.pincode ? `, ${addr.pincode}` : ''}</span>
+                                                        <span className="text-[13px] font-black text-gray-900">{addr.name}{(addr.zipCode || addr.pincode) ? `, ${addr.zipCode || addr.pincode}` : ''}</span>
                                                         {addr.type && (
                                                             <span className="text-[9px] font-black bg-gray-100 px-2 py-0.5 rounded uppercase tracking-tighter border border-gray-200">
                                                                 {addr.type}
@@ -1039,8 +1155,8 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
                                                         {addr.city ? `, ${addr.city}` : ''}
                                                         {addr.state ? `, ${addr.state}` : ''}
                                                     </p>
-                                                    {addr.mobile && (
-                                                        <p className="text-[11px] text-gray-500 font-bold mt-1.5">Mob: {addr.mobile}</p>
+                                                    {(addr.phone || addr.mobile) && (
+                                                        <p className="text-[11px] text-gray-500 font-bold mt-1.5">Mob: {addr.phone || addr.mobile}</p>
                                                     )}
                                                 </div>
                                             </div>
@@ -1061,10 +1177,16 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
                                                 </span>
                                             )}
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); }}
+                                                onClick={(e) => { e.stopPropagation(); handleEditAddress(addr); }}
                                                 className="text-[11px] font-bold text-gray-600 hover:text-black transition-colors"
                                             >
                                                 Edit
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteAddress(addr.id || addr._id); }}
+                                                className="text-[11px] font-bold text-gray-400 hover:text-red-500 transition-colors"
+                                            >
+                                                Delete
                                             </button>
                                         </div>
                                     </div>

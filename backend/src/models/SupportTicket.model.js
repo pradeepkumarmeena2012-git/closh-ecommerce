@@ -22,6 +22,9 @@ const supportTicketSchema = new mongoose.Schema(
                 createdAt: { type: Date, default: Date.now },
             },
         ],
+        isReadByAdmin: { type: Boolean, default: false },
+        isReadByUser: { type: Boolean, default: true },
+        lastMessageAt: { type: Date, default: Date.now, index: true },
     },
     { timestamps: true }
 );

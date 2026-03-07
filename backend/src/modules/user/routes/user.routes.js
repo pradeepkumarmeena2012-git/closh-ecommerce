@@ -5,6 +5,7 @@ import * as wishlistController from '../controllers/wishlist.controller.js';
 import * as reviewController from '../controllers/review.controller.js';
 import * as orderController from '../controllers/order.controller.js';
 import * as notificationController from '../controllers/notification.controller.js';
+import * as supportController from '../controllers/support.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
 import { authLimiter, otpLimiter } from '../../../middlewares/rateLimiter.js';
@@ -78,5 +79,11 @@ router.get('/notifications', ...customerAuth, notificationController.getUserNoti
 router.put('/notifications/:id/read', ...customerAuth, notificationController.markUserNotificationAsRead);
 router.put('/notifications/read-all', ...customerAuth, notificationController.markAllUserNotificationsAsRead);
 router.delete('/notifications/:id', ...customerAuth, notificationController.deleteUserNotification);
+
+// Support routes
+router.get('/support/tickets', ...customerAuth, supportController.getUserTickets);
+router.get('/support/tickets/:id', ...customerAuth, supportController.getUserTicketById);
+router.post('/support/tickets', ...customerAuth, supportController.createSupportTicket);
+router.post('/support/tickets/:id/messages', ...customerAuth, supportController.addUserTicketMessage);
 
 export default router;

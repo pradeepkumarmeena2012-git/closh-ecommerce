@@ -89,6 +89,7 @@ router.delete('/documents/:id', ...vendorAuth, documentController.deleteVendorDo
 // Support
 router.post('/support/help-request', ...vendorAuth, supportController.submitHelpRequest);
 router.get('/support/tickets', ...vendorAuth, supportController.getVendorTickets);
+router.get('/support/tickets/:id', ...vendorAuth, supportController.getVendorTicketById);
 router.post('/support/tickets/:id/messages', ...vendorAuth, supportController.addVendorTicketMessage);
 
 // Notifications

@@ -6,6 +6,7 @@ import Badge from "../../../../shared/components/Badge";
 import ProductFormModal from "../../components/ProductFormModal";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { getAllProducts, updateProductStatus } from "../../services/adminService";
+import socketService from "../../../../shared/utils/socket";
 import toast from "react-hot-toast";
 
 const PendingProducts = () => {
@@ -19,6 +20,38 @@ const PendingProducts = () => {
 
     useEffect(() => {
         loadPendingProducts();
+    }, []);
+
+    // Real-time: listen for new products from vendors
+    useEffect(() => {
+        socketService.connect();
+
+        const doJoin = () => {
+            socketService.joinRoom('admin_products');
+        };
+        if (socketService.socket?.connected) {
+            doJoin();
+        } else {
+            socketService.socket?.once('connect', doJoin);
+        }
+
+        const handleNewProduct = (data) => {
+            toast(`🆕 New product pending: "${data.name}"`, { icon: '📦' });
+            loadPendingProducts();
+        };
+
+        const handleVendorUpdate = (data) => {
+            toast(`✏️ Product updated by vendor: "${data.name}"`, { icon: '📝' });
+            loadPendingProducts();
+        };
+
+        socketService.on('new_product_created', handleNewProduct);
+        socketService.on('product_updated_by_vendor', handleVendorUpdate);
+
+        return () => {
+            socketService.off('new_product_created');
+            socketService.off('product_updated_by_vendor');
+        };
     }, []);
 
     const loadPendingProducts = async () => {

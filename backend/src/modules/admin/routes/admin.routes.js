@@ -101,6 +101,8 @@ router.get('/analytics/recent-orders', ...adminAuth, checkPermission('dashboard_
 router.get('/analytics/sales', ...adminAuth, checkPermission('finance_view'), analyticsController.getSalesData);
 router.get('/analytics/finance-summary', ...adminAuth, checkPermission('finance_view'), analyticsController.getFinancialSummary);
 router.get('/analytics/inventory-stats', ...adminAuth, checkPermission('dashboard_view'), analyticsController.getInventoryStats);
+router.get('/analytics/earnings-summary', ...adminAuth, checkPermission('finance_view'), analyticsController.getAdminEarningsSummary);
+router.get('/analytics/earnings-report', ...adminAuth, checkPermission('finance_view'), analyticsController.getDetailedEarningsReport);
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 router.get('/orders', ...adminAuth, checkPermission('orders_manage'), orderController.getAllOrders);

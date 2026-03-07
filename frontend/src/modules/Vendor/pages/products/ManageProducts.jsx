@@ -11,6 +11,8 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useVendorProductStore } from "../../store/vendorProductStore";
 import { useCategoryStore } from "../../../../shared/store/categoryStore";
+import socketService from "../../../../shared/utils/socket";
+import toast from "react-hot-toast";
 
 const ManageProducts = () => {
   const navigate = useNavigate();
@@ -34,6 +36,34 @@ const ManageProducts = () => {
       fetchProducts({ fetchAll: true, limit: 200 });
     }
   }, [vendorId, initCategories, fetchProducts]);
+
+  // Real-time: listen for product approval/rejection from admin
+  useEffect(() => {
+    if (!vendorId) return;
+    socketService.connect();
+
+    const doJoin = () => {
+      socketService.joinRoom(`vendor_${vendorId}`);
+    };
+    if (socketService.socket?.connected) {
+      doJoin();
+    } else {
+      socketService.socket?.once('connect', doJoin);
+    }
+
+    const handleApproved = (data) => {
+      const status = data.approvalStatus;
+      const icon = status === 'approved' ? '✅' : status === 'rejected' ? '❌' : '⏳';
+      toast(`${icon} Product "${data.name}" ${status}!`);
+      fetchProducts({ fetchAll: true, limit: 200 });
+    };
+
+    socketService.on('product_approved', handleApproved);
+
+    return () => {
+      socketService.off('product_approved');
+    };
+  }, [vendorId, fetchProducts]);
 
   const filteredProducts = useMemo(() => {
     let filtered = products;

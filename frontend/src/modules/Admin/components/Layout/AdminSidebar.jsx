@@ -103,6 +103,7 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/reports": {
       "Sales Report": "/admin/reports/sales-report",
       "Inventory Report": "/admin/reports/inventory-report",
+      "Earnings Report": "/admin/reports/earnings-report",
     },
     "/admin/finance": {
       "Revenue Overview": "/admin/finance/revenue-overview",

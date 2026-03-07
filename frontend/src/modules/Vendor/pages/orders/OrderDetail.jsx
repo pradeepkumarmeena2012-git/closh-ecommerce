@@ -6,6 +6,7 @@ import {
     FiMapPin,
     FiUser,
     FiDollarSign,
+    FiCamera,
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
@@ -14,6 +15,7 @@ import { formatPrice } from '../../../../shared/utils/helpers';
 import Badge from '../../../../shared/components/Badge';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import socketService from '../../../../shared/utils/socket';
 
 const OrderDetail = () => {
     const { id } = useParams();
@@ -30,11 +32,23 @@ const OrderDetail = () => {
         order?.customer?.name ??
         order?.userId?.name ??
         order?.guestInfo?.name ??
+        order?.shippingAddress?.name ??
+        order?.address?.name ??
         'Guest';
     const customerEmail =
         order?.customer?.email ??
         order?.userId?.email ??
         order?.guestInfo?.email ??
+        order?.shippingAddress?.email ??
+        order?.address?.email ??
+        'N/A';
+    const customerPhone =
+        order?.customer?.phone ??
+        order?.userId?.phone ??
+        order?.guestInfo?.phone ??
+        order?.shippingAddress?.phone ??
+        order?.address?.phone ??
+        order?.shippingAddress?.mobile ??
         'N/A';
 
     useEffect(() => {
@@ -55,11 +69,32 @@ const OrderDetail = () => {
         };
 
         fetchOrder();
+
+        // Real-time socket updates
+        socketService.connect();
+        socketService.joinRoom(`vendor_${vendorId}`);
+
+        const handleRealTimeUpdate = (data) => {
+            const displayId = id;
+            if (data.orderId === displayId) {
+                fetchOrder();
+            }
+        };
+
+        socketService.on('order_picked_up', handleRealTimeUpdate);
+        socketService.on('order_delivered', handleRealTimeUpdate);
+        socketService.on('order_status_updated', handleRealTimeUpdate);
+
+        return () => {
+            socketService.off('order_picked_up');
+            socketService.off('order_delivered');
+            socketService.off('order_status_updated');
+        };
     }, [id, vendorId]);
 
     const handleStatusChange = async (newStatus) => {
         if (!order) return;
-        
+
         // Verify the order ID exists
         const orderId = order.orderId ?? order._id;
         if (!orderId) {
@@ -79,7 +114,7 @@ const OrderDetail = () => {
         try {
             const response = await updateVendorOrderStatus(orderId, newStatus);
             console.log('✅ Status update response:', response);
-            
+
             // Optimistically update local state
             setOrder((prev) => ({
                 ...prev,
@@ -99,7 +134,7 @@ const OrderDetail = () => {
                 data: error?.response?.data,
                 fullError: error
             };
-            
+
             console.error('❌ Status update error:', errorDetails);
             toast.error(errorDetails.message);
         } finally {
@@ -109,18 +144,20 @@ const OrderDetail = () => {
 
     const statusOptions = [
         { value: 'pending', label: 'Pending', color: 'yellow' },
-        { value: 'processing', label: 'Processing', color: 'blue' },
-        { value: 'ready_for_delivery', label: 'Ready for Delivery', color: 'indigo' },
-        { value: 'shipped', label: 'Shipped', color: 'purple' },
+        { value: 'accepted', label: 'Accepted (Start Preparing)', color: 'blue' },
+        { value: 'ready_for_pickup', label: 'Ready for Pickup', color: 'indigo' },
+        { value: 'picked_up', label: 'Picked Up by Rider', color: 'purple' },
+        { value: 'out_for_delivery', label: 'Out for Delivery', color: 'orange' },
         { value: 'delivered', label: 'Delivered', color: 'green' },
         { value: 'cancelled', label: 'Cancelled', color: 'red' },
     ];
 
     const transitionMap = {
-        pending: ['pending', 'processing', 'ready_for_delivery', 'cancelled'],
-        processing: ['processing', 'ready_for_delivery', 'shipped', 'cancelled'],
-        ready_for_delivery: ['ready_for_delivery', 'shipped', 'cancelled'],
-        shipped: ['shipped', 'delivered'],
+        pending: ['accepted', 'cancelled'],
+        accepted: ['ready_for_pickup', 'cancelled'],
+        ready_for_pickup: ['ready_for_pickup'], // Moving to picked_up is handled by delivery partner
+        picked_up: ['picked_up'],
+        out_for_delivery: ['out_for_delivery'],
         delivered: ['delivered'],
         cancelled: ['cancelled'],
     };
@@ -180,8 +217,13 @@ const OrderDetail = () => {
                         <FiArrowLeft className="text-gray-600" />
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">
+                        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
                             Order #{order.orderId ?? order._id}
+                            {order.orderType && (
+                                <span className={`px-2 py-0.5 ${order.orderType === 'try_and_buy' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-blue-50 text-blue-700 border-blue-100'} text-[10px] font-black rounded-lg border uppercase tracking-tighter shadow-sm animate-pulse`}>
+                                    {order.orderType.replace(/_/g, ' ')}
+                                </span>
+                            )}
                         </h1>
                         <p className="text-sm text-gray-500">
                             Placed on{' '}
@@ -271,29 +313,49 @@ const OrderDetail = () => {
                         )}
                     </div>
 
-                    {/* Order Status */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                        <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                            <FiDollarSign />
-                            Order Summary
-                        </h2>
-                        <div className="flex items-center justify-between">
-                            <span className="text-gray-600">Your items status</span>
-                            <Badge
-                                variant={
-                                    currentStatus === 'delivered'
-                                        ? 'success'
-                                        : currentStatus === 'pending'
-                                            ? 'warning'
-                                            : currentStatus === 'cancelled'
-                                                ? 'error'
-                                                : 'info'
-                                }
-                            >
-                                {currentStatus.toUpperCase()}
-                            </Badge>
+                    {/* Proof of Delivery Card */}
+                    {(order.pickupPhoto || order.deliveryPhoto) && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mt-6">
+                            <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <FiCamera className="text-blue-600" />
+                                Proof of Delivery
+                            </h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {order.pickupPhoto && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pickup Proof (from Your Store)</p>
+                                        <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden border border-gray-100 group">
+                                            <img
+                                                src={order.pickupPhoto}
+                                                alt="Pickup Proof"
+                                                className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                                                onClick={() => window.open(order.pickupPhoto, '_blank')}
+                                            />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                <span className="text-white text-[10px] font-bold uppercase tracking-widest">View Full Size</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {order.deliveryPhoto && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Delivery Proof (to Customer)</p>
+                                        <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden border border-gray-100 group">
+                                            <img
+                                                src={order.deliveryPhoto}
+                                                alt="Delivery Proof"
+                                                className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                                                onClick={() => window.open(order.deliveryPhoto, '_blank')}
+                                            />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                                <span className="text-white text-[10px] font-bold uppercase tracking-widest">View Full Size</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Sidebar */}
@@ -311,7 +373,46 @@ const OrderDetail = () => {
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500">Email</p>
-                                <p className="font-medium">{customerEmail}</p>
+                                <p className="font-medium truncate">{customerEmail}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Mobile</p>
+                                <p className="text-[10px] italic text-gray-400">Available only to delivery partner</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Payment Info */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                            <FiDollarSign className="text-emerald-500" />
+                            Payment Overview
+                        </h2>
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Payment Method</p>
+                                <div className="flex items-center gap-2">
+                                    {(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') ? (
+                                        <span className="px-2 py-1 bg-purple-50 text-purple-700 text-[10px] font-bold rounded border border-purple-100 uppercase tracking-tighter flex items-center gap-1">
+                                            <FiDollarSign /> Cash on Delivery
+                                        </span>
+                                    ) : (
+                                        <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded border border-emerald-100 uppercase tracking-tighter">
+                                            Prepaid ({order.paymentMethod?.toUpperCase()})
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Payment Status</p>
+                                <Badge variant={order.paymentStatus === 'paid' ? 'delivered' : 'pending'}>
+                                    {order.paymentStatus?.replace(/_/g, ' ')?.toUpperCase() || 'PENDING'}
+                                </Badge>
+                                {(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') && order.paymentStatus === 'paid' && (
+                                    <p className="text-[9px] text-gray-400 font-medium mt-1 italic">
+                                        * Collected by Delivery Partner
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -339,7 +440,7 @@ const OrderDetail = () => {
                     </div>
                 </div>
             </div>
-        </motion.div>
+        </motion.div >
     );
 };
 

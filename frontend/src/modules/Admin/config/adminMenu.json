@@ -142,6 +142,7 @@
     "route": "/admin/reports",
     "permission": "reports_view",
     "children": [
+      "Earnings Report",
       "Sales Report",
       "Inventory Report"
     ]

@@ -7,18 +7,40 @@ import toast from "react-hot-toast";
 import Button from "../../../Admin/components/Button";
 import VendorNotificationWindow from "./VendorNotificationWindow";
 
+import socketService from "@shared/utils/socket";
+
 const VendorHeader = ({ onMenuClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { vendor, logout } = useVendorAuthStore();
-  const { unreadCount, fetchNotifications } = useVendorNotificationStore();
+  const { unreadCount, fetchNotifications, pushNotification } = useVendorNotificationStore();
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const vendorId = vendor?.id || vendor?._id;
+
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(() => fetchNotifications(), 60000);
-    return () => clearInterval(interval);
-  }, [fetchNotifications]);
+    if (vendorId) {
+      fetchNotifications();
+
+      // Connect to Vendor socket room
+      socketService.connect();
+      socketService.joinRoom(`vendor_${vendorId}`);
+
+      const handleNewNotification = (notification) => {
+        pushNotification(notification);
+        toast.success(`Notification: ${notification.title}`, {
+          duration: 4000,
+          icon: '🔔'
+        });
+      };
+
+      socketService.on('new_notification', handleNewNotification);
+
+      return () => {
+        socketService.off('new_notification', handleNewNotification);
+      };
+    }
+  }, [fetchNotifications, vendorId, pushNotification]);
 
   const handleLogout = () => {
     logout();

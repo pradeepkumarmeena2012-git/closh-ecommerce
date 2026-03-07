@@ -3,6 +3,7 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import SupportTicket from '../../../models/SupportTicket.model.js';
 import Admin from '../../../models/Admin.model.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { emitEvent } from '../../../services/socket.service.js';
 
 // POST /api/vendor/support/help-request
 export const submitHelpRequest = asyncHandler(async (req, res) => {
@@ -19,11 +20,15 @@ export const submitHelpRequest = asyncHandler(async (req, res) => {
         subject,
         status: 'open',
         priority: 'medium',
+        isReadByAdmin: false,
+        isReadByUser: true,
+        lastMessageAt: new Date(),
         messages: [
             {
                 senderId: vendorId,
                 senderType: 'vendor',
                 message,
+                createdAt: new Date()
             }
         ]
     });
@@ -57,6 +62,23 @@ export const getVendorTickets = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, tickets, 'Tickets fetched successfully.'));
 });
 
+// GET /api/vendor/support/tickets/:id
+export const getVendorTicketById = asyncHandler(async (req, res) => {
+    const vendorId = req.user.id;
+    const ticketId = req.params.id;
+
+    const ticket = await SupportTicket.findOne({ _id: ticketId, vendorId });
+    if (!ticket) {
+        return res.status(404).json(new ApiResponse(404, null, 'Ticket not found.'));
+    }
+
+    // Mark as read by vendor
+    ticket.isReadByUser = true;
+    await ticket.save();
+
+    res.status(200).json(new ApiResponse(200, ticket, 'Ticket fetched successfully.'));
+});
+
 // POST /api/vendor/support/tickets/:id/messages
 export const addVendorTicketMessage = asyncHandler(async (req, res) => {
     const { message } = req.body;
@@ -72,13 +94,23 @@ export const addVendorTicketMessage = asyncHandler(async (req, res) => {
         return res.status(404).json(new ApiResponse(404, null, 'Ticket not found.'));
     }
 
-    ticket.messages.push({
+    const newMessageObj = {
         senderId: vendorId,
         senderType: 'vendor',
         message,
-    });
+        createdAt: new Date()
+    };
+
+    ticket.messages.push(newMessageObj);
     ticket.status = 'open'; // reopen if it was closed or something
+    ticket.isReadByAdmin = false;
+    ticket.isReadByUser = true;
+    ticket.lastMessageAt = new Date();
+
     await ticket.save();
 
-    res.status(200).json(new ApiResponse(200, ticket.messages[ticket.messages.length - 1], 'Message added successfully.'));
+    // Real-time emission to the ticket room
+    emitEvent(`ticket_${ticket._id}`, 'new_support_message', newMessageObj);
+
+    res.status(200).json(new ApiResponse(200, newMessageObj, 'Message added successfully.'));
 });

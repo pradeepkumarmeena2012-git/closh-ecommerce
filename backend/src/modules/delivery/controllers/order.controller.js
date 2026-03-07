@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { emitEvent } from '../../../services/socket.service.js';
 
 const DELIVERY_OTP_TTL_MS = 10 * 60 * 1000;
 const DELIVERY_OTP_MAX_ATTEMPTS = 5;
@@ -17,7 +18,12 @@ const hashDeliveryOtp = (otp) => {
     return crypto.createHash('sha256').update(`${String(otp)}:${secret}`).digest('hex');
 };
 
-const generateDeliveryOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+const generateDeliveryOtp = () => {
+    if (String(process.env.NODE_ENV).toLowerCase() !== 'production') {
+        return '123456';
+    }
+    return String(Math.floor(100000 + Math.random() * 900000));
+};
 
 const getCustomerEmail = (order) => {
     return (
@@ -45,7 +51,7 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     const { status, page, limit } = req.query;
     const filter = { deliveryBoyId: req.user.id, isDeleted: { $ne: true } };
     if (status === 'open') {
-        filter.status = { $in: ['pending', 'processing', 'ready_for_delivery', 'assigned'] };
+        filter.status = { $in: ['ready_for_pickup', 'picked_up', 'out_for_delivery'] };
     } else if (status) {
         filter.status = status;
     }
@@ -91,9 +97,9 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
     const numericLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
     const skip = (numericPage - 1) * numericLimit;
 
-    // Available orders are those ready for delivery and NOT assigned to anyone.
+    // Available orders are those ready for pickup and NOT assigned to anyone.
     const filter = {
-        status: 'ready_for_delivery',
+        status: 'ready_for_pickup',
         deliveryBoyId: { $exists: false },
         isDeleted: { $ne: true }
     };
@@ -162,7 +168,11 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
                 },
             },
         ]),
-        Order.find({ deliveryBoyId, isDeleted: { $ne: true } }).sort({ createdAt: -1 }).limit(3),
+        Order.find({
+            deliveryBoyId,
+            isDeleted: { $ne: true },
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery'] }
+        }).sort({ updatedAt: -1 }).limit(10),
     ]);
 
     const countByStatus = statusStats.reduce((acc, row) => {
@@ -171,15 +181,12 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     }, {});
 
     const summary = {
-        totalOrders:
-            Number(countByStatus.pending || 0) +
-            Number(countByStatus.processing || 0) +
-            Number(countByStatus.shipped || 0) +
-            Number(countByStatus.delivered || 0) +
-            Number(countByStatus.cancelled || 0) +
-            Number(countByStatus.returned || 0),
+        totalOrders: statusStats.reduce((sum, row) => sum + Number(row?.count || 0), 0),
         completedToday: Number(completedTodayCount || 0),
-        openOrders: Number(countByStatus.pending || 0) + Number(countByStatus.processing || 0),
+        openOrders:
+            Number(countByStatus.assigned || 0) +
+            Number(countByStatus.picked_up || 0) +
+            Number(countByStatus.out_for_delivery || 0),
         earnings: Number(earningsStats?.[0]?.totalDeliveryFees || 0),
         recentOrders,
     };
@@ -255,22 +262,25 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
                     { deliveryBoyId: deliveryBoyId },
                     {
                         deliveryBoyId: { $exists: false },
-                        status: 'ready_for_delivery'
+                        status: 'ready_for_pickup'
                     }
                 ]
             }
         ]
     };
 
-    const order = await Order.findOne(query).select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug');
+    const order = await Order.findOne(query)
+        .populate('vendorItems.vendorId')
+        .populate('deliveryBoyId', 'name phone currentLocation')
+        .select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug');
     if (!order) throw new ApiError(404, 'Order not found.');
     res.status(200).json(new ApiResponse(200, order, 'Order detail fetched.'));
 });
 
 // PATCH /api/delivery/orders/:id/status
 export const updateDeliveryStatus = asyncHandler(async (req, res) => {
-    const { status, otp } = req.body;
-    const allowed = ['shipped', 'delivered'];
+    const { status, otp, pickupPhoto, deliveryPhoto } = req.body;
+    const allowed = ['picked_up', 'out_for_delivery', 'delivered'];
     if (!allowed.includes(status)) throw new ApiError(400, `Status must be one of: ${allowed.join(', ')}`);
 
     const query = {
@@ -283,17 +293,33 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     }
 
     const order = await Order.findOne(query).select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug');
-    if (!order) throw new ApiError(404, 'Order not found.');
+    if (!order) throw new ApiError(404, 'Order not found or not assigned to you.');
 
-    // Server-side transition guard (frontend guard already exists).
-    const transitionAllowed =
-        (status === 'shipped' && ['pending', 'processing', 'ready_for_delivery', 'assigned'].includes(order.status)) ||
-        (status === 'delivered' && order.status === 'shipped');
-    if (!transitionAllowed) {
+    // Server-side transition guard
+    const transitionMap = {
+        assigned: ['picked_up'],
+        ready_for_pickup: ['picked_up'],
+        picked_up: ['out_for_delivery'],
+        out_for_delivery: ['delivered'],
+        delivered: ['delivered'],
+    };
+
+    const allowedNext = transitionMap[order.status] || [];
+    if (!allowedNext.includes(status)) {
         throw new ApiError(409, `Cannot move order from ${order.status} to ${status}.`);
     }
 
-    if (status === 'shipped') {
+    if (status === 'picked_up') {
+        if (!pickupPhoto) {
+            throw new ApiError(400, 'Pickup photo is mandatory as proof.');
+        }
+        order.pickupPhoto = pickupPhoto;
+        // Emit events
+        emitEvent(`user_${order.userId}`, 'order_picked_up', { orderId: order.orderId });
+        order.vendorItems.forEach(vi => emitEvent(`vendor_${vi.vendorId}`, 'order_picked_up', { orderId: order.orderId }));
+    }
+
+    if (status === 'out_for_delivery') {
         const generatedOtp = generateDeliveryOtp();
         order.deliveryOtpHash = hashDeliveryOtp(generatedOtp);
         order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
@@ -312,6 +338,9 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         } catch (err) {
             console.warn(`[Delivery OTP] Failed to send OTP email for order ${order.orderId || order._id}: ${err.message}`);
         }
+
+        // Emit events
+        emitEvent(`user_${order.userId}`, 'order_out_for_delivery', { orderId: order.orderId, otp: generatedOtp });
     }
 
     if (status === 'delivered') {
@@ -321,21 +350,20 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         }
 
         if (!order.deliveryOtpHash || !order.deliveryOtpExpiry) {
-            throw new ApiError(400, 'Delivery OTP was not generated. Re-mark order as shipped first.');
+            throw new ApiError(400, 'Delivery OTP was not generated.');
         }
 
         if (order.deliveryOtpExpiry < new Date()) {
             throw new ApiError(400, 'Delivery OTP has expired. Please resend OTP.');
         }
 
-        const attempts = Number(order.deliveryOtpAttempts || 0);
-        if (attempts >= DELIVERY_OTP_MAX_ATTEMPTS) {
-            throw new ApiError(429, 'Maximum OTP attempts reached. Please resend OTP.');
+        if (!deliveryPhoto) {
+            throw new ApiError(400, 'Delivery photo is mandatory as proof.');
         }
 
         const isMatch = order.deliveryOtpHash === hashDeliveryOtp(normalizedOtp);
         if (!isMatch) {
-            order.deliveryOtpAttempts = attempts + 1;
+            order.deliveryOtpAttempts = (Number(order.deliveryOtpAttempts) || 0) + 1;
             await order.save();
             throw new ApiError(400, 'Invalid delivery OTP.');
         }
@@ -346,27 +374,23 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         order.deliveryOtpSentAt = undefined;
         order.deliveryOtpAttempts = 0;
         order.deliveryOtpDebug = undefined;
+        order.deliveredAt = new Date();
+        order.deliveryPhoto = deliveryPhoto;
+
+        if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') {
+            order.paymentStatus = 'paid';
+            order.isCashSettled = false;
+        }
+
+        // Emit events
+        emitEvent(`user_${order.userId}`, 'order_delivered', { orderId: order.orderId });
+        order.vendorItems.forEach(vi => emitEvent(`vendor_${vi.vendorId}`, 'order_delivered', { orderId: order.orderId }));
     }
 
     order.status = status;
-    // Keep vendor sub-order statuses aligned with delivery progression.
-    if (status === 'shipped') {
-        order.vendorItems = (order.vendorItems || []).map((vi) => {
-            const current = String(vi?.status || 'pending');
-            if (current === 'cancelled' || current === 'delivered') return vi;
-            return { ...vi.toObject(), status: 'shipped' };
-        });
-    }
-    if (status === 'delivered') {
-        order.vendorItems = (order.vendorItems || []).map((vi) => {
-            const current = String(vi?.status || 'pending');
-            if (current === 'cancelled') return vi;
-            return { ...vi.toObject(), status: 'delivered' };
-        });
-    }
-    if (status === 'delivered') {
-        order.deliveredAt = new Date();
-    }
+    // Align vendor sub-order statuses
+    order.vendorItems = (order.vendorItems || []).map((vi) => ({ ...vi.toObject(), status }));
+
     await order.save();
 
     const statusNotificationTasks = [];
@@ -434,8 +458,8 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
     const order = await Order.findOne(query);
     if (!order) throw new ApiError(404, 'Order not found.');
 
-    if (order.status !== 'shipped') {
-        throw new ApiError(409, 'OTP can only be resent when order is in shipped state.');
+    if (order.status !== 'out_for_delivery') {
+        throw new ApiError(409, 'OTP can only be resent when order is in out_for_delivery state.');
     }
 
     if (

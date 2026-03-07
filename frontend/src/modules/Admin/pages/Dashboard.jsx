@@ -33,6 +33,7 @@ const Dashboard = () => {
     totalCustomers: 0,
     totalVendors: 0,
     pendingOrders: 0,
+    pendingReturns: 0,
   });
   const [revenueData, setRevenueData] = useState([]);
 
@@ -112,6 +113,7 @@ const Dashboard = () => {
           totalCustomers: d.totalUsers || 0,
           totalVendors: d.totalVendors || 0,
           pendingOrders: d.pendingOrders || 0,
+          pendingReturns: d.pendingReturns || 0,
         });
       } else {
         setStats({

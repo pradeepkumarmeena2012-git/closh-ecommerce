@@ -39,6 +39,17 @@ export const useAuthStore = create(
           localStorage.setItem('token', accessToken);
           localStorage.setItem('refresh-token', refreshToken);
 
+          // Update other stores with new user context
+          const userId = String(user.id || user._id);
+          import('./useStore').then(m => {
+            const store = m.useCartStore.getState();
+            if (store.ownerUserId !== userId) {
+              m.useCartStore.setState({ items: [], ownerUserId: userId });
+            }
+          });
+          import('./wishlistStore').then(m => m.useWishlistStore.getState().fetchWishlist());
+          import('./addressStore').then(m => m.useAddressStore.getState().fetchAddresses());
+
           return { success: true, user };
         } catch (error) {
           const backendMessage = String(
@@ -60,7 +71,7 @@ export const useAuthStore = create(
       },
 
       // Register action
-      register: async (name, email, password, phone) => {
+      register: async (name, email, password, phone, addressData = null) => {
         set({ isLoading: true });
         try {
           const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
@@ -69,6 +80,7 @@ export const useAuthStore = create(
             email,
             password,
             ...(normalizedPhone ? { phone: normalizedPhone } : {}),
+            ...(addressData ? { address: addressData } : {}),
           };
 
           await api.post('/user/auth/register', payload);
@@ -118,6 +130,18 @@ export const useAuthStore = create(
 
           localStorage.setItem('token', accessToken);
           localStorage.setItem('refresh-token', refreshToken);
+
+          // Update other stores with new user context
+          const userId = String(user.id || user._id);
+          import('./useStore').then(m => {
+            const store = m.useCartStore.getState();
+            if (store.ownerUserId !== userId) {
+              m.useCartStore.setState({ items: [], ownerUserId: userId });
+            }
+          });
+          import('./wishlistStore').then(m => m.useWishlistStore.getState().fetchWishlist());
+          import('./addressStore').then(m => m.useAddressStore.getState().fetchAddresses());
+
           return { success: true, user };
         } catch (error) {
           set({ isLoading: false });
@@ -187,6 +211,17 @@ export const useAuthStore = create(
           pendingEmail: null,
           isLoading: false,
         });
+
+        // Wipe all user-specific data from other stores
+        import('./useStore').then(m => m.useCartStore.getState().clearCart());
+        import('./wishlistStore').then(m => m.useWishlistStore.getState().resetWishlist());
+        import('./addressStore').then(m => m.useAddressStore.getState().resetAddresses());
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('refresh-token');
+        localStorage.removeItem('cart-storage');
+        localStorage.removeItem('wishlist-storage');
+        localStorage.removeItem('address-storage');
       },
 
       // Logout action
@@ -195,13 +230,7 @@ export const useAuthStore = create(
         if (refreshToken) {
           api.post('/user/auth/logout', { refreshToken }).catch(() => { });
         }
-
         get().setUnauthenticated();
-        localStorage.removeItem('token');
-        localStorage.removeItem('refresh-token');
-        localStorage.removeItem('cart-storage');
-        localStorage.removeItem('wishlist-storage');
-        localStorage.removeItem('address-storage');
       },
 
       // Update user profile
@@ -210,6 +239,13 @@ export const useAuthStore = create(
         try {
           const response = await api.put('/user/auth/profile', {
             name: profileData?.name,
+            firstName: profileData?.firstName,
+            lastName: profileData?.lastName,
+            dob: profileData?.dob,
+            gender: profileData?.gender,
+            ageRange: profileData?.ageRange,
+            stylePreference: profileData?.stylePreference,
+            preferredFit: profileData?.preferredFit,
             phone: profileData?.phone,
           });
           const payload = response?.data ?? response;

@@ -57,6 +57,11 @@ const OrdersPage = () => {
                                             <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded uppercase tracking-wider">
                                                 {order.status || 'Pending'}
                                             </span>
+                                            {order.deliveryType && order.deliveryType !== 'standard' && (
+                                                <span className="text-[10px] font-black bg-[#ffcc00] text-black px-2 py-0.5 rounded uppercase tracking-wider">
+                                                    {order.deliveryType.replace(/_/g, ' ')}
+                                                </span>
+                                            )}
                                             <span className="text-xs font-bold text-gray-300">#{order.orderId || order.id}</span>
                                         </div>
                                         <p className="text-[10px] font-black text-gray-400 flex items-center gap-1 mt-2 uppercase tracking-widest">
@@ -99,7 +104,7 @@ const OrdersPage = () => {
                                 <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
                                     <div className="flex items-center gap-2 text-[10px] font-black text-emerald-600 uppercase tracking-widest">
                                         <Package size={14} />
-                                        <span className="truncate">Expected by {new Date(order.estimatedDelivery || Date.now() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString()}</span>
+                                        <span className="truncate">Instant Delivery (60 Mins)</span>
                                     </div>
                                     <button
                                         onClick={() => navigate(`/track-order/${order.orderId || order.id}`)}

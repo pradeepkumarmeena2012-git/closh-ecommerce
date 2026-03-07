@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import Order from '../../../models/Order.model.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { emitEvent } from '../../../services/socket.service.js';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
@@ -76,9 +77,11 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
     // Atomic update to prevent double assignment
     const order = await Order.findOneAndUpdate(
         {
-            $or: idFilter,
-            status: 'ready_for_delivery',
-            deliveryBoyId: { $exists: false }
+            $and: [
+                { $or: idFilter },
+                { status: 'ready_for_pickup' },
+                { $or: [{ deliveryBoyId: null }, { deliveryBoyId: { $exists: false } }] }
+            ]
         },
         {
             $set: {
@@ -93,8 +96,30 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
         throw new ApiError(409, 'Order is no longer available or has already been assigned.');
     }
 
-    // Notify other delivery boys (optional: could broadcast a "taken" event if using sockets)
-    // For now, we just proceed with the assigned order.
+    // Notify customer in real-time
+    if (order.userId) {
+        emitEvent(`user_${order.userId}`, 'order_status_updated', {
+            orderId: order.orderId,
+            status: 'assigned',
+            message: `A delivery partner has been assigned to your order ${order.orderId}.`
+        });
+    }
+
+    // Notify vendor(s) in real-time
+    order.vendorItems?.forEach(vi => {
+        if (vi.vendorId) {
+            emitEvent(`vendor_${vi.vendorId}`, 'order_status_updated', {
+                orderId: order.orderId,
+                status: 'assigned',
+                message: `Delivery partner assigned for order ${order.orderId}.`
+            });
+        }
+    });
+
+    // Notify other delivery partners that this order is taken
+    emitEvent('delivery_partners', 'order_taken', {
+        orderId: order.orderId,
+    });
 
     res.status(200).json(new ApiResponse(200, order, 'Order assigned successfully.'));
 });

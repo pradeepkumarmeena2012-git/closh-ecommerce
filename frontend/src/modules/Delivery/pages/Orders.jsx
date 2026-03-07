@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FiPackage, FiMapPin, FiClock, FiCheckCircle, FiXCircle, FiNavigation } from 'react-icons/fi';
+import { FiPackage, FiMapPin, FiClock, FiCheckCircle, FiXCircle, FiNavigation, FiPhone, FiCreditCard } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import PageTransition from '../../../shared/components/PageTransition';
 import { formatPrice } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
+import NewOrderModal from '../components/NewOrderModal';
+import socketService from '../../../shared/utils/socket';
 
 const DeliveryOrders = () => {
   const navigate = useNavigate();
@@ -17,17 +19,21 @@ const DeliveryOrders = () => {
     fetchOrders,
     acceptOrder,
     completeOrder,
+    deliveryBoy,
   } = useDeliveryAuthStore();
-  const [filter, setFilter] = useState('available'); // available, pending(open), in-transit(shipped), completed(delivered)
+  const isOnline = deliveryBoy?.status === 'available';
+  const [filter, setFilter] = useState(isOnline ? 'available' : 'pending'); // available, pending(open), in-transit(shipped), completed(delivered)
   const [loadFailed, setLoadFailed] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showNewOrderModal, setShowNewOrderModal] = useState(false);
+  const [selectedNewOrder, setSelectedNewOrder] = useState(null);
   const PAGE_SIZE = 20;
 
   const getBackendStatusFilter = (value) => {
     if (value === 'all') return undefined; // No 'all' anymore, using available as default
     if (value === 'pending') return 'open';
     if (value === 'in-transit') return 'shipped';
-    if (value === 'completed') return 'delivered';
+    if (value === 'delivered') return 'delivered';
     return undefined;
   };
 
@@ -57,8 +63,27 @@ const DeliveryOrders = () => {
     loadOrders(currentPage, filter);
     // Refresh interval for available orders
     const interval = filter === 'available' ? setInterval(() => loadOrders(currentPage, filter), 30000) : null;
-    return () => interval && clearInterval(interval);
-  }, [fetchOrders, currentPage, filter]);
+
+    // Real-time socket updates
+    socketService.connect();
+    socketService.joinRoom('delivery_partners');
+
+    socketService.on('order_ready_for_pickup', () => {
+      const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
+      if (filter === 'available' && currentStatus === 'available') loadOrders(currentPage, filter);
+    });
+    socketService.on('order_taken', () => {
+      const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
+      if (filter === 'available' && currentStatus === 'available') loadOrders(currentPage, filter);
+    });
+
+    return () => {
+      if (interval) clearInterval(interval);
+      socketService.off('order_ready_for_pickup');
+      socketService.off('order_taken');
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, filter]);
 
 
   const getStatusColor = (status) => {
@@ -67,7 +92,7 @@ const DeliveryOrders = () => {
         return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'in-transit':
         return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'completed':
+      case 'delivered':
         return 'bg-green-100 text-green-800 border-green-300';
       case 'cancelled':
         return 'bg-red-100 text-red-800 border-red-300';
@@ -82,7 +107,7 @@ const DeliveryOrders = () => {
         return <FiClock className="text-yellow-600" />;
       case 'in-transit':
         return <FiNavigation className="text-blue-600" />;
-      case 'completed':
+      case 'delivered':
         return <FiCheckCircle className="text-green-600" />;
       case 'cancelled':
         return <FiXCircle className="text-red-600" />;
@@ -149,21 +174,23 @@ const DeliveryOrders = () => {
           transition={{ delay: 0.1 }}
           className="flex gap-2 overflow-x-auto pb-2"
         >
-          {['available', 'pending', 'in-transit', 'completed'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setFilter(tab);
-                setCurrentPage(1);
-              }}
-              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${filter === tab
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-            >
-              {tab === 'available' ? 'Available' : tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
-            </button>
-          ))}
+          {['available', 'pending', 'in-transit', 'delivered']
+            .filter(tab => tab !== 'available' || isOnline)
+            .map((tab) => (
+              <button
+                key={tab}
+                onClick={() => {
+                  setFilter(tab);
+                  setCurrentPage(1);
+                }}
+                className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${filter === tab
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+              >
+                {tab === 'available' ? 'Available' : tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
+              </button>
+            ))}
         </motion.div>
 
         {/* Orders List */}
@@ -217,8 +244,31 @@ const DeliveryOrders = () => {
                       {getStatusIcon(order.status === 'ready_for_delivery' ? 'pending' : (order.status === 'assigned' ? 'pending' : order.status))}
                       <p className="font-bold text-gray-800">{order.id}</p>
                     </div>
-                    <p className="text-sm text-gray-600">{order.customer}</p>
-                    <p className="text-xs text-gray-500">{order.phone || 'Phone unavailable'}</p>
+                    <p className="text-sm text-gray-800 font-semibold">{order.customer}</p>
+                    <div className="flex flex-col gap-1.5 mt-1.5">
+                      {order.phone && (
+                        <div className="flex items-center gap-1.5 text-primary-700 font-bold text-sm bg-primary-50 px-2.5 py-1 rounded-md w-fit border border-primary-100">
+                          <FiPhone size={12} />
+                          <a href={`tel:${order.phone}`} onClick={(e) => e.stopPropagation()}>{order.phone}</a>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                        {order.paymentMethod === 'cod' ? (
+                          <span className="flex items-center gap-1 text-[10px] font-black uppercase text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                            <FiCreditCard size={10} /> Cash on Delivery (COD)
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            <FiCreditCard size={10} /> Prepaid
+                          </span>
+                        )}
+                        {order.deliveryType && order.deliveryType !== 'standard' && (
+                          <span className="px-2 py-0.5 bg-primary-50 text-primary-700 text-[10px] font-black rounded border border-primary-100 uppercase tracking-tighter">
+                            {order.deliveryType.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
@@ -251,7 +301,7 @@ const DeliveryOrders = () => {
                       <span>{order.distance || '-'}</span>
                     </div>
                   </div>
-                  <p className="font-bold text-primary-600">{formatPrice(order.amount)}</p>
+                  <p className="font-bold text-primary-600">{formatPrice(order.total)}</p>
                 </div>
 
                 {/* Action Buttons */}
@@ -261,12 +311,13 @@ const DeliveryOrders = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleAcceptOrder(order.id);
+                        setSelectedNewOrder(order);
+                        setShowNewOrderModal(true);
                       }}
                       disabled={isUpdatingOrderStatus}
                       className="flex-1 gradient-green text-white py-2.5 rounded-xl font-semibold text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {isUpdatingOrderStatus ? 'Please wait...' : 'Accept Order'}
+                      {isUpdatingOrderStatus ? 'Please wait...' : 'View & Accept'}
                     </button>
                   )}
                   {/* Show View/Pickup button if order is assigned to us or we have a pending pickup */}
@@ -291,7 +342,7 @@ const DeliveryOrders = () => {
                       disabled={isUpdatingOrderStatus}
                       className="flex-1 gradient-green text-white py-2.5 rounded-xl font-semibold text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {isUpdatingOrderStatus ? 'Please wait...' : 'Mark Complete'}
+                      {isUpdatingOrderStatus ? 'Please wait...' : 'Mark Delivered'}
                     </button>
                   )}
                   <button
@@ -330,6 +381,20 @@ const DeliveryOrders = () => {
             </button>
           </div>
         )}
+
+        <NewOrderModal
+          isOpen={showNewOrderModal}
+          order={selectedNewOrder}
+          isAccepting={isUpdatingOrderStatus}
+          onClose={() => {
+            if (!isUpdatingOrderStatus) setShowNewOrderModal(false);
+          }}
+          onAccept={async (id) => {
+            await handleAcceptOrder(id);
+            setShowNewOrderModal(false);
+          }}
+        />
+
       </div>
     </PageTransition>
   );

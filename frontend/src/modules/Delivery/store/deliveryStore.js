@@ -20,20 +20,21 @@ const normalizeDeliveryBoy = (raw) => {
 };
 
 const mapBackendStatusToUI = (status) => {
-  if (status === 'ready_for_delivery') return 'pending';
-  if (status === 'assigned') return 'assigned';
-  if (status === 'shipped') return 'picked-up';
+  if (status === 'ready_for_pickup') return 'pending';
+  if (status === 'assigned') return 'accepted';
+  if (status === 'picked_up') return 'picked-up';
   if (status === 'out_for_delivery') return 'out-for-delivery';
-  if (status === 'delivered') return 'completed';
+  if (status === 'delivered') return 'delivered';
   return status || 'pending';
 };
 
 const toAddressLine = (shippingAddress = {}) => {
   const parts = [
     shippingAddress.address,
+    shippingAddress.locality,
     shippingAddress.city,
     shippingAddress.state,
-    shippingAddress.zipCode,
+    shippingAddress.zipCode || shippingAddress.pincode,
   ].filter(Boolean);
   return parts.join(', ');
 };
@@ -49,23 +50,55 @@ const normalizeOrder = (raw) => {
       ? raw.items
       : 0;
 
+  const vendorFirst = Array.isArray(raw?.vendorItems) && raw.vendorItems.length > 0 ? raw.vendorItems[0] : null;
+  const vendorData = vendorFirst?.vendorId || {};
+
+  let vendorAddress = '';
+  if (vendorData.shopAddress) {
+    vendorAddress = vendorData.shopAddress;
+  } else if (vendorData.address?.street) {
+    vendorAddress = `${vendorData.address.street}, ${vendorData.address.city || ''}`;
+  } else if (vendorFirst?.vendorName) {
+    vendorAddress = 'Address details in order notes';
+  }
+
+  // Extract customer delivery lat/lng from dropoffLocation GeoJSON [lng, lat]
+  const dropoffCoords = raw?.dropoffLocation?.coordinates;
+  const derivedLat = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[1] !== 0
+    ? dropoffCoords[1] : raw?.latitude || null;
+  const derivedLng = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[0] !== 0
+    ? dropoffCoords[0] : raw?.longitude || null;
+
   return {
     ...raw,
     id: raw?.orderId || raw?._id || raw?.id,
     orderId: raw?.orderId || raw?._id || raw?.id,
     customer: shippingAddress?.name || guestInfo?.name || 'Customer',
-    phone: shippingAddress?.phone || guestInfo?.phone || '',
-    email: shippingAddress?.email || guestInfo?.email || '',
-    address: toAddressLine(shippingAddress),
-    amount: Number(raw?.total ?? raw?.subtotal ?? 0),
-    total: Number(raw?.total ?? raw?.subtotal ?? 0),
+    phone: shippingAddress?.phone || shippingAddress?.mobile || shippingAddress?.mobileNumber || guestInfo?.phone || raw?.customerPhone || raw?.phone || '',
+    email: shippingAddress?.email || guestInfo?.email || raw?.customerEmail || raw?.email || '',
+    address: toAddressLine(shippingAddress) || 'Address unavailable',
+    vendorName: vendorData.storeName || vendorFirst?.vendorName || 'Vendor',
+    vendorAddress: vendorAddress || 'Vendor address unavailable',
+    amount: Number(raw?.subtotal ?? 0),
+    subtotal: Number(raw?.subtotal ?? 0),
+    total: Number(raw?.total ?? 0),
     deliveryFee: Number(raw?.shipping ?? 0),
+    tax: Number(raw?.tax ?? 0),
+    discount: Number(raw?.discount ?? raw?.couponDiscount ?? 0),
     status: uiStatus,
     rawStatus: backendStatus,
+    deliveryType: raw?.deliveryType || 'standard',
+    orderType: raw?.orderType || 'standard',
     items: Array.isArray(raw?.items) ? raw.items : [],
     itemCount,
     distance: raw?.distance || '-',
     estimatedTime: raw?.estimatedTime || '-',
+    latitude: derivedLat,
+    longitude: derivedLng,
+    paymentMethod: raw?.paymentMethod || 'standard',
+    paymentStatus: raw?.paymentStatus || 'pending',
+    pickupPhoto: raw?.pickupPhoto || null,
+    deliveryPhoto: raw?.deliveryPhoto || null,
   };
 };
 
@@ -257,6 +290,32 @@ export const useDeliveryAuthStore = create(
         }
       },
 
+      updateLocation: async (latitude, longitude) => {
+        const current = get().deliveryBoy;
+        if (!current || !latitude || !longitude) return;
+
+        try {
+          const response = await api.put('/delivery/auth/profile', {
+            currentLocation: {
+              type: 'Point',
+              coordinates: [longitude, latitude], // GeoJSON order: [lng, lat]
+            },
+          });
+          const payload = response?.data ?? response;
+          set({
+            deliveryBoy: normalizeDeliveryBoy({
+              ...current,
+              ...payload,
+            }),
+          });
+        } catch (error) {
+          // Silently ignore rate limit errors from GPS updates; avoid spamming toast
+          if (error?.response?.status !== 429) {
+            console.warn('Location update failed:', error?.response?.status, error?.message);
+          }
+        }
+      },
+
       fetchProfile: async () => {
         set({ isLoading: true });
         try {
@@ -413,6 +472,12 @@ export const useDeliveryAuthStore = create(
           if (options?.otp) {
             requestPayload.otp = String(options.otp).trim();
           }
+          if (options?.pickupPhoto) {
+            requestPayload.pickupPhoto = options.pickupPhoto;
+          }
+          if (options?.deliveryPhoto) {
+            requestPayload.deliveryPhoto = options.deliveryPhoto;
+          }
 
           const response = await api.patch(`/delivery/orders/${id}/status`, requestPayload);
           const responsePayload = response?.data ?? response;
@@ -453,18 +518,18 @@ export const useDeliveryAuthStore = create(
         }
       },
 
-      completeOrder: async (id, otp) => {
+      completeOrder: async (id, otp, deliveryPhoto) => {
         const state = get();
         const current =
           state.orders.find((order) => String(order.id) === String(id)) ||
           (state.selectedOrder && String(state.selectedOrder.id) === String(id)
             ? state.selectedOrder
             : null);
-        // Allow completion when rider has already picked up the order (backend status: 'shipped' → UI: 'picked-up')
-        if (current && current.status !== 'picked-up') {
+        // Allow completion when rider has already picked up the order (UI: 'picked-up' or 'out-for-delivery')
+        if (current && current.status !== 'picked-up' && current.status !== 'out-for-delivery') {
           return current;
         }
-        return get().updateOrderStatus(id, 'delivered', { otp });
+        return get().updateOrderStatus(id, 'delivered', { otp, deliveryPhoto });
       },
 
       resendDeliveryOtp: async (id) => {

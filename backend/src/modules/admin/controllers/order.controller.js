@@ -52,7 +52,7 @@ export const getAllOrders = asyncHandler(async (req, res) => {
     const [orders, total] = await Promise.all([
         Order.find(filter)
             .populate('userId', 'name email phone')
-            .populate('deliveryBoyId', 'name phone')
+            .populate('deliveryBoyId', 'name phone currentLocation')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(numericLimit)
@@ -75,7 +75,7 @@ export const getOrderById = asyncHandler(async (req, res) => {
         isDeleted: { $ne: true },
     })
         .populate('userId', 'name email phone')
-        .populate('deliveryBoyId', 'name phone email vehicleType vehicleNumber')
+        .populate('deliveryBoyId', 'name phone email vehicleType vehicleNumber currentLocation')
         .populate('items.productId', 'name images price')
         .lean();
 

@@ -6,14 +6,21 @@ import api from '../utils/api';
 const normalizeAddress = (address) => ({
   ...address,
   id: address?.id || address?._id,
+  phone: address?.phone || address?.mobile || '',
+  zipCode: address?.zipCode || address?.pincode || '',
 });
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '').slice(-10);
 const normalizeText = (value) => String(value ?? '').trim();
+const getCurrentAuthUserId = () => {
+  const { user } = useAuthStore.getState();
+  return String(user?.id || user?._id || '').trim();
+};
 
 export const useAddressStore = create(
   persist(
     (set, get) => ({
       addresses: [],
+      ownerUserId: null,
       isLoading: false,
       hasFetched: false,
 
@@ -25,7 +32,8 @@ export const useAddressStore = create(
           const list = Array.isArray(payload)
             ? payload.map(normalizeAddress)
             : [];
-          set({ addresses: list, isLoading: false, hasFetched: true });
+          const currentUserId = getCurrentAuthUserId();
+          set({ addresses: list, ownerUserId: currentUserId || null, isLoading: false, hasFetched: true });
           return list;
         } catch (error) {
           set({ isLoading: false });
@@ -193,7 +201,7 @@ export const useAddressStore = create(
       },
 
       resetAddresses: () => {
-        set({ addresses: [], hasFetched: false });
+        set({ addresses: [], ownerUserId: null, hasFetched: false });
       },
     }),
     {

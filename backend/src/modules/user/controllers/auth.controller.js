@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import User from '../../../models/User.model.js';
+import Address from '../../../models/Address.model.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { sendOTP } from '../../../services/otp.service.js';
 import { sendEmail } from '../../../services/email.service.js';
@@ -33,7 +34,7 @@ const extractCloudinaryPublicId = (url = '') => {
 
 // POST /api/user/auth/register
 export const register = asyncHandler(async (req, res) => {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, address: addressData } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
 
@@ -46,6 +47,22 @@ export const register = asyncHandler(async (req, res) => {
         password,
         ...(normalizedPhone ? { phone: normalizedPhone } : {}),
     });
+
+    if (addressData) {
+        await Address.create({
+            userId: user._id,
+            name: 'Home',
+            fullName: user.name,
+            phone: user.phone || normalizedPhone,
+            address: addressData.street || addressData.address,
+            city: addressData.city,
+            state: addressData.state,
+            zipCode: addressData.zipCode || addressData.pincode,
+            country: 'India',
+            isDefault: true
+        });
+    }
+
     await sendOTP(user, 'email_verification');
 
     res.status(201).json(new ApiResponse(201, { email: user.email }, 'Registration successful. Please verify your email.'));
@@ -85,7 +102,23 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 
     const { accessToken, refreshToken } = generateTokens({ id: user._id, role: 'customer', email: user.email });
     await persistRefreshSession(user, refreshToken);
-    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email } }, 'Email verified successfully.'));
+
+    // Return the user object (excluding sensitive fields)
+    const userToReturn = user.toObject();
+    delete userToReturn.password;
+    delete userToReturn.otp;
+    delete userToReturn.otpExpiry;
+    delete userToReturn.refreshTokenHash;
+    delete userToReturn.refreshTokenExpiresAt;
+
+    res.status(200).json(new ApiResponse(200, {
+        accessToken,
+        refreshToken,
+        user: {
+            id: user._id,
+            ...userToReturn
+        }
+    }, 'Email verified successfully.'));
 });
 
 // POST /api/user/auth/login
@@ -106,7 +139,18 @@ export const login = asyncHandler(async (req, res) => {
 
     const { accessToken, refreshToken } = generateTokens({ id: user._id, role: 'customer', email: user.email });
     await persistRefreshSession(user, refreshToken);
-    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar } }, 'Login successful.'));
+
+    const userToReturn = user.toObject();
+    delete userToReturn.password;
+
+    res.status(200).json(new ApiResponse(200, {
+        accessToken,
+        refreshToken,
+        user: {
+            id: user._id,
+            ...userToReturn
+        }
+    }, 'Login successful.'));
 });
 
 // POST /api/user/auth/refresh
@@ -251,13 +295,20 @@ export const getProfile = asyncHandler(async (req, res) => {
 
 // PUT /api/user/auth/profile
 export const updateProfile = asyncHandler(async (req, res) => {
-    const { name, phone } = req.body;
+    const { name, firstName, lastName, phone, dob, gender, ageRange, stylePreference, preferredFit } = req.body;
     const normalizedName = String(name || '').trim();
     const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
 
     const updatePayload = {
         name: normalizedName,
+        firstName,
+        lastName,
         phone: normalizedPhone || undefined,
+        dob,
+        gender,
+        ageRange,
+        stylePreference,
+        preferredFit
     };
 
     const user = await User.findByIdAndUpdate(

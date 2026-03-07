@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Phone, ArrowRight, ShieldCheck, ChevronLeft, Timer, X } from 'lucide-react';
 
@@ -13,6 +13,15 @@ const LoginPage = () => {
 
     const { loginWithOTP, resendOTP } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        if (location.state?.mobile) {
+            setMobileNumber(location.state.mobile);
+            setStep(2);
+            setResendTimer(30);
+        }
+    }, [location.state]);
 
     useEffect(() => {
         let interval;
@@ -237,7 +246,10 @@ const LoginPage = () => {
                 </p>
 
                 {/* Support Info */}
-                <div className="mt-10 pt-8 border-t border-gray-50 text-center">
+                <div className="mt-10 pt-8 border-t border-gray-50 text-center space-y-4">
+                    <p className="text-[12px] font-bold text-gray-400 uppercase tracking-tight">
+                        Don't have an account? <Link to="/register" className="text-black font-black hover:underline cursor-pointer">Sign Up</Link>
+                    </p>
                     <p className="text-[12px] font-bold text-gray-400 uppercase tracking-tight">
                         Having trouble? <span className="text-black font-black hover:underline cursor-pointer">Contact Support</span>
                     </p>

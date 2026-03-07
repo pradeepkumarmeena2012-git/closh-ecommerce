@@ -540,11 +540,18 @@ router.get('/campaigns/:slug', asyncHandler(async (req, res) => {
 
 // GET /api/geocode (Proxy for OpenStreetMap Nominatim)
 router.get('/geocode', asyncHandler(async (req, res) => {
-    const { lat, lon } = req.query;
-    if (!lat || !lon) throw new ApiError(400, 'Latitude and Longitude are required.');
+    const { lat, lon, q } = req.query;
+
+    let url;
+    if (q) {
+        url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(q)}`;
+    } else {
+        if (!lat || !lon) throw new ApiError(400, 'Latitude and Longitude are required if no query is provided.');
+        url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lon}`;
+    }
 
     try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lon}`, {
+        const response = await fetch(url, {
             headers: {
                 'User-Agent': 'Clothify/1.0',
                 'Accept': 'application/json'
@@ -556,7 +563,10 @@ router.get('/geocode', asyncHandler(async (req, res) => {
         }
 
         const data = await response.json();
-        res.status(200).json(new ApiResponse(200, data, 'Geocoding success.'));
+        // Nominatim search returns an array, reverse returns an object.
+        // We normalize to object if it's an array with at least one result.
+        const result = Array.isArray(data) ? data[0] : data;
+        res.status(200).json(new ApiResponse(200, result, 'Geocoding success.'));
     } catch (error) {
         console.error("Proxy Geocoding error:", error);
         throw new ApiError(500, 'Failed to fetch address from geocoding service.');
@@ -566,9 +576,22 @@ router.get('/geocode', asyncHandler(async (req, res) => {
 // GET /api/orders/track/:id (public order tracking)
 router.get('/orders/track/:id', asyncHandler(async (req, res) => {
     const { default: Order } = await import('../models/Order.model.js');
-    const order = await Order.findOne({ orderId: req.params.id }).select('orderId status trackingNumber estimatedDelivery deliveredAt createdAt updatedAt cancelledAt');
+    const order = await Order.findOne({ orderId: req.params.id })
+        .select('orderId status trackingNumber estimatedDelivery deliveredAt createdAt updatedAt cancelledAt deliveryBoyId')
+        .populate('deliveryBoyId', 'currentLocation name phone');
+
     if (!order) throw new ApiError(404, 'Order not found.');
-    res.status(200).json(new ApiResponse(200, order, 'Order tracking info.'));
+
+    const trackingInfo = order.toObject();
+
+    // Only share delivery boy location if order is out for delivery (shipped)
+    if (order.status !== 'shipped' && order.status !== 'out_for_delivery') {
+        if (trackingInfo.deliveryBoyId) {
+            trackingInfo.deliveryBoyId.currentLocation = undefined;
+        }
+    }
+
+    res.status(200).json(new ApiResponse(200, trackingInfo, 'Order tracking info.'));
 }));
 
 // Legacy support: GET /api/:id (only ObjectId-like values to avoid swallowing unknown routes)

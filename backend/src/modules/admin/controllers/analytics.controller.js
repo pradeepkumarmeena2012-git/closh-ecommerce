@@ -5,16 +5,19 @@ import User from '../../../models/User.model.js';
 import Vendor from '../../../models/Vendor.model.js';
 import Product from '../../../models/Product.model.js';
 
+import ReturnRequest from '../../../models/ReturnRequest.model.js';
+
 // GET /api/admin/analytics/dashboard
 export const getDashboardStats = asyncHandler(async (req, res) => {
     const activeOrderFilter = { isDeleted: { $ne: true } };
-    const [totalOrders, totalUsers, totalVendors, totalProducts, revenueAgg, pendingOrders] = await Promise.all([
+    const [totalOrders, totalUsers, totalVendors, totalProducts, revenueAgg, pendingOrders, pendingReturns] = await Promise.all([
         Order.countDocuments(activeOrderFilter),
         User.countDocuments({ role: 'customer' }),
         Vendor.countDocuments({ status: 'approved' }),
         Product.countDocuments({ isActive: true }),
         Order.aggregate([{ $match: { ...activeOrderFilter, status: { $ne: 'cancelled' } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
         Order.countDocuments({ ...activeOrderFilter, status: 'pending' }),
+        ReturnRequest.countDocuments({ status: 'pending' }),
     ]);
 
     res.status(200).json(new ApiResponse(200, {
@@ -24,6 +27,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         totalProducts,
         totalRevenue: revenueAgg[0]?.total || 0,
         pendingOrders,
+        pendingReturns,
     }, 'Dashboard stats fetched.'));
 });
 
@@ -190,4 +194,128 @@ export const getInventoryStats = asyncHandler(async (req, res) => {
         lowStock,
         activeProducts: await Product.countDocuments({ isActive: true })
     }, 'Inventory stats fetched.'));
+});
+
+// GET /api/admin/analytics/earnings-summary
+export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
+    const { startDate, endDate } = req.query;
+    const match = { isDeleted: { $ne: true }, status: 'delivered' };
+
+    if (startDate || endDate) {
+        match.createdAt = {};
+        if (startDate) match.createdAt.$gte = new Date(startDate);
+        if (endDate) match.createdAt.$lte = new Date(new Date(endDate).setHours(23, 59, 59, 999));
+    }
+
+    // Fetch orders with population for fallback calculations
+    const orders = await Order.find(match)
+        .select('total shipping vendorItems items')
+        .populate('vendorItems.vendorId', 'commissionRate')
+        .populate('items.productId', 'vendorPrice')
+        .lean();
+
+    let totalRevenue = 0;
+    let totalCommission = 0;
+    let totalMargin = 0;
+    let totalVendorCost = 0;
+    let totalDeliveryPayout = 0;
+    let orderCount = orders.length;
+
+    orders.forEach(order => {
+        totalRevenue += (order.total || 0);
+        totalDeliveryPayout += (order.shipping || 0);
+
+        // Calculate Commission with fallback
+        const commission = order.vendorItems?.reduce((sum, v) => {
+            if (v.commissionAmount && v.commissionAmount > 0) return sum + v.commissionAmount;
+            // Fallback: use current vendor rate if snapshot is missing
+            const rate = v.commissionRate || v.vendorId?.commissionRate || 10;
+            return sum + ((v.subtotal || 0) * rate / 100);
+        }, 0) || 0;
+        totalCommission += commission;
+
+        // Calculate Margin with robust fallback
+        const margin = order.items?.reduce((sum, i) => {
+            const vPrice = i.vendorPrice || i.productId?.vendorPrice || 0;
+            totalVendorCost += (vPrice * i.quantity);
+            return sum + ((i.price - vPrice) * i.quantity);
+        }, 0) || 0;
+        totalMargin += margin;
+    });
+
+    res.status(200).json(new ApiResponse(200, {
+        totalRevenue,
+        totalCommission,
+        totalMargin,
+        totalVendorCost,
+        totalDeliveryPayout,
+        adminNetProfit: (totalCommission + totalMargin) - totalDeliveryPayout,
+        orderCount
+    }, 'Admin earnings summary fetched.'));
+});
+
+// GET /api/admin/analytics/earnings-report
+export const getDetailedEarningsReport = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 20, startDate, endDate } = req.query;
+    const numericPage = Number(page) || 1;
+    const numericLimit = Number(limit) || 20;
+    const skip = (numericPage - 1) * numericLimit;
+
+    const filter = { isDeleted: { $ne: true }, status: 'delivered' };
+    if (startDate || endDate) {
+        filter.createdAt = {};
+        if (startDate) filter.createdAt.$gte = new Date(startDate);
+        if (endDate) filter.createdAt.$lte = new Date(new Date(endDate).setHours(23, 59, 59, 999));
+    }
+
+    const [orders, total] = await Promise.all([
+        Order.find(filter)
+            .select('orderId total shipping subtotal vendorItems items createdAt')
+            .populate('vendorItems.vendorId', 'commissionRate')
+            .populate('items.productId', 'vendorPrice')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(numericLimit)
+            .lean(),
+        Order.countDocuments(filter)
+    ]);
+
+    const report = orders.map(order => {
+        let orderVendorCost = 0;
+
+        const commission = order.vendorItems?.reduce((sum, v) => {
+            if (v.commissionAmount && v.commissionAmount > 0) return sum + v.commissionAmount;
+            const rate = v.commissionRate || v.vendorId?.commissionRate || 10;
+            return sum + ((v.subtotal || 0) * rate / 100);
+        }, 0) || 0;
+
+        const margin = order.items?.reduce((sum, i) => {
+            const vPrice = i.vendorPrice || i.productId?.vendorPrice || 0;
+            orderVendorCost += (vPrice * i.quantity);
+            return sum + ((i.price - vPrice) * i.quantity);
+        }, 0) || 0;
+
+        const delivery = order.shipping || 0;
+
+        return {
+            orderId: order.orderId,
+            date: order.createdAt,
+            revenue: order.total,
+            vendorCost: orderVendorCost, // Correct: Sum of all item.vendorPrice
+            commission,
+            margin,
+            deliveryPayout: delivery,
+            adminNetProfit: (commission + margin) - delivery
+        };
+    });
+
+    res.status(200).json(new ApiResponse(200, {
+        report,
+        pagination: {
+            total,
+            page: numericPage,
+            limit: numericLimit,
+            pages: Math.ceil(total / numericLimit)
+        }
+    }, 'Detailed earnings report fetched.'));
 });

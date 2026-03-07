@@ -4,6 +4,7 @@ import { ApiError } from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { emitEvent } from '../../../services/socket.service.js';
 
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -104,6 +105,10 @@ export const getTicketById = asyncHandler(async (req, res) => {
         category: ticket.ticketTypeId ? ticket.ticketTypeId.name : 'General'
     };
 
+    // Mark as read by admin if they are viewing it
+    ticket.isReadByAdmin = true;
+    await ticket.save();
+
     res.status(200).json(
         new ApiResponse(200, normalized, 'Ticket details fetched successfully')
     );
@@ -151,18 +156,28 @@ export const addTicketMessage = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Ticket not found');
     }
 
-    ticket.messages.push({
-        senderId: req.user._id, // Assuming req.user is set by auth middleware
+    const newMessageObj = {
+        senderId: req.user._id,
         senderType: 'admin',
-        message: trimmedMessage
-    });
+        message: trimmedMessage,
+        createdAt: new Date()
+    };
+
+    ticket.messages.push(newMessageObj);
 
     // Automatically set to in_progress if an admin replies
     if (ticket.status === 'open') {
         ticket.status = 'in_progress';
     }
 
+    ticket.isReadByAdmin = true;
+    ticket.isReadByUser = false;
+    ticket.lastMessageAt = new Date();
+
     await ticket.save();
+
+    // Real-time emission to the ticket room
+    emitEvent(`ticket_${ticket._id}`, 'new_support_message', newMessageObj);
 
     // Send notification to the vendor/user if applicable
     if (ticket.vendorId) {

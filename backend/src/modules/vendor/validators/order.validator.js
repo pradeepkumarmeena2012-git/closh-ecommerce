@@ -2,9 +2,10 @@ import Joi from 'joi';
 
 const allowedStatuses = [
     'pending',
-    'processing',
-    'ready_for_delivery',
-    'shipped',
+    'accepted',
+    'ready_for_pickup',
+    'picked_up',
+    'out_for_delivery',
     'delivered',
     'cancelled',
 ];

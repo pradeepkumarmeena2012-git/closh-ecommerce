@@ -7,6 +7,7 @@ import Settlement from '../../../models/Settlement.model.js';
 import mongoose from 'mongoose';
 import { createNotification } from '../../../services/notification.service.js';
 import { notifyNearbyDeliveryBoys } from '../../delivery/controllers/assignment.controller.js';
+import { emitEvent } from '../../../services/socket.service.js';
 
 const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
     const statuses = (vendorItems || [])
@@ -17,9 +18,10 @@ const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
 
     if (statuses.every((s) => s === 'cancelled')) return 'cancelled';
     if (statuses.every((s) => s === 'delivered')) return 'delivered';
-    if (statuses.includes('shipped')) return 'shipped';
-    if (statuses.includes('ready_for_delivery')) return 'ready_for_delivery';
-    if (statuses.includes('processing')) return 'processing';
+    if (statuses.includes('out_for_delivery')) return 'out_for_delivery';
+    if (statuses.includes('picked_up')) return 'picked_up';
+    if (statuses.includes('ready_for_pickup')) return 'ready_for_pickup';
+    if (statuses.includes('accepted')) return 'accepted';
     if (statuses.includes('pending')) return 'pending';
 
     return String(fallback || 'pending').toLowerCase();
@@ -64,7 +66,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     const status = req.body.status;
 
     const { id } = req.params;
-    
+
     if (!id) {
         throw new ApiError(400, 'Order ID is required in URL params.');
     }
@@ -79,7 +81,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         'vendorItems.vendorId': req.user.id,
     });
     if (!order) throw new ApiError(404, 'Order not found.');
-    
+
     const vendorItem = order.vendorItems.find((vi) => String(vi.vendorId) === String(req.user.id));
     if (!vendorItem) throw new ApiError(404, 'Vendor order item not found.');
 
@@ -87,10 +89,11 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     const currentStatus = String(vendorItem.status || 'pending').trim().toLowerCase();
 
     const transitionMap = {
-        pending: ['pending', 'processing', 'ready_for_delivery', 'cancelled'],
-        processing: ['processing', 'ready_for_delivery', 'shipped', 'cancelled'],
-        ready_for_delivery: ['ready_for_delivery', 'shipped', 'cancelled'],
-        shipped: ['shipped', 'delivered'],
+        pending: ['accepted', 'cancelled'],
+        accepted: ['ready_for_pickup', 'cancelled'],
+        ready_for_pickup: ['ready_for_pickup', 'picked_up', 'cancelled'], // picked_up by delivery partner
+        picked_up: ['picked_up', 'out_for_delivery'],
+        out_for_delivery: ['out_for_delivery', 'delivered'],
         delivered: ['delivered'],
         cancelled: ['cancelled'],
     };
@@ -107,15 +110,32 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     order.status = deriveTopLevelOrderStatus(order.vendorItems, order.status);
     await order.save();
 
-    if (status === 'ready_for_delivery') {
+    if (status === 'ready_for_pickup') {
         const vendor = await mongoose.model('Vendor').findById(req.user.id);
         if (vendor && vendor.shopLocation) {
             order.pickupLocation = vendor.shopLocation;
             await order.save();
         }
+        // Traditional notification (push/DB)
         await notifyNearbyDeliveryBoys(order).catch(err =>
             console.error(`[Assignment] Failed to notify delivery boys for order ${order.orderId}:`, err)
         );
+        // Real-time socket event for delivery partners
+        emitEvent('delivery_partners', 'order_ready_for_pickup', {
+            orderId: order.orderId,
+            pickupLocation: order.pickupLocation,
+            vendorName: vendor?.storeName || 'Store'
+        });
+    }
+
+    // Notify Customer in real-time
+    if (order.userId) {
+        emitEvent(`user_${order.userId}`, 'order_status_updated', {
+            orderId: order.orderId,
+            status: status,
+            vendorName: req.user.storeName,
+            message: `Your order ${order.orderId} is now ${status.replace(/_/g, ' ')}.`
+        });
     }
 
     const notificationTasks = [];

@@ -28,21 +28,38 @@ const redirectToLogin = () => {
 const normalizeWishlistItem = (item) => {
   const product = item?.productId || item;
   const id = normalizeId(product?.id || product?._id || item?.id);
+  const price = Number(product?.price ?? item?.price ?? 0);
+  const originalPrice =
+    product?.originalPrice !== undefined
+      ? Number(product.originalPrice)
+      : item?.originalPrice !== undefined
+        ? Number(item.originalPrice)
+        : undefined;
+
+  // Calculate discount percentage
+  let discount = null;
+  if (originalPrice && price < originalPrice) {
+    const pct = Math.round(((originalPrice - price) / originalPrice) * 100);
+    if (pct > 0) discount = `${pct}% OFF`;
+  }
+
+  // Use discountedPrice as an alias for price for UI compatibility
+  const discountedPrice = price;
+
   return {
     id,
     name: product?.name || item?.name || 'Product',
-    price: Number(product?.price ?? item?.price ?? 0),
-    image: product?.image || item?.image || '',
+    price,
+    discountedPrice,
+    image: product?.image || product?.images?.[0] || item?.image || '',
+    brand: product?.brandId?.name || product?.brand || item?.brand || product?.brandName || 'Luxury',
     stock: product?.stock || item?.stock,
     unit: product?.unit || item?.unit,
     rating: Number(product?.rating ?? item?.rating ?? 0),
-    originalPrice:
-      product?.originalPrice !== undefined
-        ? Number(product.originalPrice)
-        : item?.originalPrice !== undefined
-          ? Number(item.originalPrice)
-          : undefined,
+    originalPrice,
+    discount,
     productId: normalizeId(product?._id || item?.productId || item?.id),
+    tryAndBuy: product?.tryAndBuy || item?.tryAndBuy || false,
   };
 };
 

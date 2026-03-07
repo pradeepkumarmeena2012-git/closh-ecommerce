@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   FiMessageSquare,
@@ -8,59 +8,56 @@ import {
   FiArrowLeft,
   FiCalendar,
   FiTag,
+  FiSend,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
 import Badge from "../../../shared/components/Badge";
 import AnimatedSelect from "../../Admin/components/AnimatedSelect";
-import { useVendorAuthStore } from "../store/vendorAuthStore";
+import { useSupportStore } from "../../../shared/store/supportStore";
 import toast from "react-hot-toast";
 
 const SupportTickets = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { vendor } = useVendorAuthStore();
-  const [tickets, setTickets] = useState([]);
+  const {
+    tickets,
+    isLoading,
+    fetchTickets,
+    fetchTicketById,
+    selectedTicket,
+    joinTicketRoom,
+    leaveTicketRoom,
+    addReply,
+    createTicket
+  } = useSupportStore();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
 
-  const vendorId = vendor?.id;
-
   useEffect(() => {
-    if (!vendorId) return;
+    fetchTickets({}, 'vendor');
+  }, [fetchTickets]);
 
-    const savedTickets = localStorage.getItem(`vendor-${vendorId}-tickets`);
-    if (savedTickets) {
-      setTickets(JSON.parse(savedTickets));
+  const filteredTickets = useMemo(() => {
+    return (Array.isArray(tickets) ? tickets : []).filter((ticket) => {
+      const matchesSearch =
+        !searchQuery ||
+        (ticket.id || ticket._id)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" || ticket.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [tickets, searchQuery, statusFilter]);
+
+  const handleSave = async (ticketData) => {
+    const success = await createTicket(ticketData, 'vendor');
+    if (success) {
+      setShowForm(false);
+      fetchTickets({}, 'vendor');
     }
-  }, [vendorId]);
-
-  const filteredTickets = tickets.filter((ticket) => {
-    const matchesSearch =
-      !searchQuery ||
-      ticket.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.subject?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || ticket.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const handleSave = (ticketData) => {
-    const updated = [
-      ...tickets,
-      {
-        ...ticketData,
-        id: `TKT-${Date.now()}`,
-        vendorId,
-        createdAt: new Date().toISOString(),
-        status: "open",
-      },
-    ];
-    setTickets(updated);
-    localStorage.setItem(`vendor-${vendorId}-tickets`, JSON.stringify(updated));
-    setShowForm(false);
-    toast.success("Ticket created successfully");
   };
 
   const getStatusVariant = (status) => {
@@ -87,32 +84,14 @@ const SupportTickets = () => {
       key: "id",
       label: "Ticket ID",
       sortable: true,
-      render: (value) => (
-        <span className="font-semibold text-gray-800">{value}</span>
+      render: (_, row) => (
+        <span className="font-semibold text-gray-800">{row.id || row._id}</span>
       ),
     },
     {
       key: "subject",
       label: "Subject",
       sortable: true,
-    },
-    {
-      key: "type",
-      label: "Type",
-      sortable: true,
-    },
-    {
-      key: "priority",
-      label: "Priority",
-      sortable: true,
-      render: (value) => (
-        <span
-          className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(
-            value
-          )}`}>
-          {value}
-        </span>
-      ),
     },
     {
       key: "status",
@@ -133,7 +112,7 @@ const SupportTickets = () => {
       label: "Actions",
       render: (_, row) => (
         <button
-          onClick={() => navigate(`/vendor/support-tickets/${row.id}`)}
+          onClick={() => navigate(`/vendor/support-tickets/${row.id || row._id}`)}
           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
           <FiEye />
         </button>
@@ -141,26 +120,18 @@ const SupportTickets = () => {
     },
   ];
 
-  // Find ticket by ID if viewing detail
-  const selectedTicket = id ? tickets.find((ticket) => ticket.id === id) : null;
-
-  // If ID is present but ticket not found, redirect to list
   useEffect(() => {
-    if (id && tickets.length > 0 && !selectedTicket) {
-      toast.error("Ticket not found");
-      navigate("/vendor/support-tickets");
+    if (id) {
+      fetchTicketById(id, 'vendor').then(ticket => {
+        if (ticket) joinTicketRoom(id);
+      });
     }
-  }, [id, tickets, selectedTicket, navigate]);
+    return () => {
+      if (id) leaveTicketRoom(id);
+    };
+  }, [id, fetchTicketById, joinTicketRoom, leaveTicketRoom]);
 
-  if (!vendorId) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Please log in to view tickets</p>
-      </div>
-    );
-  }
-
-  // Render detail view if ID is present and ticket is found
+  // Render detail view if ID is present
   if (id && selectedTicket) {
     return (
       <TicketDetail
@@ -168,6 +139,7 @@ const SupportTickets = () => {
         navigate={navigate}
         getStatusVariant={getStatusVariant}
         getPriorityColor={getPriorityColor}
+        addReply={addReply}
       />
     );
   }
@@ -179,7 +151,7 @@ const SupportTickets = () => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="lg:hidden">
+        <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2">
             <FiMessageSquare className="text-primary-600" />
             Support Tickets
@@ -235,7 +207,8 @@ const SupportTickets = () => {
         />
       ) : (
         <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-200 text-center">
-          <p className="text-gray-500">No tickets found</p>
+          <FiMessageSquare className="mx-auto text-4xl text-gray-300 mb-4" />
+          <p className="text-gray-500">No tickets found. Start a new ticket to get help.</p>
         </div>
       )}
 
@@ -251,7 +224,17 @@ const TicketDetail = ({
   navigate,
   getStatusVariant,
   getPriorityColor,
+  addReply,
 }) => {
+  const [message, setMessage] = useState("");
+  const messages = ticket.messages || [];
+
+  const handleSend = async () => {
+    if (!message.trim()) return;
+    await addReply(ticket.id || ticket._id, message.trim(), 'vendor');
+    setMessage("");
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -265,96 +248,87 @@ const TicketDetail = ({
         </button>
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-            Ticket Details
+            {ticket.subject}
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            View and manage ticket information
+            Ticket ID: {ticket.id || ticket._id}
           </p>
+        </div>
+        <div className="ml-auto">
+          <Badge variant={getStatusVariant(ticket.status)}>
+            {ticket.status}
+          </Badge>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 space-y-6">
-        {/* Ticket Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-gray-200">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-xl font-bold text-gray-800">
-                {ticket.subject}
-              </h2>
-              <Badge variant={getStatusVariant(ticket.status)}>
-                {ticket.status}
-              </Badge>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Chat Area */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[500px]">
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.senderType === 'vendor' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] rounded-lg p-3 ${msg.senderType === 'vendor'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-800'
+                    }`}>
+                    <p className="text-sm">{msg.message}</p>
+                    <span className="text-[10px] opacity-70 mt-1 block">
+                      {new Date(msg.createdAt).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {messages.length === 0 && (
+                <div className="text-center py-20 text-gray-400">
+                  No messages yet.
+                </div>
+              )}
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-              <span className="flex items-center gap-1">
-                <FiTag />
-                Ticket ID:{" "}
-                <span className="font-semibold text-gray-800">{ticket.id}</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <FiCalendar />
-                Created: {new Date(ticket.createdAt).toLocaleDateString()}
-              </span>
+            <div className="p-4 border-t border-gray-200 flex gap-2">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Type your message..."
+                className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <button
+                onClick={handleSend}
+                className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                <FiSend />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Ticket Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-2">
-              Type
-            </label>
-            <p className="text-gray-800">{ticket.type}</p>
+        {/* Info Sidebar */}
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <h3 className="font-bold text-gray-800 mb-4 pb-2 border-b border-gray-100">Details</h3>
+            <div className="space-y-4">
+              <div>
+                <span className="text-xs text-gray-500 block">Priority</span>
+                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase mt-1 ${getPriorityColor(ticket.priority)}`}>
+                  {ticket.priority}
+                </span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500 block">Created On</span>
+                <span className="text-sm font-medium text-gray-700">
+                  {new Date(ticket.createdAt).toLocaleString()}
+                </span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500 block">Type</span>
+                <span className="text-sm font-medium text-gray-700">
+                  {ticket.type || 'General'}
+                </span>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-2">
-              Priority
-            </label>
-            <span
-              className={`inline-block px-3 py-1 rounded text-sm font-medium ${getPriorityColor(
-                ticket.priority
-              )}`}>
-              {ticket.priority}
-            </span>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-2">
-              Status
-            </label>
-            <Badge variant={getStatusVariant(ticket.status)}>
-              {ticket.status}
-            </Badge>
-          </div>
-          <div>
-            <label className="text-sm font-semibold text-gray-600 block mb-2">
-              Created Date
-            </label>
-            <p className="text-gray-800">
-              {new Date(ticket.createdAt).toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        {/* Description */}
-        <div>
-          <label className="text-sm font-semibold text-gray-600 block mb-2">
-            Description
-          </label>
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <p className="text-gray-800 whitespace-pre-wrap">
-              {ticket.description}
-            </p>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-4 border-t border-gray-200">
-          <button
-            onClick={() => navigate("/vendor/support-tickets")}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
-            Back to Tickets
-          </button>
         </div>
       </div>
     </motion.div>
@@ -376,7 +350,7 @@ const TicketForm = ({ onSave, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         <h3 className="text-lg font-bold mb-4">Create Support Ticket</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -390,7 +364,7 @@ const TicketForm = ({ onSave, onClose }) => {
                 setFormData({ ...formData, subject: e.target.value })
               }
               required
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -401,7 +375,7 @@ const TicketForm = ({ onSave, onClose }) => {
                 onChange={(e) =>
                   setFormData({ ...formData, type: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
                 <option>Technical Support</option>
                 <option>Billing Inquiry</option>
                 <option>Product Inquiry</option>
@@ -417,7 +391,7 @@ const TicketForm = ({ onSave, onClose }) => {
                 onChange={(e) =>
                   setFormData({ ...formData, priority: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -435,19 +409,19 @@ const TicketForm = ({ onSave, onClose }) => {
               }
               required
               rows="6"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
             />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-gray-100 rounded-lg">
+              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg">
+              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold shadow-lg shadow-primary-200">
               Create
             </button>
           </div>

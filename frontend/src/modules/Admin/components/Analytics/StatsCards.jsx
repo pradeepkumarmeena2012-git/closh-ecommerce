@@ -1,4 +1,4 @@
-import { FiShoppingBag, FiPackage, FiUsers } from 'react-icons/fi';
+import { FiShoppingBag, FiPackage, FiUsers, FiRotateCcw } from 'react-icons/fi';
 import { IndianRupee } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatPrice } from '../../../../shared/utils/helpers';
@@ -43,6 +43,16 @@ const StatsCards = ({ stats }) => {
       color: 'text-white',
       bgColor: 'bg-gradient-to-br from-orange-500 to-amber-600',
       cardBg: 'bg-gradient-to-br from-orange-50 to-amber-50',
+      iconBg: 'bg-white/20',
+    },
+    {
+      title: 'Pending Returns',
+      value: (stats.pendingReturns || 0).toLocaleString(),
+      change: stats.returnsChange,
+      icon: FiRotateCcw,
+      color: 'text-white',
+      bgColor: 'bg-gradient-to-br from-red-500 to-pink-600',
+      cardBg: 'bg-gradient-to-br from-red-50 to-pink-50',
       iconBg: 'bg-white/20',
     },
   ];

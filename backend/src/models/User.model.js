@@ -4,9 +4,16 @@ import bcrypt from 'bcryptjs';
 const userSchema = new mongoose.Schema(
     {
         name: { type: String, required: true, trim: true },
+        firstName: { type: String, trim: true },
+        lastName: { type: String, trim: true },
         email: { type: String, required: true, unique: true, lowercase: true, index: true },
         password: { type: String, required: true, select: false },
         phone: { type: String, trim: true },
+        dob: { type: String, trim: true },
+        gender: { type: String, enum: ['Male', 'Female', 'Other', ''], default: '' },
+        ageRange: { type: String, trim: true },
+        stylePreference: { type: String, trim: true },
+        preferredFit: { type: String, trim: true },
         avatar: { type: String }, // Cloudinary URL
         role: { type: String, enum: ['customer', 'delivery'], default: 'customer' },
         isVerified: { type: Boolean, default: false },

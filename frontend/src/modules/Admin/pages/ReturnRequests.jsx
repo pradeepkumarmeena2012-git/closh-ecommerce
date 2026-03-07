@@ -9,6 +9,9 @@ import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import { useReturnStore } from '../../../shared/store/returnStore';
 
+import socketService from '../../../shared/utils/socket';
+import toast from 'react-hot-toast';
+
 const ReturnRequests = () => {
   const navigate = useNavigate();
   const {
@@ -22,7 +25,7 @@ const ReturnRequests = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
 
-  useEffect(() => {
+  const loadRequests = () => {
     const now = new Date();
     const formatDate = (date) => date.toISOString().slice(0, 10);
     let startDate;
@@ -53,7 +56,30 @@ const ReturnRequests = () => {
       startDate,
       endDate,
     });
+  };
+
+  useEffect(() => {
+    loadRequests();
   }, [searchQuery, selectedStatus, dateFilter, fetchReturnRequests]);
+
+  useEffect(() => {
+    socketService.connect();
+    socketService.joinRoom('admin');
+
+    const handleNewReturn = (data) => {
+      toast.success(`New Return Request for Order ${data.orderId}`, {
+        duration: 5000,
+        icon: '🔄'
+      });
+      loadRequests();
+    };
+
+    socketService.on('new_return_request', handleNewReturn);
+
+    return () => {
+      socketService.off('new_return_request', handleNewReturn);
+    };
+  }, []);
 
   const filteredRequests = useMemo(() => {
     return returnRequests;

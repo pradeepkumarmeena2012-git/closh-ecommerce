@@ -4,51 +4,56 @@ import { motion } from 'framer-motion';
 import { useSupportStore } from '../../../../shared/store/supportStore';
 
 const LiveChat = () => {
-  const { tickets, isLoading, fetchTickets, fetchTicketById, addReply } = useSupportStore();
-  const [selectedChat, setSelectedChat] = useState(null);
+  const {
+    tickets,
+    isLoading,
+    fetchTickets,
+    fetchTicketById,
+    addReply,
+    selectedTicket,
+    joinTicketRoom,
+    leaveTicketRoom
+  } = useSupportStore();
   const [newMessage, setNewMessage] = useState('');
 
   useEffect(() => {
-    fetchTickets({
-      limit: 200,
-    });
+    fetchTickets({ limit: 200 });
   }, [fetchTickets]);
 
   const chats = useMemo(() => {
     return (tickets || [])
       .filter((ticket) => ['open', 'in_progress'].includes(ticket.status))
       .map((ticket) => {
-      const lastMessage = ticket.messages?.[ticket.messages.length - 1];
-      return {
-        id: ticket.id,
-        customerName: ticket.customer?.name || 'Anonymous',
-        customerId: ticket.customer?._id || ticket.userId || ticket.vendorId || 'N/A',
-        lastMessage: lastMessage?.message || ticket.subject || 'No messages yet',
-        unreadCount: 0,
-        status: ticket.status,
-        lastActivity: ticket.updatedAt || ticket.lastUpdate || ticket.createdAt,
-      };
-    });
+        const lastMessage = ticket.messages?.[ticket.messages.length - 1];
+        return {
+          id: ticket.id,
+          customerName: ticket.customer?.name || 'Anonymous',
+          // Correctly reference the ID
+          lastMessage: lastMessage?.message || ticket.subject || 'No messages yet',
+          unreadCount: ticket.isReadByAdmin ? 0 : 1, // Simple unread indicator
+          status: ticket.status,
+          lastActivity: ticket.lastMessageAt || ticket.updatedAt || ticket.createdAt,
+        };
+      });
   }, [tickets]);
 
   const handleSelectChat = async (chat) => {
+    if (selectedTicket?.id) {
+      leaveTicketRoom(selectedTicket.id);
+    }
     const detail = await fetchTicketById(chat.id);
     if (detail) {
-      setSelectedChat(detail);
+      joinTicketRoom(chat.id);
     }
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat?.id) return;
-    const sent = await addReply(selectedChat.id, newMessage.trim());
-    if (!sent) return;
-
-    const refreshed = await fetchTicketById(selectedChat.id);
-    if (refreshed) setSelectedChat(refreshed);
-    setNewMessage('');
+    if (!newMessage.trim() || !selectedTicket?.id) return;
+    const sent = await addReply(selectedTicket.id, newMessage.trim());
+    if (sent) setNewMessage('');
   };
 
-  const selectedMessages = selectedChat?.messages || [];
+
 
   return (
     <motion.div
@@ -75,9 +80,8 @@ const LiveChat = () => {
               <div
                 key={chat.id}
                 onClick={() => handleSelectChat(chat)}
-                className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-                  selectedChat?.id === chat.id ? 'bg-primary-50' : ''
-                }`}
+                className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${selectedTicket?.id === chat.id ? 'bg-primary-50' : ''
+                  }`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -104,33 +108,31 @@ const LiveChat = () => {
           </div>
         </div>
 
-        {selectedChat ? (
+        {selectedTicket ? (
           <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
             <div className="p-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-800">{selectedChat.customer?.name || 'Anonymous'}</h3>
-              <p className="text-xs text-gray-500">Ticket ID: {selectedChat.id}</p>
+              <h3 className="font-semibold text-gray-800">{selectedTicket.customer?.name || 'Anonymous'}</h3>
+              <p className="text-xs text-gray-500">Ticket ID: {selectedTicket.id}</p>
             </div>
             <div className="flex-1 p-4 overflow-y-auto space-y-4 max-h-[500px]">
-              {selectedMessages.map((msg, idx) => (
+              {(selectedTicket.messages || []).map((msg, idx) => (
                 <div
                   key={`${msg.createdAt || idx}-${idx}`}
                   className={`flex ${msg.senderType === 'admin' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    msg.senderType === 'admin'
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    <p>{msg.message}</p>
-                    <p className={`text-xs mt-1 ${
-                      msg.senderType === 'admin' ? 'text-primary-100' : 'text-gray-500'
+                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${msg.senderType === 'admin'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-800'
                     }`}>
+                    <p>{msg.message}</p>
+                    <p className={`text-xs mt-1 ${msg.senderType === 'admin' ? 'text-primary-100' : 'text-gray-500'
+                      }`}>
                       {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString() : ''}
                     </p>
                   </div>
                 </div>
               ))}
-              {selectedMessages.length === 0 && (
+              {(!selectedTicket.messages || selectedTicket.messages.length === 0) && (
                 <p className="text-center text-gray-500 text-sm">No messages yet.</p>
               )}
             </div>

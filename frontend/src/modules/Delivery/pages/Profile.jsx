@@ -46,7 +46,8 @@ const DeliveryProfile = () => {
     } catch {
       setLoadFailed(true);
     }
-  }, [fetchProfile, fetchProfileSummary]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     loadProfile();
@@ -132,14 +133,14 @@ const DeliveryProfile = () => {
         >
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">My Profile</h1>
-              {loadFailed && (
-                <button
-                  onClick={loadProfile}
-                  className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg font-semibold"
-                >
-                  Retry
-                </button>
-              )}
+            {loadFailed && (
+              <button
+                onClick={loadProfile}
+                className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg font-semibold"
+              >
+                Retry
+              </button>
+            )}
             {!isEditing ? (
               <button
                 onClick={() => setIsEditing(true)}

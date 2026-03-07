@@ -34,11 +34,12 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
         if (info.offset.x >= 180 && !isUpdating) {
             setIsUpdating(true);
             try {
-                const res = await updateOrderStatus(orderId, 'ready_for_delivery');
+                const nextStatus = currentStatus === 'pending' ? 'ready_for_pickup' : (currentStatus === 'ready_for_pickup' ? 'delivered' : 'ready_for_pickup');
+                const res = await updateOrderStatus(orderId, nextStatus);
                 if (res.success) {
                     setIsSuccess(true);
-                    toast.success('Order marked as Ready for Delivery!');
-                    if (onStatusUpdate) onStatusUpdate(orderId, 'ready_for_delivery');
+                    toast.success(`Order marked as ${nextStatus.replace(/_/g, ' ')}!`);
+                    if (onStatusUpdate) onStatusUpdate(orderId, nextStatus);
                 }
             } catch (err) {
                 toast.error(err?.response?.data?.message || 'Failed to update status');
@@ -64,13 +65,15 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
                     </div>
                     <div>
                         <p className="font-bold text-green-800">{orderId}</p>
-                        <p className="text-xs text-green-600 uppercase font-bold tracking-wider">Ready for Delivery</p>
+                        <p className="text-xs text-green-600 uppercase font-bold tracking-wider">Status Updated!</p>
                     </div>
                 </div>
                 <span className="text-green-700 font-bold">{formatPrice(displayAmount)}</span>
             </motion.div>
         );
     }
+
+    const nextActionLabel = currentStatus === 'pending' ? 'Accept Order' : (currentStatus === 'ready_for_pickup' ? 'Mark Delivered' : 'Mark Ready');
 
     return (
         <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -84,7 +87,7 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
                         <p className="font-bold text-gray-900">{formatPrice(displayAmount)}</p>
                         <div className="flex items-center gap-1 justify-end text-orange-500">
                             <FiPackage className="text-xs" />
-                            <span className="text-[10px] uppercase font-bold tracking-tight">{currentStatus}</span>
+                            <span className="text-[10px] uppercase font-bold tracking-tight">{currentStatus.replace(/_/g, ' ')}</span>
                         </div>
                     </div>
                 </div>
@@ -103,7 +106,7 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
                         style={{ opacity }}
                         className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2 mx-auto"
                     >
-                        Swipe to Ready for Delivery <FiArrowRight />
+                        Swipe to {nextActionLabel} <FiArrowRight />
                     </motion.p>
                     <motion.p
                         style={{ opacity: successOpacity }}

@@ -13,6 +13,7 @@ import {
   updateVendorReturnRequestStatus,
 } from "../services/vendorService";
 import toast from "react-hot-toast";
+import socketService from "../../../shared/utils/socket";
 
 const ReturnRequests = () => {
   const navigate = useNavigate();
@@ -25,26 +26,58 @@ const ReturnRequests = () => {
 
   const vendorId = vendor?.id;
 
-  useEffect(() => {
-    if (!vendorId) {
+  const fetchReturnRequests = async () => {
+    if (!vendorId) return;
+    setIsLoading(true);
+    try {
+      // Use getAllVendorReturnRequests to get all filtered results
+      const res = await getAllVendorReturnRequests({
+        limit: 100,
+        status: selectedStatus === 'all' ? undefined : selectedStatus,
+        search: searchQuery
+      });
+      const payload = res?.data ?? res;
+      setReturnRequests(payload?.returnRequests ?? []);
+    } catch (err) {
+      console.error("Error fetching return requests:", err);
       setReturnRequests([]);
-      return;
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const fetchReturnRequests = async () => {
-      setIsLoading(true);
-      try {
-        const res = await getAllVendorReturnRequests({ limit: 100 });
-        const payload = res?.data ?? res;
-        setReturnRequests(payload?.returnRequests ?? []);
-      } catch {
-        setReturnRequests([]);
-      } finally {
-        setIsLoading(false);
-      }
+  useEffect(() => {
+    fetchReturnRequests();
+  }, [vendorId, selectedStatus, dateFilter]); // search query skipped for manual fetch or debounce
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery) fetchReturnRequests();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!vendorId) return;
+
+    // Connect to vendor room
+    socketService.connect();
+    socketService.joinRoom(`vendor_${vendorId}`);
+
+    const handleNewReturn = (data) => {
+      toast.success(`New Return Request: ${data.orderId}`, {
+        duration: 5000,
+        icon: '🔄'
+      });
+      fetchReturnRequests();
     };
 
-    fetchReturnRequests();
+    socketService.on('new_return_request', handleNewReturn);
+
+    return () => {
+      socketService.off('new_return_request', handleNewReturn);
+    };
   }, [vendorId]);
 
   // Filtered return requests

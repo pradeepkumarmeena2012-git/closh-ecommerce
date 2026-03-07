@@ -43,6 +43,12 @@ export const getFinancialSummary = (period = 'monthly', params = {}) =>
 export const getInventoryStats = () =>
     api.get('/admin/analytics/inventory-stats');
 
+export const getAdminEarningsSummary = (params = {}) =>
+    api.get('/admin/analytics/earnings-summary', { params });
+
+export const getDetailedEarningsReport = (params = {}) =>
+    api.get('/admin/analytics/earnings-report', { params });
+
 // ─── Orders ───────────────────────────────────────────────────────────────────
 export const getAllOrders = (params = {}) =>
     api.get('/admin/orders', { params });

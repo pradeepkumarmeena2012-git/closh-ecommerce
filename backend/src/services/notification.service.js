@@ -1,11 +1,18 @@
 import Notification from '../models/Notification.model.js';
+import { emitEvent } from './socket.service.js';
 
 /**
  * Create a notification for a user/vendor/delivery/admin
  * @param {Object} options - { recipientId, recipientType, title, message, type, data }
  */
 export const createNotification = async ({ recipientId, recipientType, title, message, type = 'system', data = {} }) => {
-    return Notification.create({ recipientId, recipientType, title, message, type, data });
+    const notification = await Notification.create({ recipientId, recipientType, title, message, type, data });
+
+    // Real-time socket updates for different roles using rooms
+    const room = recipientType === 'admin' ? 'admin' : `${recipientType}_${recipientId}`;
+    emitEvent(room, 'new_notification', notification);
+
+    return notification;
 };
 
 /**

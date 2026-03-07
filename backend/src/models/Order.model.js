@@ -7,6 +7,10 @@ const orderItemSchema = new mongoose.Schema({
     image: String,
     price: Number,
     quantity: Number,
+    vendorPrice: { type: Number, default: 0 }, // Snapshot of product.vendorPrice
+    commissionRate: { type: Number, default: 0 }, // Snapshot of vendor.commissionRate or category commission
+    commissionAmount: { type: Number, default: 0 }, // (Price - VendorPrice) * commissionRate (if applicable) OR standard commission
+    marginAmount: { type: Number, default: 0 }, // (Price - VendorPrice) - this is the markup margin
     variant: { type: mongoose.Schema.Types.Mixed, default: {} },
     variantKey: String,
 });
@@ -19,9 +23,12 @@ const vendorItemGroupSchema = new mongoose.Schema({
     shipping: Number,
     tax: Number,
     discount: Number,
+    commissionRate: { type: Number, default: 0 },
+    commissionAmount: { type: Number, default: 0 },
+    vendorEarnings: { type: Number, default: 0 },
     status: {
         type: String,
-        enum: ['pending', 'processing', 'ready_for_delivery', 'shipped', 'delivered', 'cancelled'],
+        enum: ['pending', 'accepted', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled', 'return requested'],
         default: 'pending',
     },
 });
@@ -51,10 +58,22 @@ const orderSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['pending', 'processing', 'ready_for_delivery', 'assigned', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned'],
+            enum: ['pending', 'accepted', 'ready_for_pickup', 'assigned', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled', 'return requested'],
             default: 'pending',
             index: true,
         },
+        orderType: {
+            type: String,
+            enum: ['check_and_buy', 'try_and_buy'],
+            required: true,
+        },
+        deliveryType: {
+            type: String,
+            enum: ['online'],
+            default: 'online',
+        },
+        pickupPhoto: { type: String },
+        deliveryPhoto: { type: String },
         pickupLocation: {
             type: { type: String, enum: ['Point'], default: 'Point' },
             coordinates: { type: [Number], default: [0, 0] },

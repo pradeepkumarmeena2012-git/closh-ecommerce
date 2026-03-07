@@ -26,21 +26,27 @@ const enrichReturnItems = (request) => {
     });
 };
 
-const normalizeReturnRequest = (request) => ({
-    ...request._doc,
-    id: request._id,
-    customer: request.userId
-        ? {
-            name: request.userId.name,
-            email: request.userId.email,
-            phone: request.userId.phone
-        }
-        : { name: 'Guest', email: 'N/A' },
-    orderId: request.orderId?.orderId || 'N/A',
-    orderRefId: request.orderId?._id || null,
-    requestDate: request.createdAt,
-    items: enrichReturnItems(request),
-});
+const normalizeReturnRequest = (requestDoc) => {
+    const request = requestDoc.toObject ? requestDoc.toObject() : requestDoc;
+    const orderRefId = request.orderId?._id || request.orderId || null;
+    const orderOrderId = request.orderId?.orderId || null;
+
+    return {
+        ...request,
+        id: String(request._id),
+        customer: request.userId
+            ? {
+                name: request.userId.name || 'Unknown Customer',
+                email: request.userId.email || 'N/A',
+                phone: request.userId.phone || 'N/A'
+            }
+            : { name: 'Guest', email: 'N/A', phone: 'N/A' },
+        orderId: orderOrderId || (typeof orderRefId === 'string' ? orderRefId : 'N/A'),
+        orderRefId: orderRefId ? String(orderRefId) : null,
+        requestDate: request.createdAt,
+        items: enrichReturnItems(request),
+    };
+};
 
 /**
  * @desc    Get all return requests with filtering and pagination
@@ -96,7 +102,7 @@ export const getAllReturnRequests = asyncHandler(async (req, res) => {
 
     const returnRequests = await ReturnRequest.find(filter)
         .populate('userId', 'name email phone')
-        .populate('orderId', 'orderId total')
+        .populate('orderId', 'orderId total items')
         .sort({ createdAt: -1 })
         .skip((numericPage - 1) * numericLimit)
         .limit(numericLimit);

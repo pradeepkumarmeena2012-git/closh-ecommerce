@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
-import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X } from 'lucide-react';
+import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 
@@ -99,7 +99,7 @@ const OrderDetailsPage = () => {
                             <div>${order.address.address}</div>
                             <div>${order.address.locality}</div>
                             <div>${order.address.city}, ${order.address.state} - ${order.address.pincode}</div>
-                            <div style="margin-top: 5px;">Phone: ${order.address.mobile}</div>
+                            <div style="margin-top: 5px;">Phone: ${order.address.mobile || order.address.phone || 'N/A'}</div>
                         ` : 'Address not available'}
                     </div>
                     <div>
@@ -171,58 +171,35 @@ const OrderDetailsPage = () => {
         invoiceWindow.document.close();
     };
 
-    const handleReturnSubmit = () => {
+    const handleReturnSubmit = async () => {
         if (!returnReason) {
             alert("Please select a reason for return");
             return;
         }
 
         setIsSubmitting(true);
-
-        // 1. Create Return Request
-        const returnId = `RET-${Math.floor(100000 + Math.random() * 900000)}`;
-        const newReturnRequest = {
-            id: returnId,
-            orderId: order.id,
-            customer: {
-                name: user?.name || order.address?.name || 'Guest User',
-                email: user?.email || 'guest@example.com'
-            },
-            requestDate: new Date().toISOString(),
-            items: order.items.map(item => ({
-                ...item,
-                price: item.discountedPrice || item.price || 0
-            })),
-            reason: returnReason,
-            refundAmount: order.total,
-            status: 'pending',
-            refundStatus: 'pending'
-        };
-
-        // 2. Save to admin return requests
-        const adminReturnRequests = JSON.parse(localStorage.getItem('admin-return-requests') || '[]');
-        localStorage.setItem('admin-return-requests', JSON.stringify([newReturnRequest, ...adminReturnRequests]));
-
-        // 3. Update order status to "Return Requested"
-        const updateOrderList = (key) => {
-            const orders = JSON.parse(localStorage.getItem(key) || '[]');
-            const updatedOrders = orders.map(o => {
-                if (String(o.id) === String(order.id)) {
-                    return { ...o, status: 'return requested', returnId: returnId };
-                }
-                return o;
+        try {
+            // Call the real backend API through the order store
+            // We pass the orderId (which could be the ORD-xxx or mongo _id)
+            // and the reason. The store helper will POST to /api/user/orders/:id/returns
+            await useOrderStore.getState().requestReturn(orderId, {
+                reason: returnReason,
+                // If the backend requires specific items, we could pass them here
+                // but currently createReturnRequest defaults to all items if not specified
             });
-            localStorage.setItem(key, JSON.stringify(updatedOrders));
-        };
 
-        updateOrderList('userOrders');
-        updateOrderList('admin-orders');
+            // Refresh order details to reflect the new status
+            const updatedOrder = await fetchOrderById(orderId);
+            if (updatedOrder) setOrder(updatedOrder);
 
-        // 4. Update local state
-        setOrder({ ...order, status: 'return requested', returnId: returnId });
-        setIsSubmitting(false);
-        setShowReturnModal(false);
-        alert("Return request submitted successfully. Our team will review it shortly.");
+            setShowReturnModal(false);
+            alert("Return request submitted successfully. Our team will review it shortly.");
+        } catch (error) {
+            console.error("Return request failed:", error);
+            alert(error.message || "Failed to submit return request. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (isLoading) {
@@ -325,10 +302,14 @@ const OrderDetailsPage = () => {
                                     <p className="text-sm font-bold text-gray-900">{order.address.name}</p>
                                     <p className="text-[11px] md:text-xs text-gray-500 font-medium leading-relaxed">
                                         {order.address.address}, {order.address.locality} <br />
-                                        {order.address.city}, {order.address.state} - {order.address.pincode}
+                                        {order.address.city}, {order.address.state} - {order.address.pincode || order.address.zipCode || 'N/A'}
                                     </p>
                                     <p className="text-[11px] md:text-xs font-bold text-gray-900 flex items-center gap-2 mt-2">
-                                        <Phone size={12} className="text-gray-400" /> {order.address.mobile}
+                                        <Phone size={12} className="text-gray-400" /> {
+                                            (order.address.mobile === "0000000000" || order.address.phone === "0000000000")
+                                                ? 'N/A'
+                                                : (order.address.mobile || order.address.phone || 'N/A')
+                                        }
                                     </p>
                                 </div>
                             ) : (
@@ -430,9 +411,25 @@ const OrderDetailsPage = () => {
                             );
                         })()}
 
+                        {(order.orderType || order.deliveryType) && (
+                            <div className="flex items-center justify-center gap-2 mt-4 px-3 py-1.5 bg-gray-50 rounded-full w-fit mx-auto border border-gray-100">
+                                <ShieldCheck size={14} className="text-black" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-black">
+                                    Delivery Type: <span className="text-[#ffcc00]">{(order.orderType || order.deliveryType).replace(/_/g, ' ')}</span>
+                                </span>
+                            </div>
+                        )}
+
                         <p className="text-[11px] md:text-xs font-bold text-gray-500 mt-6 text-center">
-                            Expected Delivery by <span className="text-black">{new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString()}</span>
+                            Fast Delivery: <span className="text-emerald-600 font-black">Instant Delivery (60 Mins)</span>
                         </p>
+
+                        {order.deliveryOtpDebug && user && (
+                            <div className="mt-6 p-4 bg-emerald-50 rounded-2xl border-2 border-emerald-100 border-dashed text-center">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1">Share this OTP with delivery partner</p>
+                                <p className="text-2xl font-black text-emerald-700 tracking-[0.2em]">{order.deliveryOtpDebug}</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Action Buttons */}

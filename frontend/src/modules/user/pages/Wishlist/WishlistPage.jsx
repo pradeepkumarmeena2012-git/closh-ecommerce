@@ -98,11 +98,17 @@ const WishlistPage = () => {
                                     <div className="text-[11px] font-black text-gray-400 uppercase tracking-tight mb-0.5">{product.brand}</div>
                                     <h3 className="text-[13px] font-bold text-gray-800 leading-tight line-clamp-1 mb-2">{product.name}</h3>
                                     <div className="flex items-center gap-2 mb-4">
-                                        <span className="text-[14px] font-black text-black">₹{product.discountedPrice}</span>
-                                        <span className="text-[12px] font-bold text-gray-400 line-through">₹{product.originalPrice}</span>
-                                        <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                            {product.discount}
-                                        </span>
+                                        <span className="text-[14px] font-black text-black">₹{product.discountedPrice || product.price}</span>
+                                        {product.originalPrice && product.originalPrice > (product.discountedPrice || product.price) && (
+                                            <>
+                                                <span className="text-[12px] font-bold text-gray-400 line-through">₹{product.originalPrice}</span>
+                                                {product.discount && (
+                                                    <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                                        {product.discount}
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
 
                                     <button

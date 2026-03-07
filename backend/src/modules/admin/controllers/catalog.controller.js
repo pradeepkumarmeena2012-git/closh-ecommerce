@@ -5,6 +5,7 @@ import Product from '../../../models/Product.model.js';
 import Category from '../../../models/Category.model.js';
 import Brand from '../../../models/Brand.model.js';
 import Settings from '../../../models/Settings.model.js';
+import { emitEvent } from '../../../services/socket.service.js';
 import { slugify } from '../../../utils/slugify.js';
 
 const sanitizeFaqs = (faqs) => {
@@ -379,6 +380,21 @@ export const updateProductStatus = asyncHandler(async (req, res) => {
     );
 
     if (!product) throw new ApiError(404, 'Product not found.');
+
+    // Real-time: notify the vendor about approval status change
+    emitEvent(`vendor_${product.vendorId}`, 'product_approved', {
+        productId: String(product._id),
+        name: product.name,
+        approvalStatus: product.approvalStatus,
+        isActive: product.isActive
+    });
+
+    // Also notify admin panel to refresh product list
+    emitEvent('admin_products', 'product_status_changed', {
+        productId: String(product._id),
+        approvalStatus: product.approvalStatus
+    });
+
     res.status(200).json(new ApiResponse(200, product, `Product ${approvalStatus} successfully.`));
 });
 

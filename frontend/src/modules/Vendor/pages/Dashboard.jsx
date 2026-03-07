@@ -15,6 +15,7 @@ import { formatPrice } from "../../../shared/utils/helpers";
 import { FiMapPin, FiAlertCircle } from "react-icons/fi";
 import toast from "react-hot-toast";
 import SwipeOrderCard from "../components/SwipeOrderCard";
+import socketService from "../../../shared/utils/socket";
 
 const VendorDashboard = () => {
   const navigate = useNavigate();
@@ -88,7 +89,7 @@ const VendorDashboard = () => {
           getVendorOrders({ page: 1, limit: 5 }),
           getVendorEarnings(),
           getVendorOrders({ page: 1, limit: 1, status: "pending" }),
-          getVendorOrders({ page: 1, limit: 1, status: "processing" }),
+          getVendorOrders({ page: 1, limit: 1, status: "accepted" }), // Changed from processing to accepted
         ]);
 
         const ordersData = ordersRes?.data ?? ordersRes;
@@ -118,6 +119,25 @@ const VendorDashboard = () => {
     };
 
     loadDashboardData();
+
+    // Socket implementation
+    if (vendorId) {
+      socketService.connect();
+      socketService.joinRoom(`vendor_${vendorId}`);
+      socketService.on("order_created", (newOrder) => {
+        toast.success(`🎉 New Order #${newOrder.orderId} received!`, { duration: 5000 });
+        loadDashboardData();
+        // Play notification sound if desired
+      });
+      socketService.on("order_picked_up", () => loadDashboardData());
+      socketService.on("order_delivered", () => loadDashboardData());
+    }
+
+    return () => {
+      socketService.off("order_created");
+      socketService.off("order_picked_up");
+      socketService.off("order_delivered");
+    };
   }, [vendorId, fetchProducts, products.length]);
 
   // Sync product counts whenever the product store updates

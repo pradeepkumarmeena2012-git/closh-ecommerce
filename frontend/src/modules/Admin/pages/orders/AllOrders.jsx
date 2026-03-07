@@ -638,6 +638,16 @@ const AllOrders = () => {
       render: (value) => new Date(value).toLocaleString(),
     },
     {
+      key: "orderType",
+      label: "Order Type",
+      sortable: true,
+      render: (value) => (
+        <span className={`px-2 py-0.5 ${value === 'try_and_buy' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-blue-50 text-blue-700 border-blue-100'} text-[10px] font-black rounded-lg border uppercase tracking-tighter font-sans`}>
+          {value?.replace(/_/g, ' ') || 'STANDARD'}
+        </span>
+      ),
+    },
+    {
       key: "actions",
       label: "Actions",
       sortable: false,

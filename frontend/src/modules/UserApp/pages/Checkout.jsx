@@ -47,7 +47,6 @@ const MobileCheckout = () => {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-  const [shippingOption, setShippingOption] = useState("standard");
   const [estimatedShipping, setEstimatedShipping] = useState(null);
   const [isEstimatingShipping, setIsEstimatingShipping] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -61,6 +60,7 @@ const MobileCheckout = () => {
     state: "",
     country: "",
     paymentMethod: "card",
+    orderType: "check_and_buy",
   });
 
   useEffect(() => {
@@ -126,9 +126,6 @@ const MobileCheckout = () => {
     if (total >= 100) {
       return 0;
     }
-    if (shippingOption === "express") {
-      return 100;
-    }
     return 50;
   };
 
@@ -172,7 +169,7 @@ const MobileCheckout = () => {
           shippingAddress: {
             country: String(formData.country || "").trim(),
           },
-          shippingOption,
+          shippingOption: 'online',
           couponType: appliedCoupon?.type || null,
         });
 
@@ -196,7 +193,7 @@ const MobileCheckout = () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [items, formData.country, shippingOption, appliedCoupon?.type]);
+  }, [items, formData.country, appliedCoupon?.type]);
 
   const handleApplyCoupon = async (codeOverride = "") => {
     const normalizedCode = String(codeOverride || couponCode).trim().toUpperCase();
@@ -242,6 +239,8 @@ const MobileCheckout = () => {
       zipCode: address.zipCode,
       state: address.state,
       country: address.country,
+      orderType: formData.orderType || "check_and_buy",
+      paymentMethod: formData.paymentMethod || "card",
     });
   };
 
@@ -330,7 +329,8 @@ const MobileCheckout = () => {
           discount: discount,
           total: finalTotal,
           couponCode: appliedCoupon ? (appliedCoupon.code || couponCode.trim().toUpperCase()) : null,
-          shippingOption,
+          orderType: formData.orderType || "check_and_buy",
+          deliveryType: 'online',
         });
 
         clearCart();
@@ -584,71 +584,58 @@ const MobileCheckout = () => {
                       ))}
                     </div>
 
-                    {/* Shipping Options */}
-                    {total < 100 && (
-                      <div className="mb-6">
-                        <h3 className="text-base font-semibold text-gray-800 mb-3">
-                          Shipping Options
-                        </h3>
-                        <div className="space-y-3">
-                          <label
-                            className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${shippingOption === "standard"
-                              ? "border-primary-500 bg-primary-50"
-                              : "border-gray-200"
-                              }`}>
-                            <div>
-                              <input
-                                type="radio"
-                                name="shippingOption"
-                                value="standard"
-                                checked={shippingOption === "standard"}
-                                onChange={(e) => setShippingOption(e.target.value)}
-                                className="w-5 h-5 text-primary-500 mr-3"
-                              />
-                              <span className="font-semibold text-gray-800 text-base">
-                                Standard Shipping
-                              </span>
-                              <p className="text-xs text-gray-600">
-                                5-7 business days
-                              </p>
-                            </div>
-                            <span className="font-bold text-gray-800">
-                              {formatPrice(50)}
+                    {/* Order Types */}
+                    <div className="mb-6">
+                      <h3 className="text-base font-semibold text-gray-800 mb-3">
+                        Order Type
+                      </h3>
+                      <div className="space-y-3">
+                        <label
+                          className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.orderType === "check_and_buy"
+                            ? "border-primary-500 bg-primary-50"
+                            : "border-gray-200"
+                            }`}>
+                          <div>
+                            <input
+                              type="radio"
+                              name="orderType"
+                              value="check_and_buy"
+                              checked={formData.orderType === "check_and_buy"}
+                              onChange={handleInputChange}
+                              className="w-5 h-5 text-primary-500 mr-3"
+                            />
+                            <span className="font-semibold text-gray-800 text-base">
+                              Check & Buy
                             </span>
-                          </label>
-                          <label
-                            className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${shippingOption === "express"
-                              ? "border-primary-500 bg-primary-50"
-                              : "border-gray-200"
-                              }`}>
-                            <div>
-                              <input
-                                type="radio"
-                                name="shippingOption"
-                                value="express"
-                                checked={shippingOption === "express"}
-                                onChange={(e) => setShippingOption(e.target.value)}
-                                className="w-5 h-5 text-primary-500 mr-3"
-                              />
-                              <span className="font-semibold text-gray-800 text-base">
-                                Express Shipping
-                              </span>
-                              <p className="text-xs text-gray-600">
-                                2-3 business days
-                              </p>
-                            </div>
-                            <span className="font-bold text-gray-800">
-                              {formatPrice(100)}
+                            <p className="text-xs text-gray-600">
+                              Check your items before you buy!
+                            </p>
+                          </div>
+                        </label>
+                        <label
+                          className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${formData.orderType === "try_and_buy"
+                            ? "border-primary-500 bg-primary-50"
+                            : "border-gray-200"
+                            }`}>
+                          <div>
+                            <input
+                              type="radio"
+                              name="orderType"
+                              value="try_and_buy"
+                              checked={formData.orderType === "try_and_buy"}
+                              onChange={handleInputChange}
+                              className="w-5 h-5 text-primary-500 mr-3"
+                            />
+                            <span className="font-semibold text-gray-800 text-base">
+                              Try & Buy
                             </span>
-                          </label>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          {isEstimatingShipping
-                            ? "Updating shipping estimate..."
-                            : `Estimated shipping: ${formatPrice(shipping)}`}
-                        </p>
+                            <p className="text-xs text-gray-600">
+                              Try on your clothes before confirming!
+                            </p>
+                          </div>
+                        </label>
                       </div>
-                    )}
+                    </div>
 
                     {/* Coupon Code */}
                     <div className="mb-6">

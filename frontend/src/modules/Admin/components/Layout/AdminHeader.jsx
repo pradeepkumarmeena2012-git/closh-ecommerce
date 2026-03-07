@@ -8,11 +8,13 @@ import toast from 'react-hot-toast';
 import Button from '../Button';
 import NotificationWindow from './NotificationWindow';
 
+import socketService from '@shared/utils/socket';
+
 const AdminHeader = ({ onMenuClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { admin, logout } = useAdminAuthStore();
-  const { notifications, unreadCount, fetchNotifications } = useNotificationStore();
+  const { notifications, unreadCount, fetchNotifications, pushNotification } = useNotificationStore();
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
@@ -20,12 +22,29 @@ const AdminHeader = ({ onMenuClick }) => {
       admin?.role === 'admin' ||
       admin?.permissions?.includes('notifications_manage') ||
       admin?.permissions?.includes('support_manage');
+
     if (hasPermission) {
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 60000); // Poll every minute
-      return () => clearInterval(interval);
+
+      // Connect to Admin socket room
+      socketService.connect();
+      socketService.joinRoom('admin');
+
+      const handleNewNotification = (notification) => {
+        pushNotification(notification);
+        toast.success(`Notification: ${notification.title}`, {
+          duration: 4000,
+          icon: '🔔'
+        });
+      };
+
+      socketService.on('new_notification', handleNewNotification);
+
+      return () => {
+        socketService.off('new_notification', handleNewNotification);
+      };
     }
-  }, [fetchNotifications, admin]);
+  }, [fetchNotifications, admin, pushNotification]);
 
   const handleLogout = () => {
     logout();
@@ -46,6 +65,7 @@ const AdminHeader = ({ onMenuClick }) => {
       categories: 'Categories',
       brands: 'Brands',
       orders: 'Orders',
+      'return-requests': 'Return Requests',
       customers: 'Customers',
       inventory: 'Inventory',
       campaigns: 'Campaigns',

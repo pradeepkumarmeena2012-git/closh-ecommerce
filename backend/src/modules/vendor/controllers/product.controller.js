@@ -4,6 +4,7 @@ import ApiError from '../../../utils/ApiError.js';
 import Product from '../../../models/Product.model.js';
 import Admin from '../../../models/Admin.model.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { emitEvent } from '../../../services/socket.service.js';
 import { slugify } from '../../../utils/slugify.js';
 
 const deriveStockStatus = (stockQuantity = 0, lowStockThreshold = 10) => {
@@ -296,6 +297,15 @@ export const createProduct = asyncHandler(async (req, res) => {
         console.error('Failed to send product approval notifications to admins:', err);
     }
 
+    // Real-time: notify admin panel about the new product
+    emitEvent('admin_products', 'new_product_created', {
+        productId: String(product._id),
+        name: product.name,
+        vendorId: String(req.user.id),
+        approvalStatus: product.approvalStatus,
+        createdAt: product.createdAt
+    });
+
     res.status(201).json(new ApiResponse(201, product, 'Product created and sent for admin approval.'));
 });
 
@@ -347,6 +357,15 @@ export const updateProduct = asyncHandler(async (req, res) => {
         Number(product.lowStockThreshold ?? 10)
     );
     await product.save();
+
+    // Real-time: notify admin panel about the product update
+    emitEvent('admin_products', 'product_updated_by_vendor', {
+        productId: String(product._id),
+        name: product.name,
+        vendorId: String(req.user.id),
+        approvalStatus: product.approvalStatus
+    });
+
     res.status(200).json(new ApiResponse(200, product, 'Product updated and sent for re-approval.'));
 });
 

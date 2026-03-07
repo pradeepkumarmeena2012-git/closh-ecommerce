@@ -4,6 +4,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation } from '../../context/LocationContext';
 import { useAddressStore } from '../../../../shared/store/addressStore';
+import api from '../../../../shared/utils/api';
 import {
     ArrowLeft,
     Trash2,
@@ -16,7 +17,8 @@ import {
     ChevronUp,
     Plus,
     Truck,
-    ShoppingCart
+    ShoppingCart,
+    ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LocationModal from '../../components/Header/LocationModal';
@@ -31,8 +33,10 @@ const CheckoutPage = () => {
     const [isCouponOpen, setIsCouponOpen] = useState(true);
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
+    const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
     const [showSizeModal, setShowSizeModal] = useState(null); // productId for which to show modal
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+    const [deliveryType, setDeliveryType] = useState('check_and_buy');
 
     useEffect(() => {
         // Scroll to top on mount
@@ -44,8 +48,13 @@ const CheckoutPage = () => {
     const totalPrice = getCartTotal();
     const shipping = totalPrice > 500 ? 0 : 40;
     const tax = Math.round(totalPrice * 0.05); // 5% GST
-    const couponDiscount = appliedCoupon ? 250 : 0;
+    const couponDiscount = appliedCoupon ? appliedCoupon.discount : 0;
     const finalTotal = totalPrice + shipping + tax - couponDiscount;
+
+    // Fixed delivery date calculation
+    const getDeliveryDateInfo = () => {
+        return "60 Mins";
+    };
 
     const handleClearCart = () => {
         if (window.confirm("Are you sure you want to clear your bag?")) {
@@ -53,22 +62,36 @@ const CheckoutPage = () => {
         }
     };
 
-    const handleApplyCoupon = (code) => {
-        if (code.toUpperCase() === 'FIRST50') {
-            setAppliedCoupon({ code: 'FIRST50', discount: 250 });
-            toast.success('Coupon Applied! You saved ₹250', {
-                style: {
-                    borderRadius: '16px',
-                    background: '#10B981',
-                    color: '#fff',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    fontSize: '11px',
-                    letterSpacing: '0.1em'
-                }
+    const handleApplyCoupon = async (code) => {
+        if (!code) {
+            toast.error('Please enter a coupon code.');
+            return;
+        }
+        setIsApplyingCoupon(true);
+        try {
+            const response = await api.post('/coupons/validate', {
+                code,
+                cartTotal: totalPrice
             });
-        } else {
-            toast.error('Invalid Coupon Code');
+            const data = response.data?.data || response.data;
+            if (data?.discount !== undefined) {
+                setAppliedCoupon({ code: data.coupon.code, discount: data.discount });
+                toast.success(`Coupon Applied! You saved ₹${data.discount}`, {
+                    style: {
+                        borderRadius: '16px',
+                        background: '#10B981',
+                        color: '#fff',
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase',
+                        fontSize: '11px',
+                        letterSpacing: '0.1em'
+                    }
+                });
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || error.message || 'Invalid Coupon Code');
+        } finally {
+            setIsApplyingCoupon(false);
         }
     };
 
@@ -234,21 +257,29 @@ const CheckoutPage = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <label className="relative cursor-pointer">
-                                <input type="radio" name="service" className="peer hidden" defaultChecked />
-                                <div className="p-3 rounded-2xl border-2 border-gray-100 peer-checked:border-black peer-checked:bg-gray-50 transition-all h-full">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-[11px] font-black uppercase">Standard</span>
-                                    </div>
-                                    <p className="text-[9px] font-bold text-gray-400 leading-tight">Delivery in 2-4 days</p>
+                                <input
+                                    type="radio"
+                                    name="deliveryType"
+                                    className="peer hidden"
+                                    checked={deliveryType === 'try_and_buy'}
+                                    onChange={() => setDeliveryType('try_and_buy')}
+                                />
+                                <div className="p-2 rounded-xl border-2 border-gray-100 peer-checked:border-black peer-checked:bg-gray-50 transition-all h-full text-center">
+                                    <span className="text-[9px] font-black uppercase block mb-1 text-[#9F1239]">Try & Buy</span>
+                                    <p className="text-[7px] font-bold text-gray-400 leading-tight">Try at door</p>
                                 </div>
                             </label>
                             <label className="relative cursor-pointer">
-                                <input type="radio" name="service" className="peer hidden" />
-                                <div className="p-3 rounded-2xl border-2 border-gray-100 peer-checked:border-black peer-checked:bg-gray-50 transition-all h-full">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-[11px] font-black uppercase text-[#9F1239]">Try & Buy</span>
-                                    </div>
-                                    <p className="text-[9px] font-bold text-gray-400 leading-tight">Try at doorstep & keep</p>
+                                <input
+                                    type="radio"
+                                    name="deliveryType"
+                                    className="peer hidden"
+                                    checked={deliveryType === 'check_and_buy'}
+                                    onChange={() => setDeliveryType('check_and_buy')}
+                                />
+                                <div className="p-2 rounded-xl border-2 border-gray-100 peer-checked:border-black peer-checked:bg-gray-50 transition-all h-full text-center">
+                                    <span className="text-[9px] font-black uppercase block mb-1 text-emerald-600">Check & Buy</span>
+                                    <p className="text-[7px] font-bold text-gray-400 leading-tight">Verify first</p>
                                 </div>
                             </label>
                         </div>
@@ -274,35 +305,47 @@ const CheckoutPage = () => {
 
                         {isCouponOpen && (
                             <div className="px-4 pb-5 space-y-4 animate-fadeIn">
-                                <div className={`border-[1.5px] border-dashed rounded-xl p-4 relative group transition-colors ${appliedCoupon?.code === 'FIRST50' ? 'border-[#10B981] bg-[#ECFDF5]' : 'border-gray-200 bg-gray-50/50'}`}>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className={`px-3 py-1 rounded-lg text-xs font-black tracking-widest uppercase ${appliedCoupon?.code === 'FIRST50' ? 'bg-[#10B981] text-white' : 'bg-gray-200 text-gray-400'}`}>
-                                            FIRST50
-                                        </div>
-                                        <button
-                                            onClick={() => appliedCoupon?.code === 'FIRST50' ? setAppliedCoupon(null) : handleApplyCoupon('FIRST50')}
-                                            className={`text-[11px] font-black uppercase transition-transform ${appliedCoupon?.code === 'FIRST50' ? 'text-gray-400' : 'text-[#9F1239] hover:scale-105'}`}
-                                        >
-                                            {appliedCoupon?.code === 'FIRST50' ? 'Remove' : 'Apply'}
-                                        </button>
-                                    </div>
-                                    <p className="text-[11px] font-bold text-gray-500 mb-3">
-                                        Get FLAT ₹250 on your first 2 orders above ₹500.
-                                    </p>
-                                    {appliedCoupon?.code === 'FIRST50' ? (
-                                        <div className="flex items-center gap-2 text-[#10B981]">
-                                            <div className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-ping" />
-                                            <span className="text-[12px] font-black uppercase tracking-tight">Applied Successfully!</span>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2 text-gray-300">
-                                            <div className="w-1.5 h-1.5 bg-gray-200 rounded-full" />
-                                            <span className="text-[11px] font-bold uppercase">Save ₹250 off with this code</span>
-                                        </div>
-                                    )}
+                                <div className="flex items-center gap-2 mb-4">
+                                    <input
+                                        type="text"
+                                        value={couponCode}
+                                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                        placeholder="Enter coupon code"
+                                        className="flex-1 px-4 py-2 border border-gray-200 rounded-xl text-sm font-bold uppercase tracking-widest outline-none focus:border-[#9F1239] transition-colors"
+                                    />
+                                    <button
+                                        onClick={() => handleApplyCoupon(couponCode)}
+                                        disabled={isApplyingCoupon || !couponCode.trim()}
+                                        className={`px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest text-[#FAFAFA] transition-all shadow-md ${isApplyingCoupon || !couponCode.trim() ? 'bg-gray-300 cursor-not-allowed' : 'bg-[#9F1239] hover:bg-[#880d31] active:scale-95'}`}
+                                    >
+                                        {isApplyingCoupon ? 'Applying...' : 'Apply'}
+                                    </button>
                                 </div>
 
-                                <div className="flex items-center justify-center gap-1 cursor-pointer">
+                                {appliedCoupon && (
+                                    <div className="border-[1.5px] border-dashed border-[#10B981] bg-[#ECFDF5] rounded-xl p-4 relative group transition-colors">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="px-3 py-1 rounded-lg text-xs font-black tracking-widest uppercase bg-[#10B981] text-white">
+                                                {appliedCoupon.code}
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setAppliedCoupon(null);
+                                                    setCouponCode('');
+                                                }}
+                                                className="text-[11px] font-black uppercase transition-transform text-gray-400 hover:text-gray-600"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[#10B981] mt-2">
+                                            <div className="w-1.5 h-1.5 bg-[#10B981] rounded-full animate-ping" />
+                                            <span className="text-[12px] font-black uppercase tracking-tight">Applied Successfully! Saved ₹{appliedCoupon.discount}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-center gap-1 cursor-pointer pt-2">
                                     <span className="text-[10px] font-black uppercase text-gray-400">Terms And Conditions</span>
                                     <ChevronDown size={14} className="text-gray-400" />
                                 </div>
@@ -320,11 +363,11 @@ const CheckoutPage = () => {
                         </div>
                         <div className="flex items-center gap-4">
                             <div className="bg-gray-50 px-4 py-2 rounded-xl text-center">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase">Standard</p>
-                                <p className="text-xs font-black">2-4 Days</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase">Instant</p>
+                                <p className="text-xs font-black">60 Mins</p>
                             </div>
                             <p className="text-xs font-bold text-gray-500 flex-1">
-                                Delivery by <span className="text-black">Sat, 2 Mar</span>
+                                Delivery within <span className="text-black">{getDeliveryDateInfo()}</span>
                             </p>
                         </div>
                     </div>
@@ -417,7 +460,7 @@ const CheckoutPage = () => {
                             </span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-black text-black truncate max-w-[200px]">
-                                    {activeAddress ? `${activeAddress.locality}, ${activeAddress.city}` : 'Add address to continue'}
+                                    {activeAddress ? [activeAddress.name || activeAddress.locality, activeAddress.city].filter(Boolean).join(', ') : 'Add address to continue'}
                                 </span>
                                 <ChevronUp size={14} className="text-gray-400" />
                             </div>
@@ -431,7 +474,7 @@ const CheckoutPage = () => {
                     </div>
 
                     <button
-                        onClick={() => activeAddress ? navigate('/payment') : setIsLocationModalOpen(true)}
+                        onClick={() => activeAddress ? navigate('/payment', { state: { deliveryType } }) : setIsLocationModalOpen(true)}
                         className={`w-full py-4 rounded-[20px] font-black text-xs uppercase tracking-[0.2em] shadow-lg transition-all active:scale-95 ${activeAddress
                             ? 'bg-black text-white hover:bg-gray-800'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'

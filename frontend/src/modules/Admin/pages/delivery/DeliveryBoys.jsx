@@ -8,6 +8,8 @@ import ConfirmModal from '../../components/ConfirmModal';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import Pagination from '../../components/Pagination';
 import { useDeliveryStore } from '../../../../shared/store/deliveryStore';
+import socketService from '../../../../shared/utils/socket';
+import toast from 'react-hot-toast';
 
 const DeliveryBoys = () => {
   const location = useLocation();
@@ -45,6 +47,38 @@ const DeliveryBoys = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, statusFilter, applicationFilter]);
+
+  // Real-time: listen for new delivery boy registrations
+  useEffect(() => {
+    socketService.connect();
+
+    const doJoin = () => {
+      socketService.joinRoom('admin_delivery');
+    };
+    if (socketService.socket?.connected) {
+      doJoin();
+    } else {
+      socketService.socket?.once('connect', doJoin);
+    }
+
+    const handleNewRegistration = (data) => {
+      toast(`🛵 New delivery boy applied: "${data.name}"`, { icon: '📝' });
+      // Refresh list to show pending application
+      fetchDeliveryBoys({
+        search: searchQuery,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        applicationStatus: applicationFilter === 'all' ? undefined : applicationFilter,
+        page: currentPage,
+        limit: itemsPerPage
+      });
+    };
+
+    socketService.on('new_delivery_boy', handleNewRegistration);
+
+    return () => {
+      socketService.off('new_delivery_boy', handleNewRegistration);
+    };
+  }, [fetchDeliveryBoys, searchQuery, statusFilter, applicationFilter, currentPage, itemsPerPage]);
 
   const handleSave = async (boyData) => {
     const currentApplicationStatus =

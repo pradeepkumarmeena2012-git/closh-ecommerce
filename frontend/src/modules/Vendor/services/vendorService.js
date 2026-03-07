@@ -527,3 +527,28 @@ export const uploadVendorImages = (files, folder = 'vendors/products') => {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
 };
+// ─── SUPPORT ───────────────────────────────────────────────────────────────────
+
+/**
+ * Submit a help request (creates a support ticket)
+ */
+export const submitVendorHelpRequest = (subject, message) =>
+    api.post('/vendor/support/help-request', { subject, message });
+
+/**
+ * Get all support tickets for the authenticated vendor
+ */
+export const getVendorSupportTickets = () =>
+    api.get('/vendor/support/tickets');
+
+/**
+ * Get a single support ticket by ID
+ */
+export const getVendorSupportTicketById = (id) =>
+    api.get(`/vendor/support/tickets/${id}`);
+
+/**
+ * Add a message to a support ticket
+ */
+export const addVendorTicketReply = (id, message) =>
+    api.post(`/vendor/support/tickets/${id}/messages`, { message });

@@ -176,7 +176,7 @@ export const useCartStore = create(
           ownerUserId: state.ownerUserId,
         }));
       },
-      clearCart: () => set((state) => ({ items: [], ownerUserId: state.ownerUserId })),
+      clearCart: () => set({ items: [], ownerUserId: getCurrentAuthUserId() || null }),
       getTotal: () => {
         const authState = useAuthStore.getState();
         if (!authState?.isAuthenticated) {
@@ -195,15 +195,16 @@ export const useCartStore = create(
       },
       getItemCount: () => {
         const authState = useAuthStore.getState();
-        if (!authState?.isAuthenticated) {
-          return 0;
-        }
+        if (!authState?.isAuthenticated) return 0;
+
         const currentUserId = getCurrentAuthUserId();
-        const ownerUserId = String(get().ownerUserId || "").trim();
-        if (ownerUserId && currentUserId && ownerUserId !== currentUserId) {
+        const state = get();
+
+        // Return 0 if data belongs to another user
+        if (state.ownerUserId && currentUserId && state.ownerUserId !== currentUserId) {
           return 0;
         }
-        const state = get();
+
         return state.items.reduce((count, item) => count + item.quantity, 0);
       },
       // Group items by vendor
@@ -248,6 +249,14 @@ export const useCartStore = create(
         items: state.items,
         ownerUserId: state.ownerUserId,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        const currentUserId = getCurrentAuthUserId();
+        if (state.ownerUserId && currentUserId && state.ownerUserId !== currentUserId) {
+          state.items = [];
+          state.ownerUserId = currentUserId;
+        }
+      },
     }
   )
 );

@@ -13,6 +13,7 @@ import {
     persistRefreshSession,
     rotateRefreshSession,
 } from '../../../services/refreshToken.service.js';
+import { emitEvent } from '../../../services/socket.service.js';
 
 const getUploadedPath = (file) => {
     if (!file?.filename) return '';
@@ -76,6 +77,13 @@ export const register = asyncHandler(async (req, res) => {
                 })
             )
         );
+
+        // Real-time notification to admin delivery room
+        emitEvent('admin_delivery', 'new_delivery_boy', {
+            id: String(deliveryBoy._id),
+            name: deliveryBoy.name,
+            email: deliveryBoy.email
+        });
 
         res.status(201).json(
             new ApiResponse(201, { email: deliveryBoy.email }, 'Registration submitted. Awaiting admin approval.')

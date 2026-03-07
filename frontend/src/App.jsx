@@ -82,6 +82,7 @@ import Tickets from "./modules/Admin/pages/support/Tickets";
 // Reports child pages
 import SalesReport from "./modules/Admin/pages/reports/SalesReport";
 import InventoryReport from "./modules/Admin/pages/reports/InventoryReport";
+import EarningsReport from "./modules/Admin/pages/reports/EarningsReport";
 // Analytics & Finance child pages
 import RevenueOverview from "./modules/Admin/pages/finance/RevenueOverview";
 import ProfitLoss from "./modules/Admin/pages/finance/ProfitLoss";
@@ -118,6 +119,7 @@ import UserCartPage from "./modules/user/pages/Cart/CartPage";
 import UserCheckoutPage from "./modules/user/pages/Checkout/CheckoutPage";
 import UserPaymentPage from "./modules/user/pages/Payment/PaymentPage";
 import UserLoginPage from "./modules/user/pages/Auth/LoginPage";
+import UserRegisterPage from "./modules/user/pages/Auth/RegisterPage";
 import UserProfilePage from "./modules/user/pages/Profile/ProfilePage";
 import UserAccountPage from "./modules/user/pages/Profile/AccountPage";
 import UserLegalPage from "./modules/user/pages/Profile/LegalPage";
@@ -296,6 +298,14 @@ const AppRoutes = () => {
           </RouteWrapper>
         }
       />
+      <Route
+        path="/register"
+        element={
+          <RouteWrapper>
+            <UserRegisterPage />
+          </RouteWrapper>
+        }
+      />
 
       {/* Profile & Account */}
       <Route
@@ -459,9 +469,10 @@ const AppRoutes = () => {
         <Route path="support/live-chat" element={<LiveChat />} />
         <Route path="support/ticket-types" element={<TicketTypes />} />
         <Route path="support/tickets" element={<Tickets />} />
-        <Route path="reports" element={<SalesReport />} />
         <Route path="reports/sales-report" element={<SalesReport />} />
         <Route path="reports/inventory-report" element={<InventoryReport />} />
+        <Route path="reports/earnings-report" element={<EarningsReport />} />
+        <Route path="reports" element={<Navigate to="/admin/reports/sales-report" replace />} />
         <Route path="finance" element={<RevenueOverview />} />
         <Route path="finance/revenue-overview" element={<RevenueOverview />} />
         <Route path="finance/profit-loss" element={<ProfitLoss />} />

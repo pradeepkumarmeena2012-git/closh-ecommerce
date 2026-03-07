@@ -59,4 +59,10 @@ export const useNotificationStore = create((set, get) => ({
             toast.error('Failed to mark all as read');
         }
     },
+    pushNotification: (notification) => {
+        set((state) => ({
+            notifications: [notification, ...state.notifications],
+            unreadCount: state.unreadCount + 1
+        }));
+    },
 }));

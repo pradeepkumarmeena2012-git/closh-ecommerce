@@ -12,6 +12,7 @@ import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js
 import mongoose from 'mongoose';
 import { createNotification } from '../../../services/notification.service.js';
 import { calculateVendorShippingForGroups } from '../../../services/vendorShipping.service.js';
+import { emitEvent } from '../../../services/socket.service.js';
 
 const normalizeVariantPart = (value) => String(value || '').trim().toLowerCase();
 const normalizeAxisName = (value) =>
@@ -196,7 +197,14 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
 
 // POST /api/user/orders
 export const placeOrder = asyncHandler(async (req, res) => {
-    const { items, shippingAddress, paymentMethod, couponCode, shippingOption } = req.body;
+    const { items, shippingAddress, paymentMethod, couponCode, shippingOption, orderType, deliveryType } = req.body;
+
+    // Validate order type
+    const allowedOrderTypes = ['check_and_buy', 'try_and_buy'];
+    if (!orderType || !allowedOrderTypes.includes(orderType)) {
+        throw new ApiError(400, "Please select an order type: 'Check & Buy' or 'Try & Buy'.");
+    }
+
     const normalizedPaymentMethod = paymentMethod === 'cash' ? 'cod' : paymentMethod;
     const userId = req.user?.id || null;
     const rawIdempotencyKey = String(req.get('x-idempotency-key') || '').trim();
@@ -254,6 +262,11 @@ export const placeOrder = asyncHandler(async (req, res) => {
             variantKey
                 ? String((product?.variants?.imageMap?.get?.(variantKey) ?? product?.variants?.imageMap?.[variantKey]) || '').trim()
                 : '';
+        const itemCommissionRate = product.vendorId.commissionRate || 0;
+        const itemCommissionAmount = (itemPrice * item.quantity * itemCommissionRate) / 100;
+        const itemVendorPrice = product.vendorPrice || 0;
+        const itemMarginAmount = (itemPrice - itemVendorPrice) * item.quantity;
+
         const enriched = {
             productId: product._id,
             vendorId: product.vendorId._id,
@@ -261,6 +274,10 @@ export const placeOrder = asyncHandler(async (req, res) => {
             image: variantImage || product.image,
             price: itemPrice,
             quantity: item.quantity,
+            vendorPrice: itemVendorPrice,
+            commissionRate: itemCommissionRate,
+            commissionAmount: itemCommissionAmount,
+            marginAmount: itemMarginAmount,
             variant: item.variant,
             variantKey: variantKey || undefined,
         };
@@ -324,16 +341,24 @@ export const placeOrder = asyncHandler(async (req, res) => {
     const total = parseFloat((subtotal - couponDiscount + shipping + tax).toFixed(2));
 
     // 5. Build vendor item groups
-    const vendorItems = Object.values(vendorMap).map((v) => ({
-        vendorId: v.vendorId,
-        vendorName: v.vendorName,
-        items: v.items,
-        subtotal: v.subtotal,
-        shipping: Number(shippingByVendor[String(v.vendorId)] || 0),
-        tax: parseFloat((v.subtotal * 0.18).toFixed(2)),
-        discount: 0,
-        status: 'pending',
-    }));
+    const vendorItems = Object.values(vendorMap).map((v) => {
+        const vendorCommissionAmount = v.items.reduce((sum, item) => sum + (item.commissionAmount || 0), 0);
+        const vendorMarginAmount = v.items.reduce((sum, item) => sum + (item.marginAmount || 0), 0);
+
+        return {
+            vendorId: v.vendorId,
+            vendorName: v.vendorName,
+            items: v.items,
+            subtotal: v.subtotal,
+            shipping: Number(shippingByVendor[String(v.vendorId)] || 0),
+            tax: parseFloat((v.subtotal * 0.18).toFixed(2)),
+            discount: 0,
+            commissionRate: v.commissionRate,
+            commissionAmount: vendorCommissionAmount,
+            vendorEarnings: parseFloat((v.subtotal - vendorCommissionAmount - vendorMarginAmount).toFixed(2)),
+            status: 'pending',
+        };
+    });
 
     // 6-9. Transactional order creation to avoid partial writes.
     let order = null;
@@ -368,12 +393,25 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 total,
                 couponCode: couponCode?.toUpperCase(),
                 couponDiscount,
+                orderType,
+                deliveryType: 'online',
                 trackingNumber: generateTrackingNumber(),
                 estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // +5 days
                 idempotencyKey: idempotencyKey || undefined,
                 idempotencyScope: idempotencyKey ? idempotencyScope : undefined,
             }], { session });
             order = createdOrder;
+
+            // Notify vendors in real-time
+            const vendorsToNotify = Object.keys(vendorMap);
+            vendorsToNotify.forEach(vid => {
+                emitEvent(`vendor_${vid}`, 'order_created', {
+                    orderId: order.orderId,
+                    total: order.total,
+                    items: vendorMap[vid].items.map(item => ({ name: item.name, quantity: item.quantity })),
+                    message: `You have received a new ${orderType.replace(/_/g, ' ')} order.`
+                });
+            });
 
             // 7. Deduct stock atomically to prevent oversell under concurrent checkout.
             for (const item of enrichedItems) {
@@ -415,14 +453,14 @@ export const placeOrder = asyncHandler(async (req, res) => {
             }
 
             // 8. Record commissions
-            const commissionDocs = Object.values(vendorMap).map((v) => ({
+            const commissionDocs = vendorItems.map((v) => ({
                 orderId: order._id,
                 vendorId: v.vendorId,
                 vendorName: v.vendorName,
                 subtotal: v.subtotal,
                 commissionRate: v.commissionRate,
-                commission: parseFloat(((v.subtotal * v.commissionRate) / 100).toFixed(2)),
-                vendorEarnings: parseFloat((v.subtotal - (v.subtotal * v.commissionRate) / 100).toFixed(2)),
+                commission: v.commissionAmount,
+                vendorEarnings: v.vendorEarnings,
             }));
             await Commission.insertMany(commissionDocs, { session });
 
@@ -490,7 +528,7 @@ export const getUserOrders = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
     console.log(`[OrderDebug] Fetching all orders for user: ${req.user.id}`);
-    const orders = await Order.find({ userId: req.user.id }).sort({ createdAt: -1 }).skip(skip).limit(Number(limit));
+    const orders = await Order.find({ userId: req.user.id }).populate('deliveryBoyId', 'currentLocation name phone').sort({ createdAt: -1 }).skip(skip).limit(Number(limit));
     const total = await Order.countDocuments({ userId: req.user.id });
     console.log(`[OrderDebug] Found ${orders.length}/${total} orders in DB for user ${req.user.id}.`);
     res.status(200).json(new ApiResponse(200, { orders, total, page: Number(page), pages: Math.ceil(total / limit) }, 'Orders fetched.'));
@@ -508,7 +546,9 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
         filter.orderId = id;
     }
 
-    const order = await Order.findOne({ ...filter, userId: req.user.id });
+    const order = await Order.findOne({ ...filter, userId: req.user.id })
+        .populate('deliveryBoyId', 'currentLocation name phone')
+        .select('+deliveryOtpDebug');
 
     if (!order) {
         console.warn(`[OrderDebug] Order not found for user: ${req.user.id} with identifier: ${id}. Checking if it exists at all...`);
@@ -613,9 +653,22 @@ const normalizeReturnRequest = (requestDoc) => {
 
 // POST /api/user/orders/:id/returns
 export const createReturnRequest = asyncHandler(async (req, res) => {
-    const order = await Order.findOne({ orderId: req.params.id, userId: req.user.id });
-    if (!order) throw new ApiError(404, 'Order not found.');
-    if (order.status !== 'delivered') {
+    const { id } = req.params;
+    console.log('--- CREATE RETURN REQUEST ---', { orderId: id, body: req.body });
+
+    const order = await Order.findOne({
+        $or: [{ _id: mongoose.isValidObjectId(id) ? id : null }, { orderId: id }],
+        userId: req.user.id,
+    });
+
+    if (!order) {
+        console.log('Order not found or access denied', { id, userId: req.user.id });
+        throw new ApiError(404, 'Order not found.');
+    }
+
+    const orderStatusNormalized = String(order.status || '').toLowerCase();
+    if (orderStatusNormalized !== 'delivered') {
+        console.log('Order is not in delivered status', { orderId: order.orderId, status: order.status });
         throw new ApiError(400, 'Return can only be requested for delivered orders.');
     }
 
@@ -700,6 +753,10 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         images: Array.isArray(req.body.images) ? req.body.images : [],
     });
 
+    // Update order status to reflect the return request
+    order.status = 'return requested';
+    await order.save();
+
     const admins = await Admin.find({ isActive: true }).select('_id').lean();
     await Promise.all(
         admins.map((admin) =>
@@ -728,6 +785,19 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
             returnRequestId: String(request._id),
             orderId: String(order.orderId),
         },
+    });
+
+    // Real-time socket updates
+    emitEvent('admin', 'new_return_request', {
+        returnRequestId: String(request._id),
+        orderId: String(order.orderId),
+        message: `New return request for Order ${order.orderId}`
+    });
+
+    emitEvent(`vendor_${vendorId}`, 'new_return_request', {
+        returnRequestId: String(request._id),
+        orderId: String(order.orderId),
+        message: `New return request for Order ${order.orderId}`
     });
 
     const populated = await ReturnRequest.findById(request._id)

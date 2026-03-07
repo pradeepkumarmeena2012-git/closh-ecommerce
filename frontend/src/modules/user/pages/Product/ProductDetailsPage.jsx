@@ -520,7 +520,7 @@ const ProductDetailsPage = () => {
                                 {
                                     id: 'shipping', title: 'Shipping & Returns', content: (
                                         <div className="space-y-4 text-[13px] font-middle text-white/60 leading-relaxed">
-                                            <p>Estimated delivery within 3-5 business days. Express shipping available at checkout.</p>
+                                            <p><span className="text-[#D4AF37] font-black uppercase tracking-widest text-[11px]">Instant Delivery:</span> Your order will be delivered within 60 minutes. Order now for the fastest service.</p>
                                             <p>You can return or exchange this item within 14 days of delivery. The item must be unused with all original tags intact.</p>
                                         </div>
                                     )

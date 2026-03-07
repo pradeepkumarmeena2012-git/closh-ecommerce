@@ -1,42 +1,60 @@
 import React, { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AccountLayout from '../../components/Profile/AccountLayout';
 import { Camera, Check } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const ProfilePage = () => {
-    const { user } = useAuth();
+    const { user, updateProfile } = useAuth();
     const fileInputRef = useRef(null);
 
-    // Form State with Local Storage Persistence
-    const [formData, setFormData] = useState(() => {
-        const savedData = localStorage.getItem('profileData');
-        return savedData ? JSON.parse(savedData) : {
-            firstName: 'Sagar',
-            lastName: 'Paliwal',
-            email: 'sagar@example.com',
-            dob: '01/01/1970',
-            gender: 'Male',
-            ageRange: '18-24',
-            stylePreference: 'Minimalist',
-            preferredFit: 'Tailored',
-            phone: '9669002380',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
-        };
+    // Form State initialized from user context
+    const [formData, setFormData] = useState({
+        firstName: user?.firstName || user?.name?.split(' ')[0] || '',
+        lastName: user?.lastName || user?.name?.split(' ').slice(1).join(' ') || '',
+        email: user?.email || '',
+        dob: user?.dob || '',
+        gender: user?.gender || '',
+        ageRange: user?.ageRange || '',
+        stylePreference: user?.stylePreference || '',
+        preferredFit: user?.preferredFit || '',
+        phone: user?.phone || '',
+        avatar: user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
     });
 
-    const handleImageChange = (e) => {
+    // Update formData when user object changes
+    React.useEffect(() => {
+        if (user) {
+            setFormData({
+                firstName: user.firstName || user.name?.split(' ')[0] || '',
+                lastName: user.lastName || user.name?.split(' ').slice(1).join(' ') || '',
+                email: user.email || '',
+                dob: user.dob || '',
+                gender: user.gender || '',
+                ageRange: user.ageRange || '',
+                stylePreference: user.stylePreference || '',
+                preferredFit: user.preferredFit || '',
+                phone: user.phone || '',
+                avatar: user.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+            });
+        }
+    }, [user]);
+
+    const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64String = reader.result;
-                setFormData(prev => ({ ...prev, avatar: base64String }));
-                // Update local storage with the new avatar
-                const updatedData = { ...formData, avatar: base64String };
-                localStorage.setItem('profileData', JSON.stringify(updatedData));
-            };
-            reader.readAsDataURL(file);
+            try {
+                // Actually upload if we had an upload function in useAuth
+                // For now, keep the local preview logic but we should call the store
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setFormData(prev => ({ ...prev, avatar: reader.result }));
+                };
+                reader.readAsDataURL(file);
+            } catch (error) {
+                toast.error('Failed to update avatar');
+            }
         }
     };
 
@@ -47,14 +65,29 @@ const ProfilePage = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setIsSaving(true);
-        localStorage.setItem('profileData', JSON.stringify(formData));
-        setTimeout(() => {
-            setIsSaving(false);
+        try {
+            const updatePayload = {
+                name: `${formData.firstName} ${formData.lastName}`.trim(),
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                dob: formData.dob,
+                gender: formData.gender,
+                ageRange: formData.ageRange,
+                stylePreference: formData.stylePreference,
+                preferredFit: formData.preferredFit,
+                phone: formData.phone
+            };
+
+            await updateProfile(updatePayload);
             setSaveMessage('Profile Updated');
             setTimeout(() => setSaveMessage(''), 3000);
-        }, 800);
+        } catch (error) {
+            toast.error(error.message || 'Failed to update profile');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const genderOptions = ['Male', 'Female', 'Other'];

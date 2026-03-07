@@ -98,7 +98,7 @@ const AddressesPage = () => {
 
     const [newAddress, setNewAddress] = useState({
         name: '',
-        mobile: user?.mobile || '',
+        mobile: user?.phone || '',
         pincode: '',
         address: '',
         locality: '',
@@ -457,12 +457,12 @@ const AddressesPage = () => {
                                             <span className="font-black text-gray-900 uppercase tracking-tight">{addr.name}</span>
                                             <span className="text-[9px] font-black bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-widest text-gray-500">{addr.type}</span>
                                         </div>
-                                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Mobile: {addr.mobile || 'N/A'}</p>
+                                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Mobile: {addr.phone || addr.mobile || 'N/A'}</p>
                                     </div>
                                 </div>
                                 <div className="w-full pt-4 border-t border-gray-50">
                                     <p className="text-[13px] font-medium text-gray-600 leading-relaxed mb-3 pr-4">
-                                        {addr.address}, {addr.locality}, {addr.city}, {addr.state} - <span className="text-gray-900 font-extrabold">{addr.pincode}</span>
+                                        {addr.address}, {addr.locality}, {addr.city}, {addr.state} - <span className="text-gray-900 font-extrabold">{addr.zipCode || addr.pincode || 'N/A'}</span>
                                     </p>
                                     <div className="flex gap-3">
                                         <button className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-black transition-colors">Edit</button>

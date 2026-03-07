@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { FiLogOut, FiTruck, FiPackage, FiHome, FiUser, FiMenu, FiBell } from "react-icons/fi";
 import { useDeliveryAuthStore } from "../../store/deliveryStore";
@@ -12,7 +12,7 @@ import { useEffect } from "react";
 const DeliveryLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { deliveryBoy, logout } = useDeliveryAuthStore();
+  const { deliveryBoy, logout, isAuthenticated, updateLocation } = useDeliveryAuthStore();
   const { unreadCount, fetchNotifications } = useDeliveryNotificationStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -20,7 +20,68 @@ const DeliveryLayout = () => {
     fetchNotifications(1);
     const interval = setInterval(() => fetchNotifications(1), 60000);
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Use refs to avoid re-registering the geolocation watcher on every store update
+  const deliveryBoyRef = useRef(deliveryBoy);
+  const updateLocationRef = useRef(updateLocation);
+  deliveryBoyRef.current = deliveryBoy;
+  updateLocationRef.current = updateLocation;
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const boy = deliveryBoyRef.current;
+    if (!boy || boy.status === 'offline') return;
+
+    let watchId;
+    let lastUpdateTime = 0;
+    let lastLat = null;
+    let lastLng = null;
+    const MIN_INTERVAL_MS = 30000; // send at most every 30 seconds
+    const MIN_DISTANCE_M = 20;    // only update if moved more than 20 meters
+
+    const calcDistance = (lat1, lng1, lat2, lng2) => {
+      const R = 6371000; // Earth radius in meters
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    };
+
+    if ("geolocation" in navigator) {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const now = Date.now();
+          const timePassed = now - lastUpdateTime >= MIN_INTERVAL_MS;
+          const movedEnough = lastLat === null ||
+            calcDistance(lastLat, lastLng, latitude, longitude) >= MIN_DISTANCE_M;
+
+          if (timePassed && movedEnough) {
+            lastUpdateTime = now;
+            lastLat = latitude;
+            lastLng = longitude;
+            updateLocationRef.current(latitude, longitude);
+          }
+        },
+        (error) => {
+          console.error("Location tracking error:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 30000,
+        }
+      );
+    }
+
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+    };
+  }, [isAuthenticated]);
 
   const handleLogout = () => {
     logout();
@@ -56,36 +117,10 @@ const DeliveryLayout = () => {
           {/* Logo */}
           <Link
             to="/delivery/dashboard"
-            className="flex items-center flex-shrink-0 overflow-visible relative z-10">
-            <div className="overflow-visible">
-              {appLogo.src ? (
-                <img
-                  src={appLogo.src}
-                  alt={appLogo.alt}
-                  className="h-6 sm:h-8 w-auto object-contain origin-left"
-                  onError={(e) => {
-                    // Hide image if logo doesn't exist
-                    e.target.style.display = "none";
-                    // Show text fallback
-                    const parent = e.target.parentElement;
-                    if (
-                      parent &&
-                      !parent.querySelector(".logo-text-fallback")
-                    ) {
-                      const fallback = document.createElement("span");
-                      fallback.className =
-                        "logo-text-fallback text-primary-600 font-bold text-sm sm:text-lg";
-                      fallback.textContent = "LOGO";
-                      parent.appendChild(fallback);
-                    }
-                  }}
-                />
-              ) : (
-                <span className="logo-text-fallback text-primary-600 font-bold text-sm sm:text-lg">
-                  LOGO
-                </span>
-              )}
-            </div>
+            className="flex items-center flex-shrink-0 relative z-10">
+            <span className="text-primary-600 font-bold text-lg sm:text-xl tracking-tight">
+              CLOUSE
+            </span>
           </Link>
 
           <div
@@ -98,7 +133,7 @@ const DeliveryLayout = () => {
               <FiMenu className="text-gray-700 text-xl" />
             </button>
             <FiTruck className="text-primary-600 text-xl" />
-            <h1 className="text-lg font-bold text-gray-800">Delivery</h1>
+            <h1 className="text-lg font-bold text-gray-800">Clouse Delivery Partner</h1>
           </div>
         </div>
       </header>
@@ -112,14 +147,14 @@ const DeliveryLayout = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 bg-black bg-opacity-50 z-40"
+              className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[100]"
             />
             <motion.div
               initial={{ x: -300 }}
               animate={{ x: 0 }}
               exit={{ x: -300 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 bottom-0 w-64 bg-white shadow-xl z-50 overflow-y-auto">
+              className="fixed left-0 top-0 bottom-0 w-64 bg-white shadow-xl z-[110] overflow-y-auto">
               {/* Sidebar Header */}
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center gap-3 mb-4">
@@ -158,11 +193,10 @@ const DeliveryLayout = () => {
                         navigate(item.path);
                         setSidebarOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-1 transition-colors ${
-                        isActive
-                          ? "bg-primary-50 text-primary-700"
-                          : "text-gray-700 hover:bg-gray-100"
-                      }`}>
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-1 transition-colors ${isActive
+                        ? "bg-primary-50 text-primary-700"
+                        : "text-gray-700 hover:bg-gray-100"
+                        }`}>
                       <Icon className="text-xl" />
                       <span className="font-medium">{item.label}</span>
                       {item.path === "/delivery/notifications" && unreadCount > 0 && (
