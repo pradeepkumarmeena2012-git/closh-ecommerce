@@ -12,8 +12,8 @@ import {
   FiUser,
   FiTrendingUp,
   FiCreditCard,
-  FiDollarSign,
 } from 'react-icons/fi';
+import { IndianRupee } from 'lucide-react';
 import PageTransition from '../../../shared/components/PageTransition';
 import { formatPrice } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
@@ -660,7 +660,7 @@ const DeliveryOrderDetail = () => {
             </button>
           )}
 
-          {order.status === 'out-for-delivery' && (
+          {(order.status === 'out-for-delivery' || order.status === 'picked-up') && (
             <div className="space-y-4 bg-emerald-50 p-5 rounded-2xl border-2 border-emerald-200">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-emerald-600 text-white rounded-lg">
@@ -676,11 +676,11 @@ const DeliveryOrderDetail = () => {
                   className="bg-amber-100 border-2 border-amber-300 rounded-2xl p-5 mb-4 flex flex-col items-center gap-2 animate-pulse shadow-md shadow-amber-200"
                 >
                   <div className="flex items-center gap-2 text-amber-900 font-extrabold uppercase text-sm tracking-tighter">
-                    <FiDollarSign className="text-xl" />
+                    <IndianRupee size={20} className="font-bold" />
                     Cash Collection Required
                   </div>
                   <p className="text-3xl font-black text-amber-900 leading-none">{formatPrice(order.total)}</p>
-                  <p className="text-[10px] text-amber-700 font-black uppercase tracking-widest text-center mt-1">Collect physical cash from customer before entering OTP</p>
+                  <p className="text-[10px] text-amber-700 font-black uppercase tracking-widest text-center mt-1">Collect physical cash (Indian Rupees) from customer before entering OTP</p>
                 </motion.div>
               )}
 

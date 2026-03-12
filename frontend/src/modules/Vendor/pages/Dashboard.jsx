@@ -4,10 +4,10 @@ import { useNavigate } from "react-router-dom";
 import {
   FiPackage,
   FiShoppingBag,
-  FiDollarSign,
   FiTrendingUp,
   FiArrowRight,
 } from "react-icons/fi";
+import { IndianRupee } from 'lucide-react';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { useVendorProductStore } from "../store/vendorProductStore";
 import { getVendorOrders, getVendorEarnings } from "../services/vendorService";
@@ -189,7 +189,7 @@ const VendorDashboard = () => {
       link: "/vendor/orders",
     },
     {
-      icon: FiDollarSign,
+      icon: IndianRupee,
       label: "Total Earnings",
       value: formatPrice(stats.totalEarnings || 0),
       color: "bg-purple-500",
@@ -315,7 +315,7 @@ const VendorDashboard = () => {
             onClick={() => navigate("/vendor/earnings")}
             className="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-left">
             <div className="bg-purple-500 p-2 rounded-lg">
-              <FiDollarSign className="text-white text-xl" />
+              <IndianRupee className="text-white text-xl" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-800">View Earnings</h3>

@@ -6,6 +6,7 @@ import { asyncHandler } from '../../../utils/asyncHandler.js';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 
 const DOC_TOKEN_TTL_MS = 10 * 60 * 1000;
 const DOC_TOKEN_QUERY_KEY = 'docToken';
@@ -71,12 +72,20 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
     // Aggregate stats for each delivery boy
     const boysWithStats = await Promise.all(deliveryBoys.map(async (boy) => {
         const stats = await Order.aggregate([
-            { $match: { deliveryBoyId: boy._id } },
+            {
+                $match: {
+                    $or: [
+                        { deliveryBoyId: new mongoose.Types.ObjectId(boy._id) },
+                        { deliveryBoyId: String(boy._id) }
+                    ],
+                    isDeleted: { $ne: true }
+                }
+            },
             {
                 $group: {
                     _id: null,
                     totalDeliveries: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
-                    pendingDeliveries: { $sum: { $cond: [{ $in: ['$status', ['pending', 'processing', 'shipped']] }, 1, 0] } },
+                    pendingDeliveries: { $sum: { $cond: [{ $in: ['$status', ['assigned', 'picked_up', 'out_for_delivery']] }, 1, 0] } },
                     cashInHand: {
                         $sum: {
                             $cond: [
@@ -96,12 +105,15 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
             }
         ]);
 
-        const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: 0, pendingDeliveries: 0, cashInHand: 0 };
+        const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: boy.totalDeliveries || 0, pendingDeliveries: 0, cashInHand: 0 };
         return {
             ...boy._doc,
             id: boy._id,
-            status: boy.isActive ? 'active' : 'inactive',
+            isActive: boy.isActive,
+            status: boy.status || (boy.isAvailable ? 'available' : 'offline'),
+            isAvailable: boy.isAvailable,
             applicationStatus: boy.applicationStatus || 'approved',
+            totalDeliveries: boyStats.totalDeliveries || boy.totalDeliveries || 0,
             documents: {
                 drivingLicense: boy.documents?.drivingLicense || '',
                 drivingLicenseBack: boy.documents?.drivingLicenseBack || '',
@@ -150,7 +162,15 @@ export const getDeliveryBoyById = asyncHandler(async (req, res) => {
     const orders = await Order.find({ deliveryBoyId: boy._id }).sort({ createdAt: -1 }).limit(50);
 
     const stats = await Order.aggregate([
-        { $match: { deliveryBoyId: boy._id } },
+        {
+            $match: {
+                $or: [
+                    { deliveryBoyId: new mongoose.Types.ObjectId(boy._id) },
+                    { deliveryBoyId: String(boy._id) }
+                ],
+                isDeleted: { $ne: true }
+            }
+        },
         {
             $group: {
                 _id: null,
@@ -175,14 +195,17 @@ export const getDeliveryBoyById = asyncHandler(async (req, res) => {
         }
     ]);
 
-    const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: 0, totalEarnings: 0, cashInHand: 0 };
+    const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: boy.totalDeliveries || 0, totalEarnings: 0, cashInHand: 0 };
 
     res.status(200).json(
         new ApiResponse(200, {
             ...boy._doc,
             id: boy._id,
-            status: boy.isActive ? 'active' : 'inactive',
+            isActive: boy.isActive,
+            status: boy.status || (boy.isAvailable ? 'available' : 'offline'),
+            isAvailable: boy.isAvailable,
             applicationStatus: boy.applicationStatus || 'approved',
+            totalDeliveries: boyStats.totalDeliveries || boy.totalDeliveries || 0,
             documentUrls: {
                 drivingLicense: buildDocUrl(req, boy.documents?.drivingLicense || ''),
                 drivingLicenseBack: buildDocUrl(req, boy.documents?.drivingLicenseBack || ''),
@@ -452,5 +475,45 @@ export const settleCash = asyncHandler(async (req, res) => {
             { modifiedCount: result.modifiedCount, settledAmount },
             `Settled cash for ${result.modifiedCount} orders`
         )
+    );
+});
+
+/**
+ * @desc    Get cash collection history for a delivery boy
+ * @route   GET /api/admin/delivery-boys/:id/cash-history
+ * @access  Private (Admin)
+ */
+export const getCashHistory = asyncHandler(async (req, res) => {
+    const boy = await DeliveryBoy.findById(req.params.id);
+    if (!boy) {
+        throw new ApiError(404, 'Delivery boy not found');
+    }
+
+    // Find all COD/Cash orders delivered by this boy
+    const orders = await Order.find({
+        deliveryBoyId: req.params.id,
+        status: 'delivered',
+        paymentMethod: { $in: ['cod', 'cash'] },
+        isDeleted: { $ne: true }
+    })
+        .sort({ deliveredAt: -1, createdAt: -1 })
+        .select('orderId total deliveredAt isCashSettled settledAt paymentMethod');
+
+    res.status(200).json(
+        new ApiResponse(200, {
+            deliveryBoy: {
+                id: boy._id,
+                name: boy.name,
+                phone: boy.phone
+            },
+            history: orders.map(o => ({
+                orderId: o.orderId,
+                amount: o.total,
+                date: o.deliveredAt || o.updatedAt,
+                isSettled: o.isCashSettled,
+                settledAt: o.settledAt,
+                paymentMethod: o.paymentMethod
+            }))
+        }, 'Cash history fetched successfully')
     );
 });

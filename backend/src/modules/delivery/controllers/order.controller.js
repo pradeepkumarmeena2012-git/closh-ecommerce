@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
+import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 
 const DELIVERY_OTP_TTL_MS = 10 * 60 * 1000;
 const DELIVERY_OTP_MAX_ATTEMPTS = 5;
@@ -314,12 +315,8 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             throw new ApiError(400, 'Pickup photo is mandatory as proof.');
         }
         order.pickupPhoto = pickupPhoto;
-        // Emit events
-        emitEvent(`user_${order.userId}`, 'order_picked_up', { orderId: order.orderId });
-        order.vendorItems.forEach(vi => emitEvent(`vendor_${vi.vendorId}`, 'order_picked_up', { orderId: order.orderId }));
-    }
 
-    if (status === 'out_for_delivery') {
+        // Generate and Send Delivery OTP at Pickup
         const generatedOtp = generateDeliveryOtp();
         order.deliveryOtpHash = hashDeliveryOtp(generatedOtp);
         order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
@@ -340,7 +337,13 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         }
 
         // Emit events
-        emitEvent(`user_${order.userId}`, 'order_out_for_delivery', { orderId: order.orderId, otp: generatedOtp });
+        emitEvent(`user_${order.userId}`, 'order_picked_up', { orderId: order.orderId, otp: generatedOtp });
+        order.vendorItems.forEach(vi => emitEvent(`vendor_${vi.vendorId}`, 'order_picked_up', { orderId: order.orderId }));
+    }
+
+    if (status === 'out_for_delivery') {
+        // Emit event to notify user that order is on the way
+        emitEvent(`user_${order.userId}`, 'order_out_for_delivery', { orderId: order.orderId });
     }
 
     if (status === 'delivered') {
@@ -381,6 +384,11 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             order.paymentStatus = 'paid';
             order.isCashSettled = false;
         }
+
+        // Increment delivery boy's total deliveries count
+        await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, {
+            $inc: { totalDeliveries: 1 }
+        });
 
         // Emit events
         emitEvent(`user_${order.userId}`, 'order_delivered', { orderId: order.orderId });
@@ -458,8 +466,9 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
     const order = await Order.findOne(query);
     if (!order) throw new ApiError(404, 'Order not found.');
 
-    if (order.status !== 'out_for_delivery') {
-        throw new ApiError(409, 'OTP can only be resent when order is in out_for_delivery state.');
+    const allowedStatusesForResend = ['picked_up', 'out_for_delivery'];
+    if (!allowedStatusesForResend.includes(order.status)) {
+        throw new ApiError(409, `OTP can only be resent when order is in ${allowedStatusesForResend.join(' or ')} state.`);
     }
 
     if (

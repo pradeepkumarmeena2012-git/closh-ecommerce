@@ -42,14 +42,17 @@ export const checkPermission = (permission) => async (req, res, next) => {
     try {
         if (!req.user) return next(new ApiError(401, 'Authentication required.'));
 
-        // Superadmin and Admin have all permissions
-        if (req.user.role === 'superadmin' || req.user.role === 'admin') return next();
+        // Only Superadmin bypasses all permission checks
+        if (req.user.role === 'superadmin') return next();
 
         const admin = await Admin.findById(req.user.id).select('permissions role isActive').lean();
         if (!admin || !admin.isActive) return next(new ApiError(403, 'Account inactive or not found.'));
 
-        if (!admin.permissions || !admin.permissions.includes(permission)) {
-            return next(new ApiError(403, `Permission denied: ${permission} required.`));
+        const requiredPermissions = Array.isArray(permission) ? permission : [permission];
+        const hasPermission = requiredPermissions.some(p => admin.permissions?.includes(p));
+
+        if (!hasPermission) {
+            return next(new ApiError(403, `Permission denied: ${requiredPermissions.join(' or ')} required.`));
         }
 
         next();

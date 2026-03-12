@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 import AdminBottomNav from './AdminBottomNav';
+import AdminPermissionGuard from '../AdminPermissionGuard';
 import useAdminHeaderHeight from '../../hooks/useAdminHeaderHeight';
 
 const AdminLayout = () => {
@@ -37,7 +38,9 @@ const AdminLayout = () => {
           }}
         >
           <div className="w-full max-w-full overflow-x-hidden min-w-0">
-            <Outlet />
+            <AdminPermissionGuard>
+              <Outlet />
+            </AdminPermissionGuard>
           </div>
         </main>
       </div>

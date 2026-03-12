@@ -120,7 +120,7 @@
   {
     "title": "Notifications",
     "route": "/admin/notifications",
-    "permission": "notifications_manage",
+    "permission": ["notifications_manage", "support_manage"],
     "children": [
       "All Notifications",
       "Push Notifications",

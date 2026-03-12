@@ -79,16 +79,16 @@ router.post('/auth/logout', validate(logoutSchema), authController.logout);
 router.get('/auth/profile', ...adminAuth, authController.getProfile);
 
 // ─── Employee Management ──────────────────────────────────────────────────────
-router.get('/employees', ...adminManager, employeeController.getAllEmployees);
-router.post('/employees', ...adminManager, uploadDocumentMultiple('documents', 5), employeeController.createEmployee);
-router.put('/employees/:id', ...adminManager, uploadDocumentMultiple('documents', 5), employeeController.updateEmployee);
-router.delete('/employees/:id', ...adminManager, employeeController.deleteEmployee);
+router.get('/employees', ...adminManager, checkPermission('staff_manage'), employeeController.getAllEmployees);
+router.post('/employees', ...adminManager, checkPermission('staff_manage'), uploadDocumentMultiple('documents', 5), employeeController.createEmployee);
+router.put('/employees/:id', ...adminManager, checkPermission('staff_manage'), uploadDocumentMultiple('documents', 5), employeeController.updateEmployee);
+router.delete('/employees/:id', ...adminManager, checkPermission('staff_manage'), employeeController.deleteEmployee);
 
 // ─── Role Management ──────────────────────────────────────────────────────────
-router.get('/roles', ...adminManager, roleController.getAllRoles);
-router.post('/roles', ...adminManager, roleController.createRole);
-router.put('/roles/:id', ...adminManager, roleController.updateRole);
-router.delete('/roles/:id', ...adminManager, roleController.deleteRole);
+router.get('/roles', ...adminManager, checkPermission('staff_manage'), roleController.getAllRoles);
+router.post('/roles', ...adminManager, checkPermission('staff_manage'), roleController.createRole);
+router.put('/roles/:id', ...adminManager, checkPermission('staff_manage'), roleController.updateRole);
+router.delete('/roles/:id', ...adminManager, checkPermission('staff_manage'), roleController.deleteRole);
 
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
@@ -165,6 +165,7 @@ router.put('/delivery-boys/:id', ...adminAuth, checkPermission('delivery_manage'
 router.delete('/delivery-boys/:id', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), deliveryController.deleteDeliveryBoy);
 router.patch('/delivery-boys/:id/status', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), validate(updateDeliveryStatusSchema), deliveryController.updateDeliveryBoyStatus);
 router.patch('/delivery-boys/:id/application-status', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), validate(updateDeliveryApplicationStatusSchema), deliveryController.updateDeliveryBoyApplicationStatus);
+router.get('/delivery-boys/:id/cash-history', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), deliveryController.getCashHistory);
 router.post('/delivery-boys/:id/settle-cash', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), validate(settleCashSchema), deliveryController.settleCash);
 
 // ─── Return Requests ──────────────────────────────────────────────────────────
@@ -229,9 +230,9 @@ router.get('/reports/sales', ...adminAuth, checkPermission('reports_view'), repo
 router.get('/reports/inventory', ...adminAuth, checkPermission('reports_view'), reportController.getInventoryReport);
 
 // ─── Notifications ─────────────────────────────────────────────────────────────
-router.get('/notifications', ...adminAuth, checkPermission('notifications_manage'), notificationController.getAdminNotifications);
-router.put('/notifications/:id/read', ...adminAuth, checkPermission('notifications_manage'), notificationController.markAsRead);
-router.put('/notifications/read-all', ...adminAuth, checkPermission('notifications_manage'), notificationController.markAllAsRead);
+router.get('/notifications', ...adminAuth, checkPermission(['notifications_manage', 'support_manage']), notificationController.getAdminNotifications);
+router.put('/notifications/:id/read', ...adminAuth, checkPermission(['notifications_manage', 'support_manage']), notificationController.markAsRead);
+router.put('/notifications/read-all', ...adminAuth, checkPermission(['notifications_manage', 'support_manage']), notificationController.markAllAsRead);
 
 // ─── Settings & Policies ──────────────────────────────────────────────────────
 import * as settingsController from '../controllers/settings.controller.js';

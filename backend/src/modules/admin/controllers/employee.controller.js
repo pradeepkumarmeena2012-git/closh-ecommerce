@@ -15,7 +15,7 @@ export const getAllEmployees = asyncHandler(async (req, res) => {
 
 // Create new employee
 export const createEmployee = asyncHandler(async (req, res) => {
-    const { name, email, password, role, permissions } = req.body;
+    const { name, email, password, role, permissions, isActive } = req.body;
 
     if (!name || !email || !password) {
         throw new ApiError(400, 'Name, email and password are required.');
@@ -30,6 +30,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
         password,
         role: role || 'employee',
         permissions: permissions ? (typeof permissions === 'string' ? JSON.parse(permissions) : permissions) : [],
+        isActive: isActive === undefined ? true : String(isActive) === 'true',
         addedBy: req.user.id,
         documents: req.files ? req.files.map(f => f.path || f.url) : []
     });
@@ -58,7 +59,9 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     if (permissions) {
         employee.permissions = typeof permissions === 'string' ? JSON.parse(permissions) : permissions;
     }
-    if (isActive !== undefined) employee.isActive = isActive;
+    if (isActive !== undefined) {
+        employee.isActive = String(isActive) === 'true';
+    }
     if (req.files && req.files.length > 0) {
         const newDocs = req.files.map(f => f.path || f.url);
         employee.documents = [...(employee.documents || []), ...newDocs];

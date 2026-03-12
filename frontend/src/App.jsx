@@ -184,7 +184,232 @@ import VendorLanguageSettings from "./modules/Vendor/pages/LanguageSettings";
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* User Module Routes - wrapped in UserLayout (Header/Footer/BottomNav + Contexts) */}
+      {/* Admin Routes (Prioritized) */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route
+        path="/admin"
+        element={
+          <AdminProtectedRoute>
+            <AdminLayout />
+          </AdminProtectedRoute>
+        }>
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="staff" element={<StaffManagement />} />
+        <Route path="products" element={<Products />} />
+        <Route path="products/:id" element={<ProductForm />} />
+        <Route path="products/manage-products" element={<ManageProducts />} />
+        <Route path="products/pending" element={<PendingProducts />} />
+        <Route path="products/tax-pricing" element={<TaxPricing />} />
+        <Route path="products/product-ratings" element={<ProductRatings />} />
+        <Route path="more" element={<More />} />
+        <Route path="categories" element={<Categories />} />
+        <Route
+          path="categories/manage-categories"
+          element={<ManageCategories />}
+        />
+        <Route path="categories/category-order" element={<CategoryOrder />} />
+        <Route path="brands" element={<Brands />} />
+        <Route path="brands/manage-brands" element={<ManageBrands />} />
+        <Route path="orders" element={<AdminOrders />} />
+        <Route path="orders/:id" element={<OrderDetail />} />
+        <Route path="orders/:id/invoice" element={<Invoice />} />
+        <Route path="orders/all-orders" element={<AllOrders />} />
+        <Route path="orders/order-tracking" element={<OrderTracking />} />
+        <Route path="return-requests" element={<ReturnRequests />} />
+        <Route path="return-requests/:id" element={<ReturnRequestDetail />} />
+        <Route path="customers" element={<Customers />} />
+        <Route path="customers/view-customers" element={<ViewCustomers />} />
+        <Route path="customers/addresses" element={<CustomerAddresses />} />
+        <Route path="customers/transactions" element={<Transactions />} />
+        <Route path="customers/:id" element={<CustomerDetailPage />} />
+
+        <Route path="delivery" element={<DeliveryBoys />} />
+        <Route path="delivery/delivery-boys" element={<DeliveryBoys />} />
+        <Route path="delivery/cash-collection" element={<CashCollection />} />
+        <Route path="delivery/assign-delivery" element={<AssignDelivery />} />
+        <Route path="vendors" element={<Vendors />} />
+        <Route path="vendors/manage-vendors" element={<ManageVendors />} />
+        <Route
+          path="vendors/pending-approvals"
+          element={<PendingApprovals />}
+        />
+        <Route path="vendors/commission-rates" element={<CommissionRates />} />
+        <Route
+          path="vendors/vendor-analytics"
+          element={<AdminVendorAnalytics />}
+        />
+        <Route path="vendors/explorer" element={<VendorExplorer />} />
+        <Route path="vendors/register" element={<RegisterVendor />} />
+        <Route path="vendors/:id" element={<VendorDetail />} />
+
+        <Route path="attributes" element={<Attributes />} />
+        <Route path="attributes/list" element={<Attributes />} />
+        <Route path="attributes/sets" element={<Attributes />} />
+        <Route path="attributes/values" element={<Attributes />} />
+
+        <Route path="offers" element={<HomeSliders />} />
+        <Route path="offers/home-sliders" element={<HomeSliders />} />
+        <Route path="offers/festival-offers" element={<FestivalOffers />} />
+        <Route path="promo-codes" element={<PromoCodes />} />
+        <Route path="promocodes" element={<PromoCodes />} />
+
+        {/* Support Routes */}
+        <Route path="chat-support" element={<LiveChat />} />
+        <Route path="support" element={<Navigate to="/admin/customer-support/live-chat" replace />} />
+        
+        <Route path="customer-support">
+          <Route index element={<Navigate to="/admin/customer-support/live-chat" replace />} />
+          <Route path="live-chat" element={<LiveChat type="customer" />} />
+          <Route path="tickets" element={<Tickets type="customer" />} />
+        </Route>
+
+        <Route path="vendor-support">
+          <Route index element={<Navigate to="/admin/vendor-support/live-chat" replace />} />
+          <Route path="live-chat" element={<LiveChat type="vendor" />} />
+          <Route path="tickets" element={<Tickets type="vendor" />} />
+        </Route>
+
+        <Route path="notifications" element={<AllNotifications />} />
+        <Route
+          path="notifications/push-notifications"
+          element={<PushNotifications />}
+        />
+        <Route
+          path="notifications/custom-messages"
+          element={<CustomMessages />}
+        />
+        
+        <Route path="reports">
+          <Route index element={<Navigate to="/admin/reports/sales-report" replace />} />
+          <Route path="sales-report" element={<SalesReport />} />
+          <Route path="inventory-report" element={<InventoryReport />} />
+          <Route path="earnings-report" element={<EarningsReport />} />
+        </Route>
+        <Route path="finance" element={<RevenueOverview />} />
+        <Route path="finance/revenue-overview" element={<RevenueOverview />} />
+        <Route path="finance/profit-loss" element={<ProfitLoss />} />
+        <Route path="finance/order-trends" element={<OrderTrends />} />
+        <Route
+          path="finance/payment-breakdown"
+          element={<PaymentBreakdown />}
+        />
+        <Route path="finance/tax-reports" element={<TaxReports />} />
+        <Route path="finance/refund-reports" element={<RefundReports />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route
+          path="settings"
+          element={<Navigate to="/admin/settings/general" replace />}
+        />
+        <Route path="settings/general" element={<Settings />} />
+        <Route path="settings/payment-shipping" element={<Settings />} />
+        <Route path="settings/orders-customers" element={<Settings />} />
+        <Route path="settings/products-inventory" element={<Settings />} />
+        <Route path="settings/content-features" element={<Settings />} />
+        <Route path="settings/notifications-seo" element={<Settings />} />
+        <Route path="policies" element={<PrivacyPolicy />} />
+        <Route path="policies/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="policies/refund-policy" element={<RefundPolicy />} />
+        <Route path="policies/terms-conditions" element={<TermsConditions />} />
+        <Route path="firebase" element={<PushConfig />} />
+        <Route path="firebase/push-config" element={<PushConfig />} />
+        <Route path="firebase/authentication" element={<Authentication />} />
+        <Route path="campaigns" element={<Campaigns />} />
+        <Route path="banners" element={<Banners />} />
+        <Route path="reviews" element={<Reviews />} />
+        <Route path="content" element={<Content />} />
+        {/* Catch-all for unmatched admin routes — stay in admin area */}
+        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+      </Route>
+
+      {/* Delivery Routes */}
+      <Route path="/delivery/login" element={<DeliveryLogin />} />
+      <Route path="/delivery/register" element={<DeliveryRegister />} />
+      <Route path="/delivery/forgot-password" element={<DeliveryForgotPassword />} />
+      <Route path="/delivery/reset-password" element={<DeliveryResetPassword />} />
+      <Route
+        path="/delivery"
+        element={
+          <DeliveryProtectedRoute>
+            <DeliveryLayout />
+          </DeliveryProtectedRoute>
+        }>
+        <Route index element={<Navigate to="/delivery/dashboard" replace />} />
+        <Route path="dashboard" element={<DeliveryDashboard />} />
+        <Route path="orders" element={<DeliveryOrders />} />
+        <Route path="orders/:id" element={<DeliveryOrderDetail />} />
+        <Route path="notifications" element={<DeliveryNotifications />} />
+        <Route path="profile" element={<DeliveryProfile />} />
+      </Route>
+
+      {/* Vendor Routes */}
+      <Route path="/vendor/login" element={<VendorLogin />} />
+      <Route path="/vendor/register" element={<VendorRegister />} />
+      <Route path="/vendor/verification" element={<VendorVerification />} />
+      <Route path="/vendor/forgot-password" element={<VendorForgotPassword />} />
+      <Route path="/vendor/reset-password" element={<VendorResetPassword />} />
+      <Route
+        path="/vendor"
+        element={
+          <VendorProtectedRoute>
+            <VendorLayout />
+          </VendorProtectedRoute>
+        }>
+        <Route index element={<Navigate to="/vendor/dashboard" replace />} />
+        <Route path="dashboard" element={<VendorDashboard />} />
+        <Route path="products" element={<VendorProducts />} />
+        <Route
+          path="products/manage-products"
+          element={<VendorManageProducts />}
+        />
+        <Route path="products/add-product" element={<VendorAddProduct />} />
+        <Route path="products/:id" element={<VendorProductForm />} />
+        <Route path="orders" element={<VendorOrders />} />
+        <Route path="orders/all-orders" element={<VendorAllOrders />} />
+        <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
+        <Route path="orders/:id" element={<VendorOrderDetail />} />
+        <Route path="analytics" element={<VendorAnalytics />} />
+        <Route path="reports" element={<VendorReports />} />
+        <Route path="earnings" element={<VendorEarnings />} />
+        <Route path="earnings/overview" element={<VendorEarnings />} />
+        <Route
+          path="earnings/commission-history"
+          element={<VendorEarnings />}
+        />
+        <Route
+          path="earnings/settlement-history"
+          element={<VendorEarnings />}
+        />
+        <Route path="stock-management" element={<VendorStockManagement />} />
+        <Route path="wallet-history" element={<VendorWalletHistory />} />
+        <Route path="help" element={<VendorHelp />} />
+        <Route path="notifications" element={<VendorNotifications />} />
+        <Route path="return-requests" element={<VendorReturnRequests />} />
+        <Route
+          path="return-requests/:id"
+          element={<VendorReturnRequestDetail />}
+        />
+        <Route path="product-reviews" element={<VendorProductReviews />} />
+        <Route path="pickup-locations" element={<VendorPickupLocations />} />
+        <Route path="support-tickets" element={<VendorSupportTickets />} />
+        <Route path="inventory-reports" element={<VendorInventoryReports />} />
+        <Route
+          path="performance-metrics"
+          element={<VendorPerformanceMetrics />}
+        />
+        <Route path="documents" element={<VendorDocuments />} />
+        <Route path="language-settings" element={<VendorLanguageSettings />} />
+        <Route path="settings" element={<VendorSettings />} />
+        <Route path="settings/store" element={<VendorSettings />} />
+        <Route path="settings/payment" element={<VendorSettings />} />
+        <Route path="settings/payment-settings" element={<VendorSettings />} />
+        <Route path="settings/shipping" element={<VendorSettings />} />
+        <Route path="settings/shipping-settings" element={<VendorSettings />} />
+        <Route path="settings/location" element={<VendorSettings />} />
+        <Route path="profile" element={<VendorSettings />} />
+      </Route>
+
+      {/* User Module Routes */}
       <Route
         path="/"
         element={
@@ -399,210 +624,7 @@ const AppRoutes = () => {
           </RouteWrapper>
         }
       />
-      {/* Admin Routes */}
-      <Route path="/admin/login" element={<AdminLogin />} />
-      <Route
-        path="/admin"
-        element={
-          <AdminProtectedRoute>
-            <AdminLayout />
-          </AdminProtectedRoute>
-        }>
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="staff" element={<StaffManagement />} />
-        <Route path="products" element={<Products />} />
-        <Route path="products/:id" element={<ProductForm />} />
-        <Route path="products/manage-products" element={<ManageProducts />} />
-        <Route path="products/pending" element={<PendingProducts />} />
-        <Route path="products/tax-pricing" element={<TaxPricing />} />
-        <Route path="products/product-ratings" element={<ProductRatings />} />
-        <Route path="more" element={<More />} />
-        <Route path="categories" element={<Categories />} />
-        <Route
-          path="categories/manage-categories"
-          element={<ManageCategories />}
-        />
-        <Route path="categories/category-order" element={<CategoryOrder />} />
-        <Route path="brands" element={<Brands />} />
-        <Route path="brands/manage-brands" element={<ManageBrands />} />
-        <Route path="orders" element={<AdminOrders />} />
-        <Route path="orders/:id" element={<OrderDetail />} />
-        <Route path="orders/:id/invoice" element={<Invoice />} />
-        <Route path="orders/all-orders" element={<AllOrders />} />
-        <Route path="orders/order-tracking" element={<OrderTracking />} />
-        <Route path="return-requests" element={<ReturnRequests />} />
-        <Route path="return-requests/:id" element={<ReturnRequestDetail />} />
-        <Route path="customers" element={<Customers />} />
-        <Route path="customers/view-customers" element={<ViewCustomers />} />
-        <Route path="customers/addresses" element={<CustomerAddresses />} />
-        <Route path="customers/transactions" element={<Transactions />} />
-        <Route path="customers/:id" element={<CustomerDetailPage />} />
-
-        <Route path="delivery" element={<DeliveryBoys />} />
-        <Route path="delivery/delivery-boys" element={<DeliveryBoys />} />
-        <Route path="delivery/cash-collection" element={<CashCollection />} />
-        <Route path="delivery/assign-delivery" element={<AssignDelivery />} />
-        <Route path="vendors" element={<Vendors />} />
-        <Route path="vendors/manage-vendors" element={<ManageVendors />} />
-        <Route
-          path="vendors/pending-approvals"
-          element={<PendingApprovals />}
-        />
-        <Route path="vendors/commission-rates" element={<CommissionRates />} />
-        <Route
-          path="vendors/vendor-analytics"
-          element={<AdminVendorAnalytics />}
-        />
-        <Route path="vendors/explorer" element={<VendorExplorer />} />
-        <Route path="vendors/register" element={<RegisterVendor />} />
-        <Route path="vendors/:id" element={<VendorDetail />} />
-
-        <Route path="attributes" element={<Attributes />} />
-        <Route path="attributes/list" element={<Attributes />} />
-        <Route path="attributes/sets" element={<Attributes />} />
-        <Route path="attributes/values" element={<Attributes />} />
-
-        <Route path="offers" element={<HomeSliders />} />
-        <Route path="offers/home-sliders" element={<HomeSliders />} />
-        <Route path="offers/festival-offers" element={<FestivalOffers />} />
-        <Route path="promocodes" element={<PromoCodes />} />
-        <Route path="notifications" element={<AllNotifications />} />
-        <Route
-          path="notifications/push-notifications"
-          element={<PushNotifications />}
-        />
-        <Route
-          path="notifications/custom-messages"
-          element={<CustomMessages />}
-        />
-        <Route path="support" element={<Tickets />} />
-        <Route path="customer-support/live-chat" element={<LiveChat type="customer" />} />
-        <Route path="customer-support/tickets" element={<Tickets type="customer" />} />
-        <Route path="vendor-support/live-chat" element={<LiveChat type="vendor" />} />
-        <Route path="vendor-support/tickets" element={<Tickets type="vendor" />} />
-        <Route path="reports/sales-report" element={<SalesReport />} />
-        <Route path="reports/inventory-report" element={<InventoryReport />} />
-        <Route path="reports/earnings-report" element={<EarningsReport />} />
-        <Route path="reports" element={<Navigate to="/admin/reports/sales-report" replace />} />
-        <Route path="finance" element={<RevenueOverview />} />
-        <Route path="finance/revenue-overview" element={<RevenueOverview />} />
-        <Route path="finance/profit-loss" element={<ProfitLoss />} />
-        <Route path="finance/order-trends" element={<OrderTrends />} />
-        <Route
-          path="finance/payment-breakdown"
-          element={<PaymentBreakdown />}
-        />
-        <Route path="finance/tax-reports" element={<TaxReports />} />
-        <Route path="finance/refund-reports" element={<RefundReports />} />
-        <Route path="analytics" element={<Analytics />} />
-        <Route
-          path="settings"
-          element={<Navigate to="/admin/settings/general" replace />}
-        />
-        <Route path="settings/general" element={<Settings />} />
-        <Route path="settings/payment-shipping" element={<Settings />} />
-        <Route path="settings/orders-customers" element={<Settings />} />
-        <Route path="settings/products-inventory" element={<Settings />} />
-        <Route path="settings/content-features" element={<Settings />} />
-        <Route path="settings/notifications-seo" element={<Settings />} />
-        <Route path="policies" element={<PrivacyPolicy />} />
-        <Route path="policies/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="policies/refund-policy" element={<RefundPolicy />} />
-        <Route path="policies/terms-conditions" element={<TermsConditions />} />
-        <Route path="firebase" element={<PushConfig />} />
-        <Route path="firebase/push-config" element={<PushConfig />} />
-        <Route path="firebase/authentication" element={<Authentication />} />
-        <Route path="campaigns" element={<Campaigns />} />
-        <Route path="banners" element={<Banners />} />
-        <Route path="reviews" element={<Reviews />} />
-        <Route path="content" element={<Content />} />
-      </Route>
-      {/* Delivery Routes */}
-      <Route path="/delivery/login" element={<DeliveryLogin />} />
-      <Route path="/delivery/register" element={<DeliveryRegister />} />
-      <Route path="/delivery/forgot-password" element={<DeliveryForgotPassword />} />
-      <Route path="/delivery/reset-password" element={<DeliveryResetPassword />} />
-      <Route
-        path="/delivery"
-        element={
-          <DeliveryProtectedRoute>
-            <DeliveryLayout />
-          </DeliveryProtectedRoute>
-        }>
-        <Route index element={<Navigate to="/delivery/dashboard" replace />} />
-        <Route path="dashboard" element={<DeliveryDashboard />} />
-        <Route path="orders" element={<DeliveryOrders />} />
-        <Route path="orders/:id" element={<DeliveryOrderDetail />} />
-        <Route path="notifications" element={<DeliveryNotifications />} />
-        <Route path="profile" element={<DeliveryProfile />} />
-      </Route>
-      {/* Vendor Routes */}
-      <Route path="/vendor/login" element={<VendorLogin />} />
-      <Route path="/vendor/register" element={<VendorRegister />} />
-      <Route path="/vendor/verification" element={<VendorVerification />} />
-      <Route path="/vendor/forgot-password" element={<VendorForgotPassword />} />
-      <Route path="/vendor/reset-password" element={<VendorResetPassword />} />
-      <Route
-        path="/vendor"
-        element={
-          <VendorProtectedRoute>
-            <VendorLayout />
-          </VendorProtectedRoute>
-        }>
-        <Route index element={<Navigate to="/vendor/dashboard" replace />} />
-        <Route path="dashboard" element={<VendorDashboard />} />
-        <Route path="products" element={<VendorProducts />} />
-        <Route
-          path="products/manage-products"
-          element={<VendorManageProducts />}
-        />
-        <Route path="products/add-product" element={<VendorAddProduct />} />
-        <Route path="products/:id" element={<VendorProductForm />} />
-        <Route path="orders" element={<VendorOrders />} />
-        <Route path="orders/all-orders" element={<VendorAllOrders />} />
-        <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
-        <Route path="orders/:id" element={<VendorOrderDetail />} />
-        <Route path="analytics" element={<VendorAnalytics />} />
-        <Route path="reports" element={<VendorReports />} />
-        <Route path="earnings" element={<VendorEarnings />} />
-        <Route path="earnings/overview" element={<VendorEarnings />} />
-        <Route
-          path="earnings/commission-history"
-          element={<VendorEarnings />}
-        />
-        <Route
-          path="earnings/settlement-history"
-          element={<VendorEarnings />}
-        />
-        <Route path="stock-management" element={<VendorStockManagement />} />
-        <Route path="wallet-history" element={<VendorWalletHistory />} />
-        <Route path="help" element={<VendorHelp />} />
-        <Route path="notifications" element={<VendorNotifications />} />
-        <Route path="return-requests" element={<VendorReturnRequests />} />
-        <Route
-          path="return-requests/:id"
-          element={<VendorReturnRequestDetail />}
-        />
-        <Route path="product-reviews" element={<VendorProductReviews />} />
-        <Route path="pickup-locations" element={<VendorPickupLocations />} />
-        <Route path="support-tickets" element={<VendorSupportTickets />} />
-        <Route path="inventory-reports" element={<VendorInventoryReports />} />
-        <Route
-          path="performance-metrics"
-          element={<VendorPerformanceMetrics />}
-        />
-        <Route path="documents" element={<VendorDocuments />} />
-        <Route path="language-settings" element={<VendorLanguageSettings />} />
-        <Route path="settings" element={<VendorSettings />} />
-        <Route path="settings/store" element={<VendorSettings />} />
-        <Route path="settings/payment" element={<VendorSettings />} />
-        <Route path="settings/payment-settings" element={<VendorSettings />} />
-        <Route path="settings/shipping" element={<VendorSettings />} />
-        <Route path="settings/shipping-settings" element={<VendorSettings />} />
-        <Route path="settings/location" element={<VendorSettings />} />
-        <Route path="profile" element={<VendorSettings />} />
-      </Route>
+      {/* This block was moved above */}
       <Route path="*" element={<Navigate to="/" replace />} />
 
     </Routes >

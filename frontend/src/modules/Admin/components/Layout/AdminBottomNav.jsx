@@ -6,17 +6,39 @@ import {
   FiPackage,
   FiShoppingBag,
   FiSettings,
+  FiMessageCircle,
+  FiBell,
+  FiMoreHorizontal,
 } from "react-icons/fi";
+import { useAdminAuthStore } from "../../store/adminStore";
+import { useNotificationStore } from "../../store/notificationStore";
 
 const AdminBottomNav = () => {
   const location = useLocation();
+  const { admin } = useAdminAuthStore();
+  const { unreadCount } = useNotificationStore();
 
-  const navItems = [
-    { path: "/admin/dashboard", icon: FiHome, label: "Home" },
-    { path: "/admin/products", icon: FiPackage, label: "Products" },
-    { path: "/admin/orders", icon: FiShoppingBag, label: "Orders" },
-    { path: "/admin/settings", icon: FiSettings, label: "Setting" },
+  const allNavItems = [
+    { path: "/admin/dashboard", icon: FiHome, label: "Home", permission: "dashboard_view" },
+    { path: "/admin/products", icon: FiPackage, label: "Products", permission: "products_manage" },
+    { path: "/admin/orders", icon: FiShoppingBag, label: "Orders", permission: "orders_manage" },
+    { path: "/admin/customer-support/live-chat", icon: FiMessageCircle, label: "Support", permission: "support_manage" },
+    { path: "/admin/notifications", icon: FiBell, label: "Alerts", permission: ["notifications_manage", "support_manage"], hasBadge: true },
+    { path: "/admin/settings", icon: FiSettings, label: "Setting", permission: "settings_manage" },
+    { path: "/admin/more", icon: FiMoreHorizontal, label: "More", permission: null },
   ];
+
+  // Superadmins see everything; staff see only permitted items + More
+  const checkPerm = (itemPerm) => {
+    if (!itemPerm) return true;
+    if (admin?.role === 'superadmin') return true;
+    if (Array.isArray(itemPerm)) {
+      return itemPerm.some(p => admin?.permissions?.includes(p));
+    }
+    return admin?.permissions?.includes(itemPerm);
+  };
+
+  const navItems = allNavItems.filter(item => checkPerm(item.permission)).slice(0, 5);
 
   const isActive = (path) => {
     if (path === "/admin/dashboard") {
@@ -73,6 +95,9 @@ const AdminBottomNav = () => {
                     strokeWidth: 2,
                   }}
                 />
+                {item.hasBadge && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                )}
               </motion.div>
               <span
                 className={`text-xs font-medium ${

@@ -11,11 +11,13 @@ import {
   FiBarChart2,
   FiFileText,
 } from 'react-icons/fi';
+import { useAdminAuthStore } from '../store/adminStore';
 
 const More = () => {
   const navigate = useNavigate();
+  const { admin } = useAdminAuthStore();
 
-  const menuItems = [
+  const allMenuItems = [
     { 
       path: '/admin/categories', 
       label: 'Categories', 
@@ -24,7 +26,8 @@ const More = () => {
       lightGradient: 'from-blue-50 via-blue-100/80 to-blue-50',
       shadowColor: 'shadow-blue-500/20',
       hoverShadow: 'hover:shadow-blue-500/30',
-      description: 'Manage categories'
+      description: 'Manage categories',
+      permission: 'categories_manage'
     },
     { 
       path: '/admin/brands', 
@@ -34,7 +37,8 @@ const More = () => {
       lightGradient: 'from-purple-50 via-purple-100/80 to-purple-50',
       shadowColor: 'shadow-purple-500/20',
       hoverShadow: 'hover:shadow-purple-500/30',
-      description: 'Manage brands'
+      description: 'Manage brands',
+      permission: 'brands_manage'
     },
     { 
       path: '/admin/customers', 
@@ -44,7 +48,8 @@ const More = () => {
       lightGradient: 'from-emerald-50 via-emerald-100/80 to-emerald-50',
       shadowColor: 'shadow-emerald-500/20',
       hoverShadow: 'hover:shadow-emerald-500/30',
-      description: 'View customers'
+      description: 'View customers',
+      permission: 'customers_manage'
     },
     { 
       path: '/admin/inventory', 
@@ -54,7 +59,8 @@ const More = () => {
       lightGradient: 'from-orange-50 via-orange-100/80 to-orange-50',
       shadowColor: 'shadow-orange-500/20',
       hoverShadow: 'hover:shadow-orange-500/30',
-      description: 'Track inventory'
+      description: 'Track inventory',
+      permission: 'products_manage'
     },
     { 
       path: '/admin/campaigns', 
@@ -64,7 +70,8 @@ const More = () => {
       lightGradient: 'from-rose-50 via-rose-100/80 to-rose-50',
       shadowColor: 'shadow-rose-500/20',
       hoverShadow: 'hover:shadow-rose-500/30',
-      description: 'Create campaigns'
+      description: 'Create campaigns',
+      permission: 'marketing_manage'
     },
     { 
       path: '/admin/banners', 
@@ -74,7 +81,8 @@ const More = () => {
       lightGradient: 'from-pink-50 via-pink-100/80 to-pink-50',
       shadowColor: 'shadow-pink-500/20',
       hoverShadow: 'hover:shadow-pink-500/30',
-      description: 'Manage banners'
+      description: 'Manage banners',
+      permission: 'marketing_manage'
     },
     { 
       path: '/admin/reviews', 
@@ -84,7 +92,8 @@ const More = () => {
       lightGradient: 'from-amber-50 via-amber-100/80 to-amber-50',
       shadowColor: 'shadow-amber-500/20',
       hoverShadow: 'hover:shadow-amber-500/30',
-      description: 'Moderate reviews'
+      description: 'Moderate reviews',
+      permission: 'products_manage'
     },
     { 
       path: '/admin/analytics', 
@@ -94,7 +103,8 @@ const More = () => {
       lightGradient: 'from-indigo-50 via-indigo-100/80 to-indigo-50',
       shadowColor: 'shadow-indigo-500/20',
       hoverShadow: 'hover:shadow-indigo-500/30',
-      description: 'View analytics'
+      description: 'View analytics',
+      permission: 'finance_view'
     },
     { 
       path: '/admin/content', 
@@ -104,9 +114,17 @@ const More = () => {
       lightGradient: 'from-cyan-50 via-cyan-100/80 to-cyan-50',
       shadowColor: 'shadow-cyan-500/20',
       hoverShadow: 'hover:shadow-cyan-500/30',
-      description: 'Manage content'
+      description: 'Manage content',
+      permission: 'settings_manage'
     },
   ];
+
+  // Filter menu items based on employee permissions; superadmins see all
+  const menuItems = admin?.role === 'superadmin'
+    ? allMenuItems
+    : allMenuItems.filter(
+        (item) => !item.permission || admin?.permissions?.includes(item.permission)
+      );
 
   return (
     <motion.div

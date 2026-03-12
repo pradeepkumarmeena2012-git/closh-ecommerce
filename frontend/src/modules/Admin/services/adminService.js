@@ -233,6 +233,9 @@ export const updateDeliveryBoyApplicationStatus = (id, applicationStatus, reason
 export const settleCash = (id, amount) =>
     api.post(`/admin/delivery-boys/${id}/settle-cash`, { amount });
 
+export const getCashHistory = (id) =>
+    api.get(`/admin/delivery-boys/${id}/cash-history`);
+
 export const updateDeliveryBoy = (id, data) =>
     api.put(`/admin/delivery-boys/${id}`, data);
 

@@ -37,6 +37,7 @@ const PERMISSIONS = [
     { id: 'finance_view', label: 'View Finance' },
     { id: 'settings_manage', label: 'Manage Settings' },
     { id: 'attributes_manage', label: 'Manage Attributes' },
+    { id: 'staff_manage', label: 'Manage Staff' },
 ];
 
 const StaffManagement = () => {
@@ -319,8 +320,8 @@ const StaffManagement = () => {
                         <FiUsers size={24} />
                     </div>
                     <div>
-                        <p className="text-sm font-medium text-gray-500">Total Staff</p>
-                        <p className="text-2xl font-bold text-gray-800">{employees.length}</p>
+                        <p className="text-sm font-medium text-gray-500">Active Staff</p>
+                        <p className="text-2xl font-bold text-gray-800">{employees.filter(e => e.isActive).length}</p>
                     </div>
                 </div>
                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">

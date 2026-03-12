@@ -21,7 +21,8 @@ export const useDeliveryStore = create(
                 const deliveryBoys = (response.data.deliveryBoys || []).map((boy) => ({
                     ...boy,
                     id: boy.id || boy._id,
-                    status: boy.status || (boy.isActive ? 'active' : 'inactive'),
+                    isActive: boy.isActive,
+                    status: boy.status || (boy.isAvailable ? 'available' : 'offline'),
                     applicationStatus: boy.applicationStatus || 'approved',
                     documentUrls: boy.documentUrls || {},
                     totalDeliveries: boy.totalDeliveries ?? boy.stats?.totalDeliveries ?? 0,
@@ -46,7 +47,8 @@ export const useDeliveryStore = create(
                 const createdBoy = {
                     ...response.data,
                     id: response.data.id || response.data._id,
-                    status: response.data.status || (response.data.isActive ? 'active' : 'inactive'),
+                    isActive: response.data.isActive,
+                    status: response.data.status || (response.data.isAvailable ? 'available' : 'offline'),
                     totalDeliveries: response.data.totalDeliveries ?? 0,
                     pendingDeliveries: response.data.pendingDeliveries ?? 0,
                     cashInHand: response.data.cashInHand ?? 0
@@ -69,7 +71,7 @@ export const useDeliveryStore = create(
                 await adminService.updateDeliveryBoyStatus(id, isActive);
                 set((state) => ({
                     deliveryBoys: state.deliveryBoys.map((b) =>
-                        b.id === id ? { ...b, isActive, status: isActive ? 'active' : 'inactive' } : b
+                        b.id === id ? { ...b, isActive, status: b.status || (isActive ? 'available' : 'offline') } : b
                     )
                 }));
                 toast.success('Status updated successfully');
@@ -90,7 +92,8 @@ export const useDeliveryStore = create(
                                 ...updated,
                                 id: updated.id || updated._id || boy.id,
                                 applicationStatus: updated.applicationStatus || applicationStatus,
-                                status: updated.isActive ? 'active' : 'inactive',
+                                isActive: updated.isActive,
+                                status: updated.status || (updated.isActive ? 'available' : 'offline'),
                             }
                             : boy
                     ),
@@ -110,7 +113,8 @@ export const useDeliveryStore = create(
                 const updatedBoy = {
                     ...response.data,
                     id: response.data.id || response.data._id,
-                    status: response.data.status || (response.data.isActive ? 'active' : 'inactive')
+                    isActive: response.data.isActive,
+                    status: response.data.status || (response.data.isAvailable ? 'available' : 'offline')
                 };
                 set((state) => ({
                     deliveryBoys: state.deliveryBoys.map((boy) =>

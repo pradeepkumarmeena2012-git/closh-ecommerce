@@ -199,12 +199,16 @@ api.interceptors.response.use(
       error.message ||
       'Something went wrong';
 
+    const is401_403 = error.response?.status === 401 || error.response?.status === 403;
+    const isCrossScopeError = is401_403 && scope !== pathScope;
+
     // Suppress toast for GPS location update rate limits (429 on profile update)
     const is429 = error.response?.status === 429;
     const isLocationUpdate =
       originalRequest.url?.includes('/delivery/auth/profile') &&
       originalRequest.method?.toLowerCase() === 'put';
-    if (!is429 || !isLocationUpdate) {
+
+    if (!is429 && !isLocationUpdate && !isCrossScopeError) {
       toast.error(message);
     }
 

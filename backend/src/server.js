@@ -5,6 +5,7 @@ import { validateEnv } from "./config/env.js";
 
 import http from 'http';
 import { initSocket } from './services/socket.service.js';
+import { connectRedis } from './config/redis.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -12,6 +13,7 @@ const startServer = async () => {
   try {
     validateEnv();
     await connectDB();
+    await connectRedis();
 
     // Wrap Express app with HTTP server
     const server = http.createServer(app);

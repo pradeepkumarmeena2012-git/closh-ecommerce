@@ -24,6 +24,7 @@ import {
   FiUser,
 } from "react-icons/fi";
 import { useAdminAuthStore } from "../../store/adminStore";
+import { useNotificationStore } from "../../store/notificationStore";
 import adminMenu from "../../config/adminMenu.json";
 
 // Icon mapping for menu items
@@ -85,6 +86,13 @@ const getChildRoute = (parentRoute, childName) => {
       "Attributes": "/admin/attributes/list",
       "Attribute Values": "/admin/attributes/values",
     },
+    "/admin/vendors": {
+      "Manage Vendors": "/admin/vendors/manage-vendors",
+      "Vendor Explorer": "/admin/vendors/explorer",
+      "Pending Approvals": "/admin/vendors/pending-approvals",
+      "Commission Rates": "/admin/vendors/commission-rates",
+      "Vendor Analytics": "/admin/vendors/vendor-analytics",
+    },
     "/admin/offers": {
       "Home Sliders": "/admin/offers/home-sliders",
       "Festival Offers": "/admin/offers/festival-offers",
@@ -137,6 +145,7 @@ const AdminSidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { admin } = useAdminAuthStore();
+  const { unreadCount } = useNotificationStore();
   const [expandedItems, setExpandedItems] = useState({});
   const [isMobile, setIsMobile] = useState(false);
 
@@ -287,6 +296,11 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               }`}
           />
           <span className="font-medium flex-1 text-sm">{item.title}</span>
+          {item.title === "Notifications" && unreadCount > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full mr-2 min-w-[1.5rem] text-center shadow-sm">
+              {unreadCount}
+            </span>
+          )}
           {hasChildren && (
             <motion.div
               animate={{ rotate: isExpanded ? 180 : 0 }}
@@ -376,7 +390,8 @@ const AdminSidebar = ({ isOpen, onClose }) => {
           .filter((item) => {
             if (admin?.role === "superadmin") return true;
             if (!item.permission) return true;
-            return admin?.permissions?.includes(item.permission);
+            const itemPerms = Array.isArray(item.permission) ? item.permission : [item.permission];
+            return itemPerms.some(p => admin?.permissions?.includes(p));
           })
           .map((item) => renderMenuItem(item))}
       </nav>

@@ -17,16 +17,23 @@ const AdminHeader = ({ onMenuClick }) => {
   const { notifications, unreadCount, fetchNotifications, pushNotification } = useNotificationStore();
   const [showNotifications, setShowNotifications] = useState(false);
 
+  // Only fetch notifications if user has the notifications_manage permission
+  // (the backend endpoint requires this specific permission)
+  const canViewNotifications = admin?.role === 'superadmin' ||
+    admin?.role === 'admin' ||
+    admin?.permissions?.includes('notifications_manage') ||
+    admin?.permissions?.includes('support_manage');
+
+  // Socket connection for real-time events (support staff can still get live events)
+  const canReceiveEvents = canViewNotifications ||
+    admin?.permissions?.includes('support_manage');
+
   useEffect(() => {
-    const hasPermission = admin?.role === 'superadmin' ||
-      admin?.role === 'admin' ||
-      admin?.permissions?.includes('notifications_manage') ||
-      admin?.permissions?.includes('support_manage');
-
-    if (hasPermission) {
+    if (canViewNotifications) {
       fetchNotifications();
+    }
 
-      // Connect to Admin socket room
+    if (canReceiveEvents) {
       socketService.connect();
       socketService.joinRoom('admin');
 
@@ -44,7 +51,7 @@ const AdminHeader = ({ onMenuClick }) => {
         socketService.off('new_notification', handleNewNotification);
       };
     }
-  }, [fetchNotifications, admin, pushNotification]);
+  }, [fetchNotifications, admin, pushNotification, canViewNotifications, canReceiveEvents]);
 
   const handleLogout = () => {
     logout();
@@ -75,8 +82,29 @@ const AdminHeader = ({ onMenuClick }) => {
       content: 'Content',
       settings: 'Settings',
       more: 'More',
+      staff: 'Staff Management',
+      'live-chat': 'Live Chat',
+      tickets: 'Tickets',
+      'customer-support': 'Customer Support',
+      'vendor-support': 'Vendor Support',
+      'chat-support': 'Chat Support',
+      support: 'Support',
+      notifications: 'Notifications',
+      promocodes: 'Promo Codes',
+      delivery: 'Delivery Management',
+      'delivery-boys': 'Delivery Boys',
+      'cash-collection': 'Cash Collection',
+      'assign-delivery': 'Assign Delivery',
+      vendors: 'Vendors',
+      'manage-vendors': 'Manage Vendors',
+      'pending-approvals': 'Pending Approvals',
+      attributes: 'Attribute Management',
+      reports: 'Reports',
+      finance: 'Finance',
+      policies: 'Policies',
+      firebase: 'Firebase',
     };
-    return pageNames[path] || path.charAt(0).toUpperCase() + path.slice(1);
+    return pageNames[path] || path.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
   const pageName = getPageName(location.pathname);
@@ -108,7 +136,7 @@ const AdminHeader = ({ onMenuClick }) => {
         {/* Right: Notifications & Logout */}
         <div className="flex items-center gap-4">
           {/* Notifications */}
-          {(admin?.role === 'superadmin' || admin?.role === 'admin' || admin?.permissions?.includes('notifications_manage') || admin?.permissions?.includes('support_manage')) && (
+          {canViewNotifications && (
             <div className="relative">
               <Button
                 data-notification-button

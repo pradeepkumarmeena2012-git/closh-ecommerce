@@ -195,9 +195,25 @@ const DeliveryBoys = () => {
     },
     {
       key: 'status',
-      label: 'Status',
+      label: 'Availability',
       sortable: true,
-      render: (value) => <Badge variant={value === 'active' ? 'success' : 'error'}>{value}</Badge>,
+      render: (value) => {
+        const s = String(value || 'offline').toLowerCase();
+        let variant = 'error';
+        if (s === 'available') variant = 'success';
+        if (s === 'busy') variant = 'warning';
+        return <Badge variant={variant}>{s}</Badge>;
+      },
+    },
+    {
+      key: 'isActive',
+      label: 'Account',
+      sortable: true,
+      render: (value) => (
+        <Badge variant={value ? 'success' : 'error'}>
+          {value ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
     },
     {
       key: 'applicationStatus',
