@@ -142,3 +142,6 @@ dist
 .svelte-kit
 
 # End of https://www.toptal.com/developers/gitignore/api/node
+ backend/src/config/clouse-d3a15-firebase-adminsdk-fbsvc-7e52ff3831.json
+ # Firebase Admin Secret
+src/config/*.json

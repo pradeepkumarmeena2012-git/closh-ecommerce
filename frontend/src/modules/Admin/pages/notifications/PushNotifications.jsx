@@ -3,23 +3,74 @@ import { FiSend, FiBell, FiUsers, FiTarget } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
+import { useEffect } from 'react';
 
 const PushNotifications = () => {
   const [formData, setFormData] = useState({
     title: '',
     message: '',
     target: 'all',
+    userId: '',
     schedule: 'now',
     scheduledDate: '',
   });
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleSend = () => {
+  useEffect(() => {
+    // Fetch users for the dropdown
+    const fetchUsers = async () => {
+      try {
+        const response = await api.get('/admin/customers');
+        setUsers(response.data.customers || []);
+      } catch (err) {
+        console.error('Error fetching users:', err);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  const handleSend = async () => {
     if (!formData.title || !formData.message) {
       toast.error('Please fill in all required fields');
       return;
     }
-    toast.success('Push notification sent successfully');
-    setFormData({ title: '', message: '', target: 'all', schedule: 'now', scheduledDate: '' });
+
+    if (formData.target === 'single' && !formData.userId) {
+      toast.error('Please select a user');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      if (formData.target === 'single') {
+        const payload = {
+          userId: formData.userId,
+          title: formData.title,
+          message: formData.message
+        };
+        console.log("🚀 Sending Single Push Payload:", payload);
+        await api.post('/admin/notifications/push-to-user', payload);
+        toast.success(`Notification sent to User!`);
+      } else {
+        const payload = {
+          target: formData.target,
+          title: formData.title,
+          message: formData.message
+        };
+        console.log("🚀 Sending Broadcast Payload:", payload);
+        await api.post('/admin/notifications/broadcast', payload);
+        toast.success(`Broadcast started to ${formData.target}!`);
+      }
+      
+      setFormData({ ...formData, title: '', message: '' });
+    } catch (err) {
+      console.error('Push Error:', err);
+      toast.error(err.response?.data?.message || 'Failed to send notification');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -74,13 +125,32 @@ const PushNotifications = () => {
               onChange={(e) => setFormData({ ...formData, target: e.target.value })}
               options={[
                 { value: 'all', label: 'All Users' },
+                { value: 'single', label: 'Single User (Test)' },
                 { value: 'customers', label: 'Customers Only' },
-                { value: 'vip', label: 'VIP Customers' },
-                { value: 'segment', label: 'Custom Segment' },
                 { value: 'delivery-boy', label: 'Delivery boy' },
               ]}
             />
           </div>
+
+          {formData.target === 'single' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <FiUsers className="inline mr-2" />
+                Select User
+              </label>
+              <select
+                value={formData.userId}
+                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                required={formData.target === 'single'}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Select a user...</option>
+                {users.map(u => (
+                  <option key={u._id} value={u._id}>{u.name} ({u.email})</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -113,10 +183,11 @@ const PushNotifications = () => {
 
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold disabled:opacity-50"
           >
             <FiSend />
-            <span>Send Notification</span>
+            <span>{loading ? 'Sending...' : 'Send Notification'}</span>
           </button>
         </form>
       </div>

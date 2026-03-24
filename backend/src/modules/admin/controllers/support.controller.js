@@ -217,7 +217,7 @@ export const addTicketMessage = asyncHandler(async (req, res) => {
             title: 'Support Ticket Reply',
             message: `Admin responded to your ticket: ${ticket.subject}`,
             type: 'system',
-            data: { ticketId: String(ticket._id) }
+            data: { ticketId: String(ticket._id), sound: 'support_reply' }
         });
     } else if (ticket.userId) {
         await createNotification({
@@ -226,7 +226,7 @@ export const addTicketMessage = asyncHandler(async (req, res) => {
             title: 'Support Ticket Reply',
             message: `Admin responded to your request: ${ticket.subject}`,
             type: 'system',
-            data: { ticketId: String(ticket._id) }
+            data: { ticketId: String(ticket._id), sound: 'support_reply' }
         });
     }
 

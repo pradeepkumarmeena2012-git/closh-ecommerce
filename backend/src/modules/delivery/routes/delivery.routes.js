@@ -65,6 +65,8 @@ router.patch('/returns/:id/status', ...deliveryAuth, orderController.updateRetur
 
 // Notifications
 router.get('/notifications', ...deliveryAuth, notificationController.getDeliveryNotifications);
+router.post('/notifications/fcm-token', ...deliveryAuth, notificationController.registerDeliveryFcmToken);
+router.delete('/notifications/fcm-token', ...deliveryAuth, notificationController.removeDeliveryFcmToken);
 router.put('/notifications/:id/read', ...deliveryAuth, notificationController.markDeliveryNotificationAsRead);
 router.put('/notifications/read-all', ...deliveryAuth, notificationController.markAllDeliveryNotificationsAsRead);
 router.delete('/notifications/:id', ...deliveryAuth, notificationController.deleteDeliveryNotification);

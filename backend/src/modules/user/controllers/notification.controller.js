@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Notification from '../../../models/Notification.model.js';
+import User from '../../../models/User.model.js';
 
 // GET /api/user/notifications
 export const getUserNotifications = asyncHandler(async (req, res) => {
@@ -101,3 +102,34 @@ export const deleteUserNotification = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, null, 'User notification deleted.'));
 });
 
+// POST /api/user/notifications/fcm-token
+export const registerUserFcmToken = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) throw new ApiError(400, 'FCM token is required.');
+
+    const user = await User.findById(req.user.id);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    if (!user.fcmTokens.includes(token)) {
+        user.fcmTokens.push(token);
+        // Keep only last 10 tokens
+        if (user.fcmTokens.length > 10) user.fcmTokens.shift();
+        await user.save();
+    }
+
+    res.status(200).json(new ApiResponse(200, null, 'FCM token registered.'));
+});
+
+// DELETE /api/user/notifications/fcm-token
+export const removeUserFcmToken = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) throw new ApiError(400, 'FCM token is required.');
+
+    const user = await User.findById(req.user.id);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    user.fcmTokens = user.fcmTokens.filter(t => t !== token);
+    await user.save();
+
+    res.status(200).json(new ApiResponse(200, null, 'FCM token removed.'));
+});

@@ -1,10 +1,12 @@
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
+import crypto from 'crypto';
 import Vendor from '../../../models/Vendor.model.js';
 import Admin from '../../../models/Admin.model.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { sendOTP } from '../../../services/otp.service.js';
+import { sendSmsOtp } from '../../../services/sms.service.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { sendEmail } from '../../../services/email.service.js';
 import {
@@ -48,6 +50,7 @@ export const register = asyncHandler(async (req, res) => {
                     vendorId: String(vendor._id),
                     vendorEmail: vendor.email,
                     status: vendor.status,
+                    sound: 'alert'
                 },
             })
         )
@@ -100,23 +103,35 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         );
     }
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const otp = process.env.NODE_ENV === 'production'
+        ? crypto.randomInt(100000, 999999).toString()
+        : '123456';
     vendor.resetOtp = otp;
     vendor.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     vendor.resetOtpVerified = false;
     await vendor.save({ validateBeforeSave: false });
 
-    try {
-        await sendEmail({
-            to: vendor.email,
-            subject: 'Vendor password reset OTP',
-            text: `Your password reset OTP is ${otp}. It expires in 10 minutes.`,
-            html: `<p>Your password reset OTP is <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
-        });
-    } catch (err) {
-        console.warn(`[Vendor Forgot Password] Email send failed for ${vendor.email}: ${err.message}`);
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`[Vendor Forgot Password] Reset OTP generated for ${vendor.email}`);
+    // Primary: SMS. Fallback: email.
+    const phone = String(vendor.phone || '').replace(/\D/g, '').slice(-10);
+    let smsSent = false;
+    if (phone.length === 10) {
+        try {
+            await sendSmsOtp(phone, otp);
+            smsSent = true;
+        } catch (smsErr) {
+            console.warn(`[Vendor ForgotPassword] SMS failed: ${smsErr.message}`);
+        }
+    }
+    if (!smsSent) {
+        try {
+            await sendEmail({
+                to: vendor.email,
+                subject: 'Vendor password reset OTP',
+                text: `Your password reset OTP is ${otp}. It expires in 10 minutes.`,
+                html: `<p>Your password reset OTP is <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
+            });
+        } catch (emailErr) {
+            console.warn(`[Vendor ForgotPassword] Email fallback failed: ${emailErr.message}`);
         }
     }
 

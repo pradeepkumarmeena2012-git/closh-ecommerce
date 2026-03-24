@@ -73,6 +73,7 @@ const vendorSchema = new mongoose.Schema(
         refreshTokenHash: { type: String, select: false },
         refreshTokenExpiresAt: { type: Date, select: false },
         joinDate: { type: Date, default: Date.now },
+        fcmTokens: { type: [String], default: [] },
     },
     { timestamps: true }
 );

@@ -132,6 +132,8 @@ export const useVendorAuthStore = create(
         });
         localStorage.removeItem("vendor-token");
         localStorage.removeItem("vendor-refresh-token");
+        localStorage.removeItem("vendor-auth-storage");
+        window.location.href = '/vendor/login';
       },
 
       // Update vendor profile — calls real PUT /vendor/auth/profile
@@ -248,3 +250,13 @@ export const useVendorAuthStore = create(
     }
   )
 );
+
+// Listen for global auth failure (interceptor clears tokens, store clears state + redirects)
+if (typeof window !== 'undefined') {
+  window.addEventListener('global-auth-failure', (e) => {
+    if (e.detail?.scope === 'vendor') {
+      const state = useVendorAuthStore.getState();
+      state.logout();
+    }
+  });
+}

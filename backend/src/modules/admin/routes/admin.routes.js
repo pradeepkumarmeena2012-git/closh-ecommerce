@@ -236,8 +236,12 @@ router.get('/reports/inventory', ...adminAuth, checkPermission('reports_view'), 
 
 // ─── Notifications ─────────────────────────────────────────────────────────────
 router.get('/notifications', ...adminAuth, checkPermission(['notifications_manage', 'support_manage']), notificationController.getAdminNotifications);
+router.post('/notifications/fcm-token', ...adminAuth, notificationController.registerAdminFcmToken);
+router.delete('/notifications/fcm-token', ...adminAuth, notificationController.removeAdminFcmToken);
 router.put('/notifications/:id/read', ...adminAuth, checkPermission(['notifications_manage', 'support_manage']), notificationController.markAsRead);
 router.put('/notifications/read-all', ...adminAuth, checkPermission(['notifications_manage', 'support_manage']), notificationController.markAllAsRead);
+router.post('/notifications/push-to-user', ...adminAuth, checkPermission('notifications_manage'), notificationController.pushToUser);
+router.post('/notifications/broadcast', ...adminAuth, checkPermission('notifications_manage'), notificationController.globalBroadcast);
 
 // ─── Settings & Policies ──────────────────────────────────────────────────────
 import * as settingsController from '../controllers/settings.controller.js';

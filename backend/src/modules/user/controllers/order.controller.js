@@ -427,14 +427,23 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
             // Notify vendors in real-time
             const vendorsToNotify = Object.keys(vendorMap);
-            vendorsToNotify.forEach(vid => {
+            await Promise.all(vendorsToNotify.map(async (vid) => {
                 emitEvent(`vendor_${vid}`, 'order_created', {
                     orderId: order.orderId,
                     total: order.total,
                     items: vendorMap[vid].items.map(item => ({ name: item.name, quantity: item.quantity })),
                     message: `You have received a new ${orderType.replace(/_/g, ' ')} order.`
                 });
-            });
+                
+                await createNotification({
+                    recipientId: vid,
+                    recipientType: 'vendor',
+                    title: 'New Order Received',
+                    message: `You have a new ${orderType.replace(/_/g, ' ')} order #${order.orderId}`,
+                    type: 'order',
+                    data: { orderId: order.orderId, sound: 'new_order' }
+                });
+            }));
 
             // 7. Deduct stock atomically to prevent oversell under concurrent checkout.
             for (const item of enrichedItems) {
@@ -793,6 +802,7 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
                     returnRequestId: String(request._id),
                     orderId: String(order.orderId),
                     vendorId: String(vendorId),
+                    sound: 'alert'
                 },
             })
         )

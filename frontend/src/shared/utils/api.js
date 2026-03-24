@@ -81,9 +81,10 @@ const redirectTo = (path) => {
 
 const getScopeFromUrl = (url = '') => {
   const normalizedUrl = url.toLowerCase();
-  if (normalizedUrl.includes('/admin')) return 'admin';
-  if (normalizedUrl.includes('/vendor')) return 'vendor';
-  if (normalizedUrl.includes('/delivery')) return 'delivery';
+  // Match prefix anywhere in the string, handles 'admin/path' and '/admin/path'
+  if (normalizedUrl.includes('admin')) return 'admin';
+  if (normalizedUrl.includes('vendor')) return 'vendor';
+  if (normalizedUrl.includes('delivery')) return 'delivery';
   return 'user';
 };
 
@@ -212,6 +213,7 @@ api.interceptors.response.use(
       toast.error(message);
     }
 
+    // 401 — session expired / token invalid
     if (error.response?.status === 401) {
       const activeScope = pathScope;
       clearScopeAuth(scope);
@@ -244,6 +246,16 @@ api.interceptors.response.use(
         }
       } else if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {
         toast.error('Session expired. Please login again.');
+        redirectTo(routeConfig.loginPath);
+      }
+    }
+
+    // 403 for vendor/delivery — account suspended or deactivated after login
+    if (error.response?.status === 403 && (scope === 'vendor' || scope === 'delivery')) {
+      const routeConfig = AUTH_SCOPES[scope];
+      if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {
+        clearScopeAuth(scope);
+        dispatchAuthFailure(scope);
         redirectTo(routeConfig.loginPath);
       }
     }

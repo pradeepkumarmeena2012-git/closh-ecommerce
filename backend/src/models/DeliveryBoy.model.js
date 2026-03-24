@@ -52,6 +52,7 @@ const deliveryBoySchema = new mongoose.Schema(
         cashCollected: { type: Number, default: 0 },
         totalEarnings: { type: Number, default: 0 },
         availableBalance: { type: Number, default: 0 },
+        fcmTokens: { type: [String], default: [] },
     },
     { timestamps: true }
 );

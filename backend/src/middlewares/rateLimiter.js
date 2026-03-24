@@ -19,15 +19,15 @@ const createStore = (prefix) => {
     try {
         return new RedisStore({
             sendCommand: async (...args) => {
-                // Wait for Redis to be ready (up to 5 seconds)
+                // Wait for Redis to be ready (up to 15 seconds)
                 let retries = 0;
-                while (!redisClient?.isReady && retries < 50) {
+                while (!redisClient?.isReady && retries < 150) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     retries++;
                 }
 
                 if (!redisClient?.isReady) {
-                    console.error(`❌ Redis connection timed out for ${prefix}.`);
+                    console.error(`❌ Redis connection timed out for ${prefix}. (Ready: ${redisClient?.isReady}, Open: ${redisClient?.isOpen})`);
                     throw new Error("Redis connection timed out");
                 }
 

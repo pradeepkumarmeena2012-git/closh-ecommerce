@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDeliveryAuthStore } from '../store/deliveryStore';
+import { useDeliveryAuthStore, normalizeOrder, normalizeReturn } from '../store/deliveryStore';
 import { 
   FiPackage, 
   FiCheckCircle, 
@@ -122,18 +122,28 @@ const DeliveryDashboard = () => {
     socketService.on('order_ready_for_pickup', (data) => {
       const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
       if (currentStatus !== 'available') return;
+      
+      const audio = new Audio('/sounds/mgs_codec.mp3');
+      audio.play().catch(() => {});
+      
       loadDashboardData();
-      toast.success(`⚡ New Order #${data.id || data.orderId} available!`);
-      setSelectedNewOrder(data);
+      const normalized = normalizeOrder(data);
+      toast.success(`⚡ New Order #${normalized.id.slice(-6)}!`);
+      setSelectedNewOrder(normalized);
       setShowNewOrderModal(true);
     });
 
     socketService.on('return_ready_for_pickup', (data) => {
       const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
       if (currentStatus !== 'available') return;
+      
+      const audio = new Audio('/sounds/mgs_codec.mp3');
+      audio.play().catch(() => {});
+      
       loadDashboardData();
-      toast.success(`📦 New Return Pickup available for #${data.orderId || 'Order'}!`);
-      setSelectedNewOrder({ ...data, isReturn: true });
+      const normalized = normalizeReturn(data);
+      toast.success(`📦 New Return Pickup available!`);
+      setSelectedNewOrder(normalized);
       setShowNewOrderModal(true);
     });
 

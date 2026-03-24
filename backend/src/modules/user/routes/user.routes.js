@@ -76,6 +76,8 @@ router.get('/returns/:id', ...customerAuth, orderController.getUserReturnRequest
 
 // Notification routes (protected)
 router.get('/notifications', ...customerAuth, notificationController.getUserNotifications);
+router.post('/notifications/fcm-token', ...customerAuth, notificationController.registerUserFcmToken);
+router.delete('/notifications/fcm-token', ...customerAuth, notificationController.removeUserFcmToken);
 router.put('/notifications/:id/read', ...customerAuth, notificationController.markUserNotificationAsRead);
 router.put('/notifications/read-all', ...customerAuth, notificationController.markAllUserNotificationsAsRead);
 router.delete('/notifications/:id', ...customerAuth, notificationController.deleteUserNotification);

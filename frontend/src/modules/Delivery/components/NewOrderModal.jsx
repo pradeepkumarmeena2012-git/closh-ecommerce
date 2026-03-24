@@ -10,15 +10,27 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting }) => {
 
     const isReturn = !!order?.isReturn;
     
+    const safeString = (val, fallback = '') => {
+        if (typeof val === 'string') return val;
+        if (val && typeof val === 'object') return val.address || val.name || JSON.stringify(val);
+        return String(val || fallback);
+    };
+
     // For standard: Pickup from Vendor, Deliver to Customer
     // For returns: Pickup from Customer, Deliver to Vendor
     const pickupTitle = isReturn ? 'Pickup From Customer' : 'Pickup From Vendor';
-    const pickupName = isReturn ? (order?.customer || 'Customer') : (order?.vendorName || 'Vendor');
-    const pickupAddress = isReturn ? (order?.address || 'Customer Address') : (order?.vendorAddress || 'Vendor Address');
+    const pickupNameRaw = isReturn ? (order?.customer) : (order?.vendorName);
+    const pickupAddressRaw = isReturn ? (order?.address) : (order?.vendorAddress);
+    
+    const pickupName = safeString(pickupNameRaw, isReturn ? 'Customer' : 'Vendor');
+    const pickupAddress = safeString(pickupAddressRaw, isReturn ? 'Customer Address' : 'Vendor Address');
     
     const deliverTitle = isReturn ? 'Deliver To Vendor' : 'Deliver To Customer';
-    const deliverName = isReturn ? (order?.vendorName || 'Vendor') : (order?.customer || 'Customer');
-    const deliverAddress = isReturn ? (order?.vendorAddress || 'Vendor Address') : (order?.address || 'Address unavailable');
+    const deliverNameRaw = isReturn ? (order?.vendorName) : (order?.customer);
+    const deliverAddressRaw = isReturn ? (order?.vendorAddress) : (order?.address);
+
+    const deliverName = safeString(deliverNameRaw, isReturn ? 'Vendor' : 'Customer');
+    const deliverAddress = safeString(deliverAddressRaw, 'Address unavailable');
 
     const themeColor = isReturn ? 'from-orange-600 to-orange-700' : 'from-green-600 to-green-700';
     const badgeColor = isReturn ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-green-50 border-green-100 text-green-800';

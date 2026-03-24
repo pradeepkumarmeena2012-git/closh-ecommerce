@@ -1,5 +1,11 @@
 import { useEffect } from "react";
 import api from "../utils/api";
+import { requestForToken, onMessageListener } from "../config/firebase";
+import { useAuthStore } from "../store/authStore";
+import { useAdminAuthStore } from "../../modules/Admin/store/adminStore";
+import { useVendorAuthStore } from "../../modules/Vendor/store/vendorAuthStore";
+import { useDeliveryAuthStore } from "../../modules/Delivery/store/deliveryStore";
+import toast from "react-hot-toast";
 
 const PRODUCTS_CACHE_KEY = "user-catalog-products-cache";
 const VENDORS_CACHE_KEY = "user-catalog-vendors-cache";
@@ -107,8 +113,102 @@ const AppBootstrap = () => {
     };
 
     syncCatalog();
+
+    // FCM Registration logic - React to auth changes for all roles
+    const registerNotifications = async () => {
+      // Check which store is currently authenticated
+      const userAuth = useAuthStore.getState();
+      const adminAuth = useAdminAuthStore.getState();
+      const vendorAuth = useVendorAuthStore.getState();
+      const deliveryAuth = useDeliveryAuthStore.getState();
+
+      let activeUser = null;
+      let scopeUrl = '';
+
+      if (userAuth.isAuthenticated) {
+        activeUser = userAuth.user;
+        scopeUrl = '/user';
+      } else if (adminAuth.isAuthenticated) {
+        activeUser = adminAuth.admin; // Corrected: Admin store uses '.admin'
+        scopeUrl = '/admin';
+      } else if (vendorAuth.isAuthenticated) {
+        activeUser = vendorAuth.vendor; // Corrected: Vendor store uses '.vendor'
+        scopeUrl = '/vendor';
+      } else if (deliveryAuth.isAuthenticated) {
+        activeUser = deliveryAuth.deliveryBoy; // Corrected: Delivery store uses '.deliveryBoy'
+        scopeUrl = '/delivery';
+      }
+
+      if (!activeUser || !scopeUrl) return;
+
+      try {
+        const token = await requestForToken();
+        if (token) {
+          const registeredTokens = JSON.parse(localStorage.getItem('registered_fcm_tokens') || '[]');
+          const userId = activeUser._id || activeUser.id;
+          const tokenKey = `${userId}_${token}`;
+          
+          if (!registeredTokens.includes(tokenKey)) {
+            const endpoint = `/notifications/fcm-token`;
+            await api.post(`${scopeUrl}${endpoint}`, { token });
+            
+            registeredTokens.push(tokenKey);
+            localStorage.setItem('registered_fcm_tokens', JSON.stringify(registeredTokens));
+            console.log(`FCM token registered with backend for ${scopeUrl}:`, userId);
+          }
+        }
+      } catch (err) {
+        console.warn('FCM registration skipped:', err.message);
+      }
+    };
+
+    // Foreground notification listener
+    const setupForegroundListener = () => {
+      onMessageListener().then((payload) => {
+        console.log("Foreground notification received:", payload);
+        const { title, body } = payload.notification;
+        
+        // Show native notification
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.ready.then((registration) => {
+            registration.showNotification(title || "Clouse Notification", {
+              body: body || "",
+              icon: "/logo-removebg.png",
+              vibrate: [200, 100, 200],
+              data: payload.data
+            });
+          });
+        }
+        
+        // Also show regular UI toast and play a sound if it is for a delivery boy
+        toast.success(`${title}: ${body}`, { duration: 5000 });
+        
+        const deliveryBoy = useDeliveryAuthStore.getState().deliveryBoy;
+        if (deliveryBoy && (payload.data?.type === 'new_assignment_broadcast' || payload.data?.type === 'return_pickup_broadcast')) {
+          const audio = new Audio('/sounds/mgs_codec.mp3');
+          audio.play().catch(e => console.warn('Buzzer playback failed (user interaction required):', e.message));
+        }
+
+        // Listen for the next message
+        setupForegroundListener();
+      }).catch(err => console.log('failed: ', err));
+    };
+
+    // Subscriptions for all roles
+    const unsubs = [
+      useAuthStore.subscribe(s => s.isAuthenticated, (ok) => ok && registerNotifications()),
+      useAdminAuthStore.subscribe(s => s.isAuthenticated, (ok) => ok && registerNotifications()),
+      useVendorAuthStore.subscribe(s => s.isAuthenticated, (ok) => ok && registerNotifications()),
+      useDeliveryAuthStore.subscribe(s => s.isAuthenticated, (ok) => ok && registerNotifications()),
+    ];
+
+    // Check immediate state on mount
+    registerNotifications();
+    setupForegroundListener();
+
     return () => {
       cancelled = true;
+      unsubs.forEach(unsub => unsub());
     };
   }, []);
 

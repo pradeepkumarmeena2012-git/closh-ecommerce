@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Notification from '../../../models/Notification.model.js';
+import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 
 // GET /api/delivery/notifications
 export const getDeliveryNotifications = asyncHandler(async (req, res) => {
@@ -99,4 +100,34 @@ export const deleteDeliveryNotification = asyncHandler(async (req, res) => {
     }
 
     res.status(200).json(new ApiResponse(200, null, 'Delivery notification deleted.'));
+});
+// POST /api/delivery/notifications/fcm-token
+export const registerDeliveryFcmToken = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) throw new ApiError(400, 'FCM token is required.');
+
+    const deliveryBoy = await DeliveryBoy.findById(req.user.id);
+    if (!deliveryBoy) throw new ApiError(404, 'Delivery Boy not found');
+
+    if (!deliveryBoy.fcmTokens.includes(token)) {
+        deliveryBoy.fcmTokens.push(token);
+        if (deliveryBoy.fcmTokens.length > 10) deliveryBoy.fcmTokens.shift();
+        await deliveryBoy.save();
+    }
+
+    res.status(200).json(new ApiResponse(200, null, 'FCM token registered.'));
+});
+
+// DELETE /api/delivery/notifications/fcm-token
+export const removeDeliveryFcmToken = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) throw new ApiError(400, 'FCM token is required.');
+
+    const deliveryBoy = await DeliveryBoy.findById(req.user.id);
+    if (!deliveryBoy) throw new ApiError(404, 'Delivery Boy not found');
+
+    deliveryBoy.fcmTokens = deliveryBoy.fcmTokens.filter(t => t !== token);
+    await deliveryBoy.save();
+
+    res.status(200).json(new ApiResponse(200, null, 'FCM token removed.'));
 });

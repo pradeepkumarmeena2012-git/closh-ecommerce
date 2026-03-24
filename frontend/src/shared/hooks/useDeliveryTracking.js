@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import socketService from '../utils/socket';
+import { useDeliveryAuthStore } from '../../modules/Delivery/store/deliveryStore';
 
 const UPDATE_INTERVAL = 10000; // 10 seconds (Throttling)
 const MIN_DISTANCE_METERS = 20; // Ignore small movements
@@ -33,7 +34,7 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
     );
 
     useEffect(() => {
-        if (!deliveryBoyId || trackingOrders.length === 0) {
+        if (!deliveryBoyId) {
             if (watchId.current) {
                 navigator.geolocation.clearWatch(watchId.current);
                 watchId.current = null;
@@ -41,7 +42,8 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
             return;
         }
 
-        console.log(`📡 Starting location sharing for ${trackingOrders.length} active orders...`);
+        const isOnline = useDeliveryAuthStore.getState().deliveryBoy?.status === 'available';
+        console.log(`📡 Starting location tracking (Active Orders: ${trackingOrders.length}, Online: ${isOnline})`);
 
         // Connect socket if not connected
         socketService.connect();
@@ -75,7 +77,12 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
                 }
             }
 
-            // 4. Send Update for each tracking order
+            // 4. Update Database Location (Heartbeat) - Essential for initial assignment logic
+            if (isOnline) {
+                useDeliveryAuthStore.getState().updateLocation(lat, lng);
+            }
+
+            // 5. Send Real-time Update via Sockets (for active tracking on customer maps)
             trackingOrders.forEach(order => {
                 socketService.socket.emit('update_location', {
                     lat,

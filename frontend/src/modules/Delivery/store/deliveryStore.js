@@ -39,7 +39,7 @@ const toAddressLine = (shippingAddress = {}) => {
   return parts.join(', ');
 };
 
-const normalizeOrder = (raw) => {
+export const normalizeOrder = (raw) => {
   const shippingAddress = raw?.shippingAddress || {};
   const guestInfo = raw?.guestInfo || {};
   const backendStatus = raw?.status || 'pending';
@@ -71,8 +71,8 @@ const normalizeOrder = (raw) => {
 
   return {
     ...raw,
-    id: raw?.orderId || raw?._id || raw?.id,
-    orderId: raw?.orderId || raw?._id || raw?.id,
+    id: String(raw?.orderId || raw?._id || raw?.id || ''),
+    orderId: String(raw?.orderId || raw?._id || raw?.id || ''),
     customer: shippingAddress?.name || guestInfo?.name || 'Customer',
     phone: shippingAddress?.phone || shippingAddress?.mobile || shippingAddress?.mobileNumber || guestInfo?.phone || raw?.customerPhone || raw?.phone || '',
     email: shippingAddress?.email || guestInfo?.email || raw?.customerEmail || raw?.email || '',
@@ -102,10 +102,11 @@ const normalizeOrder = (raw) => {
   };
 };
 
-const normalizeReturn = (raw) => {
+export const normalizeReturn = (raw) => {
   if (!raw) return null;
-  const id = raw._id || raw.id;
+  const id = String(raw._id || raw.id || '');
   const status = raw.status || 'approved';
+  const isReturn = true;
   
   // For returns, pickup is from customer, dropoff is to vendor
   const customerAddress = raw.orderId?.shippingAddress || {};
@@ -114,6 +115,7 @@ const normalizeReturn = (raw) => {
   return {
     ...raw,
     id,
+    isReturn: true,
     type: 'return',
     customer: customerAddress.name || 'Customer',
     phone: customerAddress.phone || customerAddress.mobile || '',
@@ -225,6 +227,8 @@ export const useDeliveryAuthStore = create(
         });
         localStorage.removeItem('delivery-token');
         localStorage.removeItem('delivery-refresh-token');
+        localStorage.removeItem('delivery-auth-storage');
+        window.location.href = '/delivery/login';
       },
 
       fetchProfile: async () => {
@@ -402,3 +406,13 @@ export const useDeliveryAuthStore = create(
     }
   )
 );
+
+// Listen for global auth failure (interceptor clears tokens, store clears state + redirects)
+if (typeof window !== 'undefined') {
+  window.addEventListener('global-auth-failure', (e) => {
+    if (e.detail?.scope === 'delivery') {
+      const state = useDeliveryStore.getState();
+      state.logout();
+    }
+  });
+}

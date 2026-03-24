@@ -95,7 +95,7 @@ export const createSupportTicket = asyncHandler(async (req, res) => {
             title: 'New Support Ticket',
             message: `User ${req.user.name} started a support request: ${subject}`,
             type: 'system',
-            data: { ticketId: String(ticket._id) }
+            data: { ticketId: String(ticket._id), sound: 'support_reply' }
         })
     ));
 
@@ -143,6 +143,20 @@ export const addUserTicketMessage = asyncHandler(async (req, res) => {
     ticket.lastMessageAt = new Date();
 
     await ticket.save();
+
+
+    // Notify admins
+    const admins = await Admin.find({ isActive: true }).select('_id');
+    await Promise.all(admins.map(admin =>
+        createNotification({
+            recipientId: admin._id,
+            recipientType: 'admin',
+            title: 'New Message from User',
+            message: `User ${req.user.name}: ${newMessageObj.message}`,
+            type: 'chat',
+            data: { ticketId: String(ticket._id), sound: 'support_reply' }
+        })
+    ));
 
     // Emit real-time message
     emitEvent(`ticket_${ticket._id}`, 'new_support_message', newMessageObj);

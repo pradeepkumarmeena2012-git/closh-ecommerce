@@ -14,6 +14,7 @@ const adminSchema = new mongoose.Schema(
         isActive: { type: Boolean, default: true },
         refreshTokenHash: { type: String, select: false },
         refreshTokenExpiresAt: { type: Date, select: false },
+        fcmTokens: { type: [String], default: [] },
     },
     { timestamps: true }
 );

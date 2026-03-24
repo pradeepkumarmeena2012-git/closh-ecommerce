@@ -34,6 +34,8 @@ const VendorDashboard = () => {
 
   const [recentOrders, setRecentOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const buzzerRef = useRef(null);
+  const [isBuzzerActive, setIsBuzzerActive] = useState(false);
 
   const vendorId = vendor?.id || vendor?._id;
 
@@ -127,8 +129,29 @@ const VendorDashboard = () => {
     socketService.connect();
     socketService.joinRoom(`vendor_${vendorId}`);
 
+    const startBuzzer = () => {
+      if (buzzerRef.current) return;
+      const audio = new Audio('/sounds/mgs_codec.mp3');
+      audio.loop = true;
+      audio.play().catch(err => console.warn('Buzzer playback blocked:', err));
+      buzzerRef.current = audio;
+      setIsBuzzerActive(true);
+    };
+
+    const stopBuzzer = () => {
+      if (buzzerRef.current) {
+        buzzerRef.current.pause();
+        buzzerRef.current = null;
+      }
+      setIsBuzzerActive(false);
+    };
+
     socketService.on("order_created", (newOrder) => {
-      toast.success(`🎉 New Order #${newOrder.orderId} received!`, { duration: 5000 });
+      startBuzzer();
+      toast.success(`🎉 New Order #${newOrder.orderId} received!`, { 
+        duration: 10000,
+        icon: '🔔',
+      });
       loadDashboardData();
     });
     socketService.on("order_picked_up", () => loadDashboardData());
@@ -371,8 +394,8 @@ const VendorDashboard = () => {
                     <SwipeOrderCard
                       key={order._id ?? order.orderId}
                       order={order}
-                      onStatusUpdate={() => {
-                        // Refresh dashboard data after update
+                    onStatusUpdate={() => {
+                        stopBuzzer();
                         loadDashboardData();
                       }}
                     />
@@ -482,6 +505,28 @@ const VendorDashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Floating Buzzer Control */}
+      {isBuzzerActive && (
+        <div 
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border-2 border-white/20"
+        >
+          <div className="w-3 h-3 bg-white rounded-full animate-ping" />
+          <span className="font-black uppercase tracking-widest text-sm text-white">New Order Alert!</span>
+          <button 
+            onClick={() => {
+              if (buzzerRef.current) {
+                buzzerRef.current.pause();
+                buzzerRef.current = null;
+              }
+              setIsBuzzerActive(false);
+            }}
+            className="bg-white text-red-600 px-4 py-1.5 rounded-xl font-black text-xs uppercase hover:bg-red-50 transition-colors"
+          >
+            Stop Alarm
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 };

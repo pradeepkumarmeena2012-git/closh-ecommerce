@@ -1,10 +1,12 @@
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
+import crypto from 'crypto';
 import User from '../../../models/User.model.js';
 import Address from '../../../models/Address.model.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { sendOTP } from '../../../services/otp.service.js';
+import { sendSmsOtp } from '../../../services/sms.service.js';
 import { sendEmail } from '../../../services/email.service.js';
 import {
     uploadLocalFileToCloudinaryAndCleanup,
@@ -224,23 +226,35 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'Please verify your email first. A new verification OTP has been sent.');
     }
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const otp = process.env.NODE_ENV === 'production'
+        ? crypto.randomInt(100000, 999999).toString()
+        : '123456';
     user.resetOtp = otp;
     user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     user.resetOtpVerified = false;
     await user.save({ validateBeforeSave: false });
 
-    try {
-        await sendEmail({
-            to: user.email,
-            subject: 'Password reset OTP',
-            text: `Your password reset OTP is ${otp}. It expires in 10 minutes.`,
-            html: `<p>Your password reset OTP is <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
-        });
-    } catch (err) {
-        console.warn(`[User Forgot Password] Email send failed for ${user.email}: ${err.message}`);
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`[User Forgot Password] Reset OTP generated for ${user.email}`);
+    // Primary: SMS. Fallback: email.
+    const phone = String(user.phone || '').replace(/\D/g, '').slice(-10);
+    let smsSent = false;
+    if (phone.length === 10) {
+        try {
+            await sendSmsOtp(phone, otp);
+            smsSent = true;
+        } catch (smsErr) {
+            console.warn(`[User ForgotPassword] SMS failed: ${smsErr.message}`);
+        }
+    }
+    if (!smsSent) {
+        try {
+            await sendEmail({
+                to: user.email,
+                subject: 'Password reset OTP',
+                text: `Your password reset OTP is ${otp}. It expires in 10 minutes.`,
+                html: `<p>Your password reset OTP is <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
+            });
+        } catch (emailErr) {
+            console.warn(`[User ForgotPassword] Email fallback failed: ${emailErr.message}`);
         }
     }
 

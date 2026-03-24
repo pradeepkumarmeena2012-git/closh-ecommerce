@@ -2,6 +2,9 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Notification from '../../../models/Notification.model.js';
+import Admin from '../../../models/Admin.model.js';
+import User from '../../../models/User.model.js';
+import { createNotification, broadcastNotifications } from '../../../services/notification.service.js';
 
 // GET /api/admin/notifications
 export const getAdminNotifications = asyncHandler(async (req, res) => {
@@ -74,4 +77,83 @@ export const markAllAsRead = asyncHandler(async (req, res) => {
     await Notification.updateMany(filter, { isRead: true });
 
     res.status(200).json(new ApiResponse(200, null, 'All notifications marked as read.'));
+});
+// POST /api/admin/notifications/fcm-token
+export const registerAdminFcmToken = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) throw new ApiError(400, 'FCM token is required.');
+
+    const adminUser = await Admin.findById(req.user.id);
+    if (!adminUser) throw new ApiError(404, 'Admin not found');
+
+    if (!adminUser.fcmTokens.includes(token)) {
+        adminUser.fcmTokens.push(token);
+        if (adminUser.fcmTokens.length > 10) adminUser.fcmTokens.shift();
+        await adminUser.save();
+    }
+
+    res.status(200).json(new ApiResponse(200, null, 'FCM token registered.'));
+});
+
+// DELETE /api/admin/notifications/fcm-token
+export const removeAdminFcmToken = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) throw new ApiError(400, 'FCM token is required.');
+
+    const adminUser = await Admin.findById(req.user.id);
+    if (!adminUser) throw new ApiError(404, 'Admin not found');
+
+    adminUser.fcmTokens = adminUser.fcmTokens.filter(t => t !== token);
+    await adminUser.save();
+
+    res.status(200).json(new ApiResponse(200, null, 'FCM token removed.'));
+});
+
+// POST /api/admin/notifications/push-to-user
+export const pushToUser = asyncHandler(async (req, res) => {
+    console.log('PushToUser Payload:', req.body);
+    const { userId, title, message } = req.body;
+    if (!userId || !title || !message) {
+        console.warn('❌ PushToUser Validation failed:', { userId, title, message });
+        throw new ApiError(400, 'User ID, Title, and Message are required.');
+    }
+
+    const user = await User.findById(userId);
+    if (!user) throw new ApiError(404, 'User not found');
+
+    const notification = await createNotification({
+        recipientId: userId,
+        recipientType: 'user',
+        title,
+        message,
+        type: 'broadcast',
+        data: { sender: 'Admin' }
+    });
+
+    res.status(200).json(new ApiResponse(200, notification, 'Notification pushed to user.'));
+});
+
+// POST /api/admin/notifications/broadcast
+export const globalBroadcast = asyncHandler(async (req, res) => {
+    const { target, title, message } = req.body;
+    if (!target || !title || !message) {
+        throw new ApiError(400, 'Target, Title, and Message are required.');
+    }
+
+    let roles = [];
+    if (target === 'all') roles = ['user', 'vendor', 'delivery'];
+    else if (target === 'customers') roles = ['user'];
+    else if (target === 'vendor') roles = ['vendor'];
+    else if (target === 'delivery-boy') roles = ['delivery'];
+    else roles = [target]; // specific role if passed
+
+    const result = await broadcastNotifications({
+        roles,
+        title,
+        message,
+        type: 'broadcast',
+        data: { sender: 'Admin Dashboard' }
+    });
+
+    res.status(200).json(new ApiResponse(200, result, 'Broadcast initiated successfully.'));
 });

@@ -3,6 +3,8 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import WithdrawalRequest from '../../../models/WithdrawalRequest.model.js';
 import Vendor from '../../../models/Vendor.model.js';
+import Admin from '../../../models/Admin.model.js';
+import { createNotification } from '../../../services/notification.service.js';
 
 /**
  * Request a withdrawal (Vendor)
@@ -42,6 +44,19 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
         amount,
         bankDetails: bankDetails || vendor.bankDetails
     });
+
+    // Notify Admins
+    const admins = await Admin.find({ isActive: true }).select('_id');
+    await Promise.all(admins.map(admin =>
+        createNotification({
+            recipientId: admin._id,
+            recipientType: 'admin',
+            title: 'New Payout Request',
+            message: `Vendor ${vendor.storeName} requested a payout of ₹${amount}`,
+            type: 'system',
+            data: { withdrawalId: String(request._id), sound: 'alert' }
+        })
+    ));
 
     res.status(201).json(new ApiResponse(201, request, 'Withdrawal request submitted successfully.'));
 });

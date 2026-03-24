@@ -5,6 +5,8 @@ import redisClient from '../config/redis.js';
  * @param {string} key 
  */
 export const getCache = async (key) => {
+    if (!redisClient) return null; // Skip if Redis is not configured
+    
     try {
         const cachedValue = await redisClient.get(key);
         return cachedValue ? JSON.parse(cachedValue) : null;
@@ -21,6 +23,8 @@ export const getCache = async (key) => {
  * @param {number} ttlInSeconds 
  */
 export const setCache = async (key, value, ttlInSeconds = 3600) => {
+    if (!redisClient) return false; // Skip if Redis is not configured
+
     try {
         await redisClient.set(key, JSON.stringify(value), {
             EX: ttlInSeconds
@@ -37,6 +41,8 @@ export const setCache = async (key, value, ttlInSeconds = 3600) => {
  * @param {string} key pattern 
  */
 export const deleteCache = async (key) => {
+    if (!redisClient) return false; // Skip if Redis is not configured
+
     try {
         await redisClient.del(key);
         return true;
@@ -50,6 +56,8 @@ export const deleteCache = async (key) => {
  * Delete all keys matching a pattern (e.g., 'products:*')
  */
 export const clearCachePattern = async (pattern) => {
+    if (!redisClient) return; // Skip if Redis is not configured
+
     try {
         const keys = await redisClient.keys(pattern);
         if (keys.length > 0) {

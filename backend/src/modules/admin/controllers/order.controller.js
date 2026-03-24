@@ -314,6 +314,7 @@ export const assignDeliveryBoy = asyncHandler(async (req, res) => {
             orderId: String(order.orderId),
             reassigned: isReassigned ? 'true' : 'false',
             assignedAt: new Date().toISOString(),
+            sound: 'new_assignment'
         },
     });
 

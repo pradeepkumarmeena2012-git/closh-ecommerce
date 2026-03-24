@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Notification from '../../../models/Notification.model.js';
+import Vendor from '../../../models/Vendor.model.js';
 
 // GET /api/vendor/notifications
 export const getVendorNotifications = asyncHandler(async (req, res) => {
@@ -101,3 +102,33 @@ export const deleteVendorNotification = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, null, 'Vendor notification deleted.'));
 });
 
+// POST /api/vendor/notifications/fcm-token
+export const registerVendorFcmToken = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) throw new ApiError(400, 'FCM token is required.');
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) throw new ApiError(404, 'Vendor not found');
+
+    if (!vendor.fcmTokens.includes(token)) {
+        vendor.fcmTokens.push(token);
+        if (vendor.fcmTokens.length > 10) vendor.fcmTokens.shift();
+        await vendor.save();
+    }
+
+    res.status(200).json(new ApiResponse(200, null, 'FCM token registered.'));
+});
+
+// DELETE /api/vendor/notifications/fcm-token
+export const removeVendorFcmToken = asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) throw new ApiError(400, 'FCM token is required.');
+
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) throw new ApiError(404, 'Vendor not found');
+
+    vendor.fcmTokens = vendor.fcmTokens.filter(t => t !== token);
+    await vendor.save();
+
+    res.status(200).json(new ApiResponse(200, null, 'FCM token removed.'));
+});

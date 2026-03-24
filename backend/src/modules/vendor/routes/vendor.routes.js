@@ -95,6 +95,8 @@ router.post('/support/tickets/:id/messages', ...vendorAuth, supportController.ad
 
 // Notifications
 router.get('/notifications', ...vendorAuth, notificationController.getVendorNotifications);
+router.post('/notifications/fcm-token', ...vendorAuth, notificationController.registerVendorFcmToken);
+router.delete('/notifications/fcm-token', ...vendorAuth, notificationController.removeVendorFcmToken);
 router.put('/notifications/:id/read', ...vendorAuth, notificationController.markVendorNotificationAsRead);
 router.put('/notifications/read-all', ...vendorAuth, notificationController.markAllVendorNotificationsAsRead);
 router.delete('/notifications/:id', ...vendorAuth, notificationController.deleteVendorNotification);
