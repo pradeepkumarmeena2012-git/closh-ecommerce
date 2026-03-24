@@ -26,6 +26,7 @@ import {
 import { useAdminAuthStore } from "../../store/adminStore";
 import { useNotificationStore } from "../../store/notificationStore";
 import adminMenu from "../../config/adminMenu.json";
+import logo from "../../../../assets/animations/lottie/logo-removebg.png";
 
 // Icon mapping for menu items
 const iconMap = {
@@ -362,8 +363,8 @@ const AdminSidebar = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between gap-3">
           {/* Admin User Info */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-              <FiUser className="text-white text-xl" />
+            <div className="w-12 h-12 bg-[#0f172a] rounded-xl flex items-center justify-center shadow-md flex-shrink-0 p-2 border border-white/5">
+              <img src={logo} alt="CLOSH" className="w-full h-full object-contain" />
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="font-semibold text-white text-sm truncate">

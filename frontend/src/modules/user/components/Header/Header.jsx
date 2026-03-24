@@ -16,6 +16,7 @@ import { useCategory } from '../../context/CategoryContext';
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../Modals/LoginModal';
 import { categories as localCategories } from '../../data/index';
+import logo from '../../../../assets/animations/lottie/logo-removebg.png';
 
 const Header = ({ variant = 'default' }) => {
     const headerRef = useRef(null);
@@ -46,15 +47,21 @@ const Header = ({ variant = 'default' }) => {
 
         updateHeaderHeight();
 
+        const scrollContainer = document.getElementById('user-scroll-container');
+        
         let resizeObserver;
         if ('ResizeObserver' in window) {
             resizeObserver = new ResizeObserver(() => updateHeaderHeight());
             resizeObserver.observe(el);
+            if (scrollContainer) resizeObserver.observe(scrollContainer);
         }
 
         window.addEventListener('resize', updateHeaderHeight);
+        if (scrollContainer) scrollContainer.addEventListener('resize', updateHeaderHeight);
+
         return () => {
             window.removeEventListener('resize', updateHeaderHeight);
+            if (scrollContainer) scrollContainer.removeEventListener('resize', updateHeaderHeight);
             if (resizeObserver) resizeObserver.disconnect();
         };
     }, []);
@@ -73,23 +80,32 @@ const Header = ({ variant = 'default' }) => {
     const [lastScrollY, setLastScrollY] = useState(0);
 
     useEffect(() => {
+        const scrollContainer = document.getElementById('user-scroll-container');
+        const target = scrollContainer || window;
+
         const handleScroll = () => {
-            const currentScrollY = window.scrollY;
-            // Only apply on mobile where sticky real estate matters, and after 100px of scrolling
-            if (currentScrollY > 60) {
-                if (currentScrollY > lastScrollY) {
-                    setIsHeaderVisible(false); // Scrolling down - hide
+            const currentScrollY = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+            
+            // Logic for 'Premium Auto-Hide' - Expand only at the VERY top
+            if (currentScrollY > lastScrollY) {
+                // Scrolling down - definitively hide additional parts to maximize screen
+                setIsHeaderVisible(false);
+            } else if (currentScrollY < lastScrollY) {
+                // Scrolling UP
+                if (currentScrollY < 30) {
+                    // Only show expanded header (search/categories) when we reach the top
+                    setIsHeaderVisible(true);
                 } else {
-                    setIsHeaderVisible(true);  // Scrolling up - show
+                    // While scrolling up in mid-page, keep header compact for better product focus
+                    setIsHeaderVisible(false);
                 }
-            } else {
-                setIsHeaderVisible(true); // Always show at the top or on desktop
             }
+            
             setLastScrollY(currentScrollY);
         };
 
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
+        target.addEventListener('scroll', handleScroll, { passive: true });
+        return () => target.removeEventListener('scroll', handleScroll);
     }, [lastScrollY]);
 
     const handleSearchInput = async (value) => {
@@ -210,7 +226,7 @@ const Header = ({ variant = 'default' }) => {
             initial={false}
             animate={{ background: currentGradient }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
-            className={`w-full fixed top-0 left-0 z-[999] shadow-sm font-sans transition-all duration-300 ease-in-out ${['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) ? 'hidden md:block' : ''}`}
+            className={`w-full sticky top-0 left-0 z-[999] shadow-sm font-sans transition-all duration-300 ease-in-out ${['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) ? 'hidden md:block' : ''}`}
         >
             {/* Top Colored Section - Premium Frosted Background */}
             <div className={`relative z-[60] ${variant === 'shop' ? 'border-b border-black/5' : ''}`}>
@@ -220,48 +236,42 @@ const Header = ({ variant = 'default' }) => {
                     <>
                         {/* Mobile Location Bar */}
                         <div
-                            className="px-4 py-3 flex items-center justify-between group transition-colors md:hidden"
+                            className="px-4 py-1.5 flex items-center justify-between group transition-colors md:hidden"
                         >
-                            <div className="flex items-center gap-4">
-                                <Link to="/" className="no-underline group">
-                                    <h1 className="text-[20px] font-bold drop-shadow-md transition-all duration-500 text-gray-900 group-hover:text-black">
-                                        Clothify<span className="text-black text-[24px] leading-none group-hover:text-gray-900">.</span>
-                                    </h1>
-                                </Link>
+                             <div className="flex items-center gap-3">
+                                 <Link to="/" className="flex items-center gap-0.5 no-underline group">
+                                     <img src={logo} alt="CLOSH" className="h-9 w-auto object-contain" />
+                                     <span className="text-[20px] font-black text-gray-900 tracking-tighter">CLOSH</span>
+                                 </Link>
 
                                 <div className="flex items-center">
-                                    <div className="flex flex-col items-center justify-center bg-gray-50 rounded-[10px] px-2 py-1 shadow-md shrink-0 border border-black/10">
-                                        <span className="text-[12px] font-bold text-black leading-none ">60</span>
-                                        <span className="text-[8px] font-bold text-[#FFC107] uppercase  leading-none mt-0.5 drop-shadow-sm">MINS</span>
+                                    <div className="flex flex-col items-center justify-center bg-gray-50 rounded-[8px] px-1.5 py-0.5 shadow-md shrink-0 border border-black/10">
+                                        <span className="text-[11px] font-black text-black leading-none ">60</span>
+                                        <span className="text-[7px] font-black text-[#FFC107] uppercase  leading-none mt-0.5 drop-shadow-sm">MINS</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 justify-end" onClick={() => setIsLocationModalOpen(true)}>
-                                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center border border-black/10 shadow-md shrink-0 mr-1">
-                                    <MapPin size={18} className="text-[#FFC107]" />
+                            <div className="flex items-center gap-1 justify-end" onClick={() => setIsLocationModalOpen(true)}>
+                                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center border border-black/10 shadow-md shrink-0 mr-1">
+                                    <MapPin size={15} className="text-[#FFC107]" />
                                 </div>
-                                <div className="flex flex-col min-w-0 pr-2 pl-1 text-left">
-                                    <span className="text-[14px] font-bold leading-tight flex items-center gap-1.5  text-black">
-                                        Location <ChevronDown size={14} className="text-[#FFC107] drop-shadow-sm" />
+                                <div className="flex flex-col min-w-0 pr-1 pl-1 text-left">
+                                    <span className="text-[12px] font-black leading-tight flex items-center gap-1  text-black">
+                                        Location <ChevronDown size={12} className="text-[#FFC107] drop-shadow-sm" />
                                     </span>
-                                    <span className="text-[11.5px] font-medium truncate max-w-[120px] text-black/70 transition-colors flex items-center gap-1">
-                                        {activeAddress ? `${activeAddress.name}` : 'Indore City'}
+                                    <span className="text-[10px] font-bold truncate max-w-[100px] text-black/70 transition-colors flex items-center gap-1">
+                                        {activeAddress ? `${activeAddress.name}` : 'Indore'}
                                     </span>
                                 </div>
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-sm border border-black/5 ml-1">
-                                    <Link to="/cart" onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[2px]">
-                                        <ShoppingCart size={20} className="text-gray-600 group-hover/icon:text-black transition-colors" />
+                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-black/5 ml-1">
+                                    <Link to="/cart" onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[1px]">
+                                        <ShoppingCart size={17} className="text-gray-600 group-hover/icon:text-black transition-colors" />
                                         {cartCount > 0 && (
-                                            <span className="absolute -top-1 -right-1 bg-black text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                                            <span className="absolute -top-1 -right-1 bg-black text-white text-[7px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm">
                                                 {cartCount}
                                             </span>
                                         )}
-                                    </Link>
-                                </div>
-                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-sm border border-black/5 ml-1">
-                                    <Link to={user ? "/profile" : "/login"} onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[2px]">
-                                        <User size={20} className="text-gray-600 group-hover/icon:text-black transition-colors" />
                                     </Link>
                                 </div>
                             </div>
@@ -269,12 +279,11 @@ const Header = ({ variant = 'default' }) => {
 
                         {/* Desktop Inline Navbar (like reference) */}
                         <div className="hidden md:flex items-center justify-between px-6 py-3">
-                            <div className="flex items-center gap-8">
-                                <Link to="/" className="no-underline group">
-                                    <h1 className="text-[28px] font-bold drop-shadow-md transition-all duration-500 text-gray-900 group-hover:text-black">
-                                        Clothify<span className="text-black text-[36px] leading-none group-hover:text-gray-900">.</span>
-                                    </h1>
-                                </Link>
+                        <div className="flex items-center gap-8">
+                            <Link to="/" className="flex items-center gap-1 no-underline group">
+                                <img src={logo} alt="CLOSH" className="h-12 w-auto object-contain" />
+                                <span className="text-[28px] font-black text-gray-900 tracking-tighter">CLOSH</span>
+                            </Link>
 
                                 <button
                                     onClick={() => setIsLocationModalOpen(true)}
@@ -382,7 +391,7 @@ const Header = ({ variant = 'default' }) => {
                 {/* Search Bar & Wishlist Container - Seamless Collapse on Mobile Scroll */}
                 <div className={`px-4 transition-all duration-300 ease-in-out grid relative md:hidden ${isHeaderVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 h-0 overflow-hidden'}`}>
                     <div className="overflow-hidden w-full flex items-center gap-3">
-                        <div className={`flex items-center gap-3 w-full ${variant === 'shop' ? 'pt-4 pb-4' : 'pt-2 pb-4'}`}>
+                        <div className={`flex items-center gap-3 w-full ${variant === 'shop' ? 'pt-2 pb-2' : 'pt-1 pb-2'}`}>
                             <div className="relative flex-1 group">
                                 <input
                                     type="text"

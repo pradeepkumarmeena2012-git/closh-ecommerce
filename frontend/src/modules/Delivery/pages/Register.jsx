@@ -4,6 +4,7 @@ import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiTruck, FiMapPin, Fi
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
+import logo from '../../../assets/animations/lottie/logo-removebg.png';
 
 const DeliveryRegister = () => {
   const navigate = useNavigate();
@@ -37,7 +38,6 @@ const DeliveryRegister = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!formData.name || !formData.email || !formData.phone || !formData.password) {
       toast.error('Please fill in all required fields');
       return;
@@ -54,7 +54,6 @@ const DeliveryRegister = () => {
       toast.error('Password must be at least 6 characters');
       return;
     }
-
     try {
       const result = await register({
         name: formData.name.trim(),
@@ -77,154 +76,127 @@ const DeliveryRegister = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-3xl p-8 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
-      >
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 gradient-green rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-green">
-            <FiTruck className="text-white text-2xl" />
+    <div className="min-h-screen bg-[#0f172a] flex flex-col md:flex-row overflow-hidden">
+      {/* Left Side: Branding */}
+      <div className="hidden md:flex md:w-2/5 items-center justify-center p-12 bg-[#0f172a] relative border-r border-white/5">
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[32rem] h-[32rem] bg-blue-600/10 rounded-full blur-3xl"></div>
+        
+        <div className="relative z-10 text-center">
+          <div className="w-32 h-32 bg-white/5 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 border border-white/10 shadow-2xl">
+            <img src={logo} alt="CLOSH" className="w-20 h-20 object-contain" />
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Join as Delivery Partner</h1>
-          <p className="text-gray-600">Register your account and wait for admin approval</p>
+          <h1 className="text-5xl font-black text-white mb-4 tracking-tighter uppercase">RIDE CLOSH</h1>
+          <p className="text-xl text-slate-400 font-medium">Join the elite network of delivery partners.</p>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <FiUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="John Doe" required className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="delivery@example.com" required className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <FiPhone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+1234567890" required className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
-                <div className="relative">
-                  <FiMapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="City, State" className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800" />
-                </div>
-              </div>
-            </div>
+      {/* Right Side: Form */}
+      <div className="w-full md:w-3/5 flex items-center justify-center relative z-10 px-4 py-8 md:px-0">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-white md:rounded-[2.5rem] p-8 md:p-12 w-full max-w-3xl shadow-2xl md:max-h-[90vh] overflow-y-auto no-scrollbar relative z-10 min-h-[90vh] md:min-h-0"
+        >
+          <style dangerouslySetInnerHTML={{ __html: `
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+          `}} />
+          
+          <div className="mb-10 text-center md:text-left">
+            <h2 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Partner Enrollment</h2>
+            <p className="text-gray-500 font-medium">Complete your application to join the team</p>
           </div>
 
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Vehicle Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Vehicle Type</label>
-                <select name="vehicleType" value={formData.vehicleType} onChange={handleChange} className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800">
-                  <option value="Bike">Bike</option>
-                  <option value="Scooter">Scooter</option>
-                  <option value="Car">Car</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Vehicle Number</label>
-                <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleChange} placeholder="ABC-1234" className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800" />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Document Upload (Front & Back Required)</h3>
+          <form onSubmit={handleSubmit} className="space-y-12">
+            {/* Identity Info */}
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Primary Identity</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Driving License (Front) <span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Full Operator Name</label>
                   <div className="relative">
-                    <FiFileText className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input type="file" name="drivingLicense" onChange={handleChange} accept="image/*" required className="w-full pl-12 pr-4 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 file:mr-3 file:rounded-md file:border-0 file:bg-primary-50 file:px-3 file:py-1 file:text-sm file:text-primary-700" />
+                    <FiUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="John Doe" required className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-gray-300 focus:outline-none text-gray-900" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Driving License (Back) <span className="text-red-500">*</span></label>
+                  <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Email Connection</label>
                   <div className="relative">
-                    <FiFileText className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input type="file" name="drivingLicenseBack" onChange={handleChange} accept="image/*" required className="w-full pl-12 pr-4 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 file:mr-3 file:rounded-md file:border-0 file:bg-primary-50 file:px-3 file:py-1 file:text-sm file:text-primary-700" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Aadhar Card (Front) <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <FiFileText className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input type="file" name="aadharCard" onChange={handleChange} accept="image/*" required className="w-full pl-12 pr-4 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 file:mr-3 file:rounded-md file:border-0 file:bg-primary-50 file:px-3 file:py-1 file:text-sm file:text-primary-700" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Aadhar Card (Back) <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <FiFileText className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input type="file" name="aadharCardBack" onChange={handleChange} accept="image/*" required className="w-full pl-12 pr-4 py-2.5 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 file:mr-3 file:rounded-md file:border-0 file:bg-primary-50 file:px-3 file:py-1 file:text-sm file:text-primary-700" />
+                    <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="partner@closh.com" required className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-gray-300 focus:outline-none text-gray-900" />
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Account Security</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Password <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} placeholder="Minimum 6 characters" required className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800" />
-                  <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">{showPassword ? <FiEyeOff /> : <FiEye />}</button>
+            {/* Vehicle Info */}
+            <div className="space-y-6">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Logistic Assets</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Vehicle Category</label>
+                  <select name="vehicleType" value={formData.vehicleType} onChange={handleChange} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-gray-300 focus:outline-none text-gray-900 font-medium">
+                    <option value="Bike">Fast Bike</option>
+                    <option value="Scooter">Scooter</option>
+                    <option value="Car">Utility Car</option>
+                  </select>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="Re-enter password" required className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800" />
-                  <button type="button" onClick={() => setShowConfirmPassword((v) => !v)} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">{showConfirmPassword ? <FiEyeOff /> : <FiEye />}</button>
+                <div>
+                  <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Registration Identifier</label>
+                  <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleChange} placeholder="ABC-1234" className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-gray-300 focus:outline-none text-gray-900" />
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> Your registration will be sent to admin for approval. You will receive email when approved or rejected. Login is allowed only after approval.
-            </p>
-          </div>
+            {/* Security */}
+            <div className="space-y-6">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Encryption (Password)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Secret Key</label>
+                  <div className="relative">
+                    <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} placeholder="••••••••" required className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-gray-300 focus:outline-none text-gray-900" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-900">{showPassword ? <FiEyeOff /> : <FiEye />}</button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Re-Validate Key</label>
+                  <div className="relative">
+                    <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="••••••••" required className="w-full pl-12 pr-12 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:border-gray-300 focus:outline-none text-gray-900" />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-900">{showConfirmPassword ? <FiEyeOff /> : <FiEye />}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          <button type="submit" disabled={isLoading} className="w-full gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-            {isLoading ? 'Registering...' : 'Register as Delivery Partner'}
-          </button>
+            {/* Final Submission */}
+            <div className="pt-6 space-y-6">
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-6">
+                <p className="text-sm font-medium text-indigo-900">
+                  <span className="font-black uppercase text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full mr-2">Info</span> 
+                  Registration approval is mandatory before system access. Dispatch will review within 24-48 hours.
+                </p>
+              </div>
 
-          <div className="text-center pt-4">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link to="/delivery/login" className="text-primary-600 hover:text-primary-700 font-semibold">
-                Login
-              </Link>
-            </p>
-          </div>
-        </form>
-      </motion.div>
+              <button type="submit" disabled={isLoading} className="w-full bg-[#0f172a] text-white py-4 rounded-2xl font-black text-base hover:bg-slate-800 transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50">
+                {isLoading ? 'Sending Request...' : 'Submit Application'}
+              </button>
+
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-500">
+                  Back to workspace?{' '}
+                  <Link to="/delivery/login" className="text-[#0f172a] hover:underline font-black">
+                    Secure Login
+                  </Link>
+                </p>
+              </div>
+            </div>
+          </form>
+        </motion.div>
+      </div>
     </div>
   );
 };

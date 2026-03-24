@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiTruck } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import toast from 'react-hot-toast';
 import PageTransition from '../../../shared/components/PageTransition';
+import logo from '../../../assets/animations/lottie/logo-removebg.png';
 
 const DeliveryLogin = () => {
   const navigate = useNavigate();
@@ -18,7 +19,6 @@ const DeliveryLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Redirect if already authenticated
   useEffect(() => {
     const hasDeliveryToken = Boolean(localStorage.getItem('delivery-token'));
     if (isAuthenticated && hasDeliveryToken) {
@@ -36,16 +36,13 @@ const DeliveryLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!formData.email || !formData.password) {
       toast.error('Please fill in all fields');
       return;
     }
-
     try {
       await login(formData.email, formData.password, rememberMe);
       toast.success('Login successful!');
-      // Redirect is handled by auth effect above to avoid duplicate navigation.
     } catch (error) {
       toast.error(error.message || 'Invalid credentials');
     }
@@ -53,28 +50,47 @@ const DeliveryLogin = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
-        >
-          <div className="glass-card rounded-2xl p-6 shadow-xl">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 gradient-green rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-green">
-                <FiTruck className="text-white text-2xl" />
+      <div className="min-h-screen bg-[#0f172a] flex flex-col md:flex-row overflow-hidden">
+        {/* Left Side: Branding */}
+        <div className="hidden md:flex md:w-1/2 items-center justify-center p-12 bg-[#0f172a] relative">
+          <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[32rem] h-[32rem] bg-blue-600/10 rounded-full blur-3xl"></div>
+          
+          <div className="relative z-10 text-center">
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-32 h-32 bg-white/5 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 border border-white/10 shadow-2xl"
+            >
+              <img src={logo} alt="CLOSH" className="w-20 h-20 object-contain" />
+            </motion.div>
+            <h1 className="text-6xl font-black text-white mb-4 tracking-tighter uppercase">CLOSH</h1>
+            <p className="text-xl text-slate-400 font-medium">Fast. Reliable. Elite. Delivery Network.</p>
+          </div>
+        </div>
+
+        {/* Right Side: Form */}
+        <div className="w-full md:w-1/2 flex items-center justify-center relative z-10 px-4 py-8 md:px-0">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white rounded-3xl md:rounded-[2.5rem] p-8 md:p-12 w-full max-w-sm shadow-2xl min-h-[85vh] md:min-h-0 flex flex-col justify-center"
+          >
+            {/* Mobile Logo */}
+            <div className="md:hidden text-center mb-10">
+              <div className="w-20 h-20 bg-[#0f172a] rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <img src={logo} alt="CLOSH" className="w-12 h-12 object-contain" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">Delivery Login</h1>
-              <p className="text-gray-600 text-sm">Sign in to manage your deliveries</p>
             </div>
 
-            {/* Login Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email Field */}
+            <div className="mb-10 text-center md:text-left">
+              <h2 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Partner Login</h2>
+              <p className="text-gray-500 font-medium">Log in to your CLOSH workspace</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">
                   Email Address
                 </label>
                 <div className="relative">
@@ -84,17 +100,16 @@ const DeliveryLogin = () => {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder="delivery@delivery.com"
-                    className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:outline-none transition-colors text-base"
+                    placeholder="partner@closh.com"
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:border-gray-300 focus:outline-none transition-all text-gray-900 placeholder:text-gray-400"
                     required
                   />
                 </div>
               </div>
 
-              {/* Password Field */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password
+                <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">
+                  Secure Password
                 </label>
                 <div className="relative">
                   <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -103,70 +118,65 @@ const DeliveryLogin = () => {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="Enter your password"
-                    className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:outline-none transition-colors text-base"
+                    placeholder="••••••••"
+                    className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:border-gray-300 focus:outline-none transition-all text-gray-900 placeholder:text-gray-400"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-900"
                   >
                     {showPassword ? <FiEyeOff /> : <FiEye />}
                   </button>
                 </div>
               </div>
 
-              {/* Remember Me */}
               <div className="flex items-center justify-between">
-                <label className="flex items-center cursor-pointer">
+                <label className="flex items-center cursor-pointer group">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    className="w-4 h-4 text-[#0f172a] border-gray-200 rounded focus:ring-[#0f172a]"
                   />
-                  <span className="ml-2 text-sm text-gray-700">Remember me</span>
+                  <span className="ml-2 text-xs font-black text-gray-500 group-hover:text-gray-900 tracking-wider">Stay Active</span>
                 </label>
-                <Link
-                  to="/delivery/forgot-password"
-                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                >
-                  Forgot password?
+                <Link to="/delivery/forgot-password" size="sm" className="text-xs font-black text-gray-500 hover:text-gray-900 tracking-wider">
+                  Need Help?
                 </Link>
               </div>
 
-              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full gradient-green text-white py-4 rounded-xl font-semibold text-base hover:shadow-glow-green transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#0f172a] text-white py-4 rounded-2xl font-black text-base hover:bg-slate-800 transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50"
               >
-                {isLoading ? 'Logging in...' : 'Sign In'}
+                {isLoading ? 'Connecting...' : 'Access Dashboard'}
               </button>
             </form>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-primary-50 rounded-xl">
-              <p className="text-sm text-gray-700 font-semibold mb-2">Demo Credentials:</p>
-              <p className="text-xs text-gray-600">Email: delivery@delivery.com</p>
-              <p className="text-xs text-gray-600">Password: delivery123</p>
+            <div className="mt-10 p-6 bg-gray-50 rounded-[2rem] border border-gray-100/50">
+              <p className="text-[11px] font-black text-gray-900 uppercase tracking-widest mb-3 px-1">Demo Access:</p>
+              <div className="space-y-1 px-1">
+                <p className="text-sm font-medium text-gray-700">User: <span className="text-gray-900 font-bold">delivery@closh.com</span></p>
+                <p className="text-sm font-medium text-gray-700">Token: <span className="text-gray-900 font-bold">closh123</span></p>
+              </div>
             </div>
 
-            <div className="text-center pt-4">
-              <p className="text-sm text-gray-600">
+            <div className="text-center pt-8">
+              <p className="text-sm font-medium text-gray-500">
                 New delivery partner?{' '}
-                <Link to="/delivery/register" className="text-primary-600 hover:text-primary-700 font-semibold">
-                  Register here
+                <Link to="/delivery/register" className="text-[#0f172a] hover:underline font-black">
+                  Apply Now
                 </Link>
               </p>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     </PageTransition>
   );
 };
 
 export default DeliveryLogin;
-

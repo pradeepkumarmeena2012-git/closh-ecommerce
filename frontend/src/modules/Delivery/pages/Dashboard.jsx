@@ -192,7 +192,7 @@ const DeliveryDashboard = () => {
     <PageTransition>
       <div className="min-h-screen bg-[#F8FAFC]">
         {/* Dynamic Header with Wave/Gradient */}
-        <div className="relative overflow-hidden bg-[#0F172A] pb-32 pt-28 px-6">
+        <div className="relative overflow-hidden bg-[#0F172A] pb-20 pt-6 px-6">
           <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl"></div>
           
@@ -230,7 +230,7 @@ const DeliveryDashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className={`mt-8 rounded-3xl p-6 border transition-all duration-500 ${isOnline
+            className={`mt-4 rounded-3xl p-4 border transition-all duration-500 ${isOnline
               ? 'bg-white/10 backdrop-blur-xl border-white/20 shadow-xl shadow-indigo-500/10'
               : 'bg-white/5 backdrop-blur-md border-white/10'
               }`}
@@ -241,10 +241,10 @@ const DeliveryDashboard = () => {
                    {isOnline ? <FiZap size={24} /> : <FiActivity size={24} />}
                 </div>
                 <div>
-                  <h2 className="text-white font-bold text-lg leading-tight">
+                  <h2 className="text-white font-bold text-base leading-tight">
                     {isOnline ? 'Accepting Requests' : 'You are Offline'}
                   </h2>
-                  <p className="text-slate-400 text-xs mt-1 font-medium">
+                  <p className="text-slate-400 text-[11px] mt-0.5 font-medium">
                     {isOnline ? 'Live tracking is active' : 'Switch ON to see new orders'}
                   </p>
                 </div>
@@ -267,7 +267,7 @@ const DeliveryDashboard = () => {
         </div>
 
         {/* Space re-calculation using negative margin */}
-        <div className="px-6 -mt-12 relative z-20 pb-12">
+        <div className="px-6 -mt-8 relative z-20 pb-12">
           
           {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

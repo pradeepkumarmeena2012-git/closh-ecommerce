@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import logo from "../../../../assets/animations/lottie/logo-removebg.png";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { FiLogOut, FiTruck, FiPackage, FiHome, FiUser, FiMenu, FiBell } from "react-icons/fi";
 import { useDeliveryAuthStore } from "../../store/deliveryStore";
@@ -110,10 +111,10 @@ const DeliveryLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div id="delivery-layout-root" className="flex flex-col h-screen overflow-hidden bg-white">
       {/* Mobile Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0f172a]/90 backdrop-blur-lg border-b border-white/5 shadow-none">
-        <div className="flex items-center gap-3 px-4 py-3">
+      <header className="sticky top-0 left-0 z-50 bg-[#0f172a] backdrop-blur-lg border-b border-white/5 shadow-none shrink-0">
+        <div className="flex items-center gap-3 px-4 py-2">
           {/* Hamburger Icon */}
           <button
             onClick={() => setSidebarOpen(true)}
@@ -125,10 +126,9 @@ const DeliveryLayout = () => {
           {/* Logo */}
           <Link
             to="/delivery/dashboard"
-            className="no-underline group shrink-0">
-            <h1 className="text-[20px] font-bold drop-shadow-md transition-all duration-500 text-white group-hover:text-gray-200">
-                Clothify<span className="text-indigo-400 text-[24px] leading-none group-hover:text-indigo-300">.</span>
-            </h1>
+            className="flex items-center gap-0.5 no-underline group shrink-0">
+            <img src={logo} alt="CLOSH" className="h-9 w-auto object-contain" />
+            <span className="text-[20px] font-black text-white tracking-tighter">CLOSH</span>
           </Link>
 
           {/* Partner Info */}
@@ -230,7 +230,7 @@ const DeliveryLayout = () => {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="pb-20">
+      <main id="delivery-scroll-container" className="flex-1 overflow-y-auto pb-20 scrollbar-responsive">
         <Outlet />
       </main>
 

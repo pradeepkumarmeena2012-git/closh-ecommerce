@@ -7,12 +7,15 @@ import BottomNav from '../../components/Navigation/BottomNav';
 const UserLayout = ({ children, variant = 'default', showHeader = true }) => {
     const location = useLocation();
     return (
-        <div className="flex flex-col min-h-screen bg-white">
+        <div id="user-layout-root" className="flex flex-col h-screen overflow-hidden bg-white">
             {showHeader && <Header variant={variant} />}
-            <main className="flex-1" style={{ paddingTop: showHeader ? 'var(--user-header-height, 0px)' : '0px' }}>{children}</main>
-            {['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) ? <div className="hidden md:block"><Footer /></div> : variant !== 'shop' && <Footer />}
+            <div id="user-scroll-container" className="flex-1 overflow-y-auto scroll-smooth scrollbar-responsive">
+                <main className="flex-1">{children}</main>
+                <div className={['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) ? "hidden md:block" : (variant !== 'shop' ? "" : "hidden")}>
+                    <Footer />
+                </div>
+            </div>
             {!['checkout', 'payment'].includes(variant) && <BottomNav />}
-
         </div>
     );
 };
