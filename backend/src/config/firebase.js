@@ -18,6 +18,10 @@ if (!serviceAccountJson && !serviceAccountPath) {
         if (serviceAccountJson) {
             // Priority 1: Use raw JSON string from .env
             serviceAccount = JSON.parse(serviceAccountJson);
+            // Replace literal \\n with real newlines for the private key
+            if (serviceAccount && serviceAccount.private_key) {
+                serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+            }
         } else if (serviceAccountPath) {
             // Priority 2: Use file path
             const absolutePath = path.isAbsolute(serviceAccountPath) 
@@ -26,6 +30,10 @@ if (!serviceAccountJson && !serviceAccountPath) {
 
             if (fs.existsSync(absolutePath)) {
                 serviceAccount = JSON.parse(fs.readFileSync(absolutePath, 'utf8'));
+                // Replace literal \\n with real newlines for the private key
+                if (serviceAccount && serviceAccount.private_key) {
+                    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+                }
             } else {
                 throw new Error(`Service account file not found at: ${absolutePath}`);
             }
