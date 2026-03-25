@@ -47,6 +47,8 @@ app.use(helmet());
 app.use(mongoSanitize());
 const allowedOrigins = [
     process.env.CLIENT_URL,
+    'https://www.closh.in',
+    'https://closh.in',
     'http://localhost:3000',
     'http://localhost:5173'
 ].filter(Boolean);
