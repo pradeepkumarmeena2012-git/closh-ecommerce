@@ -52,7 +52,14 @@ const deliveryBoySchema = new mongoose.Schema(
         cashCollected: { type: Number, default: 0 },
         totalEarnings: { type: Number, default: 0 },
         availableBalance: { type: Number, default: 0 },
-        fcmTokens: { type: [String], default: [] },
+        fcmTokens: [
+            {
+                token: { type: String, required: true },
+                platform: { type: String, enum: ['web', 'app'], default: 'web' },
+                deviceName: String,
+                lastUsed: { type: Date, default: Date.now },
+            },
+        ],
     },
     { timestamps: true }
 );

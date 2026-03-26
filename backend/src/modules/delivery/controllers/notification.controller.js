@@ -103,18 +103,28 @@ export const deleteDeliveryNotification = asyncHandler(async (req, res) => {
 });
 // POST /api/delivery/notifications/fcm-token
 export const registerDeliveryFcmToken = asyncHandler(async (req, res) => {
-    const { token } = req.body;
+    const { token, platform = 'web' } = req.body;
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
     const deliveryBoy = await DeliveryBoy.findById(req.user.id);
     if (!deliveryBoy) throw new ApiError(404, 'Delivery Boy not found');
 
-    if (!deliveryBoy.fcmTokens.includes(token)) {
-        deliveryBoy.fcmTokens.push(token);
-        if (deliveryBoy.fcmTokens.length > 10) deliveryBoy.fcmTokens.shift();
-        await deliveryBoy.save();
+    // Remove duplicates or update existing
+    const existingTokenIndex = deliveryBoy.fcmTokens.findIndex(t => t.token === token);
+    
+    if (existingTokenIndex > -1) {
+        deliveryBoy.fcmTokens[existingTokenIndex].platform = platform;
+        deliveryBoy.fcmTokens[existingTokenIndex].lastUsed = new Date();
+    } else {
+        deliveryBoy.fcmTokens.push({ token, platform, lastUsed: new Date() });
+        // Keep only last 10 devices
+        if (deliveryBoy.fcmTokens.length > 10) {
+            deliveryBoy.fcmTokens.sort((a, b) => b.lastUsed - a.lastUsed);
+            deliveryBoy.fcmTokens = deliveryBoy.fcmTokens.slice(0, 10);
+        }
     }
-
+    
+    await deliveryBoy.save();
     res.status(200).json(new ApiResponse(200, null, 'FCM token registered.'));
 });
 
@@ -123,11 +133,9 @@ export const removeDeliveryFcmToken = asyncHandler(async (req, res) => {
     const { token } = req.body;
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
-    const deliveryBoy = await DeliveryBoy.findById(req.user.id);
-    if (!deliveryBoy) throw new ApiError(404, 'Delivery Boy not found');
-
-    deliveryBoy.fcmTokens = deliveryBoy.fcmTokens.filter(t => t !== token);
-    await deliveryBoy.save();
+    await DeliveryBoy.findByIdAndUpdate(req.user.id, {
+        $pull: { fcmTokens: { token } }
+    });
 
     res.status(200).json(new ApiResponse(200, null, 'FCM token removed.'));
 });

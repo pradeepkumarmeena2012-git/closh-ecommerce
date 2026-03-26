@@ -27,7 +27,14 @@ const userSchema = new mongoose.Schema(
         refreshTokenExpiresAt: { type: Date, select: false },
         passwordResetToken: { type: String, select: false },
         passwordResetExpiry: { type: Date, select: false },
-        fcmTokens: { type: [String], default: [] },
+        fcmTokens: [
+            {
+                token: { type: String, required: true },
+                platform: { type: String, enum: ['web', 'app'], default: 'web' },
+                deviceName: String,
+                lastUsed: { type: Date, default: Date.now },
+            },
+        ],
     },
     { timestamps: true }
 );

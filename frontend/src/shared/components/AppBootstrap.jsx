@@ -129,13 +129,13 @@ const AppBootstrap = () => {
         activeUser = userAuth.user;
         scopeUrl = '/user';
       } else if (adminAuth.isAuthenticated) {
-        activeUser = adminAuth.admin; // Corrected: Admin store uses '.admin'
+        activeUser = adminAuth.admin;
         scopeUrl = '/admin';
       } else if (vendorAuth.isAuthenticated) {
-        activeUser = vendorAuth.vendor; // Corrected: Vendor store uses '.vendor'
+        activeUser = vendorAuth.vendor;
         scopeUrl = '/vendor';
       } else if (deliveryAuth.isAuthenticated) {
-        activeUser = deliveryAuth.deliveryBoy; // Corrected: Delivery store uses '.deliveryBoy'
+        activeUser = deliveryAuth.deliveryBoy;
         scopeUrl = '/delivery';
       }
 
@@ -146,15 +146,22 @@ const AppBootstrap = () => {
         if (token) {
           const registeredTokens = JSON.parse(localStorage.getItem('registered_fcm_tokens') || '[]');
           const userId = activeUser._id || activeUser.id;
-          const tokenKey = `${userId}_${token}`;
+          
+          // Detect platform
+          const isApp = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          const platform = isApp ? 'app' : 'web'; 
+          
+          const tokenKey = `${userId}_${token}_${platform}`;
           
           if (!registeredTokens.includes(tokenKey)) {
             const endpoint = `/notifications/fcm-token`;
-            await api.post(`${scopeUrl}${endpoint}`, { token });
+            await api.post(`${scopeUrl}${endpoint}`, { token, platform });
             
-            registeredTokens.push(tokenKey);
-            localStorage.setItem('registered_fcm_tokens', JSON.stringify(registeredTokens));
-            console.log(`FCM token registered with backend for ${scopeUrl}:`, userId);
+            // Clean up old tokens for this user from localStorage (keep only current)
+            const otherTokens = registeredTokens.filter(k => !k.startsWith(`${userId}_`));
+            otherTokens.push(tokenKey);
+            localStorage.setItem('registered_fcm_tokens', JSON.stringify(otherTokens));
+            console.log(`FCM token registered with backend for ${scopeUrl} (${platform}):`, userId);
           }
         }
       } catch (err) {

@@ -14,7 +14,14 @@ const adminSchema = new mongoose.Schema(
         isActive: { type: Boolean, default: true },
         refreshTokenHash: { type: String, select: false },
         refreshTokenExpiresAt: { type: Date, select: false },
-        fcmTokens: { type: [String], default: [] },
+        fcmTokens: [
+            {
+                token: { type: String, required: true },
+                platform: { type: String, enum: ['web', 'app'], default: 'web' },
+                deviceName: String,
+                lastUsed: { type: Date, default: Date.now },
+            },
+        ],
     },
     { timestamps: true }
 );

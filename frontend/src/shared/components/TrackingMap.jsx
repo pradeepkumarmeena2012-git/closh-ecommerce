@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Polyline } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Polyline, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
 
 const containerStyle = {
   width: '100%',
@@ -128,11 +128,13 @@ const TrackingMap = ({
 
   const [map, setMap] = useState(null);
   const [center, setCenter] = useState(deliveryLocation || customerLocation || { lat: 20.5937, lng: 78.9629 });
+  const [directions, setDirections] = useState(null);
+  const [lastRouteParams, setLastRouteParams] = useState(null);
 
   const onLoad = useCallback(function callback(map) {
     setMap(map);
     
-    // Fit bounds if we have both points
+    // Fit bounds if we have points
     if (deliveryLocation && (customerLocation || vendorLocation)) {
       const bounds = new window.google.maps.LatLngBounds();
       bounds.extend(deliveryLocation);
@@ -146,11 +148,49 @@ const TrackingMap = ({
     setMap(null);
   }, []);
 
+  // Calculate destination based on priority
+  const destination = vendorLocation || customerLocation;
+
   useEffect(() => {
     if (followMode && deliveryLocation && map) {
       setCenter(deliveryLocation);
     }
   }, [deliveryLocation, followMode, map]);
+
+  const directionsCallback = useCallback((result, status) => {
+    if (status === 'OK' && result) {
+      setDirections(result);
+    } else {
+      console.error(`error fetching directions ${result}`);
+    }
+  }, []);
+
+  // Update directions when positions change
+  useEffect(() => {
+    if (isLoaded && deliveryLocation && destination) {
+        const origin = new window.google.maps.LatLng(deliveryLocation.lat, deliveryLocation.lng);
+        const dest = new window.google.maps.LatLng(destination.lat, destination.lng);
+        
+        // Simple string comparison to avoid infinite loop
+        const currentParams = `${deliveryLocation.lat},${deliveryLocation.lng}|${destination.lat},${destination.lng}`;
+        if (currentParams !== lastRouteParams) {
+            setLastRouteParams(currentParams);
+            const service = new window.google.maps.DirectionsService();
+            service.route(
+                {
+                    origin: origin,
+                    destination: dest,
+                    travelMode: window.google.maps.TravelMode.DRIVING,
+                },
+                (result, status) => {
+                    if (status === 'OK') {
+                        setDirections(result);
+                    }
+                }
+            );
+        }
+    }
+  }, [isLoaded, deliveryLocation, destination, lastRouteParams]);
 
   if (!isLoaded) return (
     <div className="h-full w-full bg-slate-50 flex flex-col items-center justify-center gap-3">
@@ -168,8 +208,23 @@ const TrackingMap = ({
       onUnmount={onUnmount}
       options={mapOptions}
     >
-      {/* Path Line */}
-      {path.length > 1 && (
+      {/* Route Display */}
+      {directions && (
+        <DirectionsRenderer
+          directions={directions}
+          options={{
+            suppressMarkers: true, // We use our own markers for better UI
+            polylineOptions: {
+              strokeColor: "#6366f1",
+              strokeWeight: 6,
+              strokeOpacity: 0.8
+            }
+          }}
+        />
+      )}
+
+      {/* Path Line (Fallback or historical path) */}
+      {!directions && path.length > 1 && (
         <Polyline
           path={path}
           options={{

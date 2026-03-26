@@ -80,18 +80,28 @@ export const markAllAsRead = asyncHandler(async (req, res) => {
 });
 // POST /api/admin/notifications/fcm-token
 export const registerAdminFcmToken = asyncHandler(async (req, res) => {
-    const { token } = req.body;
+    const { token, platform = 'web' } = req.body;
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
     const adminUser = await Admin.findById(req.user.id);
     if (!adminUser) throw new ApiError(404, 'Admin not found');
 
-    if (!adminUser.fcmTokens.includes(token)) {
-        adminUser.fcmTokens.push(token);
-        if (adminUser.fcmTokens.length > 10) adminUser.fcmTokens.shift();
-        await adminUser.save();
+    // Remove duplicates or update existing
+    const existingTokenIndex = adminUser.fcmTokens.findIndex(t => t.token === token);
+    
+    if (existingTokenIndex > -1) {
+        adminUser.fcmTokens[existingTokenIndex].platform = platform;
+        adminUser.fcmTokens[existingTokenIndex].lastUsed = new Date();
+    } else {
+        adminUser.fcmTokens.push({ token, platform, lastUsed: new Date() });
+        // Keep only last 10 devices
+        if (adminUser.fcmTokens.length > 10) {
+            adminUser.fcmTokens.sort((a, b) => b.lastUsed - a.lastUsed);
+            adminUser.fcmTokens = adminUser.fcmTokens.slice(0, 10);
+        }
     }
-
+    
+    await adminUser.save();
     res.status(200).json(new ApiResponse(200, null, 'FCM token registered.'));
 });
 
@@ -100,11 +110,9 @@ export const removeAdminFcmToken = asyncHandler(async (req, res) => {
     const { token } = req.body;
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
-    const adminUser = await Admin.findById(req.user.id);
-    if (!adminUser) throw new ApiError(404, 'Admin not found');
-
-    adminUser.fcmTokens = adminUser.fcmTokens.filter(t => t !== token);
-    await adminUser.save();
+    await Admin.findByIdAndUpdate(req.user.id, {
+        $pull: { fcmTokens: { token } }
+    });
 
     res.status(200).json(new ApiResponse(200, null, 'FCM token removed.'));
 });
