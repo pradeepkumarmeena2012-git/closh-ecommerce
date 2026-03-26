@@ -53,7 +53,7 @@ export const sendSms = async (mobile, message) => {
     if (templateId && templateId !== 'your_dlt_template_id') {
         url.searchParams.set('DLT_TE_ID', templateId);
     }
-    
+
     if (peId && peId !== 'your_principal_entity_id') {
         url.searchParams.set('DLT_PE_ID', peId);
     }
@@ -70,7 +70,7 @@ export const sendSms = async (mobile, message) => {
             res.on('end', () => {
                 const responseStr = data.trim();
                 console.log(`[SMS] Response: ${responseStr}`);
-                
+
                 try {
                     // Attempt JSON parse first
                     const json = JSON.parse(responseStr);
@@ -84,11 +84,11 @@ export const sendSms = async (mobile, message) => {
                         return resolve(responseStr);
                     }
                 }
-                
+
                 if (responseStr.toLowerCase().includes('error') || responseStr.includes('Failed')) {
                     return reject(new Error(`SMS India Hub Error: ${responseStr}`));
                 }
-                
+
                 resolve(responseStr);
             });
         });
@@ -109,7 +109,7 @@ export const sendSms = async (mobile, message) => {
 export const sendSmsOtp = async (mobile, otp) => {
     // CRITICAL: This text MUST match your DLT approved template EXACTLY.
     // Ensure the message format provided by the user is used.
-    const message = `Welcome to Closh. Your OTP for registration is: ${otp}`;
+    const message = `Welcome to the Closh powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
     return sendSms(mobile, message);
 };
 
