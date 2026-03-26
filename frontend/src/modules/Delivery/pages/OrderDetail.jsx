@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -53,6 +53,7 @@ const DeliveryOrderDetail = () => {
   const [deliveryOtp, setDeliveryOtp] = useState('');
   const [deliveryPhoto, setDeliveryPhoto] = useState(null);
   const [openBoxPhoto, setOpenBoxPhoto] = useState(null);
+  const [pickupPhoto, setPickupPhoto] = useState(null);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [hasArrived, setHasArrived] = useState(false);
   const [codMethod, setCodMethod] = useState(null); // 'cash' | 'qr'
@@ -61,6 +62,7 @@ const DeliveryOrderDetail = () => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const openBoxInputRef = useRef(null);
   const deliveryPhotoInputRef = useRef(null);
+  const pickupPhotoInputRef = useRef(null);
 
   const isReturn = order?.type === 'return';
   const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
@@ -76,29 +78,34 @@ const DeliveryOrderDetail = () => {
 
   const trackingPhase = getTrackingPhase();
 
-  const loadOrder = async () => {
+  const loadOrder = useCallback(async () => {
     try {
       setLoadFailed(false);
       const response = await fetchOrderById(id);
-      setOrder(response);
+      // Only update if state is different to prevent loops
+      setOrder(prev => JSON.stringify(prev) === JSON.stringify(response) ? prev : response);
     } catch {
       setLoadFailed(true);
       setOrder(null);
     }
-  };
+  }, [id, fetchOrderById]);
 
   // Watch current location for live tracking
   useEffect(() => {
     if (!deliveryBoy?.id || !order) return;
     let watchId = null;
+    let lastEmit = 0;
     
     if (trackingPhase) {
       watchId = navigator.geolocation?.watchPosition(
         (pos) => {
           const { latitude: lat, longitude: lng } = pos.coords;
           setCurrentLocation({ lat, lng });
-          // Emit location to socket for order room
-          if (socketService.socket) {
+
+          // Throttle socket emits to every 3 seconds to save memory/data
+          const now = Date.now();
+          if (now - lastEmit > 3000 && socketService.socket) {
+            lastEmit = now;
             socketService.socket.emit('update_location', {
               lat, lng,
               deliveryBoyId: deliveryBoy.id,
@@ -193,10 +200,16 @@ const DeliveryOrderDetail = () => {
   const handleUpdateStatus = async (newBackendStatus, successMessage, options = {}) => {
     try {
       let updated;
+      
+      const combinedOptions = { ...options };
+      if (newBackendStatus === 'picked_up' && pickupPhoto) {
+        combinedOptions.pickupPhoto = pickupPhoto;
+      }
+
       if (isReturn) {
-        updated = await updateReturnStatus(order.id, newBackendStatus, options);
+        updated = await updateReturnStatus(order.id, newBackendStatus, combinedOptions);
       } else {
-        updated = await updateOrderStatus(order.id, newBackendStatus, options);
+        updated = await updateOrderStatus(order.id, newBackendStatus, combinedOptions);
       }
       setOrder(updated);
       toast.success(successMessage);
@@ -273,6 +286,14 @@ const DeliveryOrderDetail = () => {
     reader.readAsDataURL(file);
   };
 
+  const handlePickupPhotoCapture = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPickupPhoto(reader.result);
+    reader.readAsDataURL(file);
+  };
+
   const handleResendOtp = async () => {
     if (isResendingOtp) return;
     try {
@@ -342,11 +363,14 @@ const DeliveryOrderDetail = () => {
         <div className="absolute inset-x-0 top-0 h-[60%] z-0">
            {(() => {
                   const pickupCoords = order.pickupLocation?.coordinates;
-                  const vendorLoc = Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[0] !== 0
-                    ? { lat: pickupCoords[1], lng: pickupCoords[0] } : null;
+                  // Use static references where possible
+                  const vendorLoc = order._vendorLocMemo || (Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[0] !== 0
+                    ? { lat: pickupCoords[1], lng: pickupCoords[0] } : null);
+                  if (vendorLoc && !order._vendorLocMemo) order._vendorLocMemo = vendorLoc;
                   
-                  const customerLoc = order.latitude && order.longitude 
-                    ? { lat: Number(order.latitude), lng: Number(order.longitude) } : null;
+                  const customerLoc = order._customerLocMemo || (order.latitude && order.longitude 
+                    ? { lat: Number(order.latitude), lng: Number(order.longitude) } : null);
+                  if (customerLoc && !order._customerLocMemo) order._customerLocMemo = customerLoc;
                   
                   const riderLoc = currentLocation 
                     ? { lat: currentLocation.lat, lng: currentLocation.lng }
@@ -460,21 +484,33 @@ const DeliveryOrderDetail = () => {
                        </button>
                     )}
 
-                    {/* Navigation Phase: To Store/Customer */}
+                    {/* Navigation Phase: To Store/Customer with Pickup Photo */}
                     {(order.status === 'assigned' || order.status === 'accepted' || (isReturn && order.status === 'processing')) && (
-                       <button 
-                         onClick={() => handleUpdateStatus('picked_up', 'Items Verified & Picked Up!')}
-                         disabled={isUpdatingOrderStatus}
-                         className="w-full flex items-center justify-between p-2 pl-4 bg-emerald-500 text-white rounded-[24px] shadow-xl shadow-emerald-200 active:scale-[0.98] transition-all group"
-                       >
-                          <div className="text-left">
-                             <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Arrival at Pickup</p>
-                             <p className="text-sm font-black">Confirm Picked Up</p>
+                       <div className="space-y-4">
+                          <div className="p-4 bg-white border-2 border-dashed border-slate-200 rounded-[32px] text-center">
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Proof of Items Check</p>
+                             <input type="file" ref={pickupPhotoInputRef} className="hidden" accept="image/*" capture="environment" onChange={handlePickupPhotoCapture} />
+                             <button onClick={() => pickupPhotoInputRef.current?.click()} className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 border-2 transition-all ${pickupPhoto ? 'border-emerald-500 bg-emerald-50 text-emerald-600' : 'border-slate-100 bg-slate-50 text-slate-400'}`}>
+                                {pickupPhoto ? <FiImage size={20} /> : <FiCamera size={20} />}
+                                <span className="font-black uppercase text-[10px]">{pickupPhoto ? 'Item Photo Captured' : 'Take Item Photo'}</span>
+                             </button>
+                             <p className="text-[8px] font-black text-slate-300 uppercase mt-2">Required to proceed with pickup</p>
                           </div>
-                          <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform">
-                             <FiCheckCircle size={24} />
-                          </div>
-                       </button>
+
+                          <button 
+                            onClick={() => handleUpdateStatus('picked_up', 'Items Verified & Picked Up!')}
+                            disabled={isUpdatingOrderStatus || !pickupPhoto}
+                            className="w-full flex items-center justify-between p-2 pl-4 bg-emerald-500 text-white rounded-[24px] shadow-xl shadow-emerald-200 active:scale-[0.98] disabled:opacity-30 transition-all group"
+                          >
+                             <div className="text-left">
+                                <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Arrival at Pickup</p>
+                                <p className="text-sm font-black">Confirm Picked Up</p>
+                             </div>
+                             <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform">
+                                <FiCheckCircle size={24} />
+                             </div>
+                          </button>
+                       </div>
                     )}
 
                     {/* Out for Delivery Phase */}
@@ -507,30 +543,56 @@ const DeliveryOrderDetail = () => {
                                       placeholder="••••••"
                                       className="w-full h-20 bg-white border-2 border-slate-100 rounded-3xl text-center text-4xl font-black tracking-[0.5em] text-indigo-600 focus:border-indigo-500 focus:outline-none shadow-inner"
                                    />
-                                   <button onClick={handleResendOtp} disabled={isResendingOtp} className="mt-4 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline px-4 py-2">
-                                      Resend OTP
-                                   </button>
-                                </div>
+                                    <button onClick={handleResendOtp} disabled={isResendingOtp} className="mt-4 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline px-4 py-2">
+                                       Resend OTP
+                                    </button>
+                                    
+                                    {/* Debug OTP for local testing */}
+                                    {String(import.meta.env.NODE_ENV || '').toLowerCase() !== 'production' && order.deliveryOtpDebug && (
+                                       <div className="mt-4 p-2 bg-amber-50 border border-amber-200 rounded-xl">
+                                          <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">Test Mode: Customer OTP</p>
+                                          <p className="text-lg font-black text-amber-900">{order.deliveryOtpDebug}</p>
+                                       </div>
+                                    )}
+                                 </div>
+                                {/* Delivery Photos Section */}
+                                 <div className="grid grid-cols-2 gap-4 bg-white border-2 border-dashed border-slate-200 p-4 rounded-[32px]">
+                                    <div className="text-center">
+                                       <input type="file" ref={deliveryPhotoInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleDeliveryPhotoCapture} />
+                                       <button onClick={() => deliveryPhotoInputRef.current?.click()} className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center gap-2 border-2 transition-all ${deliveryPhoto ? 'border-emerald-500 bg-emerald-50 text-emerald-600' : 'border-slate-100 bg-slate-50 text-slate-400'}`}>
+                                          {deliveryPhoto ? <FiImage size={24} /> : <FiCamera size={24} />}
+                                          <span className="text-[9px] font-black uppercase">Package Photo</span>
+                                       </button>
+                                    </div>
+                                    <div className="text-center">
+                                       <input type="file" ref={openBoxInputRef} className="hidden" accept="image/*" capture="environment" onChange={handleOpenBoxCapture} />
+                                       <button onClick={() => openBoxInputRef.current?.click()} className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center gap-2 border-2 transition-all ${openBoxPhoto ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-slate-100 bg-slate-50 text-slate-400'}`}>
+                                          {openBoxPhoto ? <FiImage size={24} /> : <FiCamera size={24} />}
+                                          <span className="text-[9px] font-black uppercase">Open Box Photo</span>
+                                       </button>
+                                    </div>
+                                    <p className="col-span-2 text-[8px] font-black text-slate-400 uppercase tracking-widest text-center mt-1">Take photos of closed package and opened state</p>
+                                 </div>
 
-                                {/* COD & Method Selector */}
-                                {isCod && (
-                                   <div className="bg-emerald-50 p-6 rounded-[32px] border-2 border-emerald-100">
-                                      <p className="text-[10px] font-black text-emerald-600 uppercase mb-2 text-center">Collection Amount</p>
-                                      <h2 className="text-4xl font-black text-emerald-900 text-center mb-6">{formatPrice(order.total)}</h2>
-                                      <div className="grid grid-cols-2 gap-4">
-                                         <button onClick={() => setCodMethod('cash')} className={`py-4 rounded-2xl flex flex-col items-center gap-2 font-black uppercase text-[10px] transition-all border-2 ${codMethod === 'cash' ? 'bg-emerald-600 text-white border-emerald-600 scale-105 shadow-xl shadow-emerald-200' : 'bg-white text-emerald-600 border-emerald-100'}`}>
-                                            <FiDollarSign size={20} /> Direct Cash
-                                         </button>
-                                         <button onClick={() => {setCodMethod('qr'); handleLoadCompanyQR();}} className={`py-4 rounded-2xl flex flex-col items-center gap-2 font-black uppercase text-[10px] transition-all border-2 ${codMethod === 'qr' ? 'bg-indigo-600 text-white border-indigo-600 scale-105 shadow-xl shadow-indigo-100' : 'bg-white text-indigo-600 border-indigo-100'}`}>
-                                            <FiCreditCard size={20} /> Show QR
-                                         </button>
-                                      </div>
-                                   </div>
-                                )}
+                                 {/* COD & Method Selector */}
+                                 {isCod && (
+                                    <div className="bg-emerald-50 p-6 rounded-[32px] border-2 border-emerald-100">
+                                       <p className="text-[10px] font-black text-emerald-600 uppercase mb-2 text-center">Collection Amount</p>
+                                       <h2 className="text-4xl font-black text-emerald-900 text-center mb-6">{formatPrice(order.total)}</h2>
+                                       <div className="grid grid-cols-2 gap-4">
+                                          <button onClick={() => setCodMethod('cash')} className={`py-4 rounded-2xl flex flex-col items-center gap-2 font-black uppercase text-[10px] transition-all border-2 ${codMethod === 'cash' ? 'bg-emerald-600 text-white border-emerald-600 scale-105 shadow-xl shadow-emerald-200' : 'bg-white text-emerald-600 border-emerald-100'}`}>
+                                             <FiDollarSign size={20} /> Direct Cash
+                                          </button>
+                                          <button onClick={() => {setCodMethod('qr'); handleLoadCompanyQR();}} className={`py-4 rounded-2xl flex flex-col items-center gap-2 font-black uppercase text-[10px] transition-all border-2 ${codMethod === 'qr' ? 'bg-indigo-600 text-white border-indigo-600 scale-105 shadow-xl shadow-indigo-100' : 'bg-white text-indigo-600 border-indigo-100'}`}>
+                                             <FiCreditCard size={20} /> Show QR
+                                          </button>
+                                       </div>
+                                    </div>
+                                 )}
 
-                                <button onClick={handleCompleteOrder} disabled={deliveryOtp.length !== 6 || isUpdatingOrderStatus || (isCod && !codMethod)} className="w-full bg-[#0F172A] text-white py-6 rounded-[24px] font-black text-base uppercase tracking-widest shadow-2xl disabled:opacity-30">
-                                   Finish & Credit Earning
-                                </button>
+                                 <button onClick={handleCompleteOrder} disabled={deliveryOtp.length !== 6 || isUpdatingOrderStatus || (isCod && !codMethod) || !deliveryPhoto || !openBoxPhoto} className="w-full bg-[#0F172A] text-white py-6 rounded-[24px] font-black text-base uppercase tracking-widest shadow-2xl disabled:opacity-30 disabled:scale-100 transition-all">
+                                    Finish & Credit Earning
+                                 </button>
                              </div>
                            )}
                        </div>

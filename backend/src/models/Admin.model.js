@@ -16,7 +16,7 @@ const adminSchema = new mongoose.Schema(
         refreshTokenExpiresAt: { type: Date, select: false },
         fcmTokens: [
             {
-                token: { type: String, required: true },
+                token: { type: String },
                 platform: { type: String, enum: ['web', 'app'], default: 'web' },
                 deviceName: String,
                 lastUsed: { type: Date, default: Date.now },
@@ -25,6 +25,19 @@ const adminSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Auto-migrate old string tokens to object format
+adminSchema.pre('save', function (next) {
+    if (this.fcmTokens && this.fcmTokens.length > 0) {
+        this.fcmTokens = this.fcmTokens.map(tokenItem => {
+            if (typeof tokenItem === 'string') {
+                return { token: tokenItem, platform: 'web', lastUsed: new Date() };
+            }
+            return tokenItem;
+        });
+    }
+    next();
+});
 
 adminSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();

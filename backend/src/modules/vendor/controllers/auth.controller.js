@@ -102,9 +102,16 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         );
     }
 
-    const otp = process.env.NODE_ENV === 'production'
+    let otp = process.env.NODE_ENV === 'production'
         ? crypto.randomInt(100000, 999999).toString()
         : '123456';
+
+    // Default OTP for specific test number
+    const normalizedPhoneNum = String(vendor.phone || '').replace(/\D/g, '').slice(-10);
+    if (normalizedPhoneNum === '7894561230') {
+        otp = '123456';
+    }
+
     vendor.resetOtp = otp;
     vendor.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     vendor.resetOtpVerified = false;
@@ -115,7 +122,10 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     let smsSent = false;
     if (phone.length === 10) {
         try {
-            await sendSmsOtp(phone, otp);
+            if (phone !== '7894561230') {
+                await sendSmsOtp(phone, otp);
+            }
+
             smsSent = true;
         } catch (smsErr) {
             console.warn(`[Vendor ForgotPassword] SMS failed: ${smsErr.message}`);

@@ -182,8 +182,10 @@ const DeliveryDashboard = () => {
     try {
       if (isReturn) {
         await acceptReturn(orderId);
+        socketService.joinRoom(`order_${orderId}`);
       } else {
         await acceptOrder(orderId);
+        socketService.joinRoom(`order_${orderId}`);
       }
       toast.success(isReturn ? 'Return assignment accepted' : 'Order accepted successfully');
       loadDashboardData();
@@ -307,23 +309,29 @@ const DeliveryDashboard = () => {
                 </div>
               </div>
               
-              <button
+              <div 
                 onClick={handleToggleOnline}
-                disabled={isUpdatingStatus}
-                className={`flex items-center gap-2 px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 shadow-lg ${isOnline
-                  ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 shadow-red-500/10'
-                  : 'bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-600 shadow-emerald-500/20'
-                  }`}
+                className="cursor-pointer group relative"
               >
-                {isUpdatingStatus ? (
-                  <FiRefreshCw className="animate-spin" size={16} />
-                ) : (
-                  <>
-                    <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-red-500 animate-pulse' : 'bg-white'}`} />
-                    <span>{isOnline ? 'Go Offline' : 'Go Online'}</span>
-                  </>
-                )}
-              </button>
+                <div className={`w-20 h-10 rounded-full transition-all duration-500 relative ${isOnline ? 'bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-700/30'}`}>
+                    <motion.div
+                      animate={{ x: isOnline ? 42 : 2 }}
+                      transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                      className={`absolute top-1 w-8 h-8 rounded-full shadow-lg flex items-center justify-center transition-colors duration-500 ${isOnline ? 'bg-emerald-400' : 'bg-slate-500'}`}
+                    >
+                        {isUpdatingStatus ? (
+                           <FiRefreshCw className="animate-spin text-white" size={14} />
+                        ) : (
+                           <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-white animate-pulse' : 'bg-slate-300'}`} />
+                        )}
+                    </motion.div>
+                </div>
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
+                      {isOnline ? 'ONLINE' : 'GO ONLINE'}
+                   </span>
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>

@@ -171,8 +171,10 @@ const TrackingMap = ({
         const origin = new window.google.maps.LatLng(deliveryLocation.lat, deliveryLocation.lng);
         const dest = new window.google.maps.LatLng(destination.lat, destination.lng);
         
-        // Simple string comparison to avoid infinite loop
-        const currentParams = `${deliveryLocation.lat},${deliveryLocation.lng}|${destination.lat},${destination.lng}`;
+        // Relaxed comparison (approx 10m precision) to avoid infinite loop and too many API calls
+        // 4 decimal places = ~11 meters
+        const currentParams = `${deliveryLocation.lat.toFixed(4)},${deliveryLocation.lng.toFixed(4)}|${destination.lat.toFixed(4)},${destination.lng.toFixed(4)}`;
+        
         if (currentParams !== lastRouteParams) {
             setLastRouteParams(currentParams);
             const service = new window.google.maps.DirectionsService();

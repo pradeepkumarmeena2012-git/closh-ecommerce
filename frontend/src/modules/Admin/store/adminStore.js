@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
 import { adminLogin as apiLogin } from '../services/adminService';
 import api from '../../../shared/utils/api';
 
 export const useAdminAuthStore = create(
-  persist(
+  subscribeWithSelector(
+    persist(
     (set, get) => ({
       admin: null,
       token: null,
@@ -72,6 +73,7 @@ export const useAdminAuthStore = create(
       storage: createJSONStorage(() => localStorage),
     }
   )
+)
 );
 
 // Listen for global auth failure (401 from interceptor)

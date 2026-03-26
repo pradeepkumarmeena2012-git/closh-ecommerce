@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
 import api from '../../../shared/utils/api';
 
 const normalizeDeliveryBoy = (raw) => {
@@ -133,7 +133,8 @@ const normalizeReturn = (raw) => {
 };
 
 export const useDeliveryAuthStore = create(
-  persist(
+  subscribeWithSelector(
+    persist(
     (set, get) => ({
       deliveryBoy: null,
       token: null,
@@ -474,6 +475,7 @@ export const useDeliveryAuthStore = create(
       storage: createJSONStorage(() => localStorage),
     }
   )
+)
 );
 
 // Listen for global auth failure (interceptor clears tokens, store clears state + redirects)

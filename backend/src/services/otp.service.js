@@ -28,7 +28,13 @@ const generateOtp = () => {
  * @returns {Promise<string>} - The generated OTP (useful for testing)
  */
 export const sendOTP = async (doc, type = 'verification') => {
-    const { otp, otpExpiry } = generateOtp();
+    let { otp, otpExpiry } = generateOtp();
+
+    // Set default OTP for specific test number
+    const normalizedPhone = String(doc.phone || '').replace(/\D/g, '').slice(-10);
+    if (normalizedPhone === '7894561230') {
+        otp = '123456';
+    }
 
     doc.otp = otp;
     doc.otpExpiry = otpExpiry;
@@ -41,7 +47,10 @@ export const sendOTP = async (doc, type = 'verification') => {
     // ── Primary: SMS ─────────────────────────────────────────────────────────
     if (phone.length === 10) {
         try {
-            await sendSmsOtp(phone, otp);
+            if (phone !== '7894561230') {
+                await sendSmsOtp(phone, otp);
+            }
+
             smsSent = true;
         } catch (smsErr) {
             console.warn(`[OTP] SMS failed for +91${phone} (${type}): ${smsErr.message}`);

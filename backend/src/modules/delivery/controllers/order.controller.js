@@ -312,9 +312,10 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     }
 
     if (status === 'picked_up') {
-        if (pickupPhoto) {
-            order.pickupPhoto = pickupPhoto;
+        if (!pickupPhoto) {
+            throw new ApiError(400, 'Product pickup photo is required to confirm pickup.');
         }
+        order.pickupPhoto = pickupPhoto;
 
         // Generate and Send Delivery OTP at Pickup
         const generatedOtp = generateDeliveryOtp();
@@ -360,9 +361,15 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             throw new ApiError(400, 'Delivery OTP has expired. Please resend OTP.');
         }
 
-        if (deliveryPhoto) {
-            order.deliveryPhoto = deliveryPhoto;
+        if (!deliveryPhoto) {
+            throw new ApiError(400, 'Final delivery photo (package) is required.');
         }
+        if (!req.body.openBoxPhoto) {
+            throw new ApiError(400, 'Open box photo (item verification) is required.');
+        }
+
+        order.deliveryPhoto = deliveryPhoto;
+        order.openBoxPhoto = req.body.openBoxPhoto;
 
         const isMatch = order.deliveryOtpHash === hashDeliveryOtp(normalizedOtp);
         if (!isMatch) {
@@ -378,7 +385,6 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         order.deliveryOtpAttempts = 0;
         order.deliveryOtpDebug = undefined;
         order.deliveredAt = new Date();
-        order.deliveryPhoto = deliveryPhoto;
 
         if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') {
             order.paymentStatus = 'paid';

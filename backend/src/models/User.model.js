@@ -6,9 +6,9 @@ const userSchema = new mongoose.Schema(
         name: { type: String, required: true, trim: true },
         firstName: { type: String, trim: true },
         lastName: { type: String, trim: true },
-        email: { type: String, required: true, unique: true, lowercase: true, index: true },
+        email: { type: String, sparse: true, unique: true, lowercase: true, index: true },
+        phone: { type: String, trim: true, sparse: true, unique: true },
         password: { type: String, required: true, select: false },
-        phone: { type: String, trim: true },
         dob: { type: String, trim: true },
         gender: { type: String, enum: ['Male', 'Female', 'Other', ''], default: '' },
         ageRange: { type: String, trim: true },
@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema(
         passwordResetExpiry: { type: Date, select: false },
         fcmTokens: [
             {
-                token: { type: String, required: true },
+                token: { type: String },
                 platform: { type: String, enum: ['web', 'app'], default: 'web' },
                 deviceName: String,
                 lastUsed: { type: Date, default: Date.now },
@@ -38,6 +38,19 @@ const userSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Auto-migrate old string tokens to object format
+userSchema.pre('save', function (next) {
+    if (this.fcmTokens && this.fcmTokens.length > 0) {
+        this.fcmTokens = this.fcmTokens.map(tokenItem => {
+            if (typeof tokenItem === 'string') {
+                return { token: tokenItem, platform: 'web', lastUsed: new Date() };
+            }
+            return tokenItem;
+        });
+    }
+    next();
+});
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {

@@ -54,7 +54,7 @@ const deliveryBoySchema = new mongoose.Schema(
         availableBalance: { type: Number, default: 0 },
         fcmTokens: [
             {
-                token: { type: String, required: true },
+                token: { type: String },
                 platform: { type: String, enum: ['web', 'app'], default: 'web' },
                 deviceName: String,
                 lastUsed: { type: Date, default: Date.now },
@@ -63,6 +63,27 @@ const deliveryBoySchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Auto-migrate old string tokens to object format
+deliveryBoySchema.pre('save', function (next) {
+    if (this.fcmTokens) {
+        if (!Array.isArray(this.fcmTokens)) {
+            const oldVal = this.fcmTokens;
+            this.fcmTokens = [];
+            if (typeof oldVal === 'string' && oldVal.trim()) {
+                this.fcmTokens.push({ token: oldVal, platform: 'web', lastUsed: new Date() });
+            }
+        }
+        
+        this.fcmTokens = this.fcmTokens.map(tokenItem => {
+            if (typeof tokenItem === 'string') {
+                return { token: tokenItem, platform: 'web', lastUsed: new Date() };
+            }
+            return tokenItem;
+        }).filter(t => t && t.token); // Remove invalid entries
+    }
+    next();
+});
 
 deliveryBoySchema.index({ currentLocation: '2dsphere' });
 

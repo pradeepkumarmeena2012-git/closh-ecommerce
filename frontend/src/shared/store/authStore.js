@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
 import api from '../utils/api';
 
 export const useAuthStore = create(
-  persist(
+  subscribeWithSelector(
+    persist(
     (set, get) => ({
       user: null,
       token: null,
@@ -341,6 +342,7 @@ export const useAuthStore = create(
       storage: createJSONStorage(() => localStorage),
     }
   )
+)
 );
 
 // Listen for global auth failure (401 from interceptor)
