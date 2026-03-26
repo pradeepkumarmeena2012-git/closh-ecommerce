@@ -7,10 +7,7 @@ import { sendEmail } from './email.service.js';
  * In development the OTP is always '123456' for easy testing.
  */
 const generateOtp = () => {
-    const otp =
-        process.env.NODE_ENV === 'production'
-            ? crypto.randomInt(100000, 999999).toString()
-            : '123456';
+    const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     return { otp, otpExpiry };
 };

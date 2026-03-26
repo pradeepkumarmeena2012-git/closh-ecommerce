@@ -272,9 +272,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'Please verify your email first. A new verification OTP has been sent.');
     }
 
-    let otp = process.env.NODE_ENV === 'production'
-        ? crypto.randomInt(100000, 999999).toString()
-        : '123456';
+    let otp = crypto.randomInt(100000, 999999).toString();
     
     // Default OTP for specific test number
     const normalizedPhoneNum = String(user.phone || '').replace(/\D/g, '').slice(-10);

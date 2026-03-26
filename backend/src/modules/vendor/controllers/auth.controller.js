@@ -102,9 +102,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         );
     }
 
-    let otp = process.env.NODE_ENV === 'production'
-        ? crypto.randomInt(100000, 999999).toString()
-        : '123456';
+    let otp = crypto.randomInt(100000, 999999).toString();
 
     // Default OTP for specific test number
     const normalizedPhoneNum = String(vendor.phone || '').replace(/\D/g, '').slice(-10);
