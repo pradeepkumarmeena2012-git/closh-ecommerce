@@ -5,6 +5,7 @@ import { useAuthStore } from "../store/authStore";
 import { useAdminAuthStore } from "../../modules/Admin/store/adminStore";
 import { useVendorAuthStore } from "../../modules/Vendor/store/vendorAuthStore";
 import { useDeliveryAuthStore } from "../../modules/Delivery/store/deliveryStore";
+import socketService from "../utils/socket";
 import toast from "react-hot-toast";
 
 const PRODUCTS_CACHE_KEY = "user-catalog-products-cache";
@@ -169,6 +170,19 @@ const AppBootstrap = () => {
       }
     };
 
+    // Socket Listener Setup (Global)
+    const setupSocketListeners = () => {
+      const deliveryBoy = useDeliveryAuthStore.getState().deliveryBoy;
+      if (deliveryBoy?.id) {
+        socketService.connect();
+        socketService.on('balance_updated', (data) => {
+          console.log('💰 Balance updated via socket:', data);
+          useDeliveryAuthStore.getState().setBalance(data);
+          toast.success('Wallet balance updated!', { icon: '💰' });
+        });
+      }
+    };
+
     // Foreground notification listener
     const setupForegroundListener = () => {
       onMessageListener().then((payload) => {
@@ -191,7 +205,7 @@ const AppBootstrap = () => {
         toast.success(`${title}: ${body}`, { duration: 5000 });
         
         const deliveryBoy = useDeliveryAuthStore.getState().deliveryBoy;
-        if (deliveryBoy && (payload.data?.type === 'new_assignment_broadcast' || payload.data?.type === 'return_pickup_broadcast')) {
+        if (deliveryBoy && (payload.data?.type === 'new_assignment_broadcast' || payload.data?.type === 'return_pickup_broadcast' || payload.data?.type === 'order')) {
           const audio = new Audio('/sounds/mgs_codec.mp3');
           audio.play().catch(e => console.warn('Buzzer playback failed (user interaction required):', e.message));
         }
@@ -206,16 +220,23 @@ const AppBootstrap = () => {
       useAuthStore.subscribe(s => s.isAuthenticated, (ok) => ok && registerNotifications()),
       useAdminAuthStore.subscribe(s => s.isAuthenticated, (ok) => ok && registerNotifications()),
       useVendorAuthStore.subscribe(s => s.isAuthenticated, (ok) => ok && registerNotifications()),
-      useDeliveryAuthStore.subscribe(s => s.isAuthenticated, (ok) => ok && registerNotifications()),
+      useDeliveryAuthStore.subscribe(s => s.isAuthenticated, (ok) => {
+        if (ok) {
+          registerNotifications();
+          setupSocketListeners();
+        }
+      }),
     ];
 
     // Check immediate state on mount
     registerNotifications();
+    setupSocketListeners();
     setupForegroundListener();
 
     return () => {
       cancelled = true;
       unsubs.forEach(unsub => unsub());
+      socketService.off('balance_updated');
     };
   }, []);
 

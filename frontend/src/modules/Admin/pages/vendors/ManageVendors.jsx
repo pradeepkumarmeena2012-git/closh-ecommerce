@@ -18,6 +18,7 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorStore } from "../../store/vendorStore";
 import { getAllOrders } from "../../services/adminService";
 import toast from "react-hot-toast";
+import VendorHeader from "../../components/Vendors/VendorHeader";
 
 const ManageVendors = () => {
   const navigate = useNavigate();
@@ -390,16 +391,7 @@ const ManageVendors = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="lg:hidden">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-            Manage Vendors
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            View and manage all vendors on the platform
-          </p>
-        </div>
-      </div>
+      <VendorHeader />
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
         {/* Filters Section */}

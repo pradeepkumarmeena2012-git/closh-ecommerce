@@ -48,11 +48,9 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
         // Connect socket if not connected
         socketService.connect();
 
-        const handleSuccess = (position) => {
-            const { latitude: lat, longitude: lng, accuracy } = position.coords;
+        const handleSubmits = (lat, lng, accuracy) => {
             const now = Date.now();
-
-            setCurrentLocation({ lat, lng });
+            const isOnline = useDeliveryAuthStore.getState().deliveryBoy?.status === 'available';
 
             // 1. Throttling Check
             if (now - lastSentTime.current < UPDATE_INTERVAL) return;
@@ -71,7 +69,9 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
                     lat, 
                     lng
                 );
-                if (dist < MIN_DISTANCE_METERS) {
+                // Even if stationary, we send a heartbeat every 2 minutes
+                const isHeartbeatTime = now - lastSentTime.current > 120000;
+                if (dist < MIN_DISTANCE_METERS && !isHeartbeatTime) {
                     console.log(`[Tracking] Stationary (moved ${dist.toFixed(1)}m). Skipping update.`);
                     return;
                 }
@@ -83,35 +83,55 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
             }
 
             // 5. Send Real-time Update via Sockets (for active tracking on customer maps)
-            trackingOrders.forEach(order => {
-                socketService.socket.emit('update_location', {
-                    lat,
-                    lng,
-                    deliveryBoyId,
-                    orderId: order.orderId || order.id || order._id
+            if (trackingOrders.length > 0 && socketService.socket?.connected) {
+                trackingOrders.forEach(order => {
+                    const orderId = order.orderId || order.id || order._id;
+                    socketService.socket.emit('update_location', {
+                        lat,
+                        lng,
+                        deliveryBoyId,
+                        orderId
+                    });
                 });
-            });
+            }
 
             lastSentLocation.current = { lat, lng };
             lastSentTime.current = now;
-            console.log(`🚀 Location sent: ${lat}, ${lng} (Accuracy: ${accuracy}m)`);
+            console.log(`🚀 Location sent: ${lat}, ${lng} (Accuracy: ${accuracy}m, Active Orders: ${trackingOrders.length})`);
+        };
+
+        const handleSuccess = (position) => {
+            const { latitude: lat, longitude: lng, accuracy } = position.coords;
+            setCurrentLocation({ lat, lng });
+            handleSubmits(lat, lng, accuracy);
         };
 
         const handleError = (error) => {
-            console.error('[Tracking] Geolocation error:', error);
+            console.error('[Tracking] Geolocation error:', error.code, error.message);
         };
 
+        // Start watching
         watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, {
             enableHighAccuracy: true,
             maximumAge: 5000,
-            timeout: 10000
+            timeout: 15000
         });
+
+        // Background / Fallback interval (Optional, for browsers that stop watchPosition)
+        const fallbackInterval = setInterval(() => {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => handleSubmits(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
+                (err) => {}, // ignore errors in interval
+                { enableHighAccuracy: true, maximumAge: 10000 }
+            );
+        }, UPDATE_INTERVAL * 2);
 
         return () => {
             if (watchId.current) {
                 navigator.geolocation.clearWatch(watchId.current);
                 watchId.current = null;
             }
+            if (fallbackInterval) clearInterval(fallbackInterval);
         };
     }, [deliveryBoyId, trackingOrders.length]);
 

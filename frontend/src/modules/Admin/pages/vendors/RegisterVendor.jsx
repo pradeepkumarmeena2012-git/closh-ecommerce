@@ -14,6 +14,7 @@ import {
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { registerVendor } from "../../services/adminService";
+import VendorHeader from "../../components/Vendors/VendorHeader";
 
 const RegisterVendor = () => {
     const navigate = useNavigate();
@@ -69,20 +70,10 @@ const RegisterVendor = () => {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-4xl mx-auto space-y-6"
+            className="max-w-6xl mx-auto space-y-6"
         >
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                    <FiArrowLeft className="text-xl text-gray-600" />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Register New Vendor</h1>
-                    <p className="text-gray-500">Add a new vendor to the platform</p>
-                </div>
-            </div>
+            <VendorHeader />
+
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <form onSubmit={handleSubmit} className="p-8 space-y-8">

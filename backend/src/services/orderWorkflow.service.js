@@ -3,6 +3,52 @@ import ApiError from '../utils/ApiError.js';
 import { emitEvent } from './socket.service.js';
 import { createNotification } from './notification.service.js';
 import mongoose from 'mongoose';
+import DeliveryBoy from '../models/DeliveryBoy.model.js';
+
+/**
+ * Helper to notify eligible riders within 8km
+ */
+async function notifyEligibleRiders(order) {
+    if (!order.pickupLocation || !order.pickupLocation.coordinates || 
+        (order.pickupLocation.coordinates[0] === 0 && order.pickupLocation.coordinates[1] === 0)) {
+        // Fallback: Broadcast to all if no pickup location (safeguard)
+        emitEvent('delivery_partners', 'order_ready_for_pickup', {
+            orderId: order.orderId,
+            id: order._id,
+            total: order.total,
+            pickupName: order.shippingAddress?.name || 'Vendor',
+            address: order.shippingAddress?.address,
+            isReturn: false
+        });
+        return;
+    }
+
+    const pickupCoords = order.pickupLocation.coordinates; // [lng, lat]
+    
+    // Find delivery boys within 8km (8km = 8 / 6378.1 in radians)
+    const eligibleRiders = await DeliveryBoy.find({
+        status: 'available',
+        currentLocation: {
+            $geoWithin: {
+                $centerSphere: [pickupCoords, 8 / 6378.1]
+            }
+        }
+    }).select('_id');
+
+    console.log(`[GeoSearch] Found ${eligibleRiders.length} riders within 8km of Order #${order.orderId}`);
+
+    // Emit targeted event to each eligible rider
+    eligibleRiders.forEach(rider => {
+        emitEvent(`delivery_${rider._id}`, 'order_ready_for_pickup', {
+            orderId: order.orderId,
+            id: order._id,
+            total: order.total,
+            pickupName: order.shippingAddress?.name || 'Vendor',
+            address: order.shippingAddress?.address,
+            isReturn: false
+        });
+    });
+}
 
 /**
  * Atomic Order Workflow Service
@@ -55,14 +101,8 @@ export const OrderWorkflowService = {
             status: 'searching' 
         });
 
-        // Notify delivery partners to trigger buzzer/sound
-        emitEvent('delivery_partners', 'order_ready_for_pickup', {
-            orderId: order.orderId,
-            id: order._id,
-            total: order.total,
-            pickupName: order.shippingAddress.name || 'Vendor',
-            address: order.shippingAddress.address
-        });
+        // Notify targeted delivery partners (within 8km)
+        await notifyEligibleRiders(order);
 
         // Push Notification to User
         createNotification({
@@ -121,6 +161,9 @@ export const OrderWorkflowService = {
             status: 'searching' 
         });
 
+        // Notify targeted delivery partners (within 8km)
+        await notifyEligibleRiders(order);
+
         // Push Notification to User
         createNotification({
             recipientId: order.userId,
@@ -143,7 +186,7 @@ export const OrderWorkflowService = {
             {
                 $and: [
                     { $or: [{ _id: mongoose.isValidObjectId(orderId) ? orderId : null }, { orderId: orderId }] },
-                    { status: { $in: ['ready_for_pickup', 'searching'] } },
+                    { status: { $in: ['ready_for_pickup', 'searching', 'accepted'] } },
                     { deliveryBoyId: { $exists: false } }
                 ]
             },
@@ -209,7 +252,6 @@ export const OrderWorkflowService = {
         if (!order) throw new ApiError(404, 'Order not found or not in correct state.');
 
         // Update status to out_for_delivery if not already (effectively 'arrived' or 'at_location')
-        // We can use 'out_for_delivery' as the state where they are arrived but not finished.
         if (order.status === 'picked_up') {
             order.status = 'out_for_delivery';
             await order.save();
@@ -245,10 +287,6 @@ export const OrderWorkflowService = {
      * Status: assigned -> picked_up
      */
     async completePickup(orderId, riderId, otp) {
-        // Verification logic here (if needed at pickup)
-        // Usually OTP is at delivery, but user mentioned OTP verify
-        // I will stick to current project's flow: OTP at delivery.
-        
         const order = await Order.findOneAndUpdate(
             {
                 $and: [
@@ -350,10 +388,6 @@ export const OrderWorkflowService = {
                 type: 'order',
                 data: { orderId: order.orderId, status: 'delivered' }
             }).catch(err => console.error('Push Fix Error:', err));
-        });
-
-        order.vendorItems.forEach(vi => {
-            emitEvent(`vendor_${vi.vendorId}`, 'order_delivered', { orderId: order.orderId });
         });
 
         return order;

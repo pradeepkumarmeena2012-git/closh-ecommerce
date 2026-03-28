@@ -416,7 +416,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 couponCode: couponCode?.toUpperCase(),
                 couponDiscount,
                 orderType,
-                pickupLocation: vendorItems[0]?.vendorId?.shopLocation || undefined, // Default to first vendor's location
+                pickupLocation: Object.values(vendorMap)[0]?.shopLocation || undefined, // Use first vendor's location for pickup group
                 dropoffLocation: req.body.dropoffLocation || undefined,
                 trackingNumber: generateTrackingNumber(),
                 estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // +5 days
@@ -430,6 +430,14 @@ export const placeOrder = asyncHandler(async (req, res) => {
             // Notify vendors in real-time
             const vendorsToNotify = Object.keys(vendorMap);
             vendorsToNotify.forEach(async (vid) => {
+                // Socket notification for buzzer/pop-up
+                emitEvent(`vendor_${vid}`, 'order_created', {
+                    ...order.toObject(),
+                    orderId: order.orderId,
+                    vendorItems: vendorMap[vid].items
+                });
+
+                // Push notification
                 await createNotification({
                     recipientId: vid,
                     recipientType: 'vendor',

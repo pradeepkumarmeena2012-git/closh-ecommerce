@@ -13,16 +13,23 @@ const VendorProtectedRoute = ({ children }) => {
     typeof payload?.exp === 'number' ? payload.exp * 1000 : null;
   const isExpired = tokenExpiryMs ? Date.now() >= tokenExpiryMs : false;
 
+  const hasHydrated = useVendorAuthStore(state => state._hasHydrated);
+
   useEffect(() => {
-    if (isExpired && isAuthenticated) {
+    if (isExpired && isAuthenticated && hasHydrated) {
       logout();
     }
-  }, [isExpired, isAuthenticated, logout]);
+  }, [isExpired, isAuthenticated, logout, hasHydrated]);
+
+  if (!hasHydrated) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated || !accessToken || isExpired || (role && role !== 'vendor')) {
-    // If it's expired or wrong role, we should ideally call logout()
-    // but we can't do it in render. The store will naturally be "unauthenticated"
-    // if the token is gone or we redirect to login where they can re-auth.
     return <Navigate to="/vendor/login" state={{ from: location }} replace />;
   }
 

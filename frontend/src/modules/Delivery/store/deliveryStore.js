@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage, subscribeWithSelector } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import api from '../../../shared/utils/api';
 
 const normalizeDeliveryBoy = (raw) => {
@@ -133,8 +133,7 @@ const normalizeReturn = (raw) => {
 };
 
 export const useDeliveryAuthStore = create(
-  subscribeWithSelector(
-    persist(
+  persist(
     (set, get) => ({
       deliveryBoy: null,
       token: null,
@@ -330,7 +329,14 @@ export const useDeliveryAuthStore = create(
         try {
           const response = await api.patch(`/delivery/orders/${id}/status`, { status, ...options });
           const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
+          
+          const orderData = payload.order || payload;
+          if (payload.rider) {
+            const current = get().deliveryBoy;
+            set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload.rider }) });
+          }
+
+          const normalized = normalizeOrder(orderData);
           set({ isUpdatingOrderStatus: false });
           return normalized;
         } catch (error) {
@@ -377,13 +383,31 @@ export const useDeliveryAuthStore = create(
             ...options 
           });
           const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
+          
+          const orderData = payload.order || payload;
+          if (payload.rider) {
+            const current = get().deliveryBoy;
+            set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload.rider }) });
+          }
+
+          const normalized = normalizeOrder(orderData);
           set({ isUpdatingOrderStatus: false });
           return normalized;
         } catch (error) {
           set({ isUpdatingOrderStatus: false });
           throw error;
         }
+      },
+
+      setBalance: (data) => {
+        const current = get().deliveryBoy;
+        if (!current) return;
+        set({ 
+          deliveryBoy: normalizeDeliveryBoy({ 
+            ...current, 
+            ...data 
+          }) 
+        });
       },
 
       resendDeliveryOtp: async (id) => {
@@ -464,6 +488,7 @@ export const useDeliveryAuthStore = create(
             set({
               deliveryBoy: normalizeDeliveryBoy(storedState.state.deliveryBoy),
               token,
+              refreshToken: localStorage.getItem('delivery-refresh-token') || null,
               isAuthenticated: true,
             });
           }
@@ -475,14 +500,13 @@ export const useDeliveryAuthStore = create(
       storage: createJSONStorage(() => localStorage),
     }
   )
-)
 );
 
 // Listen for global auth failure (interceptor clears tokens, store clears state + redirects)
 if (typeof window !== 'undefined') {
   window.addEventListener('global-auth-failure', (e) => {
     if (e.detail?.scope === 'delivery') {
-      const state = useDeliveryStore.getState();
+      const state = useDeliveryAuthStore.getState();
       state.logout();
     }
   });

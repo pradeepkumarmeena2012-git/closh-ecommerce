@@ -43,20 +43,44 @@ const VendorDashboard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const startBuzzer = useCallback(() => {
     if (buzzerRef.current) return;
-    const audio = new Audio('/sounds/mgs_codec.mp3');
-    audio.loop = true;
-    audio.play().catch(err => console.warn('Buzzer playback blocked:', err));
-    buzzerRef.current = audio;
-    setIsBuzzerActive(true);
+    try {
+      const audio = new Audio('/sounds/mgs_codec.mp3');
+      audio.loop = true;
+      audio.volume = 0.6;
+      
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn('Buzzer playback blocked by browser:', err);
+          toast.error('New Order! Tap anywhere to enable sound alert.');
+        });
+      }
+      
+      buzzerRef.current = audio;
+      setIsBuzzerActive(true);
+
+      // Auto-stop after 2 minutes to prevent infinite noise if vendor is away
+      setTimeout(() => {
+        if (buzzerRef.current === audio) {
+          audio.pause();
+          audio.currentTime = 0;
+          setIsBuzzerActive(false);
+          buzzerRef.current = null;
+        }
+      }, 120000);
+
+    } catch (err) {
+      console.error('Failed to initialize buzzer:', err);
+    }
   }, []);
 
   const stopBuzzer = useCallback(() => {
     if (buzzerRef.current) {
-        try {
-            buzzerRef.current.pause();
-            buzzerRef.current.currentTime = 0;
-        } catch (e) {}
-        buzzerRef.current = null;
+      try {
+        buzzerRef.current.pause();
+        buzzerRef.current.currentTime = 0;
+      } catch (e) { }
+      buzzerRef.current = null;
     }
     setIsBuzzerActive(false);
   }, []);

@@ -137,6 +137,10 @@ const orderSchema = new mongoose.Schema(
 );
 
 
+// Index for spatial queries
+orderSchema.index({ pickupLocation: '2dsphere' });
+orderSchema.index({ dropoffLocation: '2dsphere' });
+
 // Prevent duplicate order creation for the same retry key per actor (user/guest).
 orderSchema.index(
     { idempotencyScope: 1, idempotencyKey: 1 },

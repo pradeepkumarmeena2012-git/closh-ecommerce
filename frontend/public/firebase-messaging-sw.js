@@ -28,8 +28,8 @@ messaging.onBackgroundMessage((payload) => {
 
     const notificationOptions = {
         body,
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/badge-72x72.png',
+        icon: '/logo-removebg.png',
+        badge: '/logo-removebg.png',
         requireInteraction: data.type === 'order' || data.type === 'return',
         data: { url: data.click_action || '/', ...data },
         vibrate: [200, 100, 200, 100, 200], // buzz pattern for order alerts

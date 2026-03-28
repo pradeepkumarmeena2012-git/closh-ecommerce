@@ -132,12 +132,14 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     if (!isModalOpen) return null;
 
     const handleAddNew = () => {
-        if (!isMandatory) handleClose();
         if (!user) {
+            handleClose();
             window.dispatchEvent(new Event('openLoginModal'));
-        } else {
-            navigate('/addresses');
+            toast.error('Please login to manage your addresses');
+            return;
         }
+        handleClose();
+        navigate('/addresses');
     };
 
     const handleConfirm = async () => {
@@ -209,6 +211,12 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     };
 
     const handleUseCurrentLocation = () => {
+        if (!user) {
+            handleClose();
+            window.dispatchEvent(new Event('openLoginModal'));
+            toast.error('Please login to use live location delivery');
+            return;
+        }
         setLoadingLocation(true);
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(

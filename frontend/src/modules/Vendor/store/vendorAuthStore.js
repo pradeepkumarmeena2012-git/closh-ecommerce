@@ -19,6 +19,8 @@ export const useVendorAuthStore = create(
       refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
+      _hasHydrated: false,
+      setHasHydrated: (val) => set({ _hasHydrated: val }),
 
       // Vendor login action
       login: async (email, password, rememberMe = false) => {
@@ -215,31 +217,15 @@ export const useVendorAuthStore = create(
           const storedState = JSON.parse(
             localStorage.getItem("vendor-auth-storage") || "{}"
           );
+          const persistedVendor = storedState.state?.vendor;
           const refreshToken = localStorage.getItem("vendor-refresh-token");
-          const persistedVendor = storedState.state?.vendor || null;
 
-          // Check for token expiry
-          const payload = decodeJwtPayload(token);
-          const expiry = payload?.exp ? payload.exp * 1000 : 0;
-          const isExpired = expiry ? Date.now() >= expiry : false;
-
-          if (persistedVendor && !isExpired) {
+          if (persistedVendor) {
             set({
               vendor: persistedVendor,
               token,
               refreshToken: refreshToken || null,
               isAuthenticated: true,
-              isLoading: false,
-            });
-          } else if (isExpired) {
-            // Clear if expired
-            localStorage.removeItem("vendor-token");
-            localStorage.removeItem("vendor-refresh-token");
-            set({
-              vendor: null,
-              token: null,
-              refreshToken: null,
-              isAuthenticated: false,
             });
           }
         }
@@ -248,6 +234,9 @@ export const useVendorAuthStore = create(
     {
       name: "vendor-auth-storage",
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 )

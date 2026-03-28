@@ -145,3 +145,15 @@ dist
  backend/src/config/clouse-d3a15-firebase-adminsdk-fbsvc-7e52ff3831.json
  # Firebase Admin Secret
 src/config/*.json
+
+
+backend/*test*.js
+backend/debug_*.js
+backend/check*.js
+backend/find*.js
+backend/seed*.js
+backend/get_token.js
+backend/create-admin.js
+backend/fix_category_images.js
+backend/send-test-push.js
+backend/broadcast-test.js

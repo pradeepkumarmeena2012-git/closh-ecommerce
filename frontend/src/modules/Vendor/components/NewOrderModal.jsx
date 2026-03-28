@@ -16,17 +16,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting }) => {
 
     // Play buzzer sound when modal opens, stop when it closes
     useEffect(() => {
-        if (isOpen && order) {
-            try {
-                const audio = new Audio('/sounds/mgs_codec.mp3');
-                audio.loop = true;
-                audio.volume = 0.5;
-                audio.play().catch(e => console.warn('Buzzer playback blocked:', e.message));
-                buzzerRef.current = audio;
-            } catch (e) {
-                console.warn('Buzzer init failed:', e);
-            }
-        }
+        // Note: Buzzer is now centrally managed by Dashboard for better control
         return () => {
             if (buzzerRef.current) {
                 try {

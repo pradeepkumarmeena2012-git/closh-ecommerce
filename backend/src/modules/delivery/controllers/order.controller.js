@@ -99,12 +99,25 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
     const numericLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
     const skip = (numericPage - 1) * numericLimit;
 
-    // Available orders are those ready for pickup and NOT assigned to anyone.
+    // Get current rider profile to find their location
+    const rider = await DeliveryBoy.findById(req.user.id);
+    const riderCoords = rider?.currentLocation?.coordinates;
+
     const filter = {
         status: 'ready_for_pickup',
         deliveryBoyId: { $exists: false },
         isDeleted: { $ne: true }
     };
+
+    // Apply 8km spatial filter if rider location is known
+    // 8km in radians = 8 / 6378.1
+    if (riderCoords && riderCoords[0] !== 0 && riderCoords[1] !== 0) {
+        filter.pickupLocation = {
+            $geoWithin: {
+                $centerSphere: [riderCoords, 8 / 6378.1]
+            }
+        };
+    }
 
     const [orders, total] = await Promise.all([
         Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(numericLimit),
@@ -393,41 +406,130 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
 
         // Increment delivery boy's total deliveries count and earnings
         const riderEarnings = Number(order.shipping || 0);
-        await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, {
-            $inc: { 
-                totalDeliveries: 1,
-                totalEarnings: riderEarnings,
-                availableBalance: riderEarnings
-            }
-        });
+        const updatedRider = await DeliveryBoy.findByIdAndUpdate(
+            order.deliveryBoyId,
+            {
+                $inc: {
+                    totalDeliveries: 1,
+                    totalEarnings: riderEarnings,
+                    availableBalance: riderEarnings,
+                },
+            },
+            { new: true }
+        );
 
         // Increment each vendor's availableBalance based on their respective group earnings
-        const vendorUpdates = (order.vendorItems || []).map(group => {
+        const vendorUpdates = (order.vendorItems || []).map((group) => {
             if (group.vendorId && group.vendorEarnings > 0) {
                 return mongoose.model('Vendor').findByIdAndUpdate(group.vendorId, {
-                    $inc: { availableBalance: Number(group.vendorEarnings) }
+                    $inc: { availableBalance: Number(group.vendorEarnings) },
                 });
             }
             return null;
         }).filter(Boolean);
-        
+
         if (vendorUpdates.length > 0) {
             await Promise.all(vendorUpdates);
         }
 
         // Emit events
         const trackingRoom = `order_${order.orderId}`;
+        const deliveryRoom = `delivery_${order.deliveryBoyId}`;
+
         emitEvent(`user_${order.userId}`, 'order_delivered', { orderId: order.orderId });
         emitEvent(trackingRoom, 'order_delivered', { orderId: order.orderId });
-        order.vendorItems.forEach(vi => emitEvent(`vendor_${vi.vendorId}`, 'order_delivered', { orderId: order.orderId }));
+        emitEvent(deliveryRoom, 'balance_updated', {
+            availableBalance: updatedRider.availableBalance,
+            totalEarnings: updatedRider.totalEarnings,
+        });
+
+        order.vendorItems.forEach((vi) =>
+            emitEvent(`vendor_${vi.vendorId}`, 'order_delivered', { orderId: order.orderId })
+        );
+
+        // Generic status update broadcast to tracking room
+        let eventName = 'order_status_updated';
+        if (status === 'picked_up') eventName = 'order_picked_up';
+        if (status === 'out_for_delivery') eventName = 'order_out_for_delivery';
+
+        emitEvent(trackingRoom, eventName, { orderId: order.orderId, status });
+
+        order.status = status;
+        // Align vendor sub-order statuses
+        order.vendorItems = (order.vendorItems || []).map((vi) => ({ ...vi.toObject(), status }));
+
+        await order.save();
+
+        const statusNotificationTasks = [];
+        if (order.userId || order.deviceToken) {
+            statusNotificationTasks.push(
+                createNotification({
+                    recipientId: order.userId,
+                    recipientType: 'user',
+                    title: status === 'delivered' ? 'Order delivered' : 'Order shipped',
+                    message:
+                        status === 'delivered'
+                            ? `Your order ${order.orderId} has been delivered.`
+                            : `Your order ${order.orderId} is out for delivery.`,
+                    type: 'order',
+                    token: order.deviceToken,
+                    data: {
+                        orderId: String(order.orderId || order._id),
+                        status: String(status),
+                    },
+                })
+            );
+        }
+
+        const vendorIds = [
+            ...new Set(
+                (order.vendorItems || [])
+                    .map((item) => String(item?.vendorId || '').trim())
+                    .filter(Boolean)
+            ),
+        ];
+        vendorIds.forEach((vendorId) => {
+            statusNotificationTasks.push(
+                createNotification({
+                    recipientId: vendorId,
+                    recipientType: 'vendor',
+                    title: 'Delivery status update',
+                    message: `Order ${order.orderId} moved to ${status}.`,
+                    type: 'order',
+                    data: {
+                        orderId: String(order.orderId || order._id),
+                        status: String(status),
+                    },
+                })
+            );
+        });
+
+        if (statusNotificationTasks.length > 0) {
+            await Promise.allSettled(statusNotificationTasks);
+        }
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    order,
+                    rider: {
+                        availableBalance: updatedRider.availableBalance,
+                        totalEarnings: updatedRider.totalEarnings,
+                        totalDeliveries: updatedRider.totalDeliveries,
+                    },
+                },
+                'Delivery status updated.'
+            )
+        );
     }
 
-    // Generic status update broadcast to tracking room
-    const trackingRoom = `order_${order.orderId}`;
+    // Handle non-delivered status updates
     let eventName = 'order_status_updated';
     if (status === 'picked_up') eventName = 'order_picked_up';
     if (status === 'out_for_delivery') eventName = 'order_out_for_delivery';
-    
+
+    const trackingRoom = `order_${order.orderId}`;
     emitEvent(trackingRoom, eventName, { orderId: order.orderId, status });
 
     order.status = status;
@@ -456,7 +558,6 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             })
         );
     }
-
 
     const vendorIds = [
         ...new Set(

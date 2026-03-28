@@ -8,6 +8,7 @@ import Badge from "../../../../shared/components/Badge";
 import ConfirmModal from "../../components/ConfirmModal";
 import { useVendorStore } from "../../store/vendorStore";
 import toast from "react-hot-toast";
+import VendorHeader from "../../components/Vendors/VendorHeader";
 
 const CommissionRates = () => {
   const navigate = useNavigate();
@@ -130,16 +131,7 @@ const CommissionRates = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="lg:hidden">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-            Commission Rates
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            Manage commission rates for approved vendors
-          </p>
-        </div>
-      </div>
+      <VendorHeader />
 
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
         {/* Search */}

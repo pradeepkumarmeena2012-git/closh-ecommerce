@@ -319,6 +319,12 @@ export const useOrderStore = create(
     {
       name: 'order-storage',
       storage: createJSONStorage(() => localStorage),
+      // Exclude high-volume 'orders' array from persistence to prevent QuotaExceededError (Storage Full)
+      // Orders are re-fetched from the API on demand.
+      partialize: (state) => ({ 
+        hasFetched: state.hasFetched,
+        orderPagination: state.orderPagination 
+      }),
     }
   )
 );

@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorStore } from "../../store/vendorStore";
 import { getAllOrders } from "../../services/adminService";
+import VendorHeader from "../../components/Vendors/VendorHeader";
 
 const VendorAnalytics = () => {
   const navigate = useNavigate();
@@ -90,16 +91,8 @@ const VendorAnalytics = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="lg:hidden">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-            Vendor Analytics
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            View performance analytics for all vendors
-          </p>
-        </div>
-      </div>
+      <VendorHeader />
+
 
       {/* Overall Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

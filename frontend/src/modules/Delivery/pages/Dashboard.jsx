@@ -1,21 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
-import { 
-  FiPackage, 
-  FiCheckCircle, 
-  FiClock, 
-  FiTrendingUp, 
-  FiMapPin, 
-  FiTruck, 
-  FiNavigation, 
-  FiStar,
-  FiZap,
-  FiArrowRight,
-  FiActivity,
-  FiRefreshCw,
-  FiVolume2
-} from 'react-icons/fi';
+import { FiPackage, FiCheckCircle, FiClock, FiTrendingUp, FiMapPin, FiTruck, FiNavigation, FiStar, FiZap, FiArrowRight, FiActivity, FiAlertCircle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import PageTransition from '../../../shared/components/PageTransition';
 import toast from 'react-hot-toast';
@@ -50,6 +36,36 @@ const DeliveryDashboard = () => {
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [selectedNewOrder, setSelectedNewOrder] = useState(null);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [isBuzzerActive, setIsBuzzerActive] = useState(false);
+  const buzzerRef = useRef(null);
+
+  const stopBuzzer = useCallback(() => {
+    if (buzzerRef.current) {
+        try {
+            buzzerRef.current.pause();
+            buzzerRef.current.currentTime = 0;
+        } catch (e) {}
+        buzzerRef.current = null;
+    }
+    setIsBuzzerActive(false);
+  }, []);
+
+  const startBuzzer = useCallback(() => {
+    if (buzzerRef.current) return;
+    try {
+        const audio = new Audio('/sounds/mgs_codec.mp3');
+        audio.loop = true;
+        audio.volume = 0.6;
+        audio.play().catch(err => {
+            console.warn('Audio blocked:', err);
+            toast.error('New Order! Unlock sound for alerts.');
+        });
+        buzzerRef.current = audio;
+        setIsBuzzerActive(true);
+        // Safety timeout
+        setTimeout(() => { if (buzzerRef.current === audio) stopBuzzer(); }, 120000);
+    } catch(e) {}
+  }, [stopBuzzer]);
 
   // --- Real-time Delivery Tracking ---
   const activeOrdersForTracking = recentOrders.filter(o => 
@@ -61,7 +77,7 @@ const DeliveryDashboard = () => {
     {
       icon: FiPackage,
       label: 'Deliveries',
-      value: stats.totalOrders,
+      value: deliveryBoy?.totalDeliveries ?? stats.totalOrders,
       color: 'from-blue-500 to-indigo-600',
       shadow: 'shadow-blue-200/50',
     },
@@ -75,7 +91,7 @@ const DeliveryDashboard = () => {
     {
       icon: FiTrendingUp,
       label: 'Earnings',
-      value: formatPrice(stats.earnings),
+      value: formatPrice(deliveryBoy?.availableBalance ?? stats.earnings),
       color: 'from-violet-500 to-purple-600',
       shadow: 'shadow-purple-200/50',
     },
@@ -117,56 +133,31 @@ const DeliveryDashboard = () => {
   };
 
   useEffect(() => {
-    if (deliveryBoy?.id && socketService.socket) {
-      socketService.socket.emit('delivery_register', deliveryBoy.id);
-      console.log('📡 Registered delivery partner ID for real-time tracking');
-    }
-  }, [deliveryBoy?.id, socketService.socket]);
-
-  useEffect(() => {
     loadDashboardData();
     socketService.connect();
     socketService.joinRoom('delivery_partners');
 
-    // Listen for GLOBLAL broadcasts (to everyone online)
+    // Register delivery boy identity for targeted socket events
+    if (deliveryBoy?.id && socketService.socket) {
+      socketService.socket.emit('delivery_register', deliveryBoy.id);
+    }
+
     socketService.on('order_ready_for_pickup', (data) => {
       const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
       if (currentStatus !== 'available') return;
+      startBuzzer();
       loadDashboardData();
-      
-      const orderDisplayId = typeof data.orderId === 'object' ? data.orderId.orderId : (data.orderId || data.id || 'Order');
-      toast.success(`⚡ New Order #${String(orderDisplayId).slice(-8)} available!`, {
-          icon: '🥘',
-          duration: 6000
-      });
+      toast.success(`⚡ New Order #${data.id || data.orderId} available!`, { duration: 10000 });
       setSelectedNewOrder(data);
       setShowNewOrderModal(true);
-    });
-
-    // Listen for TARGETED notifications (sent directly to THIS rider)
-    socketService.on('new_notification', (notif) => {
-        // Handle specific actions for targeted updates
-        if (notif.type === 'order' || notif.title?.includes('Order')) {
-            loadDashboardData();
-            // If it's a new assignment broadcast not yet handled
-            if (notif.data?.type === 'new_assignment_broadcast' || notif.data?.type === 'order_ready_for_pickup') {
-                setSelectedNewOrder({
-                    id: notif.data?.orderId,
-                    orderId: notif.data?.orderId,
-                    ...notif.data
-                });
-                setShowNewOrderModal(true);
-            }
-        }
     });
 
     socketService.on('return_ready_for_pickup', (data) => {
       const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
       if (currentStatus !== 'available') return;
+      startBuzzer();
       loadDashboardData();
-      
-      const orderDisplayId = typeof data.orderId === 'object' ? data.orderId.orderId : (data.orderId || 'Order');
-      toast.success(`📦 New Return Pickup available for #${String(orderDisplayId).slice(-8)}!`);
+      toast.success(`📦 New Return Pickup available for #${data.orderId || 'Order'}!`, { duration: 10000 });
       setSelectedNewOrder({ ...data, isReturn: true });
       setShowNewOrderModal(true);
     });
@@ -174,7 +165,6 @@ const DeliveryDashboard = () => {
     return () => {
       socketService.off('order_ready_for_pickup');
       socketService.off('return_ready_for_pickup');
-      socketService.off('new_notification');
     };
   }, []);
 
@@ -182,10 +172,8 @@ const DeliveryDashboard = () => {
     try {
       if (isReturn) {
         await acceptReturn(orderId);
-        socketService.joinRoom(`order_${orderId}`);
       } else {
         await acceptOrder(orderId);
-        socketService.joinRoom(`order_${orderId}`);
       }
       toast.success(isReturn ? 'Return assignment accepted' : 'Order accepted successfully');
       loadDashboardData();
@@ -249,32 +237,16 @@ const DeliveryDashboard = () => {
             <motion.div 
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="flex items-center gap-3"
+              className="relative"
             >
-              {/* Sound Test / Unblocker (Crucial for autoplay) */}
-              <button 
-                onClick={() => {
-                  const audio = new Audio('/sounds/mgs_codec.mp3');
-                  audio.volume = 0.3;
-                  audio.play().then(() => toast.success('Sound is working!', { icon: '🔊' }))
-                       .catch(e => toast.error('Browser blocked sound. Click again to unblock!'));
-                }}
-                className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white/50 hover:text-white transition-all hover:bg-white/20"
-                title="Test Buzzer"
-              >
-                <FiVolume2 size={18} />
-              </button>
-
-              <div className="relative">
-                <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center p-0.5">
-                   <img 
-                     src={deliveryBoy?.avatar || `https://ui-avatars.com/api/?name=${deliveryBoy?.name}&background=6366f1&color=fff`} 
-                     className="w-full h-full object-cover rounded-[14px]"
-                     alt="Profile"
-                   />
-                </div>
-                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#0F172A] ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+              <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center p-0.5">
+                 <img 
+                   src={deliveryBoy?.avatar || `https://ui-avatars.com/api/?name=${deliveryBoy?.name}&background=6366f1&color=fff`} 
+                   className="w-full h-full object-cover rounded-[14px]"
+                   alt="Profile"
+                 />
               </div>
+              <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#0F172A] ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
             </motion.div>
           </div>
 
@@ -294,44 +266,30 @@ const DeliveryDashboard = () => {
                    {isOnline ? <FiZap size={24} /> : <FiActivity size={24} />}
                 </div>
                 <div>
-                  <h2 className="text-white font-bold text-base leading-tight flex items-center gap-2">
+                  <h2 className="text-white font-bold text-base leading-tight">
                     {isOnline ? 'Accepting Requests' : 'You are Offline'}
-                    {isOnline && activeOrdersForTracking.length > 0 && (
-                       <span className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-lg text-[9px] font-black tracking-widest uppercase border border-indigo-400/20 animate-pulse">
-                          <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full shadow-[0_0_5px_rgba(129,140,248,0.8)]]" />
-                          Live Signal
-                       </span>
-                    )}
                   </h2>
-                  <p className="text-slate-400 text-xs font-medium mt-0.5">
-                    {isOnline ? 'Active & Ready 🛡️' : 'Tap to Start Earning ⚡'}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {isOnline && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
+                    <p className="text-slate-400 text-[11px] font-medium">
+                      {isOnline ? 'Live tracking is active' : 'Switch ON to see new orders'}
+                    </p>
+                  </div>
                 </div>
               </div>
-              
-              <div 
+
+              <button
                 onClick={handleToggleOnline}
-                className="cursor-pointer group relative"
+                disabled={isUpdatingStatus}
+                className={`relative group inline-flex h-10 w-20 flex-shrink-0 items-center rounded-full transition-all duration-500 focus:outline-none ${isOnline ? 'bg-emerald-500 shadow-lg shadow-emerald-500/40' : 'bg-slate-700'}`}
               >
-                <div className={`w-20 h-10 rounded-full transition-all duration-500 relative ${isOnline ? 'bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-slate-700/30'}`}>
-                    <motion.div
-                      animate={{ x: isOnline ? 42 : 2 }}
-                      transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                      className={`absolute top-1 w-8 h-8 rounded-full shadow-lg flex items-center justify-center transition-colors duration-500 ${isOnline ? 'bg-emerald-400' : 'bg-slate-500'}`}
-                    >
-                        {isUpdatingStatus ? (
-                           <FiRefreshCw className="animate-spin text-white" size={14} />
-                        ) : (
-                           <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-white animate-pulse' : 'bg-slate-300'}`} />
-                        )}
-                    </motion.div>
-                </div>
-                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
-                      {isOnline ? 'ONLINE' : 'GO ONLINE'}
-                   </span>
-                </div>
-              </div>
+                <motion.span
+                  animate={{ x: isOnline ? 42 : 4 }}
+                  className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
+                >
+                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                </motion.span>
+              </button>
             </div>
           </motion.div>
         </div>
@@ -405,7 +363,7 @@ const DeliveryDashboard = () => {
                       {/* Show Returns First */}
                       {availableReturns.map((ret) => (
                         <motion.div 
-                          key={ret._id || ret.id} 
+                          key={ret.id} 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="bg-white rounded-3xl p-5 shadow-sm border border-orange-100 group hover:border-orange-200 transition-colors relative overflow-hidden"
@@ -413,9 +371,7 @@ const DeliveryDashboard = () => {
                           <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] px-3 py-1 font-black rounded-bl-2xl uppercase tracking-wider">Return</div>
                           <div className="flex justify-between items-start mb-4">
                             <div>
-                               <span className="text-[10px] font-black text-orange-500 bg-orange-50 px-2 py-1 rounded-md uppercase mb-2 block w-fit">
-                                    #{typeof ret.orderId === 'object' ? ret.orderId.orderId : (ret.orderId || 'RET')}
-                               </span>
+                              <span className="text-[10px] font-black text-orange-500 bg-orange-50 px-2 py-1 rounded-md uppercase mb-2 block w-fit">#{ret.orderId || 'RET'}</span>
                               <div className="flex items-center gap-1 text-slate-900 font-bold">
                                 <span className="text-lg">{formatPrice(ret.amount || 25)}</span>
                                 <span className="text-[10px] text-slate-400 font-medium">Fee</span>
@@ -547,12 +503,35 @@ const DeliveryDashboard = () => {
           isOpen={showNewOrderModal}
           order={selectedNewOrder}
           isAccepting={isUpdatingOrderStatus}
-          onClose={() => !isUpdatingOrderStatus && setShowNewOrderModal(false)}
+          onClose={() => { stopBuzzer(); !isUpdatingOrderStatus && setShowNewOrderModal(false); }}
           onAccept={async (id) => {
+            stopBuzzer();
             await handleAcceptOrder(id, selectedNewOrder?.isReturn);
             setShowNewOrderModal(false);
           }}
         />
+
+        {/* Floating Buzzer Control & Utility */}
+        <div className="fixed bottom-24 right-6 z-[100] flex flex-col gap-2 pointer-events-none">
+            {isBuzzerActive && (
+               <button 
+                 onClick={stopBuzzer}
+                 className="bg-red-500 text-white p-4 rounded-2xl shadow-2xl animate-bounce flex items-center gap-2 font-black uppercase text-xs tracking-widest border-2 border-white pointer-events-auto"
+               >
+                 <FiAlertCircle className="animate-pulse" /> 🛑 Stop Alarm
+               </button>
+            )}
+            <button 
+              onClick={() => {
+                const audio = new Audio('/sounds/mgs_codec.mp3');
+                audio.play().then(() => toast.success('Sound Active!', { icon: '🔊' }))
+                     .catch(() => toast.error('Tap again to enable sound!'));
+              }}
+              className="bg-white text-slate-400 p-3 rounded-xl shadow-lg border border-slate-200 flex items-center gap-2 font-bold text-[10px] uppercase hover:bg-slate-50 transition-colors pointer-events-auto"
+            >
+              <FiZap size={14} /> Test Sound
+            </button>
+        </div>
 
         <WithdrawalModal
           isOpen={showWithdrawalModal}

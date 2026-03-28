@@ -194,10 +194,24 @@ api.interceptors.response.use(
       }
     }
 
-    const message =
-      error.response?.data?.message ||
-      error.message ||
-      'Something went wrong';
+    const getUnderstandableMessage = (err) => {
+      const status = err.response?.status;
+      const data = err.response?.data;
+      
+      if (status === 401) return 'Session expired. Please login again.';
+      if (status === 403) return 'You are not authorized to perform this action.';
+      if (status === 404) return 'The requested information was not found.';
+      if (status === 429) return 'Taking too many actions? Please wait a few seconds.';
+      if (status >= 500) return 'Our servers are currently busy. Please try again in a moment.';
+      
+      // Specific business logic errors
+      if (data?.message?.toLowerCase().includes('out of stock')) return 'Sorry, one or more items just went out of stock.';
+      if (data?.message?.toLowerCase().includes('coupon')) return 'This coupon code is not valid or has expired.';
+      
+      return data?.message || err.message || 'Something went wrong. Please check your connection.';
+    };
+
+    const understandableMessage = getUnderstandableMessage(error);
 
     const is401_403 = error.response?.status === 401 || error.response?.status === 403;
     const isCrossScopeError = is401_403 && scope !== pathScope;
@@ -209,7 +223,20 @@ api.interceptors.response.use(
       originalRequest.method?.toLowerCase() === 'put';
 
     if (!is429 && !isLocationUpdate && !isCrossScopeError) {
-      toast.error(message);
+      toast.error(understandableMessage, {
+        style: {
+          borderRadius: '16px',
+          background: '#111',
+          color: '#fff',
+          fontSize: '13px',
+          fontWeight: 'bold',
+          padding: '12px 20px',
+        },
+        iconTheme: {
+          primary: '#ff4b4b',
+          secondary: '#fff',
+        },
+      });
     }
 
     // 401 — session expired / token invalid
