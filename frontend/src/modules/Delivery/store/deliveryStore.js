@@ -28,6 +28,16 @@ const mapBackendStatusToUI = (status) => {
   return status || 'pending';
 };
 
+/** Map a top-level status to a deliveryFlow phase (fallback when deliveryFlow not present) */
+const statusToPhase = (status) => {
+  const map = {
+    assigned: 'assigned', ready_for_pickup: 'assigned',
+    picked_up: 'picked_up', out_for_delivery: 'out_for_delivery',
+    delivered: 'delivered',
+  };
+  return map[status] || 'assigned';
+};
+
 const toAddressLine = (shippingAddress = {}) => {
   const parts = [
     shippingAddress.address,
@@ -82,7 +92,9 @@ const normalizeOrder = (raw) => {
     amount: Number(raw?.subtotal ?? 0),
     subtotal: Number(raw?.subtotal ?? 0),
     total: Number(raw?.total ?? 0),
-    deliveryFee: Number(raw?.shipping ?? 0),
+    deliveryFee: Number(raw?.deliveryEarnings ?? raw?.shipping ?? 0),
+    deliveryEarnings: Number(raw?.deliveryEarnings ?? 0),
+    deliveryDistance: Number(raw?.deliveryDistance ?? 0),
     tax: Number(raw?.tax ?? 0),
     discount: Number(raw?.discount ?? raw?.couponDiscount ?? 0),
     status: uiStatus,
@@ -99,6 +111,9 @@ const normalizeOrder = (raw) => {
     paymentStatus: raw?.paymentStatus || 'pending',
     pickupPhoto: raw?.pickupPhoto || null,
     deliveryPhoto: raw?.deliveryPhoto || null,
+    // ── Antigravity Engine fields ──
+    phase: raw?.deliveryFlow?.phase || statusToPhase(backendStatus),
+    deliveryFlow: raw?.deliveryFlow || null,
   };
 };
 
@@ -163,6 +178,8 @@ export const useDeliveryAuthStore = create(
           formData.append('email', registrationData.email || '');
           formData.append('password', registrationData.password || '');
           formData.append('phone', registrationData.phone || '');
+          formData.append('emergencyContact', registrationData.emergencyContact || '');
+          formData.append('aadharNumber', registrationData.aadharNumber || '');
           formData.append('address', registrationData.address || '');
           formData.append('vehicleType', registrationData.vehicleType || '');
           formData.append('vehicleNumber', registrationData.vehicleNumber || '');
@@ -247,7 +264,13 @@ export const useDeliveryAuthStore = create(
         const current = get().deliveryBoy;
         if (!current) return false;
         const isAvailable = status === 'available';
-        set({ isUpdatingStatus: true });
+
+        // Optimistic update — change UI immediately
+        set({
+          isUpdatingStatus: true,
+          deliveryBoy: normalizeDeliveryBoy({ ...current, status }),
+        });
+
         try {
           const response = await api.put('/delivery/auth/profile', { isAvailable, status });
           const payload = response?.data ?? response;
@@ -257,7 +280,11 @@ export const useDeliveryAuthStore = create(
           });
           return true;
         } catch (error) {
-          set({ isUpdatingStatus: false });
+          // Rollback on failure
+          set({
+            deliveryBoy: normalizeDeliveryBoy(current),
+            isUpdatingStatus: false,
+          });
           throw error;
         }
       },
@@ -315,7 +342,7 @@ export const useDeliveryAuthStore = create(
         try {
           const response = await api.post(`/delivery/orders/${id}/accept`);
           const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
+          const normalized = normalizeOrder(payload?.data || payload);
           set({ isUpdatingOrderStatus: false });
           return normalized;
         } catch (error) {
@@ -330,10 +357,10 @@ export const useDeliveryAuthStore = create(
           const response = await api.patch(`/delivery/orders/${id}/status`, { status, ...options });
           const payload = response?.data ?? response;
           
-          const orderData = payload.order || payload;
-          if (payload.rider) {
+          const orderData = payload?.data?.order || payload?.data || payload;
+          if (payload?.data?.rider) {
             const current = get().deliveryBoy;
-            set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload.rider }) });
+            set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload.data.rider }) });
           }
 
           const normalized = normalizeOrder(orderData);
@@ -360,6 +387,24 @@ export const useDeliveryAuthStore = create(
         }
       },
 
+      fetchDashboardSummary: async () => {
+        set({ isLoadingOrders: true });
+        try {
+          const response = await api.get('/delivery/orders/dashboard-summary');
+          const payload = response?.data ?? response;
+          
+          if (payload && Array.isArray(payload.recentOrders)) {
+             payload.recentOrders = payload.recentOrders.map(normalizeOrder);
+          }
+
+          set({ isLoadingOrders: false });
+          return payload;
+        } catch (error) {
+          set({ isLoadingOrders: false });
+          throw error;
+        }
+      },
+
       fetchOrderById: async (id) => {
         set({ isLoadingOrder: true });
         try {
@@ -370,6 +415,52 @@ export const useDeliveryAuthStore = create(
           return normalized;
         } catch (error) {
           set({ isLoadingOrder: false });
+          throw error;
+        }
+      },
+
+      fetchAvailableOrders: async (options = {}) => {
+        set({ isLoadingOrders: true });
+        try {
+          const response = await api.get('/delivery/orders/available', { params: options });
+          const payload = response?.data ?? response;
+          const list = (payload?.orders || []).map(normalizeOrder);
+          set({ isLoadingOrders: false });
+          return list;
+        } catch (error) {
+          set({ isLoadingOrders: false });
+          throw error;
+        }
+      },
+
+      acceptOrder: async (id) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const response = await api.post(`/delivery/orders/${id}/accept`);
+          const payload = response?.data ?? response;
+          const normalized = normalizeOrder(payload);
+          set({ isUpdatingOrderStatus: false });
+          return normalized;
+        } catch (error) {
+          set({ isUpdatingOrderStatus: false });
+          throw error;
+        }
+      },
+
+      updateOrderStatus: async (id, status, options = {}) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const response = await api.patch(`/delivery/orders/${id}/status`, { status, ...options });
+          const payload = response?.data ?? response;
+          const normalized = normalizeOrder(payload);
+          // If we are looking at the selected order, update it
+          if (get().selectedOrder?.id === id) {
+             set({ selectedOrder: normalized });
+          }
+          set({ isUpdatingOrderStatus: false });
+          return normalized;
+        } catch (error) {
+          set({ isUpdatingOrderStatus: false });
           throw error;
         }
       },
@@ -432,6 +523,86 @@ export const useDeliveryAuthStore = create(
       getCompanyQR: async (id) => {
         const response = await api.get(`/delivery/orders/${id}/company-qr`);
         return response?.data ?? response;
+      },
+
+      // ── Antigravity Engine API Methods ──
+
+      getDeliveryFlow: async (id) => {
+        const response = await api.get(`/delivery/orders/${id}/flow`);
+        return response?.data ?? response;
+      },
+
+      enginePickup: async (id, pickupPhoto) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const response = await api.patch(`/delivery/orders/${id}/pickup`, { pickupPhoto });
+          const payload = response?.data ?? response;
+          const normalized = normalizeOrder(payload);
+          set({ isUpdatingOrderStatus: false });
+          return normalized;
+        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
+      },
+
+      engineStart: async (id) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const response = await api.patch(`/delivery/orders/${id}/start`);
+          const payload = response?.data ?? response;
+          const normalized = normalizeOrder(payload);
+          set({ isUpdatingOrderStatus: false });
+          return normalized;
+        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
+      },
+
+      engineArrived: async (id) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const response = await api.patch(`/delivery/orders/${id}/arrived`);
+          const payload = response?.data ?? response;
+          const normalized = normalizeOrder(payload);
+          set({ isUpdatingOrderStatus: false });
+          return normalized;
+        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
+      },
+
+      engineTryBuy: async (id, items) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const response = await api.patch(`/delivery/orders/${id}/try-buy`, { items });
+          const payload = response?.data ?? response;
+          const normalized = normalizeOrder(payload);
+          set({ isUpdatingOrderStatus: false });
+          return normalized;
+        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
+      },
+
+      enginePayment: async (id, method) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const response = await api.patch(`/delivery/orders/${id}/payment`, { method });
+          const payload = response?.data ?? response;
+          const orderData = payload?.order || payload;
+          const normalized = normalizeOrder(orderData);
+          normalized._qrUrl = payload?.qrUrl || null;
+          set({ isUpdatingOrderStatus: false });
+          return normalized;
+        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
+      },
+
+      engineComplete: async (id, otp, openBoxPhoto, deliveryProofPhoto) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const response = await api.patch(`/delivery/orders/${id}/complete`, { otp, openBoxPhoto, deliveryProofPhoto });
+          const payload = response?.data ?? response;
+          const orderData = payload?.order || payload;
+          if (payload?.rider) {
+            const current = get().deliveryBoy;
+            set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload.rider }) });
+          }
+          const normalized = normalizeOrder(orderData);
+          set({ isUpdatingOrderStatus: false });
+          return normalized;
+        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
       },
 
       // Return related actions

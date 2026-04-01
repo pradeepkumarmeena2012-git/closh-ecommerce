@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
-import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 
@@ -9,12 +9,46 @@ const OrderDetailsPage = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { fetchOrderById, getOrder } = useOrderStore();
+    const { fetchOrderById, getOrder, resendDeliveryOtp } = useOrderStore();
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [showReturnModal, setShowReturnModal] = useState(false);
     const [returnReason, setReturnReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isResendingOtp, setIsResendingOtp] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const cooldownRef = useRef(null);
+
+    const startCooldown = useCallback((seconds = 60) => {
+        setResendCooldown(seconds);
+        if (cooldownRef.current) clearInterval(cooldownRef.current);
+        cooldownRef.current = setInterval(() => {
+            setResendCooldown(prev => {
+                if (prev <= 1) {
+                    clearInterval(cooldownRef.current);
+                    cooldownRef.current = null;
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    }, []);
+
+    const handleResendDeliveryOtp = async () => {
+        if (isResendingOtp || resendCooldown > 0 || !order) return;
+        try {
+            setIsResendingOtp(true);
+            const result = await resendDeliveryOtp(order.orderId || order.id);
+            if (result?.deliveryOtpDebug) {
+                setOrder(prev => ({ ...prev, deliveryOtpDebug: result.deliveryOtpDebug }));
+            }
+            startCooldown(60);
+        } catch (err) {
+            console.error('[Resend OTP]', err?.response?.data?.message || err?.message);
+        } finally {
+            setIsResendingOtp(false);
+        }
+    };
 
     const RETURN_REASONS = [
         "Wrong size delivered",
@@ -43,6 +77,13 @@ const OrderDetailsPage = () => {
         };
         loadOrder();
     }, [orderId, fetchOrderById, getOrder]);
+
+    // Cleanup cooldown timer on unmount
+    useEffect(() => {
+        return () => {
+            if (cooldownRef.current) clearInterval(cooldownRef.current);
+        };
+    }, []);
 
     const handleViewInvoice = () => {
         if (!order) return;
@@ -428,6 +469,16 @@ const OrderDetailsPage = () => {
                             <div className="mt-6 p-4 bg-emerald-50 rounded-2xl border-2 border-emerald-100 border-dashed text-center">
                                 <p className="text-[10px] font-bold uppercase  text-emerald-600 mb-1">Share this OTP with delivery partner</p>
                                 <p className="text-2xl font-bold text-emerald-700">{order.deliveryOtpDebug}</p>
+                                {['picked_up', 'out_for_delivery'].includes(order.status?.toLowerCase()) && (
+                                    <button
+                                        onClick={handleResendDeliveryOtp}
+                                        disabled={isResendingOtp || resendCooldown > 0}
+                                        className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <RefreshCw size={12} className={isResendingOtp ? 'animate-spin' : ''} />
+                                        {isResendingOtp ? 'Sending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Didn't receive? Resend OTP"}
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -507,7 +558,7 @@ const OrderDetailsPage = () => {
                             <div className="pt-4 flex gap-3">
                                 <button
                                     onClick={() => setShowReturnModal(false)}
-                                    className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-[11px] uppercase  hover:bg-gray-200 transition-all font-bold"
+                                    className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-[11px] uppercase hover:bg-gray-200 transition-all"
                                 >
                                     Cancel
                                 </button>

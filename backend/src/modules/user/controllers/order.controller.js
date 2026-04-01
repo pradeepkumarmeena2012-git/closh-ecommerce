@@ -15,6 +15,7 @@ import { calculateVendorShippingForGroups } from '../../../services/vendorShippi
 import { emitEvent } from '../../../services/socket.service.js';
 import { calculateDistance } from '../../../utils/geo.js';
 import Vendor from '../../../models/Vendor.model.js';
+import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 
 const normalizeVariantPart = (value) => String(value || '').trim().toLowerCase();
 const normalizeAxisName = (value) =>
@@ -427,104 +428,12 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
             order = createdOrder;
 
-            // Notify vendors in real-time
-            const vendorsToNotify = Object.keys(vendorMap);
-            vendorsToNotify.forEach(async (vid) => {
-                // Socket notification for buzzer/pop-up
-                emitEvent(`vendor_${vid}`, 'order_created', {
-                    ...order.toObject(),
-                    orderId: order.orderId,
-                    vendorItems: vendorMap[vid].items
-                });
-
-                // Push notification
-                await createNotification({
-                    recipientId: vid,
-                    recipientType: 'vendor',
-                    title: 'New Order Received!',
-                    message: `You have a new ${orderType?.replace(/_/g, ' ') || 'order'} of Rs.${order.total}. Click to view details.`,
-                    type: 'order',
-                    data: {
-                        orderId: String(order.orderId),
-                        total: String(order.total),
-                        items: JSON.stringify(vendorMap[vid].items.map((item) => ({ name: item.name, quantity: item.quantity }))),
-                    },
-                });
+            // Unified Notification to all parties (Customer will get 'pending' update, Vendors will get 'new order' alert)
+            await OrderNotificationService.notifyOrderUpdate(order._id, 'pending', {
+                excludeRecipientId: userId, // Customer knows they placed it
+                title: 'New Order Received!',
+                message: `You have a new ${orderType?.replace(/_/g, ' ') || 'order'} of Rs.${order.total}.`
             });
-
-            // 7. Deduct stock atomically to prevent oversell under concurrent checkout.
-            for (const item of enrichedItems) {
-                const variantPath = item.variantKey ? `variants.stockMap.${item.variantKey}` : null;
-                const baseFilter = {
-                    _id: item.productId,
-                    stock: { $ne: 'out_of_stock' },
-                    stockQuantity: { $gte: Number(item.quantity || 0) },
-                };
-                if (variantPath) {
-                    baseFilter[variantPath] = { $gte: Number(item.quantity || 0) };
-                }
-
-                const updatePayload = { $inc: { stockQuantity: -Number(item.quantity || 0) } };
-                if (variantPath) {
-                    updatePayload.$inc[variantPath] = -Number(item.quantity || 0);
-                }
-
-                const updatedProduct = await Product.findOneAndUpdate(
-                    baseFilter,
-                    updatePayload,
-                    { new: true, session }
-                );
-
-                if (!updatedProduct) {
-                    throw new ApiError(409, `Insufficient stock while processing ${item.name}. Please refresh and try again.`);
-                }
-
-                const nextStockState =
-                    updatedProduct.stockQuantity <= 0
-                        ? 'out_of_stock'
-                        : (updatedProduct.stockQuantity <= updatedProduct.lowStockThreshold ? 'low_stock' : 'in_stock');
-
-                await Product.updateOne(
-                    { _id: updatedProduct._id },
-                    { $set: { stock: nextStockState } },
-                    { session }
-                );
-            }
-
-            // 8. Record commissions
-            const commissionDocs = vendorItems.map((v) => ({
-                orderId: order._id,
-                vendorId: v.vendorId,
-                vendorName: v.vendorName,
-                subtotal: v.subtotal,
-                commissionRate: v.commissionRate,
-                commission: v.commissionAmount,
-                vendorEarnings: v.vendorEarnings,
-            }));
-            await Commission.insertMany(commissionDocs, { session });
-
-            // 9. Increment coupon usage
-            if (appliedCoupon) {
-                if (appliedCoupon.usageLimit) {
-                    const usageResult = await Coupon.updateOne(
-                        {
-                            _id: appliedCoupon._id,
-                            usedCount: { $lt: appliedCoupon.usageLimit },
-                        },
-                        { $inc: { usedCount: 1 } },
-                        { session }
-                    );
-                    if (!usageResult?.modifiedCount) {
-                        throw new ApiError(409, 'Coupon usage limit reached.');
-                    }
-                } else {
-                    await Coupon.updateOne(
-                        { _id: appliedCoupon._id },
-                        { $inc: { usedCount: 1 } },
-                        { session }
-                    );
-                }
-            }
         });
     } catch (err) {
         if (idempotencyKey && err?.code === 11000) {
@@ -669,6 +578,13 @@ export const cancelOrder = asyncHandler(async (req, res) => {
                 },
                 { session }
             );
+        });
+        
+        // Unified Notification to all parties
+        await OrderNotificationService.notifyOrderUpdate(order._id, 'cancelled', {
+            excludeRecipientId: req.user.id,
+            title: `Order #${order.orderId} Cancelled`,
+            message: `Order ${order.orderId} has been cancelled by the customer.`
         });
     } finally {
         await session.endSession();
@@ -882,4 +798,73 @@ export const getUserReturnRequestById = asyncHandler(async (req, res) => {
         .populate('vendorId', 'storeName email');
     if (!request) throw new ApiError(404, 'Return request not found.');
     res.status(200).json(new ApiResponse(200, normalizeReturnRequest(request), 'Return request fetched.'));
+});
+
+// POST /api/user/orders/:id/resend-delivery-otp
+// Customer requests a new delivery OTP (e.g. the previous one expired or SMS didn't arrive)
+export const resendDeliveryOtp = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    let filter = { userId: req.user.id };
+    if (mongoose.Types.ObjectId.isValid(id)) {
+        filter._id = id;
+    } else {
+        filter.orderId = id;
+    }
+
+    const order = await Order.findOne(filter).select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug');
+    if (!order) throw new ApiError(404, 'Order not found.');
+
+    const allowedStatuses = ['picked_up', 'out_for_delivery'];
+    if (!allowedStatuses.includes(order.status)) {
+        throw new ApiError(409, 'Delivery OTP can only be resent when your order is out for delivery.');
+    }
+
+    // Cooldown: 60 seconds between resends
+    const RESEND_COOLDOWN_MS = 60 * 1000;
+    if (order.deliveryOtpSentAt && new Date(order.deliveryOtpSentAt).getTime() + RESEND_COOLDOWN_MS > Date.now()) {
+        const waitSec = Math.ceil((new Date(order.deliveryOtpSentAt).getTime() + RESEND_COOLDOWN_MS - Date.now()) / 1000);
+        throw new ApiError(429, `Please wait ${waitSec}s before requesting another OTP.`);
+    }
+
+    // Generate new OTP
+    const crypto = await import('crypto');
+    const secret = process.env.JWT_SECRET || 'delivery-otp-secret';
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const hash = crypto.default.createHash('sha256').update(`${otp}:${secret}`).digest('hex');
+
+    order.deliveryOtpHash = hash;
+    order.deliveryOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    order.deliveryOtpSentAt = new Date();
+    order.deliveryOtpAttempts = 0;
+
+    const IS_PROD = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+    if (!IS_PROD) {
+        order.deliveryOtpDebug = otp;
+    }
+
+    await order.save();
+
+    // Send OTP via email to the customer
+    const { sendEmail } = await import('../../../services/email.service.js');
+    const email = String(order?.shippingAddress?.email || '').trim().toLowerCase();
+    if (email) {
+        await sendEmail({
+            to: email,
+            subject: `New Delivery OTP for order ${order.orderId || order._id}`,
+            text: `Your new delivery verification OTP is ${otp}. Share it with the delivery partner only after receiving your order. It expires in 10 minutes.`,
+            html: `<p>Your new delivery verification OTP is <strong>${otp}</strong>.</p><p>Share it with the delivery partner only after receiving your order.</p><p>This OTP expires in 10 minutes.</p>`,
+        }).catch(err => console.warn('[User Resend OTP] Email failed:', err.message));
+    }
+
+    // Emit socket event so the user-side UI updates with the new OTP immediately
+    const { emitEvent: emit } = await import('../../../services/socket.service.js');
+    emit(`user_${req.user.id}`, 'delivery_otp_resent', {
+        orderId: order.orderId || order._id,
+        deliveryOtpDebug: IS_PROD ? undefined : otp,
+    });
+
+    res.status(200).json(new ApiResponse(200, {
+        deliveryOtpDebug: IS_PROD ? undefined : otp,
+    }, 'New delivery OTP sent successfully.'));
 });

@@ -61,10 +61,7 @@ const ReturnRequests = () => {
   useEffect(() => {
     if (!vendorId) return;
 
-    // Connect to vendor room
-    socketService.connect();
-    socketService.joinRoom(`vendor_${vendorId}`);
-
+    // Socket listeners (connection managed by VendorHeader)
     const handleNewReturn = (data) => {
       toast.success(`New Return Request: ${data.orderId}`, {
         duration: 5000,

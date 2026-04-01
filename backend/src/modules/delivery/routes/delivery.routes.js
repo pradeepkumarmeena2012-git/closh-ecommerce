@@ -39,6 +39,8 @@ router.post(
 router.post('/auth/forgot-password', authLimiter, validate(forgotPasswordSchema), authController.forgotPassword);
 router.post('/auth/verify-reset-otp', authLimiter, validate(verifyResetOtpSchema), authController.verifyResetOTP);
 router.post('/auth/reset-password', authLimiter, validate(resetPasswordSchema), authController.resetPassword);
+router.post('/auth/send-otp', authLimiter, authController.sendOTP); // New OTP login
+router.post('/auth/verify-otp', authLimiter, authController.verifyOTPAndLogin); // New OTP login
 router.post('/auth/login', authLimiter, validate(loginSchema), authController.login);
 router.post('/auth/refresh', validate(refreshTokenSchema), authController.refresh);
 router.post('/auth/logout', validate(logoutSchema), authController.logout);
@@ -58,6 +60,18 @@ router.patch('/orders/:id/status', ...deliveryAuth, orderController.updateDelive
 router.post('/orders/:id/accept', ...deliveryAuth, assignmentController.acceptOrderAssignment);
 router.post('/orders/:id/arrived', ...deliveryAuth, orderController.markArrived);
 router.post('/orders/:id/resend-delivery-otp', ...deliveryAuth, orderController.resendDeliveryOtp);
+router.get('/orders/:id/company-qr', ...deliveryAuth, orderController.getCompanyQR);
+
+// ── Antigravity Engine (state-machine endpoints) ──
+router.get('/orders/:id/flow', ...deliveryAuth, orderController.getDeliveryFlow);
+router.patch('/orders/:id/pickup', ...deliveryAuth, orderController.handlePickup);
+router.patch('/orders/:id/start', ...deliveryAuth, orderController.handleStartDelivery);
+router.patch('/orders/:id/location', ...deliveryAuth, orderController.handleLocationUpdate);
+router.patch('/orders/:id/arrived', ...deliveryAuth, orderController.handleArrivedAtCustomer);
+router.patch('/orders/:id/try-buy', ...deliveryAuth, orderController.handleTryAndBuy);
+router.patch('/orders/:id/payment', ...deliveryAuth, orderController.handlePayment);
+router.patch('/orders/:id/complete', ...deliveryAuth, orderController.handleCompleteDelivery);
+router.patch('/batch/select', ...deliveryAuth, orderController.handleBatchSelect);
 
 // Returns
 router.get('/returns/available', ...deliveryAuth, orderController.getAvailableReturns);

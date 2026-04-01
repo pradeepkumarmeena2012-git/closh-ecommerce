@@ -100,7 +100,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting }) => {
                                 </div>
                                 <div>
                                     <p className={`${isReturn ? 'text-orange-500' : 'text-indigo-500'} text-[10px] font-black uppercase tracking-[0.2em]`}>Incoming {isReturn ? 'Return' : 'Request'}</p>
-                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">{isReturn ? `Ref: #${order.orderId || order.id.slice(-6)}` : `Order #${order.id.slice(-6)}`}</h2>
+                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">{isReturn ? `Ref: #${order.orderId || String(order.id || '').slice(-6)}` : `Order #${String(order.id || '').slice(-6)}`}</h2>
                                 </div>
                             </div>
                         </div>

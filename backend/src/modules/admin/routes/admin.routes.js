@@ -17,6 +17,7 @@ import * as employeeController from '../controllers/employee.controller.js';
 import * as roleController from '../controllers/role.controller.js';
 import * as attributeController from '../controllers/attribute.controller.js';
 import * as adminWithdrawalController from '../controllers/adminWithdrawal.controller.js';
+import * as serviceAreaController from '../controllers/serviceArea.controller.js';
 
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus, checkPermission, authorizeAdmin } from '../../../middlewares/authorize.js';
@@ -247,5 +248,22 @@ router.post('/notifications/broadcast', ...adminAuth, checkPermission('notificat
 import * as settingsController from '../controllers/settings.controller.js';
 router.get('/settings/:key', ...adminAuth, settingsController.getSetting);
 router.put('/settings/:key', ...adminAuth, checkPermission('settings_manage'), settingsController.updateSetting);
+
+// ─── Service Areas & Zones ────────────────────────────────────────────────────
+router.get('/service-areas/stats', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.getServiceAreaStats);
+router.get('/service-areas', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.getAllServiceAreas);
+router.get('/service-areas/:id', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.getServiceAreaById);
+router.post('/service-areas', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.createServiceArea);
+router.put('/service-areas/:id', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.updateServiceArea);
+router.patch('/service-areas/:id/toggle', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.toggleServiceArea);
+router.delete('/service-areas/:id', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.deleteServiceArea);
+
+// Pincode Management
+router.get('/service-areas/:id/pincodes', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.getPincodesForServiceArea);
+router.post('/pincodes', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.addPincode);
+router.post('/pincodes/import', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.importPincodes);
+router.put('/pincodes/:id', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.updatePincode);
+router.delete('/pincodes/:id', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.deletePincode);
+router.get('/pincodes/check/:pincode', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.checkPincodeServiceability);
 
 export default router;

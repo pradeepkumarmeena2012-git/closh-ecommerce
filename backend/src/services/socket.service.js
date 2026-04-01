@@ -27,12 +27,23 @@ export const initSocket = (server) => {
             console.log(`🏠 Client ${socket.id} joined room: ${room}`);
         });
 
+        socket.on('leave_room', (room) => {
+            socket.leave(room);
+            console.log(`🏠 Client ${socket.id} left room: ${room}`);
+        });
+
         // Targeted registration based on ID and role (for targeted notifications)
         socket.on('delivery_register', (deliveryBoyId) => {
             const room = `delivery_${deliveryBoyId}`;
             socket.join(room);
             socket.join('delivery_partners'); // Global room for new broadcasts
             console.log(`🚴 Delivery Partner ${deliveryBoyId} registered and joined: ${room}`);
+        });
+
+        socket.on('batch_register', (batchId) => {
+            const room = `batch_${batchId}`;
+            socket.join(room);
+            console.log(`📦 Delivery Batch ${batchId} registered and joined: ${room}`);
         });
 
         socket.on('vendor_register', (vendorId) => {
@@ -58,7 +69,7 @@ export const initSocket = (server) => {
 
         // Delivery boy updates their location
         socket.on('update_location', async (payload) => {
-            const { lat, lng, deliveryBoyId, orderId } = payload;
+            const { lat, lng, deliveryBoyId, orderId, batchId } = payload;
             
             if (!lat || !lng || !deliveryBoyId) return;
 
@@ -86,6 +97,10 @@ export const initSocket = (server) => {
                     if (orderId) {
                         await db.ref(`tracking/${orderId}`).set(trackingData);
                     }
+                    // Update specific tracking for the batch
+                    if (batchId) {
+                        await db.ref(`tracking/batch/${batchId}`).set(trackingData);
+                    }
                 } catch (fbError) {
                     console.error('❌ Firebase RTDB sync failed:', fbError.message);
                 }
@@ -98,6 +113,18 @@ export const initSocket = (server) => {
                     lat,
                     lng,
                     deliveryBoyId,
+                    orderId,
+                    timestamp: Date.now()
+                });
+            }
+
+            if (batchId) {
+                const room = `batch_${batchId}`;
+                io.to(room).emit('location_updated', {
+                    lat,
+                    lng,
+                    deliveryBoyId,
+                    batchId,
                     timestamp: Date.now()
                 });
             }

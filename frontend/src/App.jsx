@@ -33,6 +33,7 @@ import Content from "./modules/Admin/pages/Content";
 import Settings from "./modules/Admin/pages/Settings";
 import More from "./modules/Admin/pages/More";
 import PromoCodes from "./modules/Admin/pages/PromoCodes";
+import ServiceAreas from "./modules/Admin/pages/ServiceAreas";
 // Orders child pages
 import AllOrders from "./modules/Admin/pages/orders/AllOrders";
 import OrderTracking from "./modules/Admin/pages/orders/OrderTracking";
@@ -147,6 +148,8 @@ import DeliveryOrders from "./modules/Delivery/pages/Orders";
 import DeliveryOrderDetail from "./modules/Delivery/pages/OrderDetail";
 import DeliveryProfile from "./modules/Delivery/pages/Profile";
 import DeliveryNotifications from "./modules/Delivery/pages/Notifications";
+import DeliveryLiveTracking from "./modules/Delivery/pages/LiveTracking";
+import DeliveryPayouts from "./modules/Delivery/pages/Payouts";
 // Vendor Routes
 import VendorLogin from "./modules/Vendor/pages/Login";
 import VendorRegister from "./modules/Vendor/pages/Register";
@@ -321,6 +324,7 @@ const AppRoutes = () => {
         <Route path="banners" element={<Banners />} />
         <Route path="reviews" element={<Reviews />} />
         <Route path="content" element={<Content />} />
+        <Route path="service-areas" element={<ServiceAreas />} />
         {/* Catch-all for unmatched admin routes — stay in admin area */}
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Route>
@@ -341,7 +345,9 @@ const AppRoutes = () => {
         <Route path="dashboard" element={<DeliveryDashboard />} />
         <Route path="orders" element={<DeliveryOrders />} />
         <Route path="orders/:id" element={<DeliveryOrderDetail />} />
+        <Route path="live-tracking/:orderId" element={<DeliveryLiveTracking />} />
         <Route path="notifications" element={<DeliveryNotifications />} />
+        <Route path="payouts" element={<DeliveryPayouts />} />
         <Route path="profile" element={<DeliveryProfile />} />
       </Route>
 

@@ -6,6 +6,7 @@ import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import Vendor from '../../../models/Vendor.model.js';
 import mongoose from 'mongoose';
 import { payoutToUpi } from '../../../services/razorpay.service.js';
+import { createNotification } from '../../../services/notification.service.js';
 
 /**
  * Get all withdrawal requests
@@ -83,6 +84,37 @@ export const updateWithdrawalStatus = asyncHandler(async (req, res) => {
             request.adminNotes = adminNotes || request.adminNotes;
             request.processedAt = new Date();
             await request.save({ session });
+
+            // Send notification to requester
+            const requesterType = request.requesterType === 'DeliveryBoy' ? 'delivery' : 'vendor';
+            let notificationTitle = '';
+            let notificationMessage = '';
+            let notificationSound = 'default';
+
+            if (status === 'approved' || status === 'completed') {
+                notificationTitle = '✅ Payout Approved';
+                notificationMessage = `Your payout request of ₹${request.amount} has been approved and will be processed within 24-48 hours.`;
+                notificationSound = 'success';
+            } else if (status === 'rejected') {
+                notificationTitle = '❌ Payout Rejected';
+                notificationMessage = `Your payout request of ₹${request.amount} was rejected. ${adminNotes ? `Reason: ${adminNotes}` : 'Please contact support for details.'}`;
+                notificationSound = 'alert';
+            }
+
+            // Create notification
+            await createNotification({
+                recipientId: request.requesterId,
+                recipientType: requesterType,
+                title: notificationTitle,
+                message: notificationMessage,
+                type: 'payout',
+                data: {
+                    withdrawalId: String(request._id),
+                    amount: request.amount,
+                    status: request.status,
+                    sound: notificationSound
+                }
+            });
         });
     } finally {
         await session.endSession();

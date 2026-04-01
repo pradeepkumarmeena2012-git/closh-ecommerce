@@ -6,6 +6,7 @@ class SocketService {
     constructor() {
         this.socket = null;
         this.rooms = new Set();
+        this._queuedListeners = [];
     }
 
     connect() {
@@ -19,12 +20,19 @@ class SocketService {
             reconnectionDelay: 1000,
         });
 
+        // Attach any queued listeners from before connect was called
+        if (this._queuedListeners.length > 0) {
+            this._queuedListeners.forEach(({ event, callback }) => {
+                this.socket.on(event, callback);
+            });
+            this._queuedListeners = [];
+        }
+
         this.socket.on('connect', () => {
             console.log('🔌 Connected to Socket.io server');
             // Re-join all rooms on reconnection
             this.rooms.forEach(room => {
                 this.socket.emit('join_room', room);
-                console.log(`🏠 Re-joined room: ${room}`);
             });
         });
 
@@ -41,9 +49,6 @@ class SocketService {
         this.rooms.add(room);
         if (this.socket && this.socket.connected) {
             this.socket.emit('join_room', room);
-            console.log(`🏠 Joined room: ${room}`);
-        } else if (this.socket) {
-            console.log(`🏠 Queuing join for room: ${room} (waiting for connection)`);
         }
     }
 
@@ -55,14 +60,18 @@ class SocketService {
     }
 
     on(event, callback) {
-        if (!this.socket) this.connect();
-        this.socket.on(event, callback);
+        if (this.socket) {
+            this.socket.on(event, callback);
+        } else {
+            this._queuedListeners.push({ event, callback });
+        }
     }
 
     off(event) {
         if (this.socket) {
             this.socket.off(event);
         }
+        this._queuedListeners = this._queuedListeners.filter(l => l.event !== event);
     }
 
     disconnect() {
@@ -70,6 +79,7 @@ class SocketService {
             this.socket.disconnect();
             this.socket = null;
             this.rooms.clear();
+            this._queuedListeners = [];
         }
     }
 }

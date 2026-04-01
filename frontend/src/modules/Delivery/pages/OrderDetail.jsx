@@ -100,6 +100,7 @@ const DeliveryOrderDetail = () => {
   const [companyQR, setCompanyQR] = useState(null);
   const [isLoadingQR, setIsLoadingQR] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [showDeliverySuccess, setShowDeliverySuccess] = useState(false);
   const openBoxInputRef = useRef(null);
   const deliveryPhotoInputRef = useRef(null);
   const pickupPhotoInputRef = useRef(null);
@@ -133,7 +134,19 @@ const DeliveryOrderDetail = () => {
       setLoadFailed(false);
       const response = await fetchOrderById(id);
       setOrder(response);
-    } catch {
+      
+      // Persist hasArrived state from order data
+      if (response?.arrivedAt || response?.deliveryFlow?.arrivedAt) {
+        setHasArrived(true);
+      }
+      
+      // Auto-redirect to Logistics Engine if batched
+      if (response.batchId) {
+        toast.success("Redirecting to Batch Engine...", { icon: '🚚' });
+        navigate(`/delivery/batch/${response.batchId}`, { replace: true });
+        return;
+      }
+    } catch (err) {
       setLoadFailed(true);
       setOrder(null);
     }
@@ -141,10 +154,7 @@ const DeliveryOrderDetail = () => {
 
   useEffect(() => {
     loadOrder();
-    socketService.connect();
-    socketService.joinRoom('delivery_partners');
-
-    // Join order-specific socket room
+    // Join order-specific socket room (connection managed by DeliveryLayout)
     if (id) {
       socketService.joinRoom(`order_${id}`);
     }
@@ -209,7 +219,10 @@ const DeliveryOrderDetail = () => {
         setOrder(updated);
         toast.success('Order assigned to you');
       }
-    } catch {}
+    } catch(err) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to accept task';
+      toast.error(msg);
+    }
   };
 
   const handleUpdateStatus = async (newBackendStatus, successMessage, options = {}) => {
@@ -226,7 +239,13 @@ const DeliveryOrderDetail = () => {
   };
 
   const handleCompleteReturn = async () => {
-    await handleUpdateStatus('completed', 'Return delivered to vendor!');
+    try {
+      await handleUpdateStatus('completed', 'Return delivered to vendor!');
+      setShowDeliverySuccess(true);
+    } catch(err) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to complete return';
+      toast.error(msg);
+    }
   };
 
   const handleCompleteOrder = async () => {
@@ -250,8 +269,11 @@ const DeliveryOrderDetail = () => {
       const updated = await completeOrder(order.id, deliveryOtp.trim(), options);
       setOrder(updated);
       setDeliveryOtp('');
-      toast.success('Done! Earning credited to your wallet.');
-    } catch(err) {}
+      setShowDeliverySuccess(true);
+    } catch(err) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to complete delivery';
+      toast.error(msg);
+    }
   };
 
   const handleMarkArrived = async () => {
@@ -367,6 +389,196 @@ const DeliveryOrderDetail = () => {
     );
   }
 
+  // Full-screen Delivery Success Page
+  if (showDeliverySuccess || order?.status === 'delivered' || order?.status === 'completed') {
+    const earning = order?.deliveryEarnings || order?.deliveryFee || order?.deliveryCharge || 0;
+    const distanceKm = order?.deliveryDistance || 0;
+    const orderId = String(order?.id || order?.orderId || '').slice(-8);
+    const deliveredAt = order?.deliveredAt || order?.updatedAt;
+
+    return (
+      <PageTransition>
+        <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-emerald-50 flex flex-col items-center justify-center px-6 py-10 relative overflow-hidden">
+          {/* Background decorations */}
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <div className="absolute top-10 left-10 w-3 h-3 bg-emerald-300 rounded-full animate-ping" style={{ animationDelay: '0s', animationDuration: '2s' }} />
+            <div className="absolute top-20 right-16 w-2 h-2 bg-yellow-400 rounded-full animate-ping" style={{ animationDelay: '0.5s', animationDuration: '2.5s' }} />
+            <div className="absolute top-40 left-20 w-2.5 h-2.5 bg-indigo-300 rounded-full animate-ping" style={{ animationDelay: '1s', animationDuration: '3s' }} />
+            <div className="absolute bottom-32 right-10 w-3 h-3 bg-emerald-400 rounded-full animate-ping" style={{ animationDelay: '0.3s', animationDuration: '2s' }} />
+            <div className="absolute bottom-48 left-14 w-2 h-2 bg-amber-300 rounded-full animate-ping" style={{ animationDelay: '0.8s', animationDuration: '2.5s' }} />
+            <div className="absolute top-1/3 right-8 w-2 h-2 bg-pink-300 rounded-full animate-ping" style={{ animationDelay: '1.2s', animationDuration: '2s' }} />
+          </div>
+
+          {/* Success Icon with pulse ring */}
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+            className="relative mb-6"
+          >
+            <div className="absolute inset-0 w-28 h-28 bg-emerald-200 rounded-full animate-ping opacity-30" />
+            <div className="absolute inset-0 w-28 h-28 bg-emerald-100 rounded-full animate-pulse" />
+            <div className="relative w-28 h-28 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center shadow-2xl shadow-emerald-200">
+              <FiCheckCircle size={52} className="text-white" strokeWidth={2.5} />
+            </div>
+          </motion.div>
+
+          {/* Title */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="text-center mb-8"
+          >
+            <h1 className="text-3xl font-black text-slate-900 mb-2">
+              {isReturn ? 'Return Completed!' : 'Delivered Successfully!'}
+            </h1>
+            <p className="text-slate-500 text-sm font-medium">
+              {isReturn ? 'Return has been handed back to vendor' : 'Order has been delivered to the customer'}
+            </p>
+          </motion.div>
+
+          {/* Summary Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="w-full max-w-sm bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden mb-6"
+          >
+            {/* Order ID Banner */}
+            <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-6 py-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest">Order ID</p>
+                  <p className="text-lg font-black">#{orderId}</p>
+                </div>
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <FiPackage size={20} />
+                </div>
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="p-6 space-y-4">
+              {/* Customer */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                  <FiUser size={18} className="text-indigo-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Customer</p>
+                  <p className="text-sm font-bold text-slate-800">{order.customer || 'Customer'}</p>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+                  <FiPackage size={18} className="text-amber-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Items</p>
+                  <p className="text-sm font-bold text-slate-800">{order.items?.length || 0} product{(order.items?.length || 0) !== 1 ? 's' : ''}</p>
+                </div>
+              </div>
+
+              {/* Payment */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+                  <FiCreditCard size={18} className="text-emerald-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Order Total</p>
+                  <p className="text-sm font-bold text-slate-800">{formatPrice(order.total || 0)}</p>
+                </div>
+                {isCod && (
+                  <span className="px-2 py-1 bg-amber-100 text-amber-700 text-[9px] font-black rounded-lg uppercase">COD</span>
+                )}
+              </div>
+
+              {/* Time */}
+              {deliveredAt && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center">
+                    <FiClock size={18} className="text-slate-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Delivered At</p>
+                    <p className="text-sm font-bold text-slate-800">
+                      {new Date(deliveredAt).toLocaleString('en-IN', { 
+                        hour: '2-digit', minute: '2-digit', hour12: true,
+                        day: 'numeric', month: 'short'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Earnings Section */}
+            <div className="mx-6 mb-6 bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-4 border border-emerald-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
+                    <FiDollarSign size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Your Earnings</p>
+                    <p className="text-xl font-black text-emerald-700">{formatPrice(earning)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 bg-emerald-500 text-white px-3 py-1.5 rounded-xl">
+                  <FiTrendingUp size={14} />
+                  <span className="text-[10px] font-black uppercase">Wallet</span>
+                </div>
+              </div>
+              {/* Distance breakdown */}
+              {distanceKm > 0 && (
+                <div className="mt-3 pt-3 border-t border-emerald-200/50 space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-emerald-600/70 font-medium flex items-center gap-1"><FiNavigation size={10} /> Distance</span>
+                    <span className="text-emerald-700 font-bold">{distanceKm} km</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-emerald-600/70 font-medium">Base fee (up to 3 km)</span>
+                    <span className="text-emerald-700 font-bold">₹25</span>
+                  </div>
+                  {distanceKm > 3 && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-emerald-600/70 font-medium">Extra ({(distanceKm - 3).toFixed(1)} km × ₹9)</span>
+                      <span className="text-emerald-700 font-bold">₹{Math.round((distanceKm - 3) * 9)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Action Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="w-full max-w-sm space-y-3"
+          >
+            <button
+              onClick={() => navigate('/delivery/orders')}
+              className="w-full bg-[#0F172A] text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
+            >
+              <FiPackage size={16} /> Back to Orders
+            </button>
+            <button
+              onClick={() => navigate('/delivery/dashboard')}
+              className="w-full bg-white text-slate-700 py-4 rounded-2xl font-bold text-sm border border-slate-200 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+            >
+              <FiTarget size={16} /> Go to Dashboard
+            </button>
+          </motion.div>
+        </div>
+      </PageTransition>
+    );
+  }
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-[#F8FAFC] pb-20">
@@ -383,7 +595,7 @@ const DeliveryOrderDetail = () => {
                     {order.status === 'assigned' || order.status === 'accepted' ? 'Leg 1: Heading to Pickup' : 
                      order.status === 'picked_up' || order.status === 'out_for_delivery' ? 'Leg 2: Heading to Delivery' : 'Job Details'}
                 </span>
-                <h1 className="text-xl font-black text-white tracking-tight">{isReturn ? 'Return' : 'Order'} #{order.id.slice(-8)}</h1>
+                <h1 className="text-xl font-black text-white tracking-tight">{isReturn ? 'Return' : 'Order'} #{String(order.id || order.orderId || '').slice(-8)}</h1>
              </div>
              <div className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter border ${getStatusColor(order.status)} pb-1`}>
                 {order.status.replace(/-/g, ' ')}
@@ -755,16 +967,6 @@ const DeliveryOrderDetail = () => {
                 </div>
              )}
 
-             {/* Delivered Status */}
-             {order.status === 'delivered' && (
-               <div className="text-center py-4">
-                 <div className="w-16 h-16 bg-emerald-100 rounded-full mx-auto flex items-center justify-center mb-3">
-                   <FiCheckCircle size={32} className="text-emerald-600" />
-                 </div>
-                 <h3 className="font-black text-emerald-900 text-lg">Delivery Completed!</h3>
-                 <p className="text-slate-500 text-sm mt-1">Earnings have been added to your wallet.</p>
-               </div>
-             )}
           </motion.div>
 
           {/* Contact & Map Cards */}

@@ -22,7 +22,7 @@ const getUploadedPath = (file) => {
 
 // POST /api/delivery/auth/register
 export const register = asyncHandler(async (req, res) => {
-    const { name, email, password, phone, address, vehicleType, vehicleNumber, fcmToken, platform = 'app' } = req.body;
+    const { name, email, password, phone, emergencyContact, aadharNumber, address, vehicleType, vehicleNumber, fcmToken, platform = 'app' } = req.body;
 
     const drivingLicenseFile = req.files?.drivingLicense?.[0];
     const drivingLicenseBackFile = req.files?.drivingLicenseBack?.[0];
@@ -45,6 +45,8 @@ export const register = asyncHandler(async (req, res) => {
             email: normalizedEmail,
             password,
             phone: String(phone || '').trim(),
+            emergencyContact: String(emergencyContact || '').trim(),
+            aadharNumber: String(aadharNumber || '').trim(),
             address: String(address || '').trim(),
             vehicleType: String(vehicleType || '').trim(),
             vehicleNumber: String(vehicleNumber || '').trim(),
@@ -181,7 +183,116 @@ export const resetPassword = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, null, 'Password reset successful. Please login.'));
 });
 
-// POST /api/delivery/auth/login
+// POST /api/delivery/auth/send-otp - Send OTP to mobile number
+export const sendOTP = asyncHandler(async (req, res) => {
+    const { phone } = req.body;
+    const normalizedPhone = String(phone || '').trim().replace(/\D/g, '').slice(-10);
+    
+    if (normalizedPhone.length !== 10) {
+        throw new ApiError(400, 'Please enter a valid 10-digit mobile number');
+    }
+
+    const deliveryBoy = await DeliveryBoy.findOne({ phone: normalizedPhone }).select('+resetOtp +resetOtpExpiry');
+    if (!deliveryBoy) {
+        throw new ApiError(404, 'No account found with this mobile number. Please register first.');
+    }
+
+    if (deliveryBoy.applicationStatus === 'pending') {
+        throw new ApiError(403, 'Your account is pending admin approval.');
+    }
+    if (deliveryBoy.applicationStatus === 'rejected') {
+        throw new ApiError(
+            403,
+            `Your delivery application was rejected${deliveryBoy.rejectionReason ? `: ${deliveryBoy.rejectionReason}` : '.'}`
+        );
+    }
+    if (!deliveryBoy.isActive) {
+        throw new ApiError(403, 'Your account has been deactivated. Please contact support.');
+    }
+
+    // Generate 6-digit OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    deliveryBoy.resetOtp = otp;
+    deliveryBoy.resetOtpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    deliveryBoy.resetOtpVerified = false;
+    await deliveryBoy.save({ validateBeforeSave: false });
+
+    // Send OTP via SMS
+    try {
+        const { sendSmsOtp } = await import('../../../services/sms.service.js');
+        await sendSmsOtp(normalizedPhone, otp);
+        console.log(`✅ OTP sent to ${normalizedPhone}: ${otp}`);
+    } catch (smsError) {
+        console.warn(`⚠️ SMS failed for ${normalizedPhone}:`, smsError.message);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`🔐 OTP for ${normalizedPhone}: ${otp}`);
+        }
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, { phone: normalizedPhone }, 'OTP sent successfully. Valid for 5 minutes.')
+    );
+});
+
+// POST /api/delivery/auth/verify-otp - Verify OTP and login
+export const verifyOTPAndLogin = asyncHandler(async (req, res) => {
+    const { phone, otp, fcmToken, platform = 'app' } = req.body;
+    const normalizedPhone = String(phone || '').trim().replace(/\D/g, '').slice(-10);
+
+    if (normalizedPhone.length !== 10) {
+        throw new ApiError(400, 'Invalid mobile number');
+    }
+
+    const deliveryBoy = await DeliveryBoy.findOne({ phone: normalizedPhone }).select('+resetOtp +resetOtpExpiry +refreshTokenHash +refreshTokenExpiresAt');
+    if (!deliveryBoy) throw new ApiError(404, 'Delivery partner not found.');
+    if (!deliveryBoy.resetOtp || !deliveryBoy.resetOtpExpiry) {
+        throw new ApiError(400, 'No OTP requested. Please request OTP first.');
+    }
+    if (deliveryBoy.resetOtpExpiry < new Date()) {
+        throw new ApiError(400, 'OTP has expired. Please request a new one.');
+    }
+    if (deliveryBoy.resetOtp !== String(otp)) {
+        throw new ApiError(401, 'Invalid OTP. Please try again.');
+    }
+
+    // Clear OTP after successful verification
+    deliveryBoy.resetOtp = undefined;
+    deliveryBoy.resetOtpExpiry = undefined;
+    deliveryBoy.resetOtpVerified = false;
+
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens({ id: deliveryBoy._id, role: 'delivery' });
+    await persistRefreshSession(deliveryBoy, refreshToken);
+
+    // Update FCM token if provided
+    if (fcmToken) {
+        if (!Array.isArray(deliveryBoy.fcmTokens)) {
+            deliveryBoy.fcmTokens = [];
+        }
+        const existingToken = deliveryBoy.fcmTokens.find(t => t.token === fcmToken);
+        if (existingToken) {
+            existingToken.lastUsed = new Date();
+            existingToken.platform = platform || 'app';
+        } else {
+            deliveryBoy.fcmTokens.push({ token: fcmToken, platform, lastUsed: new Date() });
+        }
+    }
+
+    await deliveryBoy.save({ validateBeforeSave: false });
+
+    const sanitized = deliveryBoy.toObject();
+    delete sanitized.password;
+    delete sanitized.refreshTokenHash;
+    delete sanitized.refreshTokenExpiresAt;
+    delete sanitized.resetOtp;
+    delete sanitized.resetOtpExpiry;
+
+    res.status(200).json(
+        new ApiResponse(200, { deliveryBoy: sanitized, accessToken, refreshToken }, 'Login successful')
+    );
+});
+
+// POST /api/delivery/auth/login - Email/Password Login (Keep for backward compatibility)
 export const login = asyncHandler(async (req, res) => {
     const { email, password, fcmToken, platform = 'app' } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();

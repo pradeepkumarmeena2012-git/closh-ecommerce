@@ -70,9 +70,7 @@ const DeliveryOrders = () => {
     loadOrders(currentPage, filter);
     const interval = filter === 'available' ? setInterval(() => loadOrders(currentPage, filter), 30000) : null;
 
-    socketService.connect();
-    socketService.joinRoom('delivery_partners');
-
+    // Socket listeners (connection managed by DeliveryLayout)
     socketService.on('order_ready_for_pickup', (data) => {
       const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
       if (currentStatus === 'available') {
@@ -161,7 +159,7 @@ const DeliveryOrders = () => {
                    : 'bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:bg-slate-800'
                  }`}
                >
-                 {tab === 'available' ? 'Live Requests' : tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
+                 {tab === 'available' ? 'Live Requests' : tab.charAt(0).toUpperCase() + String(tab || '').slice(1).replace('-', ' ')}
                </button>
              ))}
           </div>
@@ -192,7 +190,7 @@ const DeliveryOrders = () => {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
-                       <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2.5 py-1 rounded-lg uppercase tracking-wider mb-2 block w-fit">#{order.id.slice(-6)}</span>
+                       <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2.5 py-1 rounded-lg uppercase tracking-wider mb-2 block w-fit">#{String(order.id || order.orderId || '').slice(-6)}</span>
                        <h3 className="font-black text-slate-900 text-lg leading-tight mb-1">{order.customer || 'Guest User'}</h3>
                        <div className="flex gap-2 flex-wrap mt-2">
                            {order.paymentMethod === 'cod' ? (

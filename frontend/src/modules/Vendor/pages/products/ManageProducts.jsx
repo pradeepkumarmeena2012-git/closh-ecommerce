@@ -40,17 +40,8 @@ const ManageProducts = () => {
   // Real-time: listen for product approval/rejection from admin
   useEffect(() => {
     if (!vendorId) return;
-    socketService.connect();
 
-    const doJoin = () => {
-      socketService.joinRoom(`vendor_${vendorId}`);
-    };
-    if (socketService.socket?.connected) {
-      doJoin();
-    } else {
-      socketService.socket?.once('connect', doJoin);
-    }
-
+    // Socket listeners (connection managed by VendorHeader)
     const handleApproved = (data) => {
       const status = data.approvalStatus;
       const icon = status === 'approved' ? '✅' : status === 'rejected' ? '❌' : '⏳';

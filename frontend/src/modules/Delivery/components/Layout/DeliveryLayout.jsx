@@ -7,8 +7,10 @@ import { useDeliveryNotificationStore } from "../../store/deliveryNotificationSt
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import DeliveryBottomNav from "./DeliveryBottomNav";
+import { useDeliveryTracking } from "../../../../shared/hooks/useDeliveryTracking";
 import { appLogo } from "../../../../data/logos";
 import { useEffect } from "react";
+import socketService from "../../../../shared/utils/socket";
 
 const DeliveryLayout = () => {
   const navigate = useNavigate();
@@ -24,65 +26,45 @@ const DeliveryLayout = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Socket: connect + register ONLY when delivery boy is online (available/busy)
+  useEffect(() => {
+    const isOnline = deliveryBoy?.status === 'available' || deliveryBoy?.status === 'busy';
+    if (!isOnline || !deliveryBoy?.id) return;
+
+    socketService.connect();
+
+    const registerDelivery = () => {
+      socketService.socket?.emit('delivery_register', deliveryBoy.id);
+    };
+
+    if (socketService.socket?.connected) {
+      registerDelivery();
+    }
+    socketService.socket?.on('connect', registerDelivery);
+
+    socketService.on('balance_updated', (data) => {
+      useDeliveryAuthStore.getState().setBalance(data);
+      toast.success('Wallet balance updated!', { icon: '💰' });
+    });
+
+    return () => {
+      socketService.socket?.off('connect', registerDelivery);
+      socketService.off('balance_updated');
+      socketService.leaveRoom('delivery_partners');
+      if (deliveryBoy?.id) {
+        socketService.leaveRoom(`delivery_${deliveryBoy.id}`);
+      }
+    };
+  }, [deliveryBoy?.status, deliveryBoy?.id]);
+
   // Use refs to avoid re-registering the geolocation watcher on every store update
   const deliveryBoyRef = useRef(deliveryBoy);
   const updateLocationRef = useRef(updateLocation);
   deliveryBoyRef.current = deliveryBoy;
   updateLocationRef.current = updateLocation;
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const boy = deliveryBoyRef.current;
-    if (!boy || boy.status === 'offline') return;
-
-    let watchId;
-    let lastUpdateTime = 0;
-    let lastLat = null;
-    let lastLng = null;
-    const MIN_INTERVAL_MS = 30000; // send at most every 30 seconds
-    const MIN_DISTANCE_M = 20;    // only update if moved more than 20 meters
-
-    const calcDistance = (lat1, lng1, lat2, lng2) => {
-      const R = 6371000; // Earth radius in meters
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) ** 2 +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLng / 2) ** 2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    };
-
-    if ("geolocation" in navigator) {
-      watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const now = Date.now();
-          const timePassed = now - lastUpdateTime >= MIN_INTERVAL_MS;
-          const movedEnough = lastLat === null ||
-            calcDistance(lastLat, lastLng, latitude, longitude) >= MIN_DISTANCE_M;
-
-          if (timePassed && movedEnough) {
-            lastUpdateTime = now;
-            lastLat = latitude;
-            lastLng = longitude;
-            updateLocationRef.current(latitude, longitude);
-          }
-        },
-        (error) => {
-          console.error("Location tracking error:", error);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 30000,
-        }
-      );
-    }
-
-    return () => {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
-    };
-  }, [isAuthenticated]);
+  // Use global tracking hook
+  useDeliveryTracking(deliveryBoy?.id);
 
   const handleLogout = () => {
     logout();

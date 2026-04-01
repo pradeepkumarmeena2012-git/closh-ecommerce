@@ -211,6 +211,22 @@ export const useOrderStore = create(
         }
       },
 
+      resendDeliveryOtp: async (orderId) => {
+        const response = await api.post(`/user/orders/${orderId}/resend-delivery-otp`);
+        const payload = response?.data ?? response;
+        // Update order in store with new OTP debug value if returned
+        if (payload?.deliveryOtpDebug) {
+          set((state) => ({
+            orders: state.orders.map((o) =>
+              String(o.id) === String(orderId) || String(o.orderId) === String(orderId)
+                ? { ...o, deliveryOtpDebug: payload.deliveryOtpDebug }
+                : o
+            ),
+          }));
+        }
+        return payload;
+      },
+
       ensureHydrated: () => {
         const state = get();
         if (!state.hasFetched && !state.isLoading) {

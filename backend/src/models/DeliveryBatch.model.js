@@ -1,0 +1,34 @@
+import mongoose from 'mongoose';
+
+const DeliveryBatchSchema = new mongoose.Schema({
+  batchId: { type: String, unique: true, required: true },
+  deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  
+  deliveries: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Delivery' }],
+  
+  status: {
+    type: String,
+    enum: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'try_and_buy', 'payment_pending', 'delivered', 'cancelled'],
+    default: 'assigned'
+  },
+  
+  customerLocation: {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], index: '2dsphere' } // [lng, lat]
+  },
+  customerAddress: { type: Object },
+  customerPhone: { type: String },
+  customerName: { type: String },
+  
+  // Realtime Delivery Auth
+  deliveryOtp: { type: String },
+  deliveryOtpHash: { type: String },
+  deliveryOtpExpiry: { type: Date },
+  deliveryOtpSentAt: { type: Date },
+  deliveryOtpAttempts: { type: Number, default: 0 },
+  deliveryOtpDebug: { type: String }
+}, { timestamps: true });
+
+const DeliveryBatch = mongoose.model('DeliveryBatch', DeliveryBatchSchema);
+export default DeliveryBatch;

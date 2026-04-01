@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiArrowLeft, FiCheck, FiMail, FiRefreshCw, FiTruck } from 'react-icons/fi';
@@ -7,6 +7,7 @@ import PageTransition from '../../../shared/components/PageTransition';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 
 const OTP_LENGTH = 6;
+const RESEND_COOLDOWN = 60; // seconds
 
 const DeliveryForgotPassword = () => {
   const navigate = useNavigate();
@@ -15,12 +16,26 @@ const DeliveryForgotPassword = () => {
   const [step, setStep] = useState('request');
   const [codes, setCodes] = useState(Array(OTP_LENGTH).fill(''));
   const inputRefs = useRef([]);
+  const [resendTimer, setResendTimer] = useState(0);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     if (step === 'verify' && inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
   }, [step]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendTimer > 0) {
+      timerRef.current = setTimeout(() => setResendTimer((t) => t - 1), 1000);
+    }
+    return () => clearTimeout(timerRef.current);
+  }, [resendTimer]);
+
+  const startResendTimer = useCallback(() => {
+    setResendTimer(RESEND_COOLDOWN);
+  }, []);
 
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
@@ -33,6 +48,20 @@ const DeliveryForgotPassword = () => {
       await forgotPassword(email.trim().toLowerCase());
       toast.success('If the email exists, reset OTP has been sent.');
       setStep('verify');
+      startResendTimer();
+    } catch {
+      // Global API interceptor shows toast
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0 || isLoading) return;
+    try {
+      await forgotPassword(email.trim().toLowerCase());
+      toast.success('OTP resent successfully.');
+      setCodes(Array(OTP_LENGTH).fill(''));
+      startResendTimer();
+      if (inputRefs.current[0]) inputRefs.current[0].focus();
     } catch {
       // Global API interceptor shows toast
     }
@@ -145,12 +174,12 @@ const DeliveryForgotPassword = () => {
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={handleRequestOtp}
-                    disabled={isLoading}
+                    onClick={handleResendOtp}
+                    disabled={isLoading || resendTimer > 0}
                     className="text-sm text-primary-600 hover:text-primary-700 font-medium disabled:text-gray-400 inline-flex items-center gap-2"
                   >
-                    <FiRefreshCw />
-                    Resend OTP
+                    <FiRefreshCw className={resendTimer > 0 ? '' : 'animate-none'} />
+                    {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
                   </button>
                   <button
                     type="button"

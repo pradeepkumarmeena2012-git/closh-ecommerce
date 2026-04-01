@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import socketService from '../utils/socket';
 import { useDeliveryAuthStore } from '../../modules/Delivery/store/deliveryStore';
+import { useDeliveryEngineStore } from '../../modules/Delivery/store/deliveryEngineStore';
 
 const UPDATE_INTERVAL = 10000; // 10 seconds (Throttling)
 const MIN_DISTANCE_METERS = 20; // Ignore small movements
-const MAX_ACCURACY_METERS = 50; // Ignore low accuracy updates
+const IDEAL_ACCURACY_METERS = 50; // Preferred accuracy
+const MAX_ACCURACY_METERS = 200; // Absolute max — accept anything under this after retries
 
 // Helper to calculate distance between two coordinates in meters
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -27,6 +29,7 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
     const lastSentLocation = useRef(null);
     const lastSentTime = useRef(0);
     const watchId = useRef(null);
+    const rejectionCount = useRef(0);
 
     // Track which orders we are currently sharing location for
     const trackingOrders = activeOrders.filter(o => 
@@ -55,11 +58,20 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
             // 1. Throttling Check
             if (now - lastSentTime.current < UPDATE_INTERVAL) return;
 
-            // 2. Accuracy Check
-            if (accuracy > MAX_ACCURACY_METERS) {
-                console.warn(`[Tracking] Ignoring low accuracy update: ${accuracy}m`);
+            // 2. Accuracy Check — progressive: relax threshold after repeated rejections
+            const effectiveThreshold = rejectionCount.current >= 5
+                ? MAX_ACCURACY_METERS   // After 5 rejections, accept up to 200m
+                : rejectionCount.current >= 2
+                    ? 150               // After 2 rejections, accept up to 150m
+                    : IDEAL_ACCURACY_METERS; // Initially prefer <50m
+
+            if (accuracy > effectiveThreshold) {
+                rejectionCount.current++;
+                console.warn(`[Tracking] Ignoring low accuracy: ${Math.round(accuracy)}m (threshold: ${effectiveThreshold}m, rejections: ${rejectionCount.current})`);
                 return;
             }
+            // Good fix — reset rejection count
+            rejectionCount.current = 0;
 
             // 3. Movement Check
             if (lastSentLocation.current) {
@@ -83,16 +95,24 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
             }
 
             // 5. Send Real-time Update via Sockets (for active tracking on customer maps)
-            if (trackingOrders.length > 0 && socketService.socket?.connected) {
-                trackingOrders.forEach(order => {
-                    const orderId = order.orderId || order.id || order._id;
-                    socketService.socket.emit('update_location', {
-                        lat,
-                        lng,
-                        deliveryBoyId,
-                        orderId
+            const socket = socketService.socket;
+            if (socket?.connected) {
+                if (trackingOrders.length > 0) {
+                    trackingOrders.forEach(order => {
+                        const orderId = order.orderId || order.id || order._id;
+                        socket.emit('update_location', {
+                            lat, lng, deliveryBoyId, orderId
+                        });
                     });
-                });
+                }
+                
+                // If we have an active batch ID from the engine store
+                const batchState = useDeliveryEngineStore?.getState?.();
+                if (batchState?.activeBatch?.status === 'out_for_delivery') {
+                    socket.emit('update_location', {
+                        lat, lng, deliveryBoyId, batchId: batchState.activeBatch.batchId
+                    });
+                }
             }
 
             lastSentLocation.current = { lat, lng };
@@ -106,23 +126,40 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
             handleSubmits(lat, lng, accuracy);
         };
 
+        let highAccuracyFailed = false;
+
         const handleError = (error) => {
-            console.error('[Tracking] Geolocation error:', error.code, error.message);
+            console.warn('[Tracking] Geolocation error:', error.code, error.message);
+            // Code 3 = Timeout — fall back to low-accuracy (network/WiFi) position
+            if (error.code === 3 && !highAccuracyFailed) {
+                highAccuracyFailed = true;
+                console.log('[Tracking] Falling back to low-accuracy mode');
+                if (watchId.current) {
+                    navigator.geolocation.clearWatch(watchId.current);
+                }
+                watchId.current = navigator.geolocation.watchPosition(handleSuccess, (e) => {
+                    console.warn('[Tracking] Low-accuracy also failed:', e.code, e.message);
+                }, {
+                    enableHighAccuracy: false,
+                    maximumAge: 30000,
+                    timeout: 30000
+                });
+            }
         };
 
-        // Start watching
+        // Start watching with high accuracy first
         watchId.current = navigator.geolocation.watchPosition(handleSuccess, handleError, {
             enableHighAccuracy: true,
-            maximumAge: 5000,
-            timeout: 15000
+            maximumAge: 10000,
+            timeout: 20000
         });
 
-        // Background / Fallback interval (Optional, for browsers that stop watchPosition)
+        // Background / Fallback interval
         const fallbackInterval = setInterval(() => {
             navigator.geolocation.getCurrentPosition(
                 (pos) => handleSubmits(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
-                (err) => {}, // ignore errors in interval
-                { enableHighAccuracy: true, maximumAge: 10000 }
+                () => {},
+                { enableHighAccuracy: !highAccuracyFailed, maximumAge: 15000, timeout: 10000 }
             );
         }, UPDATE_INTERVAL * 2);
 

@@ -7,6 +7,8 @@ const deliveryBoySchema = new mongoose.Schema(
         email: { type: String, required: true, unique: true, lowercase: true },
         password: { type: String, required: true, select: false },
         phone: { type: String, required: true },
+        emergencyContact: { type: String, trim: true },
+        aadharNumber: { type: String, trim: true },
         address: { type: String, trim: true },
         vehicleType: { type: String, trim: true },
         vehicleNumber: { type: String, trim: true },

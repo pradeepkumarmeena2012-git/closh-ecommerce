@@ -33,6 +33,57 @@ const vendorItemGroupSchema = new mongoose.Schema({
     },
 });
 
+// ──────────── Delivery Flow (Antigravity Engine) ────────────
+const deliveryFlowItemSchema = new mongoose.Schema({
+    productId: { type: mongoose.Schema.Types.ObjectId },
+    name: String,
+    image: String,
+    price: Number,
+    quantity: Number,
+    variant: mongoose.Schema.Types.Mixed,
+    decision: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+}, { _id: false });
+
+const deliveryFlowSchema = new mongoose.Schema({
+    phase: {
+        type: String,
+        enum: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'try_and_buy', 'payment_pending', 'delivered'],
+        default: 'assigned',
+    },
+    // Pickup
+    pickupPhoto: String,
+    pickupCompletedAt: Date,
+    // Start / En-route
+    startedAt: Date,
+    // Arrived
+    arrivedAt: Date,
+    // Try & Buy
+    tryAndBuyItems: [deliveryFlowItemSchema],
+    tryAndBuyCompletedAt: Date,
+    // Payment
+    paymentMethod: { type: String, enum: ['cash', 'qr', 'online'] },
+    paymentCollected: { type: Boolean, default: false },
+    originalAmount: Number,
+    finalAmount: Number,
+    paymentCollectedAt: Date,
+    // Proofs
+    openBoxPhoto: String,
+    deliveryProofPhoto: String,
+    // OTP (managed inside flow)
+    otpHash: String,
+    otpDebug: String,
+    otpExpiry: Date,
+    otpSentAt: Date,
+    otpAttempts: { type: Number, default: 0 },
+    otpVerified: { type: Boolean, default: false },
+    otpVerifiedAt: Date,
+    // Live location snapshot
+    lastLocation: {
+        type: { type: String, enum: ['Point'] },
+        coordinates: [Number],
+    },
+}, { _id: false });
+
 const orderSchema = new mongoose.Schema(
     {
         orderId: { type: String, required: true, unique: true, index: true },
@@ -111,6 +162,17 @@ const orderSchema = new mongoose.Schema(
         razorpayPaymentId: { type: String, sparse: true },
         razorpaySignature: { type: String, sparse: true, select: false },
         deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBoy', index: true },
+        deliveryEarnings: { type: Number, default: 0 },
+        deliveryDistance: { type: Number, default: 0 },
+        deliveryTracking: {
+            startLocation: {
+                type: { type: String, enum: ['Point'], default: 'Point' },
+                coordinates: { type: [Number], default: [0, 0] }
+            },
+            path: [[Number]], // Array of [lng, lat] coordinates
+            totalDistance: { type: Number, default: 0 }, // in kilometers
+            lastUpdate: Date
+        },
         deliveryOtpHash: { type: String, select: false },
         deliveryOtpExpiry: { type: Date, select: false },
         deliveryOtpSentAt: { type: Date, select: false },
@@ -132,6 +194,9 @@ const orderSchema = new mongoose.Schema(
         deletedAt: Date,
         deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
         deviceToken: { type: String }, // Store guest/user device token for status updates if not logged in
+        codCollectionMethod: { type: String, enum: ['cash', 'qr'] },
+        codCollectedAt: Date,
+        deliveryFlow: deliveryFlowSchema,
     },
     { timestamps: true }
 );

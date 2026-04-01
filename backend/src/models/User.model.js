@@ -35,6 +35,17 @@ const userSchema = new mongoose.Schema(
                 lastUsed: { type: Date, default: Date.now },
             },
         ],
+        // Service area preference
+        preferredLocation: {
+            serviceAreaId: { type: mongoose.Schema.Types.ObjectId, ref: 'ServiceArea' },
+            pincode: String,
+            city: String,
+            coordinates: {
+                type: [Number], // [longitude, latitude]
+                default: null
+            },
+            lastUpdated: { type: Date, default: Date.now }
+        },
     },
     { timestamps: true }
 );

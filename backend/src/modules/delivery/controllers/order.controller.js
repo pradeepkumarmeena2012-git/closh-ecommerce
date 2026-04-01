@@ -2,6 +2,8 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import Order from '../../../models/Order.model.js';
+import Delivery from '../../../models/Delivery.model.js';
+import DeliveryBatch from '../../../models/DeliveryBatch.model.js';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { sendEmail } from '../../../services/email.service.js';
@@ -10,6 +12,7 @@ import { emitEvent } from '../../../services/socket.service.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import { OrderWorkflowService } from '../../../services/orderWorkflow.service.js';
+import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 
 const DELIVERY_OTP_TTL_MS = 10 * 60 * 1000;
 const DELIVERY_OTP_MAX_ATTEMPTS = 5;
@@ -179,7 +182,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             {
                 $group: {
                     _id: null,
-                    totalDeliveryFees: { $sum: { $ifNull: ['$shipping', 0] } },
+                    totalDeliveryFees: { $sum: { $ifNull: ['$deliveryEarnings', { $ifNull: ['$shipping', 0] }] } },
                 },
             },
         ]),
@@ -195,6 +198,19 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         return acc;
     }, {});
 
+    // Augment recentOrders with batchId from Delivery model
+    const orderIds = recentOrders.map(o => o._id);
+    const deliveries = await Delivery.find({ orderId: { $in: orderIds }, status: { $ne: 'delivered' } }).populate('batchId');
+    
+    const augmentedOrders = recentOrders.map(order => {
+        const d = deliveries.find(del => String(del.orderId) === String(order._id));
+        const orderObj = order.toObject();
+        if (d && d.batchId) {
+            orderObj.batchId = d.batchId.batchId; // The BATCH-xxx string
+        }
+        return orderObj;
+    });
+
     const summary = {
         totalOrders: statusStats.reduce((sum, row) => sum + Number(row?.count || 0), 0),
         completedToday: Number(completedTodayCount || 0),
@@ -203,7 +219,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             Number(countByStatus.picked_up || 0) +
             Number(countByStatus.out_for_delivery || 0),
         earnings: Number(earningsStats?.[0]?.totalDeliveryFees || 0),
-        recentOrders,
+        recentOrders: augmentedOrders,
     };
 
     return res.status(200).json(new ApiResponse(200, summary, 'Dashboard summary fetched.'));
@@ -289,7 +305,15 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
         .populate('deliveryBoyId', 'name phone currentLocation')
         .select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug');
     if (!order) throw new ApiError(404, 'Order not found.');
-    res.status(200).json(new ApiResponse(200, order, 'Order detail fetched.'));
+
+    // Attach batch context if exists
+    const delivery = await Delivery.findOne({ orderId: order._id, status: { $ne: 'delivered' } }).populate('batchId');
+    const responseData = order.toObject();
+    if (delivery && delivery.batchId) {
+        responseData.batchId = delivery.batchId.batchId; // The string ID BATCH-xxx
+    }
+
+    res.status(200).json(new ApiResponse(200, responseData, 'Order detail fetched.'));
 });
 
 // PATCH /api/delivery/orders/:id/status
@@ -330,28 +354,8 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         }
         order.pickupPhoto = pickupPhoto;
 
-        // Generate and Send Delivery OTP at Pickup
-        const generatedOtp = generateDeliveryOtp();
-        order.deliveryOtpHash = hashDeliveryOtp(generatedOtp);
-        order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
-        order.deliveryOtpSentAt = new Date();
-        order.deliveryOtpAttempts = 0;
-        order.deliveryOtpVerifiedAt = undefined;
-        if (!IS_PRODUCTION) {
-            order.deliveryOtpDebug = generatedOtp;
-        }
-
-        try {
-            const sent = await sendDeliveryOtpEmail(order, generatedOtp);
-            if (!sent) {
-                console.warn(`[Delivery OTP] Missing customer email for order ${order.orderId || order._id}`);
-            }
-        } catch (err) {
-            console.warn(`[Delivery OTP] Failed to send OTP email for order ${order.orderId || order._id}: ${err.message}`);
-        }
-
         // Emit events
-        emitEvent(`user_${order.userId}`, 'order_picked_up', { orderId: order.orderId, otp: generatedOtp });
+        emitEvent(`user_${order.userId}`, 'order_picked_up', { orderId: order.orderId });
         order.vendorItems.forEach(vi => emitEvent(`vendor_${vi.vendorId}`, 'order_picked_up', { orderId: order.orderId }));
     }
 
@@ -374,15 +378,18 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             throw new ApiError(400, 'Delivery OTP has expired. Please resend OTP.');
         }
 
-        if (!deliveryPhoto) {
-            throw new ApiError(400, 'Final delivery photo (package) is required.');
-        }
-        if (!req.body.openBoxPhoto) {
-            throw new ApiError(400, 'Open box photo (item verification) is required.');
+        if (deliveryPhoto) {
+            order.deliveryPhoto = deliveryPhoto;
         }
 
-        order.deliveryPhoto = deliveryPhoto;
-        order.openBoxPhoto = req.body.openBoxPhoto;
+        // Open box photo only required for COD orders
+        const isCodOrder = order.paymentMethod === 'cod' || order.paymentMethod === 'cash';
+        if (isCodOrder && !req.body.openBoxPhoto) {
+            throw new ApiError(400, 'Open box photo (item verification) is required for COD orders.');
+        }
+        if (req.body.openBoxPhoto) {
+            order.openBoxPhoto = req.body.openBoxPhoto;
+        }
 
         const isMatch = order.deliveryOtpHash === hashDeliveryOtp(normalizedOtp);
         if (!isMatch) {
@@ -404,8 +411,17 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             order.isCashSettled = false;
         }
 
-        // Increment delivery boy's total deliveries count and earnings
-        const riderEarnings = Number(order.shipping || 0);
+        // Calculate delivery earnings based on distance between vendor and customer
+        const { calculateDistance, getDeliveryEarning } = await import('../../../utils/geo.js');
+        const pickup = order.pickupLocation?.coordinates || [0, 0];
+        const dropoff = order.dropoffLocation?.coordinates || [0, 0];
+        const distanceKm = calculateDistance(pickup, dropoff);
+        const riderEarnings = getDeliveryEarning(distanceKm);
+
+        // Persist earnings and distance on the order
+        order.deliveryEarnings = riderEarnings;
+        order.deliveryDistance = distanceKm;
+
         const updatedRider = await DeliveryBoy.findByIdAndUpdate(
             order.deliveryBoyId,
             {
@@ -432,81 +448,29 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             await Promise.all(vendorUpdates);
         }
 
-        // Emit events
-        const trackingRoom = `order_${order.orderId}`;
-        const deliveryRoom = `delivery_${order.deliveryBoyId}`;
-
-        emitEvent(`user_${order.userId}`, 'order_delivered', { orderId: order.orderId });
-        emitEvent(trackingRoom, 'order_delivered', { orderId: order.orderId });
-        emitEvent(deliveryRoom, 'balance_updated', {
-            availableBalance: updatedRider.availableBalance,
-            totalEarnings: updatedRider.totalEarnings,
-        });
-
-        order.vendorItems.forEach((vi) =>
-            emitEvent(`vendor_${vi.vendorId}`, 'order_delivered', { orderId: order.orderId })
-        );
-
-        // Generic status update broadcast to tracking room
-        let eventName = 'order_status_updated';
-        if (status === 'picked_up') eventName = 'order_picked_up';
-        if (status === 'out_for_delivery') eventName = 'order_out_for_delivery';
-
-        emitEvent(trackingRoom, eventName, { orderId: order.orderId, status });
-
-        order.status = status;
-        // Align vendor sub-order statuses
-        order.vendorItems = (order.vendorItems || []).map((vi) => ({ ...vi.toObject(), status }));
-
+        // Unified Notification to all parties
+        // ── CRITICAL: Set status and save BEFORE returning ──
+        order.status = 'delivered';
+        if (order.deliveryFlow) {
+            order.deliveryFlow.phase = 'delivered';
+        }
         await order.save();
 
-        const statusNotificationTasks = [];
-        if (order.userId || order.deviceToken) {
-            statusNotificationTasks.push(
-                createNotification({
-                    recipientId: order.userId,
-                    recipientType: 'user',
-                    title: status === 'delivered' ? 'Order delivered' : 'Order shipped',
-                    message:
-                        status === 'delivered'
-                            ? `Your order ${order.orderId} has been delivered.`
-                            : `Your order ${order.orderId} is out for delivery.`,
-                    type: 'order',
-                    token: order.deviceToken,
-                    data: {
-                        orderId: String(order.orderId || order._id),
-                        status: String(status),
-                    },
-                })
-            );
-        }
-
-        const vendorIds = [
-            ...new Set(
-                (order.vendorItems || [])
-                    .map((item) => String(item?.vendorId || '').trim())
-                    .filter(Boolean)
-            ),
-        ];
-        vendorIds.forEach((vendorId) => {
-            statusNotificationTasks.push(
-                createNotification({
-                    recipientId: vendorId,
-                    recipientType: 'vendor',
-                    title: 'Delivery status update',
-                    message: `Order ${order.orderId} moved to ${status}.`,
-                    type: 'order',
-                    data: {
-                        orderId: String(order.orderId || order._id),
-                        status: String(status),
-                    },
-                })
-            );
+        // Emit socket event for real-time tracking updates
+        emitEvent(`order_${order.orderId}`, 'order_status_updated', {
+            orderId: order.orderId,
+            status: 'delivered',
+        });
+        emitEvent(`user_${order.userId}`, 'order_delivered', {
+            orderId: order.orderId,
+            status: 'delivered',
         });
 
-        if (statusNotificationTasks.length > 0) {
-            await Promise.allSettled(statusNotificationTasks);
-        }
+        await OrderNotificationService.notifyOrderUpdate(order._id, status, {
+            excludeRecipientId: req.user.id,
+            title: `Order #${order.orderId} Delivered`,
+            message: `Order ${order.orderId} has been successfully delivered by ${updatedRider.name}.`
+        });
 
         return res.status(200).json(
             new ApiResponse(
@@ -524,67 +488,22 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         );
     }
 
-    // Handle non-delivered status updates
-    let eventName = 'order_status_updated';
-    if (status === 'picked_up') eventName = 'order_picked_up';
-    if (status === 'out_for_delivery') eventName = 'order_out_for_delivery';
-
-    const trackingRoom = `order_${order.orderId}`;
-    emitEvent(trackingRoom, eventName, { orderId: order.orderId, status });
-
+    // ── CRITICAL: Actually persist the status change ──
     order.status = status;
-    // Align vendor sub-order statuses
-    order.vendorItems = (order.vendorItems || []).map((vi) => ({ ...vi.toObject(), status }));
-
+    if (status === 'picked_up') order.pickedUpAt = new Date();
+    // Sync deliveryFlow if it exists
+    if (order.deliveryFlow) {
+        const phaseMap = { picked_up: 'picked_up', out_for_delivery: 'out_for_delivery' };
+        if (phaseMap[status]) order.deliveryFlow.phase = phaseMap[status];
+    }
     await order.save();
 
-    const statusNotificationTasks = [];
-    if (order.userId || order.deviceToken) {
-        statusNotificationTasks.push(
-            createNotification({
-                recipientId: order.userId,
-                recipientType: 'user',
-                title: status === 'delivered' ? 'Order delivered' : 'Order shipped',
-                message:
-                    status === 'delivered'
-                        ? `Your order ${order.orderId} has been delivered.`
-                        : `Your order ${order.orderId} is out for delivery.`,
-                type: 'order',
-                token: order.deviceToken,
-                data: {
-                    orderId: String(order.orderId || order._id),
-                    status: String(status),
-                },
-            })
-        );
-    }
-
-    const vendorIds = [
-        ...new Set(
-            (order.vendorItems || [])
-                .map((item) => String(item?.vendorId || '').trim())
-                .filter(Boolean)
-        ),
-    ];
-    vendorIds.forEach((vendorId) => {
-        statusNotificationTasks.push(
-            createNotification({
-                recipientId: vendorId,
-                recipientType: 'vendor',
-                title: 'Delivery status update',
-                message: `Order ${order.orderId} moved to ${status}.`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId || order._id),
-                    status: String(status),
-                },
-            })
-        );
+    // Unified Notification to all parties
+    await OrderNotificationService.notifyOrderUpdate(order._id, status, {
+        excludeRecipientId: req.user.id, // Rider knows it changed
+        title: `Order #${order.orderId} ${status.replace(/_/g, ' ')}`,
+        message: `Order ${order.orderId} is now ${status.replace(/_/g, ' ')}.`
     });
-
-    if (statusNotificationTasks.length > 0) {
-        await Promise.allSettled(statusNotificationTasks);
-    }
 
     res.status(200).json(new ApiResponse(200, order, 'Delivery status updated.'));
 });
@@ -645,8 +564,66 @@ export const markArrived = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const riderId = req.user.id;
 
-    const order = await OrderWorkflowService.markArrived(id, riderId);
-    
+    const query = {
+        deliveryBoyId: riderId,
+        isDeleted: { $ne: true },
+        $or: [{ orderId: id }],
+    };
+    if (mongoose.isValidObjectId(id)) {
+        query.$or.push({ _id: id });
+    }
+
+    const order = await Order.findOne(query).select('+deliveryOtpDebug');
+    if (!order) throw new ApiError(404, 'Order not found.');
+
+    if (order.status === 'picked_up') {
+        order.status = 'out_for_delivery';
+    }
+
+    // Generate Delivery OTP at Arrival
+    const generatedOtp = generateDeliveryOtp();
+    order.deliveryOtpHash = hashDeliveryOtp(generatedOtp);
+    order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
+    order.deliveryOtpSentAt = new Date();
+    order.deliveryOtpAttempts = 0;
+    if (!IS_PRODUCTION) {
+        order.deliveryOtpDebug = generatedOtp;
+    }
+
+    await order.save();
+
+    try {
+        const sent = await sendDeliveryOtpEmail(order, generatedOtp);
+        if (!sent) {
+            console.warn(`[Delivery OTP] Missing customer email for order ${order.orderId || order._id}`);
+        }
+    } catch (err) {
+        console.warn(`[Delivery OTP] Failed to send OTP email: ${err.message}`);
+    }
+
+    // Notify Customer with OTP
+    emitEvent(`user_${order.userId}`, 'rider_arrived', {
+        orderId: order.orderId,
+        otp: generatedOtp
+    });
+
+    // Push Notification
+    createNotification({
+        recipientId: order.userId,
+        recipientType: 'user',
+        title: 'Rider Arrived!',
+        message: `Your rider has reached your location. Share OTP ${generatedOtp} to receive your order.`,
+        type: 'order',
+        data: { orderId: order.orderId, status: 'arrived' }
+    }).catch(err => console.error('Push Error:', err));
+
+    // Notify Track Room
+    OrderNotificationService.notifyOrderUpdate(order._id, 'arrived', {
+        excludeRecipientId: riderId,
+        title: `Rider Arrived`,
+        message: `Rider has arrived at the delivery location.`
+    }).catch(err => console.error('Notification Error:', err));
+
     return res.status(200).json(new ApiResponse(200, order, 'Rider marked as arrived.'));
 });
 
@@ -682,6 +659,450 @@ export const getDeliveryOtpForDebug = asyncHandler(async (req, res) => {
         expiresAt: order.deliveryOtpExpiry,
     }, 'Debug OTP fetched.'));
 });
+
+// GET /api/delivery/orders/:id/company-qr
+export const getCompanyQR = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const query = {
+        deliveryBoyId: req.user.id,
+        isDeleted: { $ne: true },
+        $or: [{ orderId: id }],
+    };
+    if (mongoose.isValidObjectId(id)) {
+        query.$or.push({ _id: id });
+    }
+
+    const order = await Order.findOne(query);
+    if (!order) throw new ApiError(404, 'Order not found.');
+
+    const total = order.total || 0;
+    // Simulated UPI intent via QR serving API
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=company@upi%26pn=CLOSH%20Platform%26am=${total}%26cu=INR%26tn=Order_${order.orderId}`;
+
+    return res.status(200).json(new ApiResponse(200, { qrUrl }, 'Company QR code generated.'));
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+//  ANTIGRAVITY ENGINE — State-Machine Delivery Flow Handlers
+// ═══════════════════════════════════════════════════════════════
+
+/** Helper: find an order assigned to the current rider */
+const findOrderForRider = async (id, riderId, selectOtp = false) => {
+    const query = {
+        deliveryBoyId: riderId,
+        isDeleted: { $ne: true },
+        $or: [{ orderId: id }],
+    };
+    if (mongoose.isValidObjectId(id)) query.$or.push({ _id: id });
+
+    let q = Order.findOne(query).populate('vendorItems.vendorId');
+    if (selectOtp) q = q.select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpDebug');
+    const order = await q;
+    if (!order) throw new ApiError(404, 'Order not found or not assigned to you.');
+    return order;
+};
+
+/** Map a top-level order.status to a deliveryFlow phase (for backward compat) */
+const statusToPhase = (status) => {
+    const map = {
+        assigned: 'assigned', ready_for_pickup: 'assigned',
+        picked_up: 'picked_up', out_for_delivery: 'out_for_delivery',
+        delivered: 'delivered',
+    };
+    return map[status] || 'assigned';
+};
+
+/** Ensure the order has a deliveryFlow sub-doc, bootstrap if missing */
+const ensureDeliveryFlow = (order) => {
+    if (!order.deliveryFlow) {
+        order.deliveryFlow = { phase: statusToPhase(order.status) };
+    }
+    return order.deliveryFlow;
+};
+
+// GET /api/delivery/orders/:id/flow
+export const getDeliveryFlow = asyncHandler(async (req, res) => {
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = order.deliveryFlow || { phase: statusToPhase(order.status) };
+    res.status(200).json(new ApiResponse(200, {
+        orderId: order.orderId,
+        orderType: order.orderType,
+        status: order.status,
+        deliveryFlow: flow,
+    }, 'Delivery flow fetched.'));
+});
+
+// PATCH /api/delivery/orders/:id/pickup
+export const handlePickup = asyncHandler(async (req, res) => {
+    const { pickupPhoto } = req.body;
+    if (!pickupPhoto) throw new ApiError(400, 'Pickup photo is required.');
+
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = ensureDeliveryFlow(order);
+
+    if (flow.phase !== 'assigned') {
+        throw new ApiError(409, `Cannot pickup from phase "${flow.phase}". Expected: assigned.`);
+    }
+
+    flow.phase = 'picked_up';
+    flow.pickupPhoto = pickupPhoto;
+    flow.pickupCompletedAt = new Date();
+    order.status = 'picked_up';
+    order.pickedUpAt = new Date();
+    order.pickupPhoto = pickupPhoto;
+    await order.save();
+
+    emitEvent(`user_${order.userId}`, 'order_picked_up', { orderId: order.orderId });
+    (order.vendorItems || []).forEach(vi =>
+        emitEvent(`vendor_${vi.vendorId}`, 'order_picked_up', { orderId: order.orderId })
+    );
+    OrderNotificationService.notifyOrderUpdate(order._id, 'picked_up', {
+        excludeRecipientId: req.user.id,
+        title: `Order #${order.orderId} Picked Up`,
+        message: `Delivery partner has picked up your order.`,
+    }).catch(() => {});
+
+    res.status(200).json(new ApiResponse(200, order, 'Pickup confirmed.'));
+});
+
+// PATCH /api/delivery/orders/:id/start
+export const handleStartDelivery = asyncHandler(async (req, res) => {
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = ensureDeliveryFlow(order);
+
+    if (flow.phase !== 'picked_up') {
+        throw new ApiError(409, `Cannot start delivery from phase "${flow.phase}". Expected: picked_up.`);
+    }
+
+    flow.phase = 'out_for_delivery';
+    flow.startedAt = new Date();
+    order.status = 'out_for_delivery';
+    await order.save();
+
+    emitEvent(`user_${order.userId}`, 'order_out_for_delivery', { orderId: order.orderId });
+    OrderNotificationService.notifyOrderUpdate(order._id, 'out_for_delivery', {
+        excludeRecipientId: req.user.id,
+        title: `Order #${order.orderId} On The Way`,
+        message: `Your order is out for delivery.`,
+    }).catch(() => {});
+
+    res.status(200).json(new ApiResponse(200, order, 'Delivery started. Tracking active.'));
+});
+
+// PATCH /api/delivery/orders/:id/location
+export const handleLocationUpdate = asyncHandler(async (req, res) => {
+    const { latitude, longitude } = req.body;
+    if (!latitude || !longitude) throw new ApiError(400, 'Coordinates required.');
+
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = ensureDeliveryFlow(order);
+
+    flow.lastLocation = { type: 'Point', coordinates: [longitude, latitude] };
+    await order.save();
+
+    emitEvent(`order_${order.orderId}`, 'location_updated', { latitude, longitude });
+    res.status(200).json(new ApiResponse(200, null, 'Location updated.'));
+});
+
+// PATCH /api/delivery/orders/:id/arrived
+export const handleArrivedAtCustomer = asyncHandler(async (req, res) => {
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = ensureDeliveryFlow(order);
+
+    if (!['out_for_delivery', 'picked_up'].includes(flow.phase)) {
+        throw new ApiError(409, `Cannot mark arrived from phase "${flow.phase}".`);
+    }
+
+    // Auto-advance status
+    if (order.status === 'picked_up') order.status = 'out_for_delivery';
+
+    flow.phase = 'arrived';
+    flow.arrivedAt = new Date();
+
+    // Generate OTP
+    const generatedOtp = generateDeliveryOtp();
+    flow.otpHash = hashDeliveryOtp(generatedOtp);
+    flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
+    flow.otpSentAt = new Date();
+    flow.otpAttempts = 0;
+    if (!IS_PRODUCTION) flow.otpDebug = generatedOtp;
+
+    // Keep legacy OTP fields in sync
+    order.deliveryOtpHash = hashDeliveryOtp(generatedOtp);
+    order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
+    order.deliveryOtpSentAt = new Date();
+    order.deliveryOtpAttempts = 0;
+    if (!IS_PRODUCTION) order.deliveryOtpDebug = generatedOtp;
+
+    // For try_and_buy orders, populate checklist from order items
+    if (order.orderType === 'try_and_buy' && (!flow.tryAndBuyItems || flow.tryAndBuyItems.length === 0)) {
+        flow.tryAndBuyItems = (order.items || []).map(item => ({
+            productId: item.productId,
+            name: item.name,
+            image: item.image,
+            price: item.price,
+            quantity: item.quantity,
+            variant: item.variant,
+            decision: 'pending',
+        }));
+    }
+
+    flow.originalAmount = order.total;
+    flow.finalAmount = order.total;
+    await order.save();
+
+    try { await sendDeliveryOtpEmail(order, generatedOtp); } catch (e) {}
+
+    emitEvent(`user_${order.userId}`, 'rider_arrived', {
+        orderId: order.orderId, otp: generatedOtp,
+    });
+    createNotification({
+        recipientId: order.userId, recipientType: 'user',
+        title: 'Rider Arrived!',
+        message: `Your rider has reached your location. Share OTP ${generatedOtp} to receive your order.`,
+        type: 'order', data: { orderId: order.orderId, status: 'arrived' },
+    }).catch(() => {});
+
+    OrderNotificationService.notifyOrderUpdate(order._id, 'arrived', {
+        excludeRecipientId: req.user.id,
+        title: `Rider Arrived`, message: `Rider has arrived at the delivery location.`,
+    }).catch(() => {});
+
+    res.status(200).json(new ApiResponse(200, order, 'Rider arrived. OTP sent to customer.'));
+});
+
+// PATCH /api/delivery/orders/:id/try-buy
+export const handleTryAndBuy = asyncHandler(async (req, res) => {
+    const { items } = req.body; // [{ productId, decision: 'accepted'|'rejected' }]
+    if (!Array.isArray(items) || items.length === 0) {
+        throw new ApiError(400, 'Items with accept/reject decisions are required.');
+    }
+
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    if (order.orderType !== 'try_and_buy') {
+        throw new ApiError(400, 'This order is not a Try & Buy order.');
+    }
+    const flow = ensureDeliveryFlow(order);
+    if (flow.phase !== 'arrived') {
+        throw new ApiError(409, `Try & Buy requires phase "arrived", current: "${flow.phase}".`);
+    }
+
+    const tryItems = flow.tryAndBuyItems || [];
+    items.forEach(({ productId, decision }) => {
+        const matched = tryItems.find(i => String(i.productId) === String(productId));
+        if (matched && ['accepted', 'rejected'].includes(decision)) {
+            matched.decision = decision;
+        }
+    });
+
+    flow.tryAndBuyItems = tryItems;
+    flow.tryAndBuyCompletedAt = new Date();
+    flow.phase = 'try_and_buy';
+
+    // Recalculate final amount from accepted items only
+    const acceptedItems = tryItems.filter(i => i.decision === 'accepted');
+    if (acceptedItems.length === 0) {
+        throw new ApiError(400, 'At least one item must be accepted.');
+    }
+    flow.finalAmount = acceptedItems.reduce((sum, i) => sum + ((i.price || 0) * (i.quantity || 1)), 0);
+
+    await order.save();
+    res.status(200).json(new ApiResponse(200, order, 'Try & Buy decisions recorded. Proceed to payment.'));
+});
+
+// PATCH /api/delivery/orders/:id/payment
+export const handlePayment = asyncHandler(async (req, res) => {
+    const { method } = req.body; // 'cash' | 'qr'
+    if (!['cash', 'qr'].includes(method)) {
+        throw new ApiError(400, 'Payment method must be "cash" or "qr".');
+    }
+
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = ensureDeliveryFlow(order);
+
+    const validFrom = order.orderType === 'try_and_buy'
+        ? ['try_and_buy']
+        : ['arrived'];
+    if (!validFrom.includes(flow.phase)) {
+        throw new ApiError(409, `Cannot set payment from phase "${flow.phase}".`);
+    }
+
+    flow.paymentMethod = method;
+    flow.phase = 'payment_pending';
+
+    // For online-prepaid orders, auto-mark payment collected
+    if (order.paymentMethod !== 'cod' && order.paymentMethod !== 'cash') {
+        flow.paymentCollected = true;
+        flow.paymentCollectedAt = new Date();
+    }
+
+    await order.save();
+
+    const responseData = { order };
+    if (method === 'qr') {
+        const amt = flow.finalAmount || order.total || 0;
+        responseData.qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=company@upi%26pn=CLOSH%20Platform%26am=${amt}%26cu=INR%26tn=Order_${order.orderId}`;
+    }
+
+    res.status(200).json(new ApiResponse(200, responseData, 'Payment method set. Complete delivery with OTP.'));
+});
+
+// PATCH /api/delivery/orders/:id/complete
+export const handleCompleteDelivery = asyncHandler(async (req, res) => {
+    const { otp, openBoxPhoto, deliveryProofPhoto } = req.body;
+
+    if (!/^\d{6}$/.test(String(otp || '').trim())) {
+        throw new ApiError(400, 'Valid 6-digit OTP is required.');
+    }
+    if (!deliveryProofPhoto) throw new ApiError(400, 'Delivery proof photo is required.');
+    if (!openBoxPhoto) throw new ApiError(400, 'Open box photo is required.');
+
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = ensureDeliveryFlow(order);
+    if (flow.phase !== 'payment_pending') {
+        throw new ApiError(409, `Cannot complete from phase "${flow.phase}". Expected: payment_pending.`);
+    }
+
+    // Verify OTP
+    const normalizedOtp = String(otp).trim();
+    if (!flow.otpHash || !flow.otpExpiry) throw new ApiError(400, 'OTP was not generated.');
+    if (flow.otpExpiry < new Date()) throw new ApiError(400, 'OTP has expired. Please resend.');
+
+    const isMatch = flow.otpHash === hashDeliveryOtp(normalizedOtp);
+    const isDebugMatch = !IS_PRODUCTION && flow.otpDebug === normalizedOtp;
+    if (!isMatch && !isDebugMatch) {
+        flow.otpAttempts = (flow.otpAttempts || 0) + 1;
+        await order.save();
+        throw new ApiError(400, 'Invalid OTP.');
+    }
+
+    // ── Finalize ──
+    flow.phase = 'delivered';
+    flow.openBoxPhoto = openBoxPhoto;
+    flow.deliveryProofPhoto = deliveryProofPhoto;
+    flow.otpVerified = true;
+    flow.otpVerifiedAt = new Date();
+    flow.paymentCollected = true;
+    flow.paymentCollectedAt = new Date();
+
+    // Sync legacy fields
+    order.status = 'delivered';
+    order.deliveredAt = new Date();
+    order.openBoxPhoto = openBoxPhoto;
+    order.deliveryPhoto = deliveryProofPhoto;
+    order.deliveryOtpVerifiedAt = new Date();
+    if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') {
+        order.paymentStatus = 'paid';
+        order.isCashSettled = false;
+        order.codCollectionMethod = flow.paymentMethod;
+        order.codCollectedAt = new Date();
+    }
+
+    await order.save();
+
+    // Credit rider earnings
+    const riderEarnings = Number(order.shipping || 0);
+    const updatedRider = await DeliveryBoy.findByIdAndUpdate(
+        order.deliveryBoyId,
+        { $inc: { totalDeliveries: 1, totalEarnings: riderEarnings, availableBalance: riderEarnings } },
+        { new: true }
+    );
+
+    // Credit vendor earnings (adjusted for Try & Buy)
+    const finalAmount = flow.finalAmount || order.total;
+    const ratio = order.total > 0 ? finalAmount / order.total : 1;
+    const vendorUpdates = (order.vendorItems || []).map(group => {
+        if (group.vendorId && group.vendorEarnings > 0) {
+            const adjusted = Math.round(Number(group.vendorEarnings) * ratio);
+            if (adjusted > 0) {
+                return mongoose.model('Vendor').findByIdAndUpdate(group.vendorId, {
+                    $inc: { availableBalance: adjusted },
+                });
+            }
+        }
+        return null;
+    }).filter(Boolean);
+    if (vendorUpdates.length) await Promise.all(vendorUpdates);
+
+    // Notify everyone
+    await OrderNotificationService.notifyOrderUpdate(order._id, 'delivered', {
+        excludeRecipientId: req.user.id,
+        title: `Order #${order.orderId} Delivered`,
+        message: `Order ${order.orderId} has been successfully delivered.`,
+    });
+    emitEvent(`delivery_${req.user.id}`, 'earnings_updated', {
+        availableBalance: updatedRider?.availableBalance,
+        totalEarnings: updatedRider?.totalEarnings,
+        totalDeliveries: updatedRider?.totalDeliveries,
+    });
+
+    res.status(200).json(new ApiResponse(200, {
+        order,
+        rider: {
+            availableBalance: updatedRider?.availableBalance,
+            totalEarnings: updatedRider?.totalEarnings,
+            totalDeliveries: updatedRider?.totalDeliveries,
+        },
+    }, 'Delivery completed!'));
+});
+
+// PATCH /api/delivery/batch/select
+export const handleBatchSelect = asyncHandler(async (req, res) => {
+    const { orderIds } = req.body;
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+        throw new ApiError(400, 'orderIds array is required.');
+    }
+
+    const riderId = req.user.id;
+    const orders = await Order.find({
+        deliveryBoyId: riderId,
+        isDeleted: { $ne: true },
+        status: { $in: ['assigned', 'picked_up', 'out_for_delivery'] },
+        $or: orderIds.map(oid => mongoose.isValidObjectId(oid) ? { _id: oid } : { orderId: oid }),
+    });
+
+    if (orders.length === 0) throw new ApiError(404, 'No matching orders found for batch.');
+
+    // Group by customer
+    const customerId = orders[0].userId;
+    const batch = await DeliveryBatch.create({
+        batchId: `BATCH-${Date.now().toString(36).toUpperCase()}`,
+        deliveryBoyId: riderId,
+        customerId,
+        status: 'assigned',
+        customerLocation: orders[0].dropoffLocation,
+        customerAddress: orders[0].shippingAddress,
+        customerPhone: orders[0].shippingAddress?.phone,
+        customerName: orders[0].shippingAddress?.name,
+    });
+
+    // Create Delivery records and link to batch
+    const deliveryDocs = [];
+    for (const order of orders) {
+        let delivery = await Delivery.findOne({ orderId: order._id, status: { $ne: 'delivered' } });
+        if (!delivery) {
+            delivery = await Delivery.create({
+                orderId: order._id,
+                vendorId: order.vendorItems?.[0]?.vendorId || order.userId,
+                deliveryBoyId: riderId,
+                batchId: batch._id,
+                status: 'assigned',
+                payment: { method: order.paymentMethod === 'cod' ? 'cod' : 'online', originalAmount: order.total },
+            });
+        } else {
+            delivery.batchId = batch._id;
+            await delivery.save();
+        }
+        deliveryDocs.push(delivery._id);
+    }
+
+    batch.deliveries = deliveryDocs;
+    await batch.save();
+
+    res.status(200).json(new ApiResponse(200, batch, 'Batch created.'));
+});
+
 
 // --- RETURN SYSTEM CONTROLLERS ---
 

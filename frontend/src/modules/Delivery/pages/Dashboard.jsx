@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { FiPackage, FiCheckCircle, FiClock, FiTrendingUp, FiMapPin, FiTruck, FiNavigation, FiStar, FiZap, FiArrowRight, FiActivity, FiAlertCircle } from 'react-icons/fi';
@@ -17,7 +17,7 @@ const DeliveryDashboard = () => {
     isUpdatingStatus, isUpdatingOrderStatus, acceptOrder, 
     fetchAvailableReturns, acceptReturn 
   } = useDeliveryAuthStore();
-  
+
   const navigate = useNavigate();
   const [recentOrders, setRecentOrders] = useState([]);
   const [availableOrders, setAvailableOrders] = useState([]);
@@ -134,14 +134,8 @@ const DeliveryDashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
-    socketService.connect();
-    socketService.joinRoom('delivery_partners');
 
-    // Register delivery boy identity for targeted socket events
-    if (deliveryBoy?.id && socketService.socket) {
-      socketService.socket.emit('delivery_register', deliveryBoy.id);
-    }
-
+    // Socket listeners (connection managed by DeliveryLayout)
     socketService.on('order_ready_for_pickup', (data) => {
       const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
       if (currentStatus !== 'available') return;
@@ -184,13 +178,22 @@ const DeliveryDashboard = () => {
 
   const handleToggleOnline = async () => {
     if (isUpdatingStatus) return;
-    const newStatus = isOnline ? 'offline' : 'available';
+    const wasOnline = isOnline;
+    const newStatus = wasOnline ? 'offline' : 'available';
+    // Safety timeout — reset isUpdatingStatus after 10s no matter what
+    const safetyTimer = setTimeout(() => {
+      useDeliveryAuthStore.setState({ isUpdatingStatus: false });
+    }, 10000);
     try {
       await updateStatus(newStatus);
-      toast.success(isOnline ? 'You are now Offline' : 'You are now Online!');
-      if (!isOnline) loadDashboardData();
+      toast.success(wasOnline ? 'You are now Offline' : 'You are now Online!');
+      if (!wasOnline) loadDashboardData();
     } catch (err) {
       console.error('Status update error:', err);
+      const msg = err?.response?.data?.message || err?.message || 'Failed to update status';
+      toast.error(msg);
+    } finally {
+      clearTimeout(safetyTimer);
     }
   };
 
@@ -315,9 +318,9 @@ const DeliveryDashboard = () => {
                   </div>
                   <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{stat.label}</p>
                   <div className="flex items-end justify-between">
-                    <p className="text-slate-900 text-xl font-black">
+                    <div className="text-slate-900 text-xl font-black">
                       {isDashboardLoading ? <div className="h-7 w-16 bg-slate-100 animate-pulse rounded-lg" /> : stat.value}
-                    </p>
+                    </div>
                     {stat.label === 'Earnings' && !isDashboardLoading && (
                       <button 
                         onClick={(e) => { e.stopPropagation(); setShowWithdrawalModal(true); }}
@@ -361,9 +364,9 @@ const DeliveryDashboard = () => {
                   ) : (
                     <>
                       {/* Show Returns First */}
-                      {availableReturns.map((ret) => (
+                      {availableReturns.map((ret, index) => (
                         <motion.div 
-                          key={ret.id} 
+                          key={ret.id || `ret-${index}`} 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="bg-white rounded-3xl p-5 shadow-sm border border-orange-100 group hover:border-orange-200 transition-colors relative overflow-hidden"
@@ -404,16 +407,16 @@ const DeliveryDashboard = () => {
                       ))}
 
                       {/* Show Orders */}
-                      {availableOrders.map((order) => (
+                      {availableOrders.map((order, index) => (
                         <motion.div 
-                          key={order.id} 
+                          key={order.id || `ord-${index}`} 
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 group hover:border-indigo-200 transition-colors"
                         >
                           <div className="flex justify-between items-start mb-4">
                             <div>
-                              <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md uppercase mb-2 block w-fit">#{order.id.slice(-6)}</span>
+                              <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md uppercase mb-2 block w-fit">#{String(order.id || order.orderId || '').slice(-6)}</span>
                               <div className="flex items-center gap-1 text-slate-900 font-bold">
                                 <span className="text-lg">{formatPrice(order.deliveryFee || 25)}</span>
                                 <span className="text-[10px] text-slate-400 font-medium">Earning</span>
@@ -467,32 +470,36 @@ const DeliveryDashboard = () => {
                     <p className="text-slate-400 font-bold text-sm">No active tasks assigned.</p>
                   </div>
                 ) : (
-                  recentOrders.filter(o => o.status !== 'delivered').map((order) => (
-                    <motion.div
-                      key={order.id}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => navigate(`/delivery/orders/${order.id}`)}
-                      className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center gap-5 cursor-pointer hover:shadow-md transition-shadow"
-                    >
-                      <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-lg shrink-0">
-                        <FiTruck className="text-white text-xl" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-black text-slate-900 text-sm truncate">#{order.id.slice(-8)}</h3>
-                          <div className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${getStatusColor(order.status)}`}>
-                            {order.status.replace(/_/g, ' ')}
+                  recentOrders
+                    .filter(o => o.status !== 'delivered')
+                    .map((order, index) => (
+                      <motion.div
+                        key={order.id || `act-${index}`}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                           const orderId = order.id || order.orderId || order._id;
+                           if (orderId) {
+                             navigate(`/delivery/orders/${orderId}`);
+                           }
+                        }}
+                        className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
+                      >
+                        <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shadow-lg shrink-0">
+                          <FiTruck className="text-white text-lg" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-black text-slate-900 text-[13px] truncate">#{String(order.id || order.orderId || '').slice(-8)}</h3>
+                          <div className="flex items-center gap-1.5 mt-1">
+                              <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter w-fit ${getStatusColor(order.status)}`}>
+                                  {order.status.replace(/_/g, ' ')}
+                              </div>
                           </div>
                         </div>
-                        <p className="text-slate-500 text-[11px] font-bold flex items-center gap-1">
-                          <FiNavigation size={10} className="text-indigo-500" /> {order.address || 'In route to delivery'}
-                        </p>
-                      </div>
-                      <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
-                        <FiArrowRight />
-                      </div>
-                    </motion.div>
-                  ))
+                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+                           <FiArrowRight size={14} />
+                        </div>
+                      </motion.div>
+                    ))
                 )}
               </div>
             </section>

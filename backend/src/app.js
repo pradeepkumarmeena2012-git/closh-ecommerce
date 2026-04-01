@@ -12,6 +12,8 @@ import userRoutes from './modules/user/routes/user.routes.js';
 import adminRoutes from './modules/admin/routes/admin.routes.js';
 import vendorRoutes from './modules/vendor/routes/vendor.routes.js';
 import deliveryRoutes from './modules/delivery/routes/delivery.routes.js';
+import deliveryEngineRoutes from './modules/delivery/routes/deliveryEngine.routes.js';
+import deliveryTrackingRoutes from './modules/delivery/routes/tracking.routes.js';
 
 // Middleware imports
 import { apiLimiter } from './middlewares/rateLimiter.js';
@@ -109,6 +111,8 @@ app.use('/api/user', userRoutes);         // Customer: auth, addresses, wishlist
 app.use('/api/admin', adminRoutes);       // Admin: auth, vendors, orders, catalog, analytics
 app.use('/api/vendor', vendorRoutes);     // Vendor: auth, products, orders, earnings
 app.use('/api/delivery', deliveryRoutes); // Delivery: auth, orders
+app.use('/api/delivery/tracking', deliveryTrackingRoutes); // Delivery: real-time tracking with distance/earnings
+app.use('/api/delivery/engine', deliveryEngineRoutes); // Advanced Delivery Batch Engine
 
 // ─── Error Handling ──────────────────────────────────────────────────────────
 app.use(notFound);

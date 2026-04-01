@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Polyline, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Polyline, DirectionsRenderer } from '@react-google-maps/api';
 
 const containerStyle = {
   width: '100%',
@@ -130,6 +130,15 @@ const TrackingMap = ({
   const [center, setCenter] = useState(deliveryLocation || customerLocation || { lat: 20.5937, lng: 78.9629 });
   const [directions, setDirections] = useState(null);
   const [lastRouteParams, setLastRouteParams] = useState(null);
+  const markersRef = useRef([]);
+
+  // Clean up native markers
+  const clearNativeMarkers = useCallback(() => {
+    markersRef.current.forEach(m => {
+      try { m.setMap(null); } catch (e) { /* already removed */ }
+    });
+    markersRef.current = [];
+  }, []);
 
   const onLoad = useCallback(function callback(map) {
     setMap(map);
@@ -144,9 +153,61 @@ const TrackingMap = ({
     }
   }, [deliveryLocation, customerLocation, vendorLocation]);
 
-  const onUnmount = useCallback(function callback(map) {
+  const onUnmount = useCallback(function callback() {
+    clearNativeMarkers();
     setMap(null);
-  }, []);
+  }, [clearNativeMarkers]);
+
+  // Manage markers natively to avoid clearMarkers crash
+  useEffect(() => {
+    if (!map || !window.google) return;
+    clearNativeMarkers();
+
+    const newMarkers = [];
+
+    if (deliveryLocation) {
+      newMarkers.push(new window.google.maps.Marker({
+        position: deliveryLocation,
+        map,
+        title: "Delivery Partner",
+        icon: {
+          url: ICONS.rider,
+          scaledSize: new window.google.maps.Size(46, 46),
+          anchor: new window.google.maps.Point(23, 23)
+        }
+      }));
+    }
+
+    if (customerLocation) {
+      newMarkers.push(new window.google.maps.Marker({
+        position: customerLocation,
+        map,
+        title: "Your Location",
+        icon: {
+          url: ICONS.customer,
+          scaledSize: new window.google.maps.Size(40, 40),
+          anchor: new window.google.maps.Point(20, 20)
+        }
+      }));
+    }
+
+    if (vendorLocation) {
+      newMarkers.push(new window.google.maps.Marker({
+        position: vendorLocation,
+        map,
+        title: "Store Location",
+        icon: {
+          url: ICONS.vendor,
+          scaledSize: new window.google.maps.Size(35, 35),
+          anchor: new window.google.maps.Point(17, 17)
+        }
+      }));
+    }
+
+    markersRef.current = newMarkers;
+
+    return () => clearNativeMarkers();
+  }, [map, deliveryLocation, customerLocation, vendorLocation, clearNativeMarkers]);
 
   // Calculate destination based on priority
   const destination = vendorLocation || customerLocation;
@@ -238,44 +299,6 @@ const TrackingMap = ({
         />
       )}
 
-      {/* Delivery Boy Marker */}
-      {deliveryLocation && (
-        <Marker
-          position={deliveryLocation}
-          title="Delivery Partner"
-          icon={{
-            url: ICONS.rider,
-            scaledSize: new window.google.maps.Size(46, 46),
-            anchor: new window.google.maps.Point(23, 23)
-          }}
-        />
-      )}
-
-      {/* Customer Marker */}
-      {customerLocation && (
-        <Marker
-          position={customerLocation}
-          title="Your Location"
-          icon={{
-            url: ICONS.customer,
-            scaledSize: new window.google.maps.Size(40, 40),
-            anchor: new window.google.maps.Point(20, 20)
-          }}
-        />
-      )}
-
-      {/* Vendor Marker */}
-      {vendorLocation && (
-        <Marker
-          position={vendorLocation}
-          title="Store Location"
-          icon={{
-            url: ICONS.vendor,
-            scaledSize: new window.google.maps.Size(35, 35),
-            anchor: new window.google.maps.Point(17, 17)
-          }}
-        />
-      )}
     </GoogleMap>
   );
 };

@@ -655,6 +655,30 @@ router.get('/orders/track/:id', asyncHandler(async (req, res) => {
 import { getSetting } from '../modules/admin/controllers/settings.controller.js';
 router.get('/settings/:key', getSetting);
 
+// ─── Service Area / Serviceability Check ──────────────────────────────────────
+import * as serviceAreaService from '../services/serviceArea.service.js';
+
+// POST /api/check-serviceability - Check if delivery is available
+router.post('/check-serviceability', asyncHandler(async (req, res) => {
+    const { pincode, latitude, longitude, city } = req.body;
+    
+    const coordinates = latitude && longitude ? [parseFloat(longitude), parseFloat(latitude)] : null;
+    
+    const result = await serviceAreaService.checkServiceAvailability({ 
+        pincode, 
+        coordinates, 
+        city 
+    });
+    
+    res.json(new ApiResponse(200, result, result.isServiceable ? 'Service available' : 'Service not available'));
+}));
+
+// GET /api/service-areas - Get all active service areas for user selection
+router.get('/service-areas', asyncHandler(async (req, res) => {
+    const areas = await serviceAreaService.getAllActiveServiceAreas();
+    res.json(new ApiResponse(200, areas, 'Service areas fetched'));
+}));
+
 // Legacy support: GET /api/:id (only ObjectId-like values to avoid swallowing unknown routes)
 router.get('/:id([a-fA-F0-9]{24})', getProductDetail);
 

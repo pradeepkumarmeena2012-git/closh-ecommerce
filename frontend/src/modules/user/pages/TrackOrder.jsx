@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiCheckCircle, FiClock, FiPackage, FiTruck, FiMapPin, FiArrowLeft, FiShield } from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiPackage, FiTruck, FiMapPin, FiArrowLeft, FiShield, FiRefreshCw } from 'react-icons/fi';
 import MobileLayout from "../components/Layout/MobileLayout";
 import { useOrderStore } from '../../../shared/store/orderStore';
 import { formatPrice } from '../../../shared/utils/helpers';
@@ -19,7 +19,7 @@ const CUSTOMER_ICON = "https://maps.google.com/mapfiles/ms/icons/red-pushpin.png
 const MobileTrackOrder = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { getOrder, fetchOrderById, fetchPublicTrackingOrder, lastError } = useOrderStore();
+  const { getOrder, fetchOrderById, fetchPublicTrackingOrder, lastError, resendDeliveryOtp } = useOrderStore();
   const { user } = useAuthStore();
   const [isResolving, setIsResolving] = useState(true);
   const [riderLiveLocation, setRiderLiveLocation] = useState(null);
@@ -27,6 +27,9 @@ const MobileTrackOrder = () => {
   const [deliveryOtp, setDeliveryOtp] = useState(null);
   const [riderInfo, setRiderInfo] = useState(null);
   const arrivedAudioRef = useRef(null);
+  const [isResendingOtp, setIsResendingOtp] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownRef = useRef(null);
   const order = getOrder(orderId);
   const shippingAddress = order?.shippingAddress || {};
   const orderItems = Array.isArray(order?.items) ? order.items : [];
@@ -39,6 +42,37 @@ const MobileTrackOrder = () => {
     shippingAddress?.state ||
     shippingAddress?.zipCode
   );
+
+  const startCooldown = useCallback((seconds = 60) => {
+    setResendCooldown(seconds);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current);
+          cooldownRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  const handleResendDeliveryOtp = async () => {
+    if (isResendingOtp || resendCooldown > 0) return;
+    try {
+      setIsResendingOtp(true);
+      const result = await resendDeliveryOtp(order?.orderId || order?.id || orderId);
+      if (result?.deliveryOtpDebug) {
+        setDeliveryOtp(result.deliveryOtpDebug);
+      }
+      startCooldown(60);
+    } catch (err) {
+      console.error('[Resend OTP]', err?.response?.data?.message || err?.message);
+    } finally {
+      setIsResendingOtp(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -118,6 +152,13 @@ const MobileTrackOrder = () => {
     // Listen for live location updates from rider
     socketService.on('location_updated', handleLocationUpdate);
 
+    const handleOtpResent = (data) => {
+      if (data?.deliveryOtpDebug) {
+        setDeliveryOtp(data.deliveryOtpDebug);
+      }
+    };
+    socketService.on('delivery_otp_resent', handleOtpResent);
+
     // Polling as fallback
     const pollingInterval = setInterval(() => {
       if (['accepted', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'assigned'].includes(normalizedStatus)) {
@@ -128,6 +169,7 @@ const MobileTrackOrder = () => {
     return () => {
       mounted = false;
       clearInterval(pollingInterval);
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
       socketService.off('order_status_updated', handleStatusUpdate);
       socketService.off('order_picked_up', handlePickedUp);
       socketService.off('order_out_for_delivery', handleStatusUpdate);
@@ -136,6 +178,7 @@ const MobileTrackOrder = () => {
       socketService.off('order_assigned', handleStatusUpdate);
       socketService.off('location_updated', handleLocationUpdate);
       socketService.off('rider_arrived', handleRiderArrived);
+      socketService.off('delivery_otp_resent', handleOtpResent);
       if (arrivedAudioRef.current) {
         try { arrivedAudioRef.current.pause(); } catch(e) {}
       }
@@ -326,6 +369,18 @@ const MobileTrackOrder = () => {
                     <span className="text-4xl font-black tracking-[0.5em] text-emerald-600">{deliveryOtp}</span>
                   </div>
                   <p className="text-xs text-emerald-500 mt-3 font-semibold">Do NOT share with anyone except the delivery partner</p>
+                  <button
+                    onClick={handleResendDeliveryOtp}
+                    disabled={isResendingOtp || resendCooldown > 0}
+                    className={`mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                      isResendingOtp || resendCooldown > 0
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 shadow-md'
+                    }`}
+                  >
+                    <FiRefreshCw className={`text-base ${isResendingOtp ? 'animate-spin' : ''}`} />
+                    {isResendingOtp ? 'Resending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
+                  </button>
                 </div>
               </div>
             )}

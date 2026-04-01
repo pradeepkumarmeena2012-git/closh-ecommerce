@@ -70,9 +70,10 @@ const OrderDetail = () => {
 
         fetchOrder();
 
-        // Real-time socket updates
-        socketService.connect();
-        socketService.joinRoom(`vendor_${vendorId}`);
+        // Real-time socket updates (connection managed by VendorHeader)
+        if (id) {
+            socketService.joinRoom(`order_${id}`);
+        }
 
         const handleRealTimeUpdate = (data) => {
             const displayId = id;

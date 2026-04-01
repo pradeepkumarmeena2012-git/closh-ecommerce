@@ -94,6 +94,8 @@ export const OrderWorkflowService = {
         // Trigger Queue Service for Rider Search
         const { QueueService } = await import('./queue.service.js');
         await QueueService.scheduleRiderSearch(order._id);
+        // Start 15-minute auto-cancel timer if no rider accepts
+        await QueueService.scheduleRiderAcceptTimeout(order._id);
 
         // Notify order tracking room
         emitEvent(`order_${order.orderId}`, 'order_status_updated', { 
@@ -154,6 +156,8 @@ export const OrderWorkflowService = {
         // Trigger Queue Service for Rider Search
         const { QueueService } = await import('./queue.service.js');
         await QueueService.scheduleRiderSearch(order._id);
+        // Start 15-minute auto-cancel timer if no rider accepts
+        await QueueService.scheduleRiderAcceptTimeout(order._id);
         
         // Notify order tracking room
         emitEvent(`order_${order.orderId}`, 'order_status_updated', { 

@@ -174,9 +174,7 @@ const VendorDashboard = () => {
 
     loadDashboardData();
 
-    socketService.connect();
-    socketService.joinRoom(`vendor_${vendorId}`);
-
+    // Socket listeners (connection managed by VendorHeader)
     socketService.on("order_created", (newOrder) => {
       startBuzzer();
       setSelectedOrder(newOrder);

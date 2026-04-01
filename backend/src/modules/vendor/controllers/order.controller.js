@@ -9,6 +9,7 @@ import { createNotification } from '../../../services/notification.service.js';
 import { notifyNearbyDeliveryBoys } from '../../delivery/controllers/assignment.controller.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import { getDistanceMatrix } from '../../../services/googleMaps.service.js';
+import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 
 const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
     const statuses = (vendorItems || [])
@@ -169,64 +170,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         });
     }
 
-    // Notify VENDOR in real-time (for multi-tab / cross-device sync)
-    emitEvent(`vendor_${req.user.id}`, 'order_updated', {
-        orderId: order.orderId,
-        status: status,
-        message: `Order ${order.orderId} moved to ${status.replace(/_/g, ' ')}.`
+    // Unified Notification to all parties
+    await OrderNotificationService.notifyOrderUpdate(order._id, status, {
+        excludeRecipientId: req.user.id, // Vendor already knows it changed
+        title: `Order #${order.orderId} ${status.replace(/_/g, ' ')}`,
+        message: `Your order from ${storeName} is now ${status.replace(/_/g, ' ')}.`
     });
-
-    // Notify Customer in real-time
-    const trackingRoom = `order_${order.orderId}`;
-    if (order.userId) {
-        emitEvent(`user_${order.userId}`, 'order_status_updated', {
-            orderId: order.orderId,
-            status: status,
-            vendorName: storeName,
-            message: `Your order ${order.orderId} has been ${status.replace(/_/g, ' ')} by ${storeName}.`
-        });
-    }
-
-    emitEvent(trackingRoom, 'order_status_updated', {
-        orderId: order.orderId,
-        status: status,
-        vendorName: storeName,
-        message: `Order ${order.orderId} moved to ${status.replace(/_/g, ' ')}.`
-    });
-
-    const notificationTasks = [];
-    if (order.userId) {
-        notificationTasks.push(
-            createNotification({
-                recipientId: order.userId,
-                recipientType: 'user',
-                title: 'Order item status updated',
-                message: `An item in your order ${order.orderId || order._id} is now ${status}.`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId || order._id),
-                    status: String(status),
-                    scope: 'vendor_item',
-                },
-            })
-        );
-    }
-
-    notificationTasks.push(
-        createNotification({
-            recipientId: req.user.id,
-            recipientType: 'vendor',
-            title: 'Order status updated',
-            message: `Order ${order.orderId || order._id} moved to ${status}.`,
-            type: 'order',
-            data: {
-                orderId: String(order.orderId || order._id),
-                status: String(status),
-            },
-        })
-    );
-
-    await Promise.allSettled(notificationTasks);
 
     res.status(200).json(new ApiResponse(200, order, 'Order status updated.'));
 });
