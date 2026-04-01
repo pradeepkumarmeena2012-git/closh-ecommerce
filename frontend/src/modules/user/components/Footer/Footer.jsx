@@ -88,7 +88,7 @@ const Footer = () => {
                 {/* Brand & Social/App Block */}
                 <div className="py-12 px-6 flex flex-col items-center bg-gray-100">
                     <h1 className="text-[36px] font-bold  drop-shadow-md text-gray-900 mb-8">
-                        Clothify<span className="text-black">.</span>
+                        CLOSH<span className="text-black">.</span>
                     </h1>
 
                     <div className="flex items-center gap-4 mb-10">
@@ -118,7 +118,7 @@ const Footer = () => {
                     <div className="flex flex-col items-center md:items-start gap-2 md:gap-4 text-center md:text-left">
                         <Link to="/" className="no-underline group">
                             <h1 className="text-[28px] md:text-[36px] font-bold  drop-shadow-md transition-all duration-500 text-gray-900 group-hover:text-black">
-                                Clothify<span className="text-black text-[32px] md:text-[44px] leading-none group-hover:text-gray-900">.</span>
+                                CLOSH<span className="text-black text-[32px] md:text-[44px] leading-none group-hover:text-gray-900">.</span>
                             </h1>
                         </Link>
                         <p className="text-[10px] md:text-[12px] font-medium text-gray-500 max-w-[240px] md:max-w-[280px] leading-relaxed hidden md:block">
@@ -190,7 +190,7 @@ const Footer = () => {
                         <span className="flex items-center gap-1.5 bg-gray-50 px-2 md:px-2.5 py-1 md:py-1.5 rounded-lg border border-gray-100"><Package size={10} className="md:w-3 md:h-3" /> Free Returns</span>
                     </div>
                     <p className="text-[8px] md:text-[10px] font-semibold uppercase  text-white/20 text-center md:text-left leading-relaxed">
-                        © 2024 CLOTHIFY <br className="md:hidden" /> All Rights Reserved.
+                        © 2024 CLOSH <br className="md:hidden" /> All Rights Reserved.
                     </p>
                 </div>
             </div>

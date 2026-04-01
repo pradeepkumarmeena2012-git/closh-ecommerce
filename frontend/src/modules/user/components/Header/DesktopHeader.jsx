@@ -76,7 +76,7 @@ const NavItem = ({ to, icon: Icon, label, badgeCount, onClick }) => {
                 <div className="flex items-center gap-4 flex-shrink-0">
                     <Link to="/home" className="flex-shrink-0 mr-4 group no-underline">
                         <h1 className="text-2xl font-bold drop-shadow-md transition-all duration-500 text-gray-900 group-hover:text-black">
-                            Clothify<span className="text-black text-3xl leading-none group-hover:text-gray-900">.</span>
+                            CLOSH<span className="text-black text-3xl leading-none group-hover:text-gray-900">.</span>
                         </h1>
                     </Link>
 

@@ -140,7 +140,7 @@ const OffersPage = () => {
                                                 <li>Offer valid until {new Date(promo.endDate).toLocaleDateString()}.</li>
                                                 <li>{promo.usageLimit === -1 ? 'Unlimited usage per user.' : `Limited to ${promo.usageLimit} uses.`}</li>
                                                 <li>Offer cannot be clubbed with other coupon codes.</li>
-                                                <li>Clothify reserves the right to withdraw the offer without prior notice.</li>
+                                                <li>CLOSH reserves the right to withdraw the offer without prior notice.</li>
                                             </ul>
                                         </div>
                                     )}
