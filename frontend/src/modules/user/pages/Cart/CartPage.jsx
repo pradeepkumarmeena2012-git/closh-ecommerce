@@ -96,72 +96,77 @@ const CartPage = () => {
                     {/* Cart Items List */}
                     <div className="flex-[1.5] space-y-4">
                         {cart.map((item) => (
-                            <div key={`${item.id}-${item.selectedSize}`} className="bg-white rounded-[24px] overflow-hidden border border-gray-100 shadow-sm flex flex-col sm:flex-row p-4 sm:p-5 relative group transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-black/5">
-                                <Link to={`/product/${item.id}`} className="w-full sm:w-32 aspect-[3/4] sm:h-auto rounded-2xl overflow-hidden shrink-0 bg-[#F8F8F8] border border-gray-100">
-                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                            <div key={`${item.id}-${item.selectedSize}`} className="bg-white rounded-[24px] overflow-hidden border border-gray-100 shadow-sm flex flex-row p-3 sm:p-4 relative group transition-all duration-300 hover:shadow-md hover:border-black/10">
+                                {/* Compact Image Section */}
+                                <Link to={`/product/${item.id}`} className="w-24 sm:w-28 aspect-square rounded-2xl overflow-hidden shrink-0 bg-[#F8F8F8] border border-gray-50">
+                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                                 </Link>
 
-                                <div className="flex-1 flex flex-col pt-4 sm:pt-0 sm:pl-6">
-                                    <div className="flex justify-between items-start mb-1">
-                                        <div>
-                                            <h3 className="text-[11px] font-bold text-black uppercase  mb-1">{item.brand}</h3>
-                                            <h4 className="text-[15px] font-bold text-gray-900 leading-tight mb-3 uppercase ">{item.name}</h4>
+                                {/* Organized Content Section */}
+                                <div className="flex-1 flex flex-col pl-4 min-w-0">
+                                    {/* Top Row: Brand & Name with Delete Button */}
+                                    <div className="flex justify-between items-start">
+                                        <div className="min-w-0 pr-2">
+                                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5 truncate">{item.brand}</h3>
+                                            <h4 className="text-[14px] font-bold text-gray-900 leading-tight uppercase truncate">{item.name}</h4>
                                         </div>
                                         <button
-                                            className="p-2 -mr-2 text-gray-400 hover:text-red-500 hover:bg-gray-50 rounded-full transition-all"
+                                            className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
                                             onClick={() => removeFromCart(item.id)}
                                         >
-                                            <Trash2 size={20} />
+                                            <Trash2 size={18} />
                                         </button>
                                     </div>
 
-                                    <div className="flex flex-wrap gap-4 mb-5">
-                                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase ">Size</span>
-                                            <span className="text-[12px] font-bold text-gray-900 uppercase">{item.selectedSize || 'M'}</span>
+                                    {/* Middle Row: Selectors (Size & Qty) */}
+                                    <div className="flex flex-wrap items-center gap-2 mt-2.5">
+                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
+                                            <span className="text-[9px] font-bold text-gray-400 uppercase">Size</span>
+                                            <span className="text-[11px] font-extrabold text-gray-900 uppercase">{item.selectedSize || 'M'}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase ">Qty</span>
-                                            <div className="flex items-center gap-2.5 ml-1">
+                                        <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
+                                            <span className="text-[9px] font-bold text-gray-400 uppercase">Qty</span>
+                                            <div className="flex items-center gap-2 border-l border-gray-200 ml-1 pl-2">
                                                 <button
                                                     onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                                    className="hover:text-black text-gray-600 disabled:opacity-30"
+                                                    className="text-gray-400 hover:text-black disabled:opacity-30 p-0.5"
                                                     disabled={item.quantity <= 1}
                                                 >
-                                                    <Minus size={14} strokeWidth={3} />
+                                                    <Minus size={12} strokeWidth={3} />
                                                 </button>
-                                                <span className="text-[12px] font-bold min-w-[12px] text-center text-gray-900">{item.quantity}</span>
+                                                <span className="text-[11px] font-black min-w-[12px] text-center text-gray-900">{item.quantity}</span>
                                                 <button
                                                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                                    className="hover:text-black text-gray-600"
+                                                    className="text-gray-400 hover:text-black p-0.5"
                                                 >
-                                                    <Plus size={14} strokeWidth={3} />
+                                                    <Plus size={12} strokeWidth={3} />
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="mt-auto flex items-end justify-between">
-                                        <button
-                                            onClick={() => handleMoveToWishlist(item)}
-                                            className="text-[11px] font-bold uppercase  text-gray-900 flex items-center gap-2 border-b-2 border-transparent hover:text-black hover:border-black pb-1 transition-all"
-                                        >
-                                            <Heart size={14} /> Move to Wishlist
-                                        </button>
+                                    {/* Bottom Row: Wishlist & Pricing */}
+                                    <div className="mt-auto pt-3 flex items-end justify-end">
+                                        {/* Wishlist button removed */}
+
                                         <div className="text-right">
-                                            <div className="flex items-center gap-2 justify-end mb-0.5">
-                                                <span className="text-lg font-bold text-gray-900">
-                                                    ₹{((item.discountedPrice !== undefined ? item.discountedPrice : (item.price || item.originalPrice || 0)) * item.quantity).toFixed(0)}
-                                                </span>
-                                                {(item.discount || (item.originalPrice > (item.discountedPrice || item.price))) && (
-                                                    <span className="text-[11px] font-bold text-white bg-black px-2 py-0.5 rounded-full shadow-sm">
-                                                        {item.discount || `${Math.round(((item.originalPrice - (item.discountedPrice || item.price)) / item.originalPrice) * 100)}% OFF`}
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="flex flex-col items-end leading-none">
+                                                    {(item.originalPrice > (item.discountedPrice || item.price)) && (
+                                                        <span className="text-[10px] font-bold text-gray-300 line-through mb-1">₹{item.originalPrice * item.quantity}</span>
+                                                    )}
+                                                    <span className="text-[16px] font-black text-gray-900">
+                                                        ₹{((item.discountedPrice !== undefined ? item.discountedPrice : (item.price || item.originalPrice || 0)) * item.quantity).toFixed(0)}
                                                     </span>
+                                                </div>
+                                                
+                                                {(item.originalPrice > (item.discountedPrice || item.price)) && (
+                                                    <div className="bg-black text-white w-10 h-10 rounded-full flex flex-col items-center justify-center leading-none shrink-0 border border-black group-hover:bg-white group-hover:text-black transition-all">
+                                                        <span className="text-[9px] font-black">{Math.round(((item.originalPrice - (item.discountedPrice || item.price)) / item.originalPrice) * 100)}%</span>
+                                                        <span className="text-[6px] font-black uppercase">OFF</span>
+                                                    </div>
                                                 )}
                                             </div>
-                                            {(item.originalPrice > (item.discountedPrice || item.price)) && (
-                                                <span className="text-[12px] font-bold text-gray-400 line-through">₹{item.originalPrice * item.quantity}</span>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -221,7 +226,7 @@ const CartPage = () => {
                                     </button>
 
                                     <p className="text-center text-[10px] font-semibold text-gray-400 uppercase  mt-4">
-                                        30 Days Easy Returns & Exchanges
+                                        24 Hours Easy Returns & Exchanges
                                     </p>
                                 </div>
                             </div>

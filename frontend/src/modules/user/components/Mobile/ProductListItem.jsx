@@ -1,72 +1,19 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiShoppingBag, FiHeart, FiTrash2 } from "react-icons/fi";
-import { useCartStore, useUIStore } from "../../../../shared/store/useStore";
+import { FiHeart } from "react-icons/fi";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import LazyImage from '../../../../shared/components/LazyImage';
-import VendorBadge from "../../../Vendor/components/VendorBadge";
-import { getVendorById } from "../../data/catalogData";
-import { getVariantSignature } from "../../../../shared/utils/variant";
 
 const ProductListItem = ({ product, index, isFlashSale = false }) => {
-  const navigate = useNavigate();
   const productLink = `/product/${product.id}`;
-  const { items, addItem, removeItem } = useCartStore();
-  const triggerCartAnimation = useUIStore(
-    (state) => state.triggerCartAnimation
-  );
   const {
     addItem: addToWishlist,
     removeItem: removeFromWishlist,
     isInWishlist,
   } = useWishlistStore();
-  const hasNoVariant = (cartItem) => !getVariantSignature(cartItem?.variant || {});
   const isFavorite = isInWishlist(product.id);
-  const isInCart = items.some(
-    (item) => item.id === product.id && hasNoVariant(item)
-  );
-
-  const handleAddToCart = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    const hasDynamicAxes =
-      Array.isArray(product?.variants?.attributes) &&
-      product.variants.attributes.some((attr) => Array.isArray(attr?.values) && attr.values.length > 0);
-    const hasSizeVariants = Array.isArray(product?.variants?.sizes) && product.variants.sizes.length > 0;
-    const hasColorVariants = Array.isArray(product?.variants?.colors) && product.variants.colors.length > 0;
-    if (hasDynamicAxes || hasSizeVariants || hasColorVariants) {
-      toast.error("Please select variant on product page");
-      navigate(productLink);
-      return;
-    }
-
-    const addedToCart = addItem({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity: 1,
-      stockQuantity: product.stockQuantity,
-      vendorId: product.vendorId,
-      vendorName: product.vendorName,
-    });
-    if (!addedToCart) return;
-    triggerCartAnimation();
-  };
-
-  const handleRemoveFromCart = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    removeItem(product.id, {});
-    toast.success("Removed from cart!");
-  };
 
   const handleFavorite = (e) => {
     if (e) {
@@ -148,9 +95,6 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
             <span className="text-[10px] md:text-xs text-gray-500 border-l border-gray-200 pl-2">{product.unit}</span>
           </div>
 
-          {/* Vendor */}
-
-
           {/* Flash Sale Progress */}
           {isFlashSale && (
             <div className="mb-2 space-y-1 max-w-[200px]">
@@ -167,7 +111,7 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
             </div>
           )}
 
-          {/* Bottom Row: Price + Add Button */}
+          {/* Bottom Row: Price Only */}
           <div className="mt-auto flex items-center justify-between gap-3 pt-2 border-t border-gray-50">
             <div className="flex flex-col">
               <span className="text-base md:text-xl font-bold text-gray-900 leading-none">
@@ -179,28 +123,6 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
                 </span>
               )}
             </div>
-
-            {isInCart ? (
-              <button
-                type="button"
-                onClick={handleRemoveFromCart}
-                className="px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 bg-red-50 text-red-600 border border-red-100 transition-all shadow-sm active:scale-95">
-                <FiTrash2 className="text-xs md:text-base" />
-                <span>Remove</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleAddToCart}
-                className={`px-4 py-2 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 transition-all shadow-sm active:scale-95 whitespace-nowrap ${isFlashSale
-                  ? "bg-gradient-to-r from-red-500 to-orange-500 text-white hover:shadow-red-200"
-                  : "gradient-green text-white hover:shadow-glow-green"
-                  }`}>
-                <FiShoppingBag className="text-xs md:text-base" />
-                <span className="hidden sm:inline">Add to Cart</span>
-                <span className="sm:hidden">Add</span>
-              </button>
-            )}
           </div>
         </div>
       </div>

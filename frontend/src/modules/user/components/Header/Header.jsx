@@ -18,6 +18,22 @@ import LoginModal from '../Modals/LoginModal';
 import { categories as localCategories } from '../../data/index';
 import logo from '../../../../assets/animations/lottie/logo-removebg.png';
 
+// Utility for highlighting search query in suggestions
+const HighlightText = ({ text, query }) => {
+    if (!query) return <span>{text}</span>;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+        <span>
+            {parts.map((part, i) => (
+                <span key={i} className={part.toLowerCase() === query.toLowerCase() ? "font-bold text-black" : "text-gray-500"}>
+                    {part}
+                </span>
+            ))}
+        </span>
+    );
+};
+
+
 const Header = ({ variant = 'default' }) => {
     const headerRef = useRef(null);
     const { user } = useAuth();
@@ -110,7 +126,7 @@ const Header = ({ variant = 'default' }) => {
 
     const handleSearchInput = async (value) => {
         setSearchQuery(value);
-        if (value.trim().length > 2) {
+        if (value.trim().length > 0) {
             setIsSearching(true);
             try {
                 const response = await api.get('/products', {
@@ -220,13 +236,30 @@ const Header = ({ variant = 'default' }) => {
     const { getCategoryGradient } = useCategory();
     const currentGradient = isSubcategoryMode ? getCategoryGradient(activeSubCategory) : getCategoryGradient(activeCategory);
 
+    // Close search on click outside
+    const searchDropdownRef = useRef(null);
+    const mobileSearchDropdownRef = useRef(null);
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            const inDesktop = searchDropdownRef.current && searchDropdownRef.current.contains(e.target);
+            const inMobile = mobileSearchDropdownRef.current && mobileSearchDropdownRef.current.contains(e.target);
+            
+            if (!inDesktop && !inMobile) {
+                setSearchSuggestions([]);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+
     return (
         <motion.header
             ref={headerRef}
             initial={false}
             animate={{ background: currentGradient }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
-            className={`w-full sticky top-0 left-0 z-[999] shadow-sm font-sans transition-all duration-300 ease-in-out ${['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) ? 'hidden md:block' : ''}`}
+            className={`w-full sticky top-0 left-0 z-[999] shadow-sm font-sans transition-all duration-300 ease-in-out ${['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) ? 'hidden lg:block' : ''}`}
         >
             {/* Top Colored Section - Premium Frosted Background */}
             <div className={`relative z-[60] ${variant === 'shop' ? 'border-b border-black/5' : ''}`}>
@@ -236,12 +269,11 @@ const Header = ({ variant = 'default' }) => {
                     <>
                         {/* Mobile Location Bar */}
                         <div
-                            className="px-4 py-1.5 flex items-center justify-between group transition-colors md:hidden"
+                            className="px-4 py-1.5 flex items-center justify-between group transition-colors lg:hidden"
                         >
                              <div className="flex items-center gap-3">
                                  <Link to="/" className="flex items-center gap-0.5 no-underline group">
-                                     <img src={logo} alt="CLOSH" className="h-9 w-auto object-contain" />
-                                     <span className="text-[20px] font-black text-gray-900 tracking-tighter">CLOSH</span>
+                                     
                                  </Link>
 
                                 <div className="flex items-center">
@@ -277,12 +309,11 @@ const Header = ({ variant = 'default' }) => {
                             </div>
                         </div>
 
-                        {/* Desktop Inline Navbar (like reference) */}
-                        <div className="hidden md:flex items-center justify-between px-6 py-3">
+                        {/* Desktop Inline Navbar - Now shown on large screens (lg+) */}
+                        <div className="hidden lg:flex items-center justify-between px-6 py-3">
                         <div className="flex items-center gap-8">
                             <Link to="/" className="flex items-center gap-1 no-underline group">
-                                <img src={logo} alt="CLOSH" className="h-12 w-auto object-contain" />
-                                <span className="text-[28px] font-black text-gray-900 tracking-tighter">CLOSH</span>
+                                
                             </Link>
 
                                 <button
@@ -302,43 +333,72 @@ const Header = ({ variant = 'default' }) => {
                             </button>
                             </div>
 
-                            <div className="relative flex-1 max-w-[560px]">
-                                <input
-                                    type="text"
-                                    placeholder="Search for products, brands or more"
-                                    className="w-full py-3 pl-12 pr-4 border border-black/10 rounded-xl bg-white text-[14px] font-medium text-black outline-none placeholder:text-gray-400 shadow-sm"
-                                    value={searchQuery}
-                                    onChange={(e) => handleSearchInput(e.target.value)}
-                                    onKeyDown={handleSearch}
-                                />
-                                <Search
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer"
-                                    size={18}
-                                    onClick={() => searchQuery.trim() && handleSearch({ key: 'Enter' })}
-                                />
+                            <div className="relative flex-1 max-w-[560px]" ref={searchDropdownRef}>
+                                <div className="relative group">
+                                    <input
+                                        type="text"
+                                        placeholder="Search for products, brands or more"
+                                        className="w-full py-3 pl-12 pr-4 border border-black/10 rounded-xl bg-white text-[14px] font-medium text-black outline-none placeholder:text-gray-400 shadow-sm focus:border-black/30 transition-all"
+                                        value={searchQuery}
+                                        onChange={(e) => handleSearchInput(e.target.value)}
+                                        onKeyDown={handleSearch}
+                                    />
+                                    <Search
+                                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer group-focus-within:text-black transition-colors"
+                                        size={18}
+                                        onClick={() => searchQuery.trim() && handleSearch({ key: 'Enter' })}
+                                    />
+                                </div>
 
                                 {searchSuggestions.length > 0 && (
-                                    <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FAFAFA] rounded-2xl shadow-xl overflow-hidden z-[1010] border border-black/5 animate-fadeInUp">
-                                        <div className="p-4 border-b border-black/5 flex items-center justify-between bg-black/[0.02]">
-                                            <span className="text-[10px] font-bold uppercase  text-black/40">Products Found</span>
-                                            <span className="text-[10px] font-bold text-black uppercase  hover:underline cursor-pointer">View All</span>
-                                        </div>
-                                        {searchSuggestions.map((item) => (
-                                            <div
-                                                key={item.id}
-                                                onClick={() => handleSuggestionClick(item)}
-                                                className="px-5 py-3 hover:bg-black/5 flex items-center gap-4 cursor-pointer transition-colors border-b border-black/5 last:border-0 group/item"
+                                    <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden z-[1010] border border-black/5 animate-fadeInUp">
+                                        <div className="p-3 border-b border-black/5 flex items-center justify-between bg-gray-50/50">
+                                            <span className="text-[10px] font-bold uppercase text-black/40">Suggested Products</span>
+                                            <span 
+                                                onClick={() => handleSearch({ key: 'Enter' })}
+                                                className="text-[10px] font-bold text-black uppercase hover:underline cursor-pointer"
                                             >
-                                                <div className="w-12 h-14 rounded-xl overflow-hidden bg-black/5 shrink-0 shadow-sm">
-                                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover/item:scale-110" />
+                                                View All
+                                            </span>
+                                        </div>
+                                        <div className="max-h-[400px] overflow-y-auto scrollbar-hide">
+                                            {searchSuggestions.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    onClick={() => handleSuggestionClick(item)}
+                                                    className="px-5 py-3 hover:bg-gray-50 flex items-center gap-4 cursor-pointer transition-colors border-b border-gray-50 last:border-0 group/item"
+                                                >
+                                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 border border-black/5 shadow-sm">
+                                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover/item:scale-110" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-[13px] font-medium text-black truncate mb-0.5">
+                                                            <HighlightText text={item.name} query={searchQuery} />
+                                                        </h4>
+                                                        <p className="text-[10px] font-bold uppercase text-black/30">
+                                                            {item.categoryId?.name || 'Category'} <span className="text-[8px] mx-1 opacity-50">•</span> <span className="text-black/60 font-semibold">₹{item.price}</span>
+                                                        </p>
+                                                    </div>
+                                                    <ChevronRight size={14} className="text-gray-300 group-hover/item:text-black group-hover/item:translate-x-1 transition-all" />
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="text-[13px] font-bold text-black truncate mb-1">{item.name}</h4>
-                                                    <p className="text-[10px] font-bold uppercase text-black/40 ">{item.brand} <span className="text-[8px] mx-1 opacity-50">â€¢</span> <span className="text-black font-semibold">â‚¹{item.discountedPrice}</span></p>
+                                            ))}
+                                        </div>
+                                        {/* Bottom Action Row like reference */}
+                                        <div 
+                                            onClick={() => handleSearch({ key: 'Enter' })}
+                                            className="p-4 bg-gray-50/80 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors border-t border-black/5 group/all"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm border border-black/5 group-hover/all:scale-110 transition-transform">
+                                                    <Search size={14} className="text-gray-900" />
                                                 </div>
-                                                <ChevronRight size={16} className="text-black/20 group-hover/item:text-black group-hover/item:translate-x-1 transition-all" />
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Show all results for</span>
+                                                    <span className="text-[13px] font-bold text-black border-b border-black/20 group-hover/all:border-black transition-all leading-tight italic">"{searchQuery}"</span>
+                                                </div>
                                             </div>
-                                        ))}
+                                            <ChevronRight size={18} className="text-gray-400 group-hover/all:text-black group-hover/all:translate-x-1 transition-all" />
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -378,6 +438,7 @@ const Header = ({ variant = 'default' }) => {
                                 </Link>
                                 <Link
                                     to={user ? "/profile" : "/login"}
+                                    state={{ from: location }}
                                     className="flex items-center gap-2 text-[14px] font-semibold text-black/80 hover:text-black transition-colors"
                                 >
                                     <User size={20} className="text-black/60" />
@@ -388,10 +449,13 @@ const Header = ({ variant = 'default' }) => {
                     </>
                 )}
 
-                {/* Search Bar & Wishlist Container - Seamless Collapse on Mobile Scroll */}
-                <div className={`px-4 transition-all duration-300 ease-in-out grid relative md:hidden ${isHeaderVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 h-0 overflow-hidden'}`}>
-                    <div className="overflow-hidden w-full flex items-center gap-3">
-                        <div className={`flex items-center gap-3 w-full ${variant === 'shop' ? 'pt-2 pb-2' : 'pt-1 pb-2'}`}>
+                {/* Search Bar & Wishlist Container - Persistent on Mobile/Tab */}
+                <div 
+                    ref={mobileSearchDropdownRef} 
+                    className={`px-4 transition-all duration-300 ease-in-out relative lg:hidden ${variant === 'shop' ? 'pt-2 pb-2' : 'pt-1 pb-2'}`}
+                >
+                    <div className="w-full flex items-center gap-3">
+                        <div className="flex items-center gap-3 w-full">
                             <div className="relative flex-1 group">
                                 <input
                                     type="text"
@@ -409,27 +473,51 @@ const Header = ({ variant = 'default' }) => {
 
                                 {/* Premium Search Suggestions Dropdown */}
                                 {searchSuggestions.length > 0 && (
-                                    <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-[#FAFAFA] rounded-2xl shadow-xl overflow-hidden z-[1010] border border-black/5 animate-fadeInUp">
-                                        <div className="p-4 border-b border-black/5 flex items-center justify-between bg-black/[0.02]">
-                                            <span className="text-[10px] font-bold uppercase  text-black/40">Products Found</span>
-                                            <span className="text-[10px] font-bold text-black uppercase  hover:underline cursor-pointer">View All</span>
-                                        </div>
-                                        {searchSuggestions.map((item) => (
-                                            <div
-                                                key={item.id}
-                                                onClick={() => handleSuggestionClick(item)}
-                                                className="px-5 py-3 hover:bg-black/5 flex items-center gap-4 cursor-pointer transition-colors border-b border-black/5 last:border-0 group/item"
+                                    <div className="absolute top-[calc(100%+8px)] left-0 w-full bg-white rounded-2xl shadow-2xl overflow-hidden z-[1010] border border-black/5 animate-fadeInUp">
+                                        <div className="p-3 border-b border-black/5 flex items-center justify-between bg-gray-50/50">
+                                            <span className="text-[10px] font-bold uppercase text-black/40">Top results</span>
+                                            <span 
+                                                onClick={() => handleSearch({ key: 'Enter' })}
+                                                className="text-[10px] font-bold text-black uppercase hover:underline"
                                             >
-                                                <div className="w-12 h-14 rounded-xl overflow-hidden bg-black/5 shrink-0 shadow-sm">
-                                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover/item:scale-110" />
+                                                View All
+                                            </span>
+                                        </div>
+                                        <div className="max-h-[350px] overflow-y-auto">
+                                            {searchSuggestions.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    onClick={() => handleSuggestionClick(item)}
+                                                    className="px-4 py-3 active:bg-gray-50 flex items-center gap-4 cursor-pointer transition-colors border-b border-gray-50 last:border-0 group/mobileItem"
+                                                >
+                                                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 shrink-0 border border-black/5">
+                                                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-[13px] font-medium text-black truncate">
+                                                            <HighlightText text={item.name} query={searchQuery} />
+                                                        </h4>
+                                                        <p className="text-[10px] font-bold text-black/30 uppercase mt-0.5">
+                                                            {item.categoryId?.name} <span className="text-black/60 mx-1">₹{item.price}</span>
+                                                        </p>
+                                                    </div>
+                                                    <ChevronRight size={14} className="text-gray-300" />
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="text-[13px] font-bold text-black truncate mb-1">{item.name}</h4>
-                                                    <p className="text-[10px] font-bold uppercase text-black/40 ">{item.brand} <span className="text-[8px] mx-1 opacity-50">•</span> <span className="text-black font-semibold">₹{item.discountedPrice}</span></p>
-                                                </div>
-                                                <ChevronRight size={16} className="text-black/20 group-hover/item:text-black group-hover/item:translate-x-1 transition-all" />
+                                            ))}
+                                        </div>
+                                        {/* Mobile Bottom Action Row */}
+                                        <div 
+                                            onClick={() => handleSearch({ key: 'Enter' })}
+                                            className="p-4 bg-gray-50 border-t border-black/5 flex items-center gap-4"
+                                        >
+                                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm border border-black/5">
+                                                <Search size={14} className="text-gray-900" />
                                             </div>
-                                        ))}
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] font-bold text-gray-400 uppercase">Search for</span>
+                                                <span className="text-[12px] font-bold text-black truncate underline italic">"{searchQuery}"</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -492,6 +580,7 @@ const Header = ({ variant = 'default' }) => {
                             </Link>
                             <Link
                                 to={user ? "/profile" : "/login"}
+                                state={{ from: location }}
                                 className="transition-all flex flex-col items-center group relative text-black/70 hover:text-black"
                             >
                                 <User size={24} className={user ? 'text-black' : ''} />
@@ -593,6 +682,7 @@ const Header = ({ variant = 'default' }) => {
                         </Link>
                         <Link
                             to="/login"
+                            state={{ from: location }}
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center justify-center gap-3 w-full py-5 bg-[#FAFAFA] text-black rounded-[28px] font-bold uppercase text-[12px]  active:scale-95 transition-all shadow-[0_10px_30px_rgba(250,250,250,0.15)] hover:bg-black"
                         >

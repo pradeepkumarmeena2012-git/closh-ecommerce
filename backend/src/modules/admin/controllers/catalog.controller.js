@@ -404,6 +404,9 @@ export const updateProductStatus = asyncHandler(async (req, res) => {
         approvalStatus: product.approvalStatus
     });
 
+    // Invalidate public products cache
+    await clearCachePattern('products:*');
+
     res.status(200).json(new ApiResponse(200, product, `Product ${approvalStatus} successfully.`));
 });
 

@@ -8,7 +8,6 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUserLocation } from '../../context/LocationContext';
 import LocationModal from '../../components/Header/LocationModal';
-import CouponsModal from '../../components/Checkout/CouponsModal';
 import {
     ArrowLeft,
     ChevronRight,
@@ -59,7 +58,6 @@ const PaymentPage = () => {
     const [appliedPromo, setAppliedPromo] = useState(null);
     const [promoError, setPromoError] = useState('');
     const [isApplyingPromo, setIsApplyingPromo] = useState(false);
-    const [isCouponsModalOpen, setIsCouponsModalOpen] = useState(false);
 
     useEffect(() => {
         refreshAddresses();
@@ -329,68 +327,7 @@ const PaymentPage = () => {
                     )}
                 </div>
 
-                {/* Promo Code Section */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
-                    <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center gap-2">
-                            <Tag size={18} className="text-gray-900" />
-                            <h2 className="text-[14px] font-bold uppercase ">Apply Promo Code</h2>
-                        </div>
-                        <button 
-                            onClick={() => setIsCouponsModalOpen(true)}
-                            className="text-[12px] font-bold text-[#e53e70] flex items-center gap-1 hover:gap-2 transition-all uppercase"
-                        >
-                            View All <ChevronRight size={14} />
-                        </button>
-                    </div>
 
-                    {!appliedPromo ? (
-                        <div className="space-y-2">
-                            <div className="relative flex gap-2">
-                                <input
-                                    type="text"
-                                    placeholder="Enter Promo Code"
-                                    value={promoCode}
-                                    onChange={(e) => {
-                                        setPromoCode(e.target.value.toUpperCase());
-                                        setPromoError('');
-                                    }}
-                                    className={`flex-1 px-4 py-3 bg-gray-50 border rounded-xl text-[13px] font-bold uppercase tracking-wider outline-none transition-all ${promoError ? 'border-red-500 bg-red-50' : 'border-gray-100 focus:border-black focus:bg-white'}`}
-                                />
-                                <button
-                                    onClick={() => handleApplyPromo()}
-                                    disabled={!promoCode || isApplyingPromo}
-                                    className="px-6 py-3 bg-black text-white text-[12px] font-bold uppercase rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all flex items-center gap-2"
-                                >
-                                    {isApplyingPromo ? (
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    ) : (
-                                        'Apply'
-                                    )}
-                                </button>
-                            </div>
-                            {promoError && <p className="text-[10px] font-bold text-red-500 ml-1">{promoError}</p>}
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100 animate-fadeIn">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                                    <Check className="text-emerald-600" size={20} />
-                                </div>
-                                <div>
-                                    <div className="text-[13px] font-bold text-emerald-800 uppercase ">{appliedPromo.code} Applied</div>
-                                    <p className="text-[11px] font-bold text-emerald-600">You saved ₹{promoDiscount.toFixed(0)}</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={handleRemovePromo}
-                                className="text-[10px] font-bold text-red-500 hover:text-red-700 uppercase"
-                            >
-                                Remove
-                            </button>
-                        </div>
-                    )}
-                </div>
 
                 {/* Payment Options Section */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
@@ -548,22 +485,9 @@ const PaymentPage = () => {
                 }}
             />
 
-            {/* Location Modal */}
             <LocationModal
                 isOpen={showLocationModal}
                 onClose={handleLocationModalClose}
-            />
-
-            {/* Coupons Modal */}
-            <CouponsModal
-                isOpen={isCouponsModalOpen}
-                onClose={() => setIsCouponsModalOpen(false)}
-                onApply={(code) => {
-                    setPromoCode(code);
-                    handleApplyPromo(code);
-                    setIsCouponsModalOpen(false);
-                }}
-                cartTotal={getCartTotal()}
             />
         </div>
     );

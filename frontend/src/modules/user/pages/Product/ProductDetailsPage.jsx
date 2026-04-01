@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
@@ -113,7 +114,20 @@ const ProductDetailsPage = () => {
         }
 
         if (!selectedSize) {
-            alert('Please select a size first');
+            toast.error('Please select a size first', {
+                style: {
+                    borderRadius: '16px',
+                    background: '#111',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    border: '1px solid #333'
+                },
+                iconTheme: {
+                    primary: '#D4AF37',
+                    secondary: '#111',
+                },
+            });
             return;
         }
         addToCart({ ...product, selectedSize });
@@ -239,13 +253,7 @@ const ProductDetailsPage = () => {
                                 </div>
                             </div>
 
-                            {/* Wishlist Mobile - Smaller */}
-                            <button
-                                onClick={() => toggleWishlist(product)}
-                                className="absolute top-3 right-3 md:top-6 md:right-6 w-9 h-9 md:w-12 md:h-12 bg-white/90 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center shadow-md md:shadow-xl md:hidden border border-gray-200"
-                            >
-                                <Heart size={18} className={isInWishlist(product?.id) ? 'fill-[#D4AF37] text-black' : 'text-gray-900'} />
-                            </button>
+
 
                             {/* Rating Badge - Compact on Mobile */}
                             <div className="absolute bottom-3 left-3 md:bottom-6 md:left-6 bg-white/90 backdrop-blur-md px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl flex items-center gap-1.5 md:gap-2 shadow-md md:shadow-xl border border-gray-200">
@@ -295,21 +303,21 @@ const ProductDetailsPage = () => {
                                 <span className="text-3xl font-bold text-gray-900">
                                     ₹{product.discountedPrice !== undefined ? product.discountedPrice : product.price}
                                 </span>
-                                <div className="flex flex-col">
-                                    {(product.originalPrice || product.price) && (
-                                        <div className="flex items-center gap-2">
-                                            {product.originalPrice && (
-                                                <span className="text-lg text-gray-400 line-through">₹{product.originalPrice}</span>
-                                            )}
-                                            {(product.discount || (product.originalPrice && (product.discountedPrice || product.price) && product.originalPrice > (product.discountedPrice || product.price))) && (
-                                                <span className="text-emerald-400 font-bold text-sm bg-emerald-500/10 px-2.5 py-1 rounded-lg">
-                                                    {product.discount || `${Math.round(((product.originalPrice - (product.discountedPrice || product.price)) / product.originalPrice) * 100)}% OFF`}
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
-                                    <p className="text-[11px] font-semibold text-gray-500 mt-1 uppercase  italic">inclusive of all taxes</p>
-                                </div>
+                            <div className="flex flex-col">
+                                {Number(product.originalPrice || product.mrp) > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-lg text-gray-400 line-through">
+                                            ₹{product.originalPrice || product.mrp}
+                                        </span>
+                                        {Number(product.originalPrice || product.mrp) > Number(product.discountedPrice || product.price) && (
+                                            <span className="text-emerald-400 font-bold text-sm bg-emerald-500/10 px-2.5 py-1 rounded-lg">
+                                                {product.discount || `${Math.round(((Number(product.originalPrice || product.mrp) - Number(product.discountedPrice || product.price)) / Number(product.originalPrice || product.mrp)) * 100)}% OFF`}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                                <p className="text-[11px] font-semibold text-gray-500 mt-1 uppercase italic">inclusive of all taxes</p>
+                            </div>
                             </div>
                         </div>
 
@@ -354,13 +362,22 @@ const ProductDetailsPage = () => {
 
                         {/* Actions - Inline */}
                         <div className="flex gap-3 mb-5">
-                            <button
-                                onClick={handleAddToCart}
-                                className="flex-[3] h-14 bg-black text-white rounded-[18px] font-bold text-[14px] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-[0_10px_30px_rgba(212,175,55,0.2)] hover:bg-[#c39e2e]"
-                            >
-                                <ShoppingCart size={18} />
-                                Add to Cart
-                            </button>
+                            {product.stock === 'out_of_stock' || product.stockQuantity <= 0 ? (
+                                <button
+                                    disabled
+                                    className="flex-[3] h-14 bg-gray-200 text-gray-500 rounded-[18px] font-bold text-[14px] flex items-center justify-center shadow-inner cursor-not-allowed uppercase"
+                                >
+                                    Out of Stock
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleAddToCart}
+                                    className="flex-[3] h-14 bg-black text-white rounded-[18px] font-bold text-[14px] flex items-center justify-center gap-3 active:scale-95 transition-all shadow-[0_10px_30px_rgba(212,175,55,0.2)] hover:bg-[#c39e2e]"
+                                >
+                                    <ShoppingCart size={18} />
+                                    Add to Cart
+                                </button>
+                            )}
                             <button
                                 onClick={() => toggleWishlist(product)}
                                 className={`flex-1 h-14 rounded-[18px] font-bold text-[14px] flex items-center justify-center gap-2 transition-all border ${isInWishlist(product?.id)
@@ -373,44 +390,6 @@ const ProductDetailsPage = () => {
                             </button>
                         </div>
 
-                        {/* Vendor Info Section */}
-                        {product.vendorId && (
-                            <div className="mb-6 p-4 bg-gray-50 rounded-[24px] border border-gray-200 shadow-sm flex items-center justify-between hover:border-black transition-all group">
-                                <div className="flex items-center gap-4">
-                                    <div className="relative">
-                                        {product.vendorId.storeLogo ? (
-                                            <img
-                                                src={product.vendorId.storeLogo}
-                                                alt={product.vendorId.storeName}
-                                                className="w-14 h-14 rounded-2xl object-cover border-2 border-gray-100 shadow-sm"
-                                            />
-                                        ) : (
-                                            <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400">
-                                                <ShoppingCart size={24} />
-                                            </div>
-                                        )}
-                                        <div className="absolute -bottom-1 -right-1 bg-black w-4 h-4 rounded-full border-2 border-[#1a1a1a] shadow-sm" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold text-gray-400 mb-1">Sold By</p>
-                                        <h4 className="text-[16px] font-bold text-gray-900 group-hover:text-black transition-colors">{product.vendorId.storeName}</h4>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <MapPin size={10} className="text-black" />
-                                            <p className="text-[11px] font-bold text-gray-500">
-                                                {product.vendorId.address?.city ? `${product.vendorId.address.city}, ${product.vendorId.address.state}` : 'Verified Vendor'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-1">
-                                    <div className="flex items-center gap-1 bg-black text-white px-2.5 py-1 rounded-xl text-[12px] font-bold shadow-lg">
-                                        {product.vendorId.rating || '4.5'} <Star size={10} className="fill-black" />
-                                    </div>
-                                    <p className="text-[9px] font-bold text-gray-400 uppercase er">Store Rating</p>
-                                </div>
-                            </div>
-                        )}
-
 
                         {/* USP Features */}
                         <div className="grid grid-cols-2 gap-3 mb-6">
@@ -418,14 +397,14 @@ const ProductDetailsPage = () => {
                                 <Truck className="text-black shrink-0" size={20} />
                                 <div>
                                     <h4 className="text-[11px] font-bold text-gray-900">Free Delivery</h4>
-                                    <p className="text-[9px] font-semibold text-gray-500">Above ₹999</p>
+                                    <p className="text-[9px] font-semibold text-gray-500">Above ₹{product.vendorId?.freeShippingThreshold > 0 ? product.vendorId.freeShippingThreshold : '999'}</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-2.5 p-3.5 bg-gray-50 rounded-[20px] border border-gray-200">
                                 <RotateCcw className="text-black shrink-0" size={20} />
                                 <div>
                                     <h4 className="text-[11px] font-bold text-gray-900">Easy Returns</h4>
-                                    <p className="text-[9px] font-bold text-gray-500">14 days policy</p>
+                                    <p className="text-[9px] font-bold text-gray-500">24 hours policy</p>
                                 </div>
                             </div>
                         </div>
@@ -536,7 +515,7 @@ const ProductDetailsPage = () => {
                                     id: 'shipping', title: 'Shipping & Returns', content: (
                                         <div className="space-y-4 text-[13px] font-middle text-gray-600 leading-relaxed">
                                             <p><span className="text-black font-bold uppercase  text-[11px]">Instant Delivery:</span> Your order will be delivered within 60 minutes. Order now for the fastest service.</p>
-                                            <p>You can return or exchange this item within 14 days of delivery. The item must be unused with all original tags intact.</p>
+                                            <p>You can return or exchange this item within 24 hours of delivery. The item must be unused with all original tags intact.</p>
                                         </div>
                                     )
                                 }

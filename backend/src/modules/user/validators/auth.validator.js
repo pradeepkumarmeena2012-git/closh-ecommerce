@@ -3,8 +3,22 @@ import Joi from 'joi';
 export const registerSchema = Joi.object({
     name: Joi.string().trim().min(2).max(50).required(),
     email: Joi.string().email().lowercase().required(),
-    password: Joi.string().min(6).required(),
+    password: Joi.string().min(6).optional(), // optional now
     phone: Joi.string().pattern(/^[0-9]{10}$/).optional(),
+});
+
+export const loginOtpSchema = Joi.object({
+    phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+});
+
+export const registerOtpSchema = Joi.object({
+    phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+    name: Joi.string().trim().min(2).max(50).required(),
+    email: Joi.string().email().lowercase().required(),
+});
+
+export const checkPhoneSchema = Joi.object({
+    phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
 });
 
 export const loginSchema = Joi.object({
@@ -48,7 +62,15 @@ export const resetPasswordSchema = Joi.object({
 
 export const updateProfileSchema = Joi.object({
     name: Joi.string().trim().min(2).max(50).required(),
+    firstName: Joi.string().trim().allow('').optional(),
+    lastName: Joi.string().trim().allow('').optional(),
+    email: Joi.string().email().lowercase().optional(),
     phone: Joi.string().pattern(/^[0-9]{10}$/).allow('').optional(),
+    dob: Joi.string().allow('').optional(),
+    gender: Joi.string().allow('').optional(),
+    ageRange: Joi.string().allow('').optional(),
+    stylePreference: Joi.string().allow('').optional(),
+    preferredFit: Joi.string().allow('').optional(),
 });
 
 export const changePasswordSchema = Joi.object({

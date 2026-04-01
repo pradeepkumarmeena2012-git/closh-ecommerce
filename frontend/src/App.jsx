@@ -660,12 +660,17 @@ function App() {
           <AppRoutes />
           <CartDrawer />
           <Toaster
-            position="top-right"
+            position="top-center"
+            containerStyle={{ zIndex: 99999 }}
             toastOptions={{
               duration: 3000,
               style: {
                 background: "#212121",
                 color: "#fff",
+                fontSize: "13px",
+                fontWeight: "600",
+                borderRadius: "12px",
+                padding: "12px 16px",
               },
               success: {
                 duration: 3000,

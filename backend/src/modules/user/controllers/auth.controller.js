@@ -46,7 +46,7 @@ export const register = asyncHandler(async (req, res) => {
     const user = await User.create({
         name: String(name || '').trim(),
         email: normalizedEmail,
-        password,
+        ...(password ? { password } : {}), // Password is optional now
         ...(normalizedPhone ? { phone: normalizedPhone } : {}),
     });
 
@@ -153,6 +153,48 @@ export const login = asyncHandler(async (req, res) => {
             ...userToReturn
         }
     }, 'Login successful.'));
+});
+
+// POST /api/user/auth/check-phone
+export const checkPhone = asyncHandler(async (req, res) => {
+    const { phone } = req.body;
+    const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+    const user = await User.findOne({ phone: normalizedPhone });
+    res.status(200).json(new ApiResponse(200, { exists: !!user, email: user ? user.email : null }, 'Phone check result.'));
+});
+
+// POST /api/user/auth/login-otp
+export const loginOtp = asyncHandler(async (req, res) => {
+    const { phone } = req.body;
+    const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+    const user = await User.findOne({ phone: normalizedPhone });
+    if (!user) throw new ApiError(404, 'User not found with this mobile number.');
+    if (!user.isActive) throw new ApiError(403, 'Your account has been deactivated.');
+    
+    await sendOTP(user, 'login_verification');
+    res.status(200).json(new ApiResponse(200, { email: user.email }, 'OTP sent successfully.'));
+});
+
+// POST /api/user/auth/register-otp
+export const registerOtp = asyncHandler(async (req, res) => {
+    const { name, email, phone } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+
+    const existingEmail = await User.findOne({ email: normalizedEmail });
+    if (existingEmail) throw new ApiError(409, 'Email already registered.');
+
+    const existingPhone = await User.findOne({ phone: normalizedPhone });
+    if (existingPhone) throw new ApiError(409, 'Phone number already registered.');
+
+    const user = await User.create({
+        name: String(name || '').trim(),
+        email: normalizedEmail,
+        phone: normalizedPhone,
+    });
+
+    await sendOTP(user, 'email_verification');
+    res.status(201).json(new ApiResponse(201, { email: user.email }, 'Registration successful. OTP sent.'));
 });
 
 // POST /api/user/auth/refresh
@@ -309,7 +351,7 @@ export const getProfile = asyncHandler(async (req, res) => {
 
 // PUT /api/user/auth/profile
 export const updateProfile = asyncHandler(async (req, res) => {
-    const { name, firstName, lastName, phone, dob, gender, ageRange, stylePreference, preferredFit } = req.body;
+    const { name, firstName, lastName, phone, dob, gender, ageRange, stylePreference, preferredFit, email } = req.body;
     const normalizedName = String(name || '').trim();
     const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
 
@@ -324,6 +366,10 @@ export const updateProfile = asyncHandler(async (req, res) => {
         stylePreference,
         preferredFit
     };
+    
+    if (email) {
+        updatePayload.email = String(email).trim().toLowerCase();
+    }
 
     const user = await User.findByIdAndUpdate(
         req.user.id,

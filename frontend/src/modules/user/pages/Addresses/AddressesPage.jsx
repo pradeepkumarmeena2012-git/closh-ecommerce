@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
 import { MapPin, Search, X, Home, Briefcase, MapPin as MapPinIcon, ChevronLeft, Loader2, Navigation, Target, Plus } from 'lucide-react';
 import { useUserLocation } from '../../context/LocationContext';
@@ -169,7 +170,7 @@ const AddressesPage = () => {
                 (err) => {
                     console.error(err);
                     setLoadingLocation(false);
-                    alert("Unable to retrieve your location. Please check browser permissions.");
+                    toast.error('Unable to retrieve your location. Please check browser permissions.');
                 },
                 { enableHighAccuracy: true }
             );
@@ -181,6 +182,12 @@ const AddressesPage = () => {
 
     const handleSave = async (e) => {
         e.preventDefault();
+        
+        if (newAddress.address.trim().length < 5) {
+            toast.error('Address must be at least 5 characters long');
+            return;
+        }
+
         try {
             const payload = {
                 name: newAddress.type, // Use Type as the name/label
@@ -203,33 +210,48 @@ const AddressesPage = () => {
             }
         } catch (error) {
             console.error("Save error:", error);
-            toast.error('Failed to save address');
+            const msg = error.response?.data?.errors?.[0]?.message || error.response?.data?.message || "Failed to save address";
+            toast.error(msg);
         }
     };
 
+    const navigate = useNavigate();
+
     return (
-        <AccountLayout>
-            <div className="flex flex-col h-full">
-                <div className="flex justify-between items-center mb-8">
-                    <h2 className="text-xl font-bold">
-                        {view === 'list' ? 'Saved Addresses' : view === 'map' ? 'Pin Location' : 'Add New Address'}
-                    </h2>
-                    {view !== 'list' && (
-                        <button onClick={() => setView('list')} className="text-gray-400 hover:text-black flex items-center gap-2 text-sm font-bold uppercase ">
-                            <ChevronLeft size={16} /> Back
-                        </button>
-                    )}
+        <AccountLayout hideHeader={true}>
+            <div className={`flex flex-col ${view === 'map' ? 'h-full md:h-auto -mx-2 md:mx-0' : 'h-full'}`}>
+                <div className="flex justify-between items-center mb-4 md:mb-8 px-2 md:px-0">
+                    <div className="flex items-center gap-3">
+                        {view === 'list' ? (
+                            <button
+                                onClick={() => navigate('/account')}
+                                className="lg:hidden w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center shadow-sm"
+                            >
+                                <ChevronLeft size={20} strokeWidth={3} />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setView('list')}
+                                className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center shadow-sm active:scale-95 transition-all"
+                            >
+                                <ChevronLeft size={20} strokeWidth={3} />
+                            </button>
+                        )}
+                        <h2 className="text-lg md:text-xl font-bold">
+                            {view === 'list' ? 'Saved Addresses' : view === 'map' ? 'Pin Location' : 'Add New Address'}
+                        </h2>
+                    </div>
                 </div>
 
                 {view === 'map' ? (
-                    <div className="animate-fadeIn h-[600px] flex flex-col relative rounded-[32px] overflow-hidden border border-gray-100 shadow-sm">
+                    <div className="animate-fadeIn h-[75vh] min-h-[450px] md:h-[600px] md:min-h-[600px] flex flex-col relative rounded-[20px] md:rounded-[32px] overflow-hidden border border-gray-100 shadow-sm mx-1 md:mx-0">
                         {/* Map Search Box */}
-                        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-[500px]">
+                        <div className="absolute top-4 md:top-6 left-1/2 -translate-x-1/2 z-[1000] w-[92%] md:w-[90%] max-w-[500px]">
                             <form onSubmit={handleSearch} className="relative group">
                                 <input
                                     type="text"
-                                    placeholder="Search your building name, street, area"
-                                    className="w-full h-14 bg-white/95 backdrop-blur-md rounded-2xl px-12 text-[14px] font-bold shadow-2xl border border-gray-100 outline-none focus:border-black transition-all"
+                                    placeholder="Search building, street, area..."
+                                    className="w-full h-12 md:h-14 bg-white/95 backdrop-blur-md rounded-[18px] md:rounded-2xl px-12 text-[13px] md:text-[14px] font-bold shadow-2xl border border-gray-100 outline-none focus:border-black transition-all"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -246,7 +268,7 @@ const AddressesPage = () => {
                                 style={{ height: '100%', width: '100%' }}
                             >
                                 <TileLayer
-                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 />
                                 <LocationMarker
@@ -257,24 +279,24 @@ const AddressesPage = () => {
                             </MapContainer>
 
                             {/* Current Location Button Overlay */}
-                            <div className="absolute top-24 right-5 z-[1000]">
+                            <div className="absolute top-20 md:top-24 right-4 md:right-5 z-[1000]">
                                 <button
                                     onClick={handleUseCurrentLocation}
-                                    className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center text-black hover:bg-white hover:text-black active:scale-90 transition-all border border-gray-100"
+                                    className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-[14px] md:rounded-2xl shadow-xl flex items-center justify-center text-black hover:bg-white hover:text-black active:scale-90 transition-all border border-gray-100"
                                 >
-                                    {loadingLocation ? <Loader2 size={24} className="animate-spin" /> : <Target size={24} className="text-black" />}
+                                    {loadingLocation ? <Loader2 size={20} md:size={24} className="animate-spin" /> : <Target size={20} md:size={24} className="text-black" />}
                                 </button>
                             </div>
 
                             {/* Selection Detail Overlay */}
                             {fetchedAddress && (
-                                <div className="absolute bottom-6 left-6 right-6 bg-white p-4 rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-start gap-3 animate-fadeInUp">
-                                    <div className="p-2.5 bg-red-50 rounded-xl">
-                                        <MapPinIcon size={20} className="text-red-500" />
+                                <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 right-4 md:right-6 bg-white p-3 md:p-4 rounded-xl md:rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-start gap-2.5 md:gap-3 animate-fadeInUp">
+                                    <div className="p-2 md:p-2.5 bg-red-50 rounded-lg md:rounded-xl shrink-0">
+                                        <MapPinIcon size={18} md:size={20} className="text-red-500" />
                                     </div>
-                                    <div className="flex-1">
-                                        <h4 className="text-[10px] font-bold uppercase  text-gray-400 mb-1">Selected Location</h4>
-                                        <p className="text-[13px] font-bold text-gray-900 leading-tight">
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-[9px] md:text-[10px] font-bold uppercase text-gray-400 mb-0.5 md:mb-1">Selected Location</h4>
+                                        <p className="text-[12px] md:text-[13px] font-bold text-gray-900 leading-tight truncate md:whitespace-normal">
                                             {fetchedAddress.formatted}
                                         </p>
                                     </div>
@@ -283,10 +305,10 @@ const AddressesPage = () => {
                         </div>
 
                         {/* Footer Confirm */}
-                        <div className="p-6 bg-white border-t border-gray-50">
+                        <div className="p-4 md:p-6 bg-white border-t border-gray-50 shrink-0">
                             <button
                                 onClick={handleConfirmLocation}
-                                className="w-full py-4 bg-black text-white rounded-2xl font-bold uppercase shadow-xl hover:bg-gray-800 transition-all active:scale-[0.98]"
+                                className="w-full py-3.5 md:py-4 bg-black text-white rounded-[16px] md:rounded-2xl font-bold text-[13px] md:text-[14px] uppercase shadow-xl hover:bg-gray-800 transition-all active:scale-[0.98]"
                             >
                                 Confirm & Continue
                             </button>
