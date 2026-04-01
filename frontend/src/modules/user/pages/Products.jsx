@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCartStore } from '../../../shared/store/useStore';
 import { useWishlistStore } from '../../../shared/store/wishlistStore';
 import { useAuthStore } from '../../../shared/store/authStore';
+import { useCategoryStore } from '../../../shared/store/categoryStore';
 import api from '../../../shared/utils/api';
 import {
-    Filter, X, ChevronDown, Star, Search, ArrowLeft, Heart, ShoppingCart, Check, SlidersHorizontal
+    Filter, X, ChevronDown, Star, Search, ArrowLeft, Heart, ShoppingCart, Check, SlidersHorizontal, ChevronRight
 } from 'lucide-react';
+import { useMemo } from 'react';
 
 const ProductsPage = () => {
     const { addItem: addToCart } = useCartStore();
@@ -24,24 +26,57 @@ const ProductsPage = () => {
     // Filters
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [isSortOpen, setIsSortOpen] = useState(false);
+    const [isGenderOpen, setIsGenderOpen] = useState(false);
     const [selectedSort, setSelectedSort] = useState('newest');
     const [searchValue, setSearchValue] = useState(searchParams.get('search') || searchParams.get('q') || '');
-    const [categories, setCategories] = useState([]);
-    const [brands, setBrands] = useState([]);
-    const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
+    const [selectedCategory, setSelectedCategory] = useState(searchParams.get('cid') || searchParams.get('category') || '');
     const [selectedBrand, setSelectedBrand] = useState(searchParams.get('brand') || '');
+
+    const { categories: allCategories, initialize: initCategories } = useCategoryStore();
 
     // Fetch categories & brands
     useEffect(() => {
-        api.get('/categories/all').then(res => {
-            const list = res?.data || res || [];
-            setCategories(Array.isArray(list) ? list : []);
-        }).catch(() => {});
+        initCategories();
         api.get('/brands/all').then(res => {
             const list = res?.data || res || [];
-            setBrands(Array.isArray(list) ? list : []);
+            setBrands(list || []);
         }).catch(() => {});
-    }, []);
+    }, [initCategories]);
+
+    // Resolve Names to IDs if cid is missing
+    useEffect(() => {
+        if (allCategories.length > 0 && !searchParams.get('cid')) {
+            const subName = searchParams.get('subcategory');
+            const catName = searchParams.get('category');
+            const divName = searchParams.get('division');
+            
+            const targetName = subName || catName || divName;
+            if (targetName) {
+                const matched = allCategories.find(c => 
+                    c.name.toLowerCase().replace(/\s+/g, '+') === targetName.toLowerCase() ||
+                    c.name.toLowerCase() === targetName.toLowerCase()
+                );
+                if (matched) setSelectedCategory(matched.id || matched._id);
+            }
+        }
+    }, [allCategories, searchParams]);
+
+    // Calculate category hierarchy for breadcrumbs
+    const categoryPath = useMemo(() => {
+        if (!selectedCategory || allCategories.length === 0) return [];
+        const path = [];
+        let current = allCategories.find(c => String(c.id || c._id) === String(selectedCategory));
+        
+        while (current) {
+            path.unshift(current);
+            const parentId = typeof current.parentId === 'object' 
+                ? (current.parentId?._id || current.parentId?.id) 
+                : current.parentId;
+                
+            current = parentId ? allCategories.find(c => String(c.id || c._id) === String(parentId)) : null;
+        }
+        return path;
+    }, [selectedCategory, allCategories]);
 
     // Fetch products
     useEffect(() => {
@@ -54,12 +89,19 @@ const ProductsPage = () => {
                 if (selectedBrand) params.brand = selectedBrand;
 
                 const res = await api.get('/products', { params });
-                const data = res?.data || res || {};
-                setProducts(data.products || []);
-                setTotal(data.total || 0);
-                setPages(data.pages || 1);
-            } catch {
+                
+                // Extremely robust data extraction
+                const apiData = res?.data || res || {};
+                const productsList = Array.isArray(apiData.products) ? apiData.products : (Array.isArray(res) ? res : []);
+                const itemsCount = apiData.total !== undefined ? apiData.total : productsList.length;
+                
+                setProducts(productsList);
+                setTotal(itemsCount);
+                setPages(apiData.pages || 1);
+            } catch (err) {
+                console.error("Fetch products failed:", err);
                 setProducts([]);
+                setTotal(0);
             } finally {
                 setIsLoading(false);
             }
@@ -110,33 +152,86 @@ const ProductsPage = () => {
     return (
         <div className="bg-white min-h-screen pb-20">
             {/* Header */}
-            <div className="sticky top-0 bg-white z-[60] border-b border-gray-100 shadow-sm">
-                <div className="container mx-auto flex items-center gap-4 px-4 py-3">
-                    <button className="p-2 -ml-2 rounded-full hover:bg-white hover:text-black transition-colors shrink-0" onClick={() => navigate(-1)}>
+            <div className="sticky top-0 bg-white/80 backdrop-blur-md z-[60] border-b border-gray-100/50">
+                <div className="container mx-auto flex items-center gap-3 px-4 py-3">
+                    <button className="p-2 -ml-2 rounded-full active:scale-90 transition-transform shrink-0" onClick={() => navigate(-1)}>
                         <ArrowLeft size={22} className="text-black" />
                     </button>
-                    <div className="flex-1 relative">
-                        <input
-                            type="text"
-                            placeholder="Search products..."
-                            className="w-full text-sm font-bold border border-gray-200 outline-none py-2.5 bg-white rounded-xl px-4 pr-10 focus:border-[#FF5722] transition-all shadow-sm"
-                            value={searchValue}
-                            onChange={(e) => { setSearchValue(e.target.value); setPage(1); }}
-                        />
-                        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-col">
+                            <h1 className="text-[14px] font-black uppercase tracking-tight line-clamp-1 text-gray-900">
+                                {selectedCategory 
+                                    ? (allCategories.find(c => String(c.id || c._id) === String(selectedCategory))?.name || 'Category') 
+                                    : 'Discover'}
+                            </h1>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{total} Items</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <button className="p-2 bg-gray-50 rounded-full text-gray-500 active:scale-90 transition-transform" onClick={() => navigate('/categories')}>
+                            <SlidersHorizontal size={18} />
+                        </button>
+                        <button className="p-2.5 bg-black text-white rounded-full shadow-lg shadow-black/10 active:scale-95 transition-transform" onClick={() => setIsFilterOpen(true)}>
+                            <Search size={18} />
+                        </button>
                     </div>
                 </div>
             </div>
 
             <div className="container mx-auto px-4 py-6">
-                {/* Result count & Active filters */}
-                <div className="flex items-center justify-between mb-6">
+                {/* Hierarchical Breadcrumbs */}
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mb-6 pb-2">
+                    <button 
+                        onClick={() => { setSelectedCategory(''); setSearchValue(''); setPage(1); }}
+                        className={`shrink-0 text-[11px] font-bold uppercase transition-all px-3 py-1.5 rounded-full border ${!selectedCategory ? 'bg-black text-white border-black' : 'text-gray-400 border-gray-100 hover:border-gray-200'}`}
+                    >
+                        All
+                    </button>
+                    
+                    {categoryPath.map((cat, idx) => (
+                        <React.Fragment key={cat.id || cat._id}>
+                            <ChevronRight size={12} className="text-gray-300 shrink-0" />
+                            <button 
+                                onClick={() => { setSelectedCategory(cat.id || cat._id); setSearchValue(''); setPage(1); }}
+                                className={`shrink-0 text-[11px] font-bold uppercase transition-all px-3 py-1.5 rounded-full border ${idx === categoryPath.length - 1 ? 'bg-[#FF5722] text-white border-[#FF5722]' : 'text-gray-600 border-gray-100 hover:border-gray-200'}`}
+                            >
+                                {cat.name}
+                            </button>
+                        </React.Fragment>
+                    ))}
+
+                    {selectedBrand && (
+                         <>
+                            <div className="w-px h-3 bg-gray-200 mx-1 shrink-0" />
+                            <button 
+                                onClick={() => { setSelectedBrand(''); setPage(1); }}
+                                className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold uppercase bg-gray-50 text-gray-900 px-3 py-1.5 rounded-full border border-gray-100"
+                            >
+                                Brand: {brands.find(b => b._id === selectedBrand)?.name} <X size={10} />
+                            </button>
+                         </>
+                    )}
+
+                    {searchValue && (
+                        <>
+                            <div className="w-px h-3 bg-gray-200 mx-1 shrink-0" />
+                            <button 
+                                onClick={() => { setSearchValue(''); setPage(1); }}
+                                className="shrink-0 flex items-center gap-1.5 text-[11px] font-bold uppercase bg-gray-50 text-gray-900 px-3 py-1.5 rounded-full border border-gray-100"
+                            >
+                                Search: {searchValue} <X size={10} />
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                <div className="flex items-center justify-between mb-4">
                     <p className="text-[12px] font-bold text-gray-400 uppercase">
                         {total} Products Found
                     </p>
-                    {(selectedCategory || selectedBrand) && (
-                        <button onClick={clearFilters} className="text-[11px] font-bold text-red-500 uppercase">
-                            Clear Filters
+                    {(selectedCategory || selectedBrand || searchValue) && (
+                        <button onClick={clearFilters} className="text-[11px] font-bold text-red-500 uppercase hover:underline">
+                            Clear All
                         </button>
                     )}
                 </div>
@@ -159,11 +254,11 @@ const ProductsPage = () => {
                                     >
                                         All Categories
                                     </button>
-                                    {categories.map(cat => (
+                                    {allCategories.filter(c => !c.parentId).map(cat => (
                                         <button
-                                            key={cat._id}
-                                            onClick={() => { setSelectedCategory(cat._id); setPage(1); }}
-                                            className={`block w-full text-left text-[13px] px-3 py-2 rounded-lg font-bold transition-colors ${selectedCategory === cat._id ? 'bg-black text-white' : 'text-gray-600 hover:bg-white hover:text-black'}`}
+                                            key={cat._id || cat.id}
+                                            onClick={() => { setSelectedCategory(cat._id || cat.id); setPage(1); }}
+                                            className={`block w-full text-left text-[13px] px-3 py-2 rounded-lg font-bold transition-colors ${selectedCategory === cat._id || selectedCategory === cat.id ? 'bg-black text-white' : 'text-gray-600 hover:bg-white hover:text-black'}`}
                                         >
                                             {cat.name}
                                         </button>
@@ -310,15 +405,22 @@ const ProductsPage = () => {
                                 )}
                             </>
                         ) : (
-                            <div className="py-24 text-center">
-                                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Search size={40} className="text-gray-200" />
+                            <div className="py-20 flex flex-col items-center justify-center text-center animate-fadeIn">
+                                <div className="relative mb-8">
+                                    <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center">
+                                        <Search size={40} className="text-gray-200" />
+                                    </div>
+                                    <div className="absolute -top-1 -right-1 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center text-red-500">
+                                        <X size={16} strokeWidth={3} />
+                                    </div>
                                 </div>
-                                <h3 className="text-xl font-bold uppercase mb-2">No Products Found</h3>
-                                <p className="text-gray-400 text-sm mb-6">Try adjusting your filters or search query</p>
+                                <h3 className="text-xl font-black uppercase tracking-tighter mb-2 text-gray-900">No Matches Found</h3>
+                                <p className="text-gray-400 text-[13px] font-bold uppercase max-w-[280px] leading-relaxed mb-10">
+                                    Adjust your filters or search query to discover more exclusive pieces.
+                                </p>
                                 <button
                                     onClick={clearFilters}
-                                    className="px-8 py-3 bg-black text-white text-[12px] font-bold uppercase rounded-2xl active:scale-95 transition-all shadow-xl"
+                                    className="px-10 py-4 bg-gradient-to-br from-gray-900 to-gray-700 text-white text-[12px] font-black uppercase rounded-full active:scale-95 transition-all shadow-xl shadow-gray-200 tracking-widest"
                                 >
                                     Reset Filters
                                 </button>
@@ -328,19 +430,30 @@ const ProductsPage = () => {
                 </div>
             </div>
 
-            {/* Mobile Bottom Filter/Sort Bar */}
-            <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 z-[90] flex h-14 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
+            {/* Slikk-style Floating Bottom Pill Bar */}
+            <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[85%] max-w-[360px] bg-black/90 backdrop-blur-lg rounded-full z-[100] flex h-14 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10 p-1 gap-1 animate-slideUp">
+                <button
+                    onClick={() => setIsGenderOpen(true)}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-full transition-all active:bg-white/10 text-white"
+                >
+                    <SlidersHorizontal size={14} className="opacity-80" />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Division</span>
+                </button>
+                <div className="w-[1px] h-6 bg-white/20 self-center" />
                 <button
                     onClick={() => setIsSortOpen(true)}
-                    className="flex-1 flex items-center justify-center gap-2 text-[12px] font-bold uppercase border-r border-gray-100"
+                    className="flex-1 flex items-center justify-center gap-2 rounded-full transition-all active:bg-white/10 text-white"
                 >
-                    <SlidersHorizontal size={14} /> Sort
+                    <Check size={14} className="opacity-80" />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Sort</span>
                 </button>
+                <div className="w-[1px] h-6 bg-white/20 self-center" />
                 <button
                     onClick={() => setIsFilterOpen(true)}
-                    className="flex-1 flex items-center justify-center gap-2 text-[12px] font-bold uppercase"
+                    className="flex-1 flex items-center justify-center gap-2 rounded-full transition-all active:bg-white/10 text-white"
                 >
-                    <Filter size={14} /> Filter
+                    <Filter size={14} className="opacity-80" />
+                    <span className="text-[10px] font-black uppercase tracking-tighter">Filter</span>
                 </button>
             </div>
 
@@ -379,20 +492,43 @@ const ProductsPage = () => {
 
                     <div className="flex-1 overflow-y-auto p-5 pb-24 space-y-6">
                         <div>
-                            <h4 className="text-[12px] font-bold uppercase  text-gray-500 mb-3">Category</h4>
-                            <div className="space-y-2">
-                                <button onClick={() => setSelectedCategory('')} className={`w-full text-left p-3 rounded-xl font-bold text-[13px] ${!selectedCategory ? 'bg-black text-white' : 'bg-white text-gray-600'}`}>All</button>
-                                {categories.map(cat => (
-                                    <button key={cat._id} onClick={() => setSelectedCategory(cat._id)} className={`w-full text-left p-3 rounded-xl font-bold text-[13px] ${selectedCategory === cat._id ? 'bg-black text-white' : 'bg-white text-gray-600'}`}>{cat.name}</button>
+                            <h4 className="text-[11px] font-bold uppercase text-gray-400 mb-3 ml-1 tracking-wider">Category</h4>
+                            <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-[35vh] pr-1">
+                                <button 
+                                    onClick={() => setSelectedCategory('')} 
+                                    className={`text-center py-2.5 px-2 rounded-xl font-bold text-[11px] transition-all border ${!selectedCategory ? 'bg-black text-white border-black shadow-md' : 'bg-gray-50 text-gray-600 border-gray-100'}`}
+                                >
+                                    All Categories
+                                </button>
+                                {allCategories.filter(c => !c.parentId).map(cat => (
+                                    <button 
+                                        key={cat._id || cat.id} 
+                                        onClick={() => setSelectedCategory(cat._id || cat.id)} 
+                                        className={`text-center py-2.5 px-2 rounded-xl font-bold text-[11px] transition-all border ${selectedCategory === cat._id || selectedCategory === cat.id ? 'bg-black text-white border-black shadow-md' : 'bg-gray-50 text-gray-600 border-gray-100'}`}
+                                    >
+                                        {cat.name}
+                                    </button>
                                 ))}
                             </div>
                         </div>
+
                         <div>
-                            <h4 className="text-[12px] font-bold uppercase  text-gray-500 mb-3">Brand</h4>
-                            <div className="space-y-2">
-                                <button onClick={() => setSelectedBrand('')} className={`w-full text-left p-3 rounded-xl font-bold text-[13px] ${!selectedBrand ? 'bg-black text-white' : 'bg-white text-gray-600'}`}>All</button>
+                            <h4 className="text-[11px] font-bold uppercase text-gray-400 mb-3 ml-1 tracking-wider">Brand</h4>
+                            <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-[35vh] pr-1">
+                                <button 
+                                    onClick={() => setSelectedBrand('')} 
+                                    className={`text-center py-2.5 px-2 rounded-xl font-bold text-[11px] transition-all border ${!selectedBrand ? 'bg-black text-white border-black shadow-md' : 'bg-gray-50 text-gray-600 border-gray-100'}`}
+                                >
+                                    All Brands
+                                </button>
                                 {brands.map(brand => (
-                                    <button key={brand._id} onClick={() => setSelectedBrand(brand._id)} className={`w-full text-left p-3 rounded-xl font-bold text-[13px] ${selectedBrand === brand._id ? 'bg-black text-white' : 'bg-white text-gray-600'}`}>{brand.name}</button>
+                                    <button 
+                                        key={brand._id} 
+                                        onClick={() => setSelectedBrand(brand._id)} 
+                                        className={`text-center py-2.5 px-2 rounded-xl font-bold text-[11px] transition-all border ${selectedBrand === brand._id ? 'bg-black text-white border-black shadow-md' : 'bg-gray-50 text-gray-600 border-gray-100'}`}
+                                    >
+                                        {brand.name}
+                                    </button>
                                 ))}
                             </div>
                         </div>
@@ -401,6 +537,32 @@ const ProductsPage = () => {
                     <div className="border-t border-gray-100 p-4 flex gap-4 bg-white sticky bottom-0">
                         <button onClick={clearFilters} className="flex-1 py-3.5 border border-gray-200 rounded-xl text-[12px] font-bold uppercase  text-gray-600">Reset</button>
                         <button onClick={() => { setPage(1); setIsFilterOpen(false); }} className="flex-1 py-3.5 bg-black text-white rounded-xl text-[12px] font-bold uppercase ">Apply</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Mobile Gender Modal */}
+             {isGenderOpen && (
+                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm animate-fadeIn" onClick={() => setIsGenderOpen(false)}>
+                    <div className="absolute bottom-0 left-0 w-full bg-white rounded-t-[24px] overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                            <h3 className="text-lg font-black uppercase tracking-tight">Select Division</h3>
+                            <button onClick={() => setIsGenderOpen(false)} className="p-2 bg-gray-100 rounded-full"><X size={20} /></button>
+                        </div>
+                        <div className="p-5 grid grid-cols-2 gap-3 pb-8">
+                            {allCategories.filter(c => !c.parentId).map(cat => (
+                                <button
+                                    key={cat.id || cat._id}
+                                    onClick={() => { setSelectedCategory(cat.id || cat._id); setPage(1); setIsGenderOpen(false); }}
+                                    className={`flex items-center gap-3 p-4 rounded-2xl font-bold transition-all border ${selectedCategory === (cat.id || cat._id) ? 'bg-black text-white border-black shadow-lg scale-[1.02]' : 'bg-white text-gray-600 border-gray-100'}`}
+                                >
+                                    <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-gray-100">
+                                        <img src={cat.image} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                    <span className="text-[12px] uppercase">{cat.name}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}

@@ -13,6 +13,7 @@ export const CartProvider = ({ children }) => {
     const storeClearCart = useCartStore(state => state.clearCart);
     const storeGetTotal = useCartStore(state => state.getTotal);
     const storeGetItemCount = useCartStore(state => state.getItemCount);
+    const storeUpdateVariant = useCartStore(state => state.updateItemVariant);
 
     const [lastAddedItem, setLastAddedItem] = useState(null);
 
@@ -57,16 +58,21 @@ export const CartProvider = ({ children }) => {
         return storeGetItemCount();
     }, [storeGetItemCount]);
 
+    const updateVariant = useCallback((cartLineKey, newVariant) => {
+        storeUpdateVariant(cartLineKey, newVariant);
+    }, [storeUpdateVariant]);
+
     const value = useMemo(() => ({
         cart: items,
         addToCart,
         removeFromCart,
         updateQuantity,
+        updateVariant,
         clearCart,
         getCartTotal,
         getCartCount,
         lastAddedItem,
-    }), [items, addToCart, removeFromCart, updateQuantity, clearCart, getCartTotal, getCartCount, lastAddedItem]);
+    }), [items, addToCart, removeFromCart, updateQuantity, updateVariant, clearCart, getCartTotal, getCartCount, lastAddedItem]);
 
     return (
         <CartContext.Provider value={value}>

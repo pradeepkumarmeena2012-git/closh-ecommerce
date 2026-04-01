@@ -6,7 +6,7 @@ import redisClient from '../config/redis.js';
  */
 export const getCache = async (key) => {
     if (!redisClient) return null; // Skip if Redis is not configured
-    
+
     try {
         const cachedValue = await redisClient.get(key);
         return cachedValue ? JSON.parse(cachedValue) : null;
@@ -65,3 +65,4 @@ export const clearCachePattern = async (pattern) => {
         console.error(`❌ Cache clear failed for pattern ${pattern}:`, error.message);
     }
 };
+

@@ -1,0 +1,64 @@
+# OTP Verification Before Registration - Implementation Plan
+
+## Goal
+Implement a flow where a user must verify their mobile/email via OTP *before* the registration is completed in the database.
+
+---
+
+## 1. Backend Changes (Node.js/Express)
+
+### A. New Model: `OtpVerification.model.js`
+- **Purpose**: Store temporary OTPs for users who haven't registered yet.
+- **Fields**: 
+  - `identifier` (String):  Phone number.
+  - `otp` (String): The 6-digit code.
+  - `expiresAt` (Date): TTL for the OTP (e.g., 10 minutes).
+  - `isVerified` (Boolean): Flag set to true after successful verification.
+
+### B. New Controller Functions (`user/controllers/auth.controller.js`)
+1. **`sendRegistrationOTP`**:
+   - Check if Email/Phone already exists in `User` model.
+   - Generate 6-digit OTP.
+   - Save/Update to `OtpVerification` model.
+   - Send OTP via Email (and SMS if configured).
+2. **`verifyRegistrationOTP`**:
+   - Validate OTP against the `OtpVerification` record.
+   - Set `isVerified: true` on the record.
+
+### C. Route Updates (`user/routes/auth.routes.js`)
+- Add `POST /send-registration-otp`
+- Add `POST /verify-registration-otp`
+
+---
+
+## 2. Frontend Changes (React/Vite)
+
+### A. Store Updates (`shared/store/authStore.js`)
+- Add `sendRegisterOtp(email, phone)` action.
+- Add `verifyRegisterOtp(identifier, otp)` action.
+
+### B. UI Component: `OtpModal.jsx`
+- Create a reusable, premium modal component.
+- Features:
+  - 6 individual digit inputs with auto-focus.
+  - "Resend OTP" button with a 60-second countdown timer.
+  - "Close" or "Edit Number" button.
+  - Loading states for the "Verify" button.
+
+### C. Register Page Logic (`RegisterPage.jsx`)
+1. **State Management**:
+   - `showOtpModal` (Boolean)
+   - `isOtpVerified` (Boolean)
+2. **Updated Submit Handler**:
+   - If `!isOtpVerified`, the submit button calls `sendRegisterOtp()`.
+   - On success, open the `OtpModal`.
+   - On successful verification inside the modal, call the final `register()` API.
+
+---
+
+## 3. Workflow Steps
+1. **Prepare Backend**: Create the new model and the two new endpoints.
+2. **Update Store**: Add the necessary API calls to the Zustand auth store.
+3. **Build Modal**: Create the `OtpModal` component with the brand theme (#FF5C8A).
+4. **Integrate**: Connect the `RegisterPage` to the new flow.
+5. **Test**: Verify that no user is created in MongoDB until the OTP is correctly entered.

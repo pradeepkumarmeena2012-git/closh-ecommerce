@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Tag, Ticket, Clock, AlertCircle, CheckCircle2, Loader2, ChevronRight } from 'lucide-react';
 import api from '../../../../shared/utils/api';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CouponsModal = ({ isOpen, onClose, onApply, cartTotal }) => {
@@ -127,7 +128,7 @@ const CouponsModal = ({ isOpen, onClose, onApply, cartTotal }) => {
                                                 if (isApplicable) {
                                                     onApply(coupon.code);
                                                 } else {
-                                                    alert(`Minimum order value of ₹${coupon.minOrderValue || 0} required to apply this coupon.`);
+                                                    toast.error(`Minimum order value of ₹${coupon.minOrderValue || 0} required to apply this coupon.`);
                                                 }
                                             }}
                                             className={`px-5 py-2 rounded-xl text-[11px] font-bold uppercase transition-all ${isApplicable ? 'bg-black text-white hover:bg-gray-800 active:scale-95 shadow-lg' : 'bg-black/90 text-white hover:bg-black active:scale-95 shadow-md'}`}

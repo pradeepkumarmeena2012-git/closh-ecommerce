@@ -20,7 +20,7 @@ const MobileBottomNav = () => {
       badge: wishlistCount > 0 ? wishlistCount : null,
     },
     {
-      path: isAuthenticated ? "/profile" : "/login",
+      path: isAuthenticated ? "/account" : "/login",
       icon: FiUser,
       label: "Profile",
     },
@@ -37,7 +37,7 @@ const MobileBottomNav = () => {
   };
 
   const navContent = (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-[9999] safe-area-bottom shadow-[0_-5px_20px_rgba(0,0,0,0.03)] md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-[9999] safe-area-bottom shadow-[0_-5px_20px_rgba(0,0,0,0.03)] lg:hidden">
       <div className="flex items-center justify-around h-16 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;

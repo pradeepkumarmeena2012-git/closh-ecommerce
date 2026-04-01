@@ -16,16 +16,19 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
     location.pathname === '/verification';
 
   const isCheckoutPage = location.pathname === '/checkout';
+  const isAddressPage = location.pathname.includes('/addresses');
 
-  // Respect the showBottomNav prop and hide on auth pages
-  const shouldShowBottomNav = showBottomNav && !isAuthPage;
+  // Respect the showBottomNav prop and hide on auth / checkout / address pages
+  const shouldShowBottomNav = showBottomNav && !isAuthPage && !isCheckoutPage && !isAddressPage;
+  
   // Hide header on categories, search, wishlist, profile, and auth pages
   const shouldShowHeader = !isAuthPage &&
     location.pathname !== '/search' &&
     location.pathname !== '/wishlist' &&
     location.pathname !== '/profile' &&
     location.pathname !== '/orders' &&
-    !isCheckoutPage;
+    !isCheckoutPage &&
+    !isAddressPage;
 
   // Ensure body scroll is restored when component mounts
   useEffect(() => {

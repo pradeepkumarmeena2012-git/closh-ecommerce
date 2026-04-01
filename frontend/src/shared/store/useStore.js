@@ -176,6 +176,44 @@ export const useCartStore = create(
           ownerUserId: state.ownerUserId,
         }));
       },
+      updateItemVariant: (cartLineKey, newVariant) => {
+        const state = get();
+        const existingItem = state.items.find((i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) === cartLineKey);
+        if (!existingItem) return;
+
+        const newLineKey = getCartLineKey(existingItem.id, newVariant);
+        
+        // Check if an item with the new variant already exists
+        const duplicateItem = state.items.find(
+          (i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) === newLineKey && (i.cartLineKey || getCartLineKey(i.id, i.variant)) !== cartLineKey
+        );
+
+        if (duplicateItem) {
+          // Merge with duplicate and remove the old one
+          const newQuantity = duplicateItem.quantity + existingItem.quantity;
+          set((state) => ({
+            items: state.items
+              .filter((i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) !== cartLineKey)
+              .map((i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) === newLineKey ? { ...i, quantity: newQuantity } : i),
+            ownerUserId: state.ownerUserId,
+          }));
+        } else {
+          // Update current item with new variant
+          set((state) => ({
+            items: state.items.map((i) =>
+              (i.cartLineKey || getCartLineKey(i.id, i.variant)) === cartLineKey
+                ? { 
+                    ...i, 
+                    variant: newVariant, 
+                    cartLineKey: newLineKey,
+                    selectedSize: newVariant.size // sync with convenience field
+                  }
+                : i
+            ),
+            ownerUserId: state.ownerUserId,
+          }));
+        }
+      },
       clearCart: () => set({ items: [], ownerUserId: getCurrentAuthUserId() || null }),
       getTotal: () => {
         const authState = useAuthStore.getState();

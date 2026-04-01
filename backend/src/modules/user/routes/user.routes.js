@@ -14,6 +14,9 @@ import { uploadSingle } from '../../../middlewares/upload.js';
 import {
     registerSchema,
     loginSchema,
+    loginOtpSchema,
+    registerOtpSchema,
+    checkPhoneSchema,
     otpSchema,
     resendOtpSchema,
     refreshTokenSchema,
@@ -34,7 +37,10 @@ const router = Router();
 const customerAuth = [authenticate, authorize('customer'), enforceAccountStatus];
 
 // Auth routes
+router.post('/auth/check-phone', authLimiter, validate(checkPhoneSchema), authController.checkPhone);
 router.post('/auth/register', authLimiter, validate(registerSchema), authController.register);
+router.post('/auth/register-otp', authLimiter, validate(registerOtpSchema), authController.registerOtp);
+router.post('/auth/login-otp', authLimiter, validate(loginOtpSchema), authController.loginOtp);
 router.post('/auth/verify-otp', validate(otpSchema), authController.verifyOTP);
 router.post('/auth/resend-otp', otpLimiter, validate(resendOtpSchema), authController.resendOTP);
 router.post('/auth/forgot-password', authLimiter, validate(forgotPasswordSchema), authController.forgotPassword);

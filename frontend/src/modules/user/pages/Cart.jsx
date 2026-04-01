@@ -69,12 +69,12 @@ const CartPage = () => {
                             const imageUrl = Array.isArray(item.images) ? item.images[0] : (item.image || '');
 
                             return (
-                                <div key={item.cartLineKey || item.id} className="bg-white rounded-[24px] overflow-hidden border border-gray-100 shadow-sm flex flex-col sm:flex-row p-4 sm:p-5 relative group">
-                                    <Link to={`/product/${item.id}`} className="w-full sm:w-32 aspect-[3/4] sm:h-auto rounded-2xl overflow-hidden shrink-0 bg-white border border-gray-100">
+                                <div key={item.cartLineKey || item.id} className="bg-white rounded-[24px] overflow-hidden border border-gray-100 shadow-sm flex flex-row p-3 sm:p-5 relative group">
+                                    <Link to={`/product/${item.id}`} className="w-20 sm:w-28 aspect-square rounded-2xl overflow-hidden shrink-0 bg-white border border-gray-100">
                                         <img src={imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                     </Link>
 
-                                    <div className="flex-1 flex flex-col pt-4 sm:pt-0 sm:pl-6">
+                                    <div className="flex-1 flex flex-col pl-4 sm:pl-6">
                                         <div className="flex justify-between items-start mb-1">
                                             <div>
                                                 {item.vendorName && (
@@ -201,7 +201,7 @@ const CartPage = () => {
                                     </button>
 
                                     <p className="text-center text-[10px] font-bold text-gray-400 uppercase  mt-4">
-                                        30 Days Easy Returns & Exchanges
+                                        24 Hours Easy Returns & Exchanges
                                     </p>
                                 </div>
                             </div>

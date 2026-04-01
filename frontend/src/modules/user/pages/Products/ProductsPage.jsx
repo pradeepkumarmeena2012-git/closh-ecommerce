@@ -33,6 +33,7 @@ const ProductsPage = () => {
     const [selectedSort, setSelectedSort] = useState('New Arrivals');
     const [selectedGender, setSelectedGender] = useState('All');
     const [selectedBrands, setSelectedBrands] = useState([]);
+    const [selectedSubCategories, setSelectedSubCategories] = useState([]);
     const [selectedSizes, setSelectedSizes] = useState([]);
 
     // Desktop Section states
@@ -111,7 +112,7 @@ const ProductsPage = () => {
     ];
 
     const brands = [...new Set((products || []).map(p => p.brand))].filter(Boolean).sort();
-    const subCategories = [...new Set((products || []).map(p => p.subCategory))].filter(Boolean);
+    const subCategories = [...new Set((products || []).map(p => p.categoryId?.name || p.subCategory))].filter(Boolean);
     // Use dynamic sizes with strict uniqueness
     const sizes = [...new Set(filterOptions.sizes)].filter(Boolean);
 
@@ -130,19 +131,10 @@ const ProductsPage = () => {
             result = result.filter(p => p.division?.toLowerCase() === selectedGender.toLowerCase());
         }
 
-        // 2. URL Params Filter (Only if no manual override)
-        if (selectedGender === 'All') {
-            if (division) {
-                result = result.filter(p => p.division?.toLowerCase() === division.toLowerCase());
-            }
-            if (category) {
-                result = result.filter(p => p.category?.toLowerCase() === category.toLowerCase() || p.division?.toLowerCase() === category.toLowerCase());
-            }
-        }
-
-        if (subCategoryFromUrl) {
-            result = result.filter(p => p.subCategory?.toLowerCase() === subCategoryFromUrl.toLowerCase());
-        }
+        // 2. URL Params Filter: Removed. 
+        // The backend handles category, subCategory, and division filtering hierarchically. 
+        // We shouldn't strictly string-match here because a product in the "Jeans" subcategory 
+        // validly belongs to the parent "Top wear" category, but frontend string-matching would incorrectly hide it.
 
         // 4. Header Search Filter
         if (headerSearchValue) {
@@ -157,6 +149,11 @@ const ProductsPage = () => {
         // 5. Brand Filter
         if (selectedBrands.length > 0) {
             result = result.filter(p => selectedBrands.includes(p.brand));
+        }
+
+        // Sub Category Drawer Filter
+        if (selectedSubCategories.length > 0) {
+            result = result.filter(p => selectedSubCategories.includes(p.categoryId?.name) || selectedSubCategories.includes(p.subCategory));
         }
 
         // 6. Sorting Logic
@@ -187,8 +184,15 @@ const ProductsPage = () => {
         );
     };
 
+    const handleSelectSubCategory = (sub) => {
+        setSelectedSubCategories(prev =>
+            prev.includes(sub) ? prev.filter(s => s !== sub) : [...prev, sub]
+        );
+    };
+
     const clearFilters = () => {
         setSelectedBrands([]);
+        setSelectedSubCategories([]);
         setSelectedSizes([]);
         setSelectedGender('All');
         setHeaderSearchValue('');
@@ -403,6 +407,22 @@ const ProductsPage = () => {
                             ))}
                         </div>
                     )}
+
+                    {selectedSubCategories.length > 0 && (
+                        <div className="flex flex-wrap gap-3 mt-3 animate-fadeIn">
+                            {selectedSubCategories.map(sub => (
+                                <div key={sub} className="flex items-center gap-3 bg-gray-100 border border-gray-300 pl-4 pr-3 py-2 rounded-lg text-[11px] font-bold uppercase text-gray-800 shadow-sm">
+                                    {sub}
+                                    <div
+                                        onClick={() => handleSelectSubCategory(sub)}
+                                        className="w-5 h-5 bg-white border border-gray-300 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors"
+                                    >
+                                        <X size={12} className="text-gray-900" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
 
@@ -545,7 +565,13 @@ const ProductsPage = () => {
                                 <FilterSection title="Sub Category" id="subCategory">
                                     <div className="space-y-3 pt-2 flex flex-col items-start gap-1">
                                         {subCategories.map(sub => (
-                                            <div key={sub} className="text-[13px] font-semibold  uppercase text-gray-500 hover:text-black cursor-pointer transition-colors border-b border-transparent hover:border-black/30 pb-0.5">{sub}</div>
+                                            <div 
+                                                key={sub} 
+                                                onClick={() => handleSelectSubCategory(sub)}
+                                                className={`text-[13px] font-semibold uppercase cursor-pointer transition-colors border-b pb-0.5 ${selectedSubCategories.includes(sub) ? 'text-black border-black/50' : 'text-gray-500 hover:text-black border-transparent hover:border-black/30'}`}
+                                            >
+                                                {sub}
+                                            </div>
                                         ))}
                                     </div>
                                 </FilterSection>

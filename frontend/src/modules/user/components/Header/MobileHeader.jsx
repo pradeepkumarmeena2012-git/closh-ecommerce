@@ -150,7 +150,7 @@ const MobileHeader = () => {
            <div className="flex items-center gap-4">
                <Link to="/" className="no-underline group">
                    <h1 className="text-[18px] font-bold drop-shadow-md transition-all duration-500 text-gray-900 group-hover:text-black">
-                       Clothify<span className="text-black text-[22px] leading-none group-hover:text-gray-900">.</span>
+                       CLOSH<span className="text-black text-[22px] leading-none group-hover:text-gray-900">.</span>
                    </h1>
                </Link>
                

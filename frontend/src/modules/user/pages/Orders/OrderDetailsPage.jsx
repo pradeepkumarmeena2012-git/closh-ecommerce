@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
 import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw } from 'lucide-react';
@@ -91,7 +92,7 @@ const OrderDetailsPage = () => {
         const invoiceWindow = window.open('', '_blank');
 
         if (!invoiceWindow) {
-            alert("Please allow popups to view the invoice.");
+            toast.error('Please allow popups to view the invoice.');
             return;
         }
 
@@ -214,7 +215,7 @@ const OrderDetailsPage = () => {
 
     const handleReturnSubmit = async () => {
         if (!returnReason) {
-            alert("Please select a reason for return");
+            toast.error('Please select a reason for return');
             return;
         }
 
@@ -234,10 +235,10 @@ const OrderDetailsPage = () => {
             if (updatedOrder) setOrder(updatedOrder);
 
             setShowReturnModal(false);
-            alert("Return request submitted successfully. Our team will review it shortly.");
+            toast.success('Return request submitted successfully. Our team will review it shortly.');
         } catch (error) {
             console.error("Return request failed:", error);
-            alert(error.message || "Failed to submit return request. Please try again.");
+            toast.error(error.message || 'Failed to submit return request. Please try again.');
         } finally {
             setIsSubmitting(false);
         }

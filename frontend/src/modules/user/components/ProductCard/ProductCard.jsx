@@ -1,47 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingCart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { useWishlist } from '../../context/WishlistContext';
-import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useCategory } from '../../context/CategoryContext';
-import LoginModal from '../Modals/LoginModal';
-import { useState } from 'react';
 
 const ProductCard = ({ product }) => {
     const { toggleWishlist, isInWishlist } = useWishlist();
-    const { addToCart } = useCart();
     const { user } = useAuth();
     const { activeCategory } = useCategory();
-    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-
-    const getCardTheme = (categoryName) => {
-        const name = categoryName?.toLowerCase() || '';
-        // Returning a custom border/glow class instead of a full background replacement
-        // The card itself will stay dark `#1a1a1a`, but we'll inject these classes
-        if (name === 'hello' || name === 'women') return 'border-t-[3px] border-t-[#E91E63] shadow-[0_-5px_20px_rgba(233,30,99,0.1)]';
-        if (name === 'men\'s fashion' || name === 'mens' || name === 'men') return 'border-t-[3px] border-t-[#0288D1] shadow-[0_-5px_20px_rgba(2,136,209,0.1)]';
-        if (name === 'bottom wear') return 'border-t-[3px] border-t-[#689F38] shadow-[0_-5px_20px_rgba(104,159,56,0.1)]';
-        if (name === 'beauty') return 'border-t-[3px] border-t-[#D81B60] shadow-[0_-5px_20px_rgba(216,27,96,0.1)]';
-        if (name === 'accessories') return 'border-t-[3px] border-t-[#FFB300] shadow-[0_-5px_20px_rgba(255,179,0,0.1)]';
-        return 'border-t-[3px] border-t-transparent';
-    };
-
-    const cardTheme = getCardTheme(activeCategory);
-
-    const handleAddToCart = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        console.log("ProductCard: Add to Cart clicked. User:", user);
-
-        if (!user) {
-            console.log("ProductCard: User null. Opening LoginModal.");
-            setIsLoginModalOpen(true);
-            return;
-        }
-
-        addToCart({ ...product, selectedSize: product.size ? product.size[0] : 'M' });
-    };
 
     return (
         <>
@@ -69,26 +35,6 @@ const ProductCard = ({ product }) => {
                                 }}
                             >
                                 <Heart size={11} className={`${isInWishlist(product.id) ? 'fill-red-500' : ''}`} />
-                            </button>
-                        </div>
-
-                        {/* Quick Add to Cart (Desktop Hover Slider - Image 1 concept in Image 2 style) */}
-                        <div className="absolute bottom-0 left-0 right-0 z-10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 md:block hidden">
-                            <button
-                                className="w-full py-2.5 bg-black/90 backdrop-blur-md text-white font-bold text-[11px] hover:bg-black transition-all flex items-center justify-center gap-2"
-                                onClick={handleAddToCart}
-                            >
-                                QUICK ADD <ShoppingCart size={14} />
-                            </button>
-                        </div>
-
-                        {/* Mobile Cart Button (Always Visible) */}
-                        <div className="absolute bottom-2 right-2 z-10 md:hidden">
-                            <button
-                                className="w-6 h-6 rounded-full bg-white shadow-lg border border-gray-100 text-black flex items-center justify-center active:scale-95 transition-all"
-                                onClick={handleAddToCart}
-                            >
-                                <ShoppingCart size={10} />
                             </button>
                         </div>
 
@@ -127,11 +73,6 @@ const ProductCard = ({ product }) => {
                     </div>
                 </Link>
             </div>
-
-            <LoginModal
-                isOpen={isLoginModalOpen}
-                onClose={() => setIsLoginModalOpen(false)}
-            />
         </>
     );
 };

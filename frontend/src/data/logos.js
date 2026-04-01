@@ -1,4 +1,4 @@
-import logoImage from "../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
+import logoImage from "../assets/animations/lottie/image.png";
 
 export const appLogo = {
   src: logoImage,

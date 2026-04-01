@@ -252,7 +252,7 @@ const LoginModal = ({ isOpen, onClose, onSuccess }) => {
                             ) : (
                                 <>
                                     {step === 1 ? 'Continue Securely' : 'Verify Identity'}
-                                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all duration-300">
+                                    <div className="w-6 h-6 rounded-full bg-white text-black flex items-center justify-center group-hover:scale-110 transition-all duration-300">
                                         <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                                     </div>
                                 </>

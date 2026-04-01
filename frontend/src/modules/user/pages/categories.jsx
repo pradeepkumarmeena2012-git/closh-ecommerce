@@ -1,12 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { FiArrowLeft, FiSearch, FiChevronRight } from "react-icons/fi";
-import { categories as fallbackCategories } from "../../../data/categories";
+import { useNavigate, useParams } from "react-router-dom";
 import { useCategoryStore } from "../../../shared/store/categoryStore";
 import PageTransition from "../../../shared/components/PageTransition";
-import ProductCard from "../../../shared/components/ProductCard";
-import api from "../../../shared/utils/api";
 import { useCategory } from "../../user/context/CategoryContext";
 
 // Robust ID normalization
@@ -25,13 +21,8 @@ const MobileCategories = () => {
   // State for 3-level navigation
   const [selectedRootId, setSelectedRootId] = useState(null);
   const [selectedSubId, setSelectedSubId] = useState(null);
-  const [drillDownId, setDrillDownId] = useState(null); // For showing products of a grand-subcategory
-  
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryProductsFeed, setCategoryProductsFeed] = useState([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const gridRef = useRef(null);
-  const scrollRef = useRef(null);
 
   useEffect(() => {
     initialize();
@@ -49,23 +40,29 @@ const MobileCategories = () => {
   // 2. Filter Root Categories (Level 0)
   const rootCategories = useMemo(() => {
     const roots = allCategories.filter(cat => !cat.normParentId && cat.isActive !== false);
-    if (roots.length === 0) return fallbackCategories.map(c => ({ ...c, normId: String(c.id) }));
+    // Note: Fallback removed to ensure we only show DB categories in the explorer
     return roots;
   }, [allCategories]);
 
   // 3. Handle Initial Selection (from params or context)
   useEffect(() => {
     if (rootCategories.length > 0) {
+      let targetId = null;
       if (paramCategoryId) {
-        setSelectedRootId(normalizeId(paramCategoryId));
-      } else if (activeCategory && activeCategory !== 'For You') {
+        targetId = normalizeId(paramCategoryId);
+      } else if (activeCategory && activeCategory !== 'For You' && activeCategory !== 'All') {
         const matched = rootCategories.find(c => c.name.toLowerCase() === activeCategory.toLowerCase());
-        if (matched) setSelectedRootId(matched.normId);
-      } else if (!selectedRootId) {
+        if (matched) targetId = matched.normId;
+      }
+
+      if (targetId && targetId !== selectedRootId) {
+        setSelectedRootId(targetId);
+        setSelectedSubId(null);
+      } else if (!selectedRootId && !targetId) {
         setSelectedRootId(rootCategories[0].normId);
       }
     }
-  }, [rootCategories, paramCategoryId, activeCategory]);
+  }, [rootCategories, paramCategoryId, activeCategory, selectedRootId]);
 
   // 4. Subcategories (Level 1) - Linked to selected Root
   const subcategories = useMemo(() => {
@@ -88,66 +85,38 @@ const MobileCategories = () => {
 
   // Handlers
   const handleRootSelect = (cat) => {
-    const id = cat.normId;
-    setSelectedRootId(id);
+    setSelectedRootId(cat.normId);
     setSelectedSubId(null);
-    setDrillDownId(null);
     setActiveCategory(cat.name);
   };
 
   const handleSubSelect = (id) => {
     setSelectedSubId(id);
-    setDrillDownId(null);
     if (gridRef.current) gridRef.current.scrollTop = 0;
+    
+    // Check if subcategory has children; if not, we can navigate directly
+    const children = allCategories.filter(cat => cat.normParentId === id && cat.isActive !== false);
+    if (children.length === 0) {
+      const sub = allCategories.find(c => c.normId === id);
+      const root = allCategories.find(c => c.normId === selectedRootId);
+      const url = `/products?division=${root?.name}&category=${sub?.name}&cid=${id}`;
+      navigate(url.replace(/\s+/g, '+'));
+    }
   };
 
   const handleGrandSubSelect = (id) => {
-    setDrillDownId(id);
-    if (gridRef.current) gridRef.current.scrollTop = 0;
+    const grand = allCategories.find(c => c.normId === id);
+    const sub = allCategories.find(c => c.normId === selectedSubId);
+    const root = allCategories.find(c => c.normId === selectedRootId);
+    const url = `/products?division=${root?.name}&category=${sub?.name}&subcategory=${grand?.name}&cid=${id}`;
+    navigate(url.replace(/\s+/g, '+'));
   };
-
-  // 6. Product Fetching Logic
-  useEffect(() => {
-    const fetchProducts = async () => {
-      const targetId = drillDownId || (grandSubcategories.length === 0 ? selectedSubId : null);
-      if (!targetId) return;
-
-      setIsLoadingProducts(true);
-      try {
-        const response = await api.get("/products", {
-          params: { category: targetId, limit: 100 }
-        });
-        const products = Array.isArray(response?.data?.products) ? response.data.products : [];
-        const normalized = products.map(raw => ({
-          ...raw,
-          id: raw.id || raw._id,
-          price: Number(raw.price) || 0,
-          image: raw.image || raw.images?.[0] || "",
-          brandName: raw.brand?.name || raw.vendor?.storeName || "Premium"
-        }));
-        setCategoryProductsFeed(normalized);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        setCategoryProductsFeed([]);
-      } finally {
-        setIsLoadingProducts(false);
-      }
-    };
-    fetchProducts();
-  }, [drillDownId, selectedSubId, grandSubcategories.length]);
-
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery) return categoryProductsFeed;
-    return categoryProductsFeed.filter(p => 
-      p.name?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [categoryProductsFeed, searchQuery]);
 
   return (
     <PageTransition>
-      <div className="flex flex-col w-full bg-white h-screen overflow-hidden">
-        
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-col w-full bg-white h-screen overflow-hidden">
+          
+          <div className="flex flex-1 overflow-hidden">
           
           {/* SIDEBAR: Vertical Subcategories (Level 1) */}
           <div className="w-22 bg-[#F8F9FA] overflow-y-auto scrollbar-hide flex flex-col border-r border-gray-100 pb-32 pt-1">
@@ -177,81 +146,58 @@ const MobileCategories = () => {
             })}
           </div>
 
-          {/* MAIN AREA: Grid of Grand-subcategories (Level 2) or Products */}
+          {/* MAIN AREA: Grid of Grand-subcategories (Level 2) */}
           <div 
             ref={gridRef}
             className="flex-1 overflow-y-auto bg-white p-3 pb-40"
           >
             <AnimatePresence mode="wait">
-              {drillDownId ? (
-                // Product Grid View
                 <motion.div
-                  key="products"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <button 
-                    onClick={() => setDrillDownId(null)}
-                    className="flex items-center gap-1 text-[10px] font-bold text-[#FF5722] uppercase mb-4 active:scale-95"
-                  >
-                    <FiArrowLeft className="text-sm" /> All Items
-                  </button>
-                  
-                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4">
-                    {filteredProducts.map((p) => (
-                      <div key={p.id}>
-                        <ProductCard product={p} />
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              ) : (
-                // Category Icons Grid (3 Columns logic)
-                <motion.div
-                  key="categories"
+                  key={selectedSubId || 'empty'}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                 >
-                  <div className="mb-4">
+                  <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-[12px] font-black text-gray-900 uppercase tracking-wider">
                       Shop for {subcategories.find(s => s.normId === selectedSubId)?.name}
                     </h2>
+                    <button 
+                      onClick={() => {
+                        const sub = allCategories.find(c => c.normId === selectedSubId);
+                        const root = allCategories.find(c => c.normId === selectedRootId);
+                        const url = `/products?division=${root?.name}&category=${sub?.name}&cid=${selectedSubId}`;
+                        navigate(url.replace(/\s+/g, '+'));
+                      }}
+                      className="text-[10px] font-bold text-[#FF5722] uppercase tracking-tight px-3 py-1 bg-[#FFF3EF] rounded-full"
+                    >
+                      View All
+                    </button>
                   </div>
 
-                  {grandSubcategories.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-y-6 gap-x-2">
+                  {grandSubcategories.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-x-4 md:gap-x-8 gap-y-6 md:gap-y-10">
                       {grandSubcategories.map((grand) => (
                         <button
                           key={grand.normId}
                           onClick={() => handleGrandSubSelect(grand.normId)}
-                          className="flex flex-col items-center gap-2 group transition-transform active:scale-95"
+                          className="flex flex-col items-center gap-1.5 group transition-transform active:scale-95"
                         >
-                          <div className="w-16 h-16 bg-white rounded-[20px] overflow-hidden p-1 flex items-center justify-center border border-gray-100 shadow-sm transition-all group-hover:border-[#FF5722]">
+                          <div className="w-20 h-20 md:w-24 md:h-24 bg-[#F8F9FA] rounded-[24px] overflow-hidden p-0 flex items-center justify-center border border-transparent transition-all group-hover:border-[#FF5722] shadow-sm">
                             <img
                               src={grand.image || "https://via.placeholder.com/150"}
                               alt={grand.name}
-                              className="w-full h-full object-contain"
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                             />
                           </div>
-                          <span className="text-[9.5px] font-bold text-gray-700 text-center leading-tight max-w-[75px]">
+                          <span className="text-[10px] md:text-[12px] font-bold text-gray-700 text-center leading-tight max-w-[80px] md:max-w-[100px] group-hover:text-[#FF5722] transition-colors py-1">
                             {grand.name}
                           </span>
                         </button>
                       ))}
                     </div>
-                  ) : (
-                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-4">
-                      {filteredProducts.map((p) => (
-                        <div key={p.id}>
-                          <ProductCard product={p} />
-                        </div>
-                      ))}
-                    </div>
                   )}
                 </motion.div>
-              )}
             </AnimatePresence>
           </div>
         </div>

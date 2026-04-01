@@ -8,13 +8,7 @@ const RegisterPage = () => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
-        phone: '',
-        password: '',
-        confirmPassword: '',
-        address: '',
-        city: '',
-        state: '',
-        zipCode: ''
+        phone: ''
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -31,18 +25,8 @@ const RegisterPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!formData.name || !formData.email || !formData.password || !formData.phone) {
+        if (!formData.name || !formData.email || !formData.phone) {
             setError('Please fill in all required fields');
-            return;
-        }
-
-        if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
-
-        if (formData.password.length < 6) {
-            setError('Password must be at least 6 characters');
             return;
         }
 
@@ -50,19 +34,10 @@ const RegisterPage = () => {
         setIsLoading(true);
 
         try {
-            const addressData = formData.address ? {
-                address: formData.address,
-                city: formData.city,
-                state: formData.state,
-                zipCode: formData.zipCode
-            } : null;
-
             const result = await register(
                 formData.name,
                 formData.email,
-                formData.password,
-                formData.phone,
-                addressData
+                formData.phone
             );
             if (result.success) {
                 toast.success('Registration successful! Please verify your mobile.');
@@ -108,7 +83,7 @@ const RegisterPage = () => {
                                 type="text"
                                 value={formData.name}
                                 onChange={handleChange}
-                                className="w-full pl-12 pr-4 py-4 bg-gray-500 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-300"
+                                className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-400"
                                 placeholder="John Doe"
                                 required
                             />
@@ -126,7 +101,7 @@ const RegisterPage = () => {
                                 type="email"
                                 value={formData.email}
                                 onChange={handleChange}
-                                className="w-full pl-12 pr-4 py-4 bg-gray-500 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-300"
+                                className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-400"
                                 placeholder="john@example.com"
                                 required
                             />
@@ -147,119 +122,14 @@ const RegisterPage = () => {
                                 maxLength="10"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                className="w-full pl-20 pr-4 py-4 bg-gray-500 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-300"
+                                className="w-full pl-20 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-400"
                                 placeholder="00000 00000"
                                 required
                             />
                         </div>
                     </div>
 
-                    <div className="relative group">
-                        <label className="absolute -top-2.5 left-4 bg-white px-2 text-[12px] font-semibold text-gray-500 group-focus-within:text-black transition-colors z-10">
-                            Password
-                        </label>
-                        <div className="flex items-center relative">
-                            <Lock className="absolute left-4 text-gray-400 group-focus-within:text-black" size={18} />
-                            <input
-                                name="password"
-                                type="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                className="w-full pl-12 pr-4 py-4 bg-gray-500 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-300"
-                                placeholder="••••••••"
-                                required
-                            />
-                        </div>
-                    </div>
 
-                    <div className="relative group">
-                        <label className="absolute -top-2.5 left-4 bg-white px-2 text-[12px] font-semibold text-gray-500 group-focus-within:text-black transition-colors z-10">
-                            Security Check
-                        </label>
-                        <div className="flex items-center relative">
-                            <ShieldCheck className="absolute left-4 text-gray-400 group-focus-within:text-black" size={18} />
-                            <input
-                                name="confirmPassword"
-                                type="password"
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                                className="w-full pl-12 pr-4 py-4 bg-gray-500 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-300"
-                                placeholder="••••••••"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <div className="pt-4 pb-2">
-                        <div className="w-full h-px bg-gray-100 mb-6 relative">
-                            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-4 text-[10px] font-bold text-gray-300 uppercase ">Address (Optional)</span>
-                        </div>
-                        <h3 className="text-[13px] font-bold text-gray-500 mb-6 ml-1">Delivery Address</h3>
-                        <div className="space-y-4">
-                            <div className="relative group">
-                                <label className="absolute -top-2.5 left-4 bg-white px-2 text-[12px] font-semibold text-gray-500 group-focus-within:text-black transition-colors z-10">
-                                    Full Address
-                                </label>
-                                <div className="flex items-center relative">
-                                    <Home className="absolute left-4 text-gray-400 group-focus-within:text-black" size={18} />
-                                    <input
-                                        name="address"
-                                        type="text"
-                                        value={formData.address}
-                                        onChange={handleChange}
-                                        className="w-full pl-12 pr-4 py-4 bg-gray-500 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-300 text-[13px]"
-                                        placeholder="House No, Building, Street"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="relative group">
-                                    <label className="absolute -top-2.5 left-4 bg-white px-2 text-[12px] font-semibold text-gray-500 group-focus-within:text-black transition-colors z-10">
-                                        City
-                                    </label>
-                                    <input
-                                        name="city"
-                                        type="text"
-                                        value={formData.city}
-                                        onChange={handleChange}
-                                        className="w-full px-5 py-4 bg-gray-500 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-300 text-[13px]"
-                                        placeholder="City"
-                                    />
-                                </div>
-                                <div className="relative group">
-                                    <label className="absolute -top-2.5 left-4 bg-white px-2 text-[12px] font-semibold text-gray-500 group-focus-within:text-black transition-colors z-10">
-                                        Pincode
-                                    </label>
-                                    <input
-                                        name="zipCode"
-                                        type="text"
-                                        value={formData.zipCode}
-                                        onChange={handleChange}
-                                        className="w-full px-5 py-4 bg-gray-500 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-300 text-[13px]"
-                                        placeholder="000000"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="relative group">
-                                <label className="absolute -top-2.5 left-4 bg-white px-2 text-[12px] font-semibold text-gray-500 group-focus-within:text-black transition-colors z-10">
-                                    State
-                                </label>
-                                <div className="flex items-center relative">
-                                    <MapPin className="absolute left-4 text-gray-400 group-focus-within:text-black" size={18} />
-                                    <input
-                                        name="state"
-                                        type="text"
-                                        value={formData.state}
-                                        onChange={handleChange}
-                                        className="w-full pl-12 pr-4 py-4 bg-gray-500 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-300 text-[13px]"
-                                        placeholder="State"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
                     {error && (
                         <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-[13px] font-medium border-2 border-red-100 animate-shake flex items-center gap-3">

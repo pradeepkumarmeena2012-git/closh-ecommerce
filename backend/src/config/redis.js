@@ -27,22 +27,49 @@ redisConnection.on('error', (err) => {
 });
 
 const connectRedis = async () => {
+    const isDev = process.env.NODE_ENV !== 'production';
     console.log(`[Redis] Current status: ${redisConnection.status}`);
+    
     return new Promise((resolve, reject) => {
         if (redisConnection.status === 'ready') {
             console.log('✅ Redis Connected for Queues (cached)');
             return resolve(redisConnection);
         }
         
-        redisConnection.once('ready', () => {
+        const onReady = () => {
             console.log('✅ Redis Connected for Queues');
+            cleanup();
             resolve(redisConnection);
-        });
+        };
         
-        redisConnection.once('error', (err) => {
-            console.error('❌ Redis Connection Error:', err.message);
-            reject(err);
-        });
+        const onError = (err) => {
+            if (isDev) {
+                console.warn(`⚠️  Redis Connection Error: ${err.message}. Queues and real-time features may be limited.`);
+                cleanup();
+                resolve(null); // Resolve to allow app startup in dev
+            } else {
+                console.error('❌ Redis Connection Error:', err.message);
+                cleanup();
+                reject(err);
+            }
+        };
+
+        const cleanup = () => {
+            redisConnection.removeListener('ready', onReady);
+            redisConnection.removeListener('error', onError);
+        };
+
+        redisConnection.once('ready', onReady);
+        redisConnection.once('error', onError);
+
+        // Optional: timeout if connection takes too long
+        setTimeout(() => {
+            if (redisConnection.status !== 'ready' && isDev) {
+                console.warn('⚠️  Redis connection timed out during startup. Continuing in dev mode...');
+                cleanup();
+                resolve(null);
+            }
+        }, 5000);
     });
 };
 

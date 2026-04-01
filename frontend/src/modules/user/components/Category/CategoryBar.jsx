@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCategoryStore } from '../../../../shared/store/categoryStore';
 import { useCategory } from '../../context/CategoryContext';
+import allImage from '../../../../assets/animations/lottie/image.png';
 
 const CategoryBar = () => {
     const { categories, initialize } = useCategoryStore();
@@ -15,23 +16,25 @@ const CategoryBar = () => {
         initialize();
     }, [initialize]);
 
-    const rootCategories = categories.filter(cat => !cat.parentId && cat.isActive !== false);
+    const filteredCategories = categories.filter(cat => !cat.parentId && cat.isActive !== false);
+    const rootCategories = [
+        { _id: 'all', id: 'all', name: 'All', image: allImage },
+        ...filteredCategories
+    ];
 
     const handleCategoryClick = (cat) => {
         setActiveCategory(cat.name);
         
-        // If on Home page, scroll to product grid
+        // If on Home page, only navigate to categories if product-grid is not in DOM (e.g. mobile layout).
+        // Otherwise, do not scroll so the user's view isn't abruptly disrupted.
         if (location.pathname === '/' || location.pathname === '/home') {
             setTimeout(() => {
                 const grid = document.getElementById('product-grid');
-                if (grid) {
-                    grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                if (!grid) {
+                    navigate('/categories');
                 }
             }, 50);
         } else if (location.pathname !== '/categories') {
-            // If not on categories page or home, redirect to categories or shop
-            // The user wants home page functionality to show products.
-            // But if they are on another page, we might want to go to shop/categories.
             navigate('/categories');
         }
     };

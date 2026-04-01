@@ -105,7 +105,10 @@ const listProducts = asyncHandler(async (req, res) => {
         isNewArrival,
         minPrice,
         maxPrice,
-        minRating
+        minRating,
+        subCategory,
+        subcategory,
+        division
     } = req.query;
 
     // --- CACHE START ---
@@ -121,13 +124,15 @@ const listProducts = asyncHandler(async (req, res) => {
     const skip = (page - 1) * limit;
     const filter = { isActive: true };
 
-    if (category) {
-        let categoryId = String(category);
+    const requestedCategory = subcategory || subCategory || category || division;
+
+    if (requestedCategory) {
+        let categoryId = String(requestedCategory);
         const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(categoryId);
 
         let shouldFilter = true;
         if (!isValidObjectId) {
-            const catDoc = await Category.findOne({ name: { $regex: new RegExp(`^${category}$`, 'i') } });
+            const catDoc = await Category.findOne({ name: { $regex: new RegExp(`^${requestedCategory}$`, 'i') } });
             if (catDoc) {
                 categoryId = String(catDoc._id);
             } else {
@@ -137,8 +142,20 @@ const listProducts = asyncHandler(async (req, res) => {
         }
 
         if (shouldFilter) {
-            const childCategories = await Category.find({ parentId: categoryId }).select('_id');
-            const categoryIds = [categoryId, ...childCategories.map((cat) => String(cat._id))];
+            // Get all descendants to support recursive filtering (Admin selects a parent, we show all products in children)
+            const allDescendants = await Category.find({ isActive: true }).lean();
+            const getDescendantIds = (parentId) => {
+                let ids = [String(parentId)];
+                const children = allDescendants.filter(c => String(c.parentId) === String(parentId));
+                children.forEach(child => {
+                    ids = [...ids, ...getDescendantIds(child._id)];
+                });
+                return ids;
+            };
+
+            const categoryIds = Array.from(new Set(getDescendantIds(categoryId)));
+            
+            // Search in categoryId on the Product model
             filter.categoryId = { $in: categoryIds };
         }
     }
@@ -149,18 +166,32 @@ const listProducts = asyncHandler(async (req, res) => {
     if (minPrice || maxPrice) filter.price = { ...(minPrice && { $gte: Number(minPrice) }), ...(maxPrice && { $lte: Number(maxPrice) }) };
     if (minRating) filter.rating = { $gte: Number(minRating) };
     const searchQuery = String(search || q || '').trim();
-    if (searchQuery) filter.$text = { $search: searchQuery };
+    if (searchQuery) {
+        // Escape regex characters
+        const escapedSearch = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        filter.$or = [
+            { name: { $regex: escapedSearch, $options: 'i' } },
+            { tags: { $regex: escapedSearch, $options: 'i' } }
+        ];
+    }
 
     const sortMap = { newest: { createdAt: -1 }, oldest: { createdAt: 1 }, 'price-asc': { price: 1 }, 'price-desc': { price: -1 }, popular: { reviewCount: -1 }, rating: { rating: -1 } };
 
-    const products = await Product.find(filter).populate('categoryId', 'name').populate('brandId', 'name').populate('vendorId', 'storeName').sort(sortMap[sort] || { createdAt: -1 }).skip(skip).limit(Number(limit));
+    const products = await Product.find(filter)
+        .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount')
+        .populate('categoryId', 'name')
+        .populate('brandId', 'name')
+        .populate('vendorId', 'storeName')
+        .sort(sortMap[sort] || { createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit));
     const total = await Product.countDocuments(filter);
 
     const responseData = { products, total, page: Number(page), pages: Math.ceil(total / limit) };
 
     // --- CACHE STORE START ---
-    // Cache the result for 1 hour (3600 seconds)
-    await setCache(cacheKey, responseData, 3600);
+    // Cache the result for 5 seconds to avoid stale data during development/testing
+    await setCache(cacheKey, responseData, 5);
     // --- CACHE STORE END ---
 
     res.status(200).json(new ApiResponse(200, responseData, 'Products fetched.'));
@@ -251,7 +282,7 @@ const getProductDetail = asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id)
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
-        .populate('vendorId', 'storeName storeLogo rating address shopLocation');
+        .populate('vendorId', 'storeName storeLogo rating address shopLocation freeShippingThreshold');
     if (!product) throw new ApiError(404, 'Product not found.');
     res.status(200).json(new ApiResponse(200, product, 'Product detail.'));
 });
@@ -608,24 +639,20 @@ router.get('/geocode', asyncHandler(async (req, res) => {
     }
 
     try {
-        const response = await fetch(url, {
+        const axios = (await import('axios')).default;
+        const response = await axios.get(url, {
             headers: {
-                'User-Agent': 'Clothify/1.0',
+                'User-Agent': 'ClouseApp/1.0 (contact@clouse.com)',
                 'Accept': 'application/json'
-            }
+            },
+            timeout: 5000
         });
 
-        if (!response.ok) {
-            throw new Error(`Nominatim responded with status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        // Nominatim search returns an array, reverse returns an object.
-        // We normalize to object if it's an array with at least one result.
+        const data = response.data;
         const result = Array.isArray(data) ? data[0] : data;
         res.status(200).json(new ApiResponse(200, result, 'Geocoding success.'));
     } catch (error) {
-        console.error("Proxy Geocoding error:", error);
+        console.error("Proxy Geocoding error:", error.message || error);
         throw new ApiError(500, 'Failed to fetch address from geocoding service.');
     }
 }));

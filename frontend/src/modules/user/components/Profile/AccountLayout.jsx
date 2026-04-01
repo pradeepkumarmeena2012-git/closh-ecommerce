@@ -33,37 +33,16 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
     return (
         <div className="bg-white text-gray-900 min-h-screen pb-12">
             <div className="container mx-auto px-4 md:px-8 lg:px-12 py-4 md:py-8">
-                {/* Mobile Location Bar - Global Consistency */}
-                {isMobile && !hideHeader && (
-                    <div
-                        onClick={() => setIsLocationModalOpen(true)}
-                        className="flex items-center justify-between py-3 mb-6 bg-gray-50 border-b border-gray-200 cursor-pointer active:bg-gray-50 transition-colors -mx-4 px-4 shadow-sm"
-                    >
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <MapPin size={16} className="text-gray-900 shrink-0" />
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-[12px] font-bold leading-tight flex items-center gap-2 text-gray-900">
-                                    {activeAddress ? activeAddress.name : 'Select Location'} <span className="text-[10px] font-medium text-gray-500">{activeAddress?.type}</span>
-                                </span>
-                                <span className="text-[10px] font-medium truncate max-w-[200px] text-gray-500">
-                                    {activeAddress ? `${activeAddress.address}, ${activeAddress.city}` : 'Add an address to see delivery info'}
-                                </span>
-                            </div>
-                        </div>
-                        <ChevronDown size={14} className="text-gray-400" />
-                    </div>
-                )}
-
                 {/* Mobile Back Header */}
                 {isMobile && !isMenuPage && !hideHeader && (
-                    <div className="flex items-center gap-4 mb-6 bg-gray-50 p-4 rounded-2xl shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-3 mb-2 bg-gray-50 p-2 md:p-3 rounded-[20px] md:rounded-2xl shadow-sm border border-gray-200 mx-1">
                         <button
                             onClick={() => navigate('/account')}
-                            className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center active:scale-95 transition-all shadow-[0_0_15px_rgba(212,175,55,0.3)]"
+                            className="w-10 h-10 md:w-10 md:h-10 bg-black text-white rounded-[14px] md:rounded-xl flex items-center justify-center active:scale-95 transition-all shadow-[0_0_15px_rgba(212,175,55,0.3)]"
                         >
                             <ChevronLeft size={20} strokeWidth={3} />
                         </button>
-                        <h1 className="font-bold text-xl text-gray-900">{getPageTitle()}</h1>
+                        <h1 className="font-bold text-lg md:text-xl text-gray-900">{getPageTitle()}</h1>
                     </div>
                 )}
 
@@ -73,8 +52,8 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
 
                     {/* Hide detail content on mobile account menu */}
                     {(!isMobile || !isMenuPage) && (
-                        <main className="flex-1">
-                            <div className="bg-gray-50 rounded-[32px] md:rounded-3xl shadow-2xl border border-gray-200 p-5 md:p-8 min-h-[350px] md:min-h-[500px]">
+                        <main className="flex-1 px-1 lg:px-0">
+                            <div className="bg-gray-50 rounded-[24px] md:rounded-3xl shadow-2xl border border-gray-200 p-3 md:p-8 min-h-[400px] md:min-h-[500px]">
                                 {children}
                             </div>
                         </main>
@@ -89,7 +68,7 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
                                 { icon: <ShieldCheck size={20} />, label: 'Secure Payments' },
                                 { icon: <History size={20} />, label: 'Genuine Product' },
                                 { icon: <RefreshCcw size={20} />, label: 'Click Connect Collect' },
-                                { icon: <Truck size={20} />, label: '7 Day Return' }
+                                { icon: <Truck size={20} />, label: '24 Hour Return' }
                             ].map((item, idx) => (
                                 <div key={idx} className="flex flex-col items-center gap-1.5 px-2 flex-1 group">
                                     <div className="text-gray-400 group-hover:text-black transition-colors">{item.icon}</div>

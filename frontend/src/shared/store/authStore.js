@@ -12,6 +12,50 @@ export const useAuthStore = create(
       isAuthenticated: false,
       isLoading: false,
       pendingEmail: null,
+      pendingPhone: null,
+
+      checkPhone: async (phone) => {
+        set({ isLoading: true });
+        try {
+          const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+          const response = await api.post('/user/auth/check-phone', { phone: normalizedPhone });
+          set({ isLoading: false });
+          return response?.data ?? response;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      loginOtp: async (phone) => {
+        set({ isLoading: true });
+        try {
+          const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+          const response = await api.post('/user/auth/login-otp', { phone: normalizedPhone });
+          const payload = response?.data ?? response;
+          set({ pendingPhone: normalizedPhone, isLoading: false, pendingEmail: payload?.email });
+          return payload;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      registerOtp: async (name, email, phone) => {
+        set({ isLoading: true });
+        try {
+          const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+          const response = await api.post('/user/auth/register-otp', {
+            name, email, phone: normalizedPhone
+          });
+          const payload = response?.data ?? response;
+          set({ pendingPhone: normalizedPhone, pendingEmail: email, isLoading: false });
+          return payload;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
 
       // Login action
       login: async (email, password, rememberMe = false) => {
@@ -242,6 +286,7 @@ export const useAuthStore = create(
             name: profileData?.name,
             firstName: profileData?.firstName,
             lastName: profileData?.lastName,
+            email: profileData?.email,
             dob: profileData?.dob,
             gender: profileData?.gender,
             ageRange: profileData?.ageRange,
@@ -250,13 +295,8 @@ export const useAuthStore = create(
             phone: profileData?.phone,
           });
           const payload = response?.data ?? response;
-          const currentUser = get().user || {};
-          const updatedUser = {
-            ...currentUser,
-            ...payload,
-            email: currentUser.email || payload.email,
-          };
-
+          const updatedUser = payload?.user || payload;
+          
           set({
             user: updatedUser,
             isLoading: false,

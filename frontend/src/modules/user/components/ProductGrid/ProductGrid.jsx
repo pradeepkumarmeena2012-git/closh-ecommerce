@@ -11,7 +11,9 @@ const ProductGrid = () => {
     const { activeCategory, getCategoryColor } = useCategory();
 
     useEffect(() => {
-        if (activeCategory === 'For You' || activeCategory === 'All') {
+        if (activeCategory === 'All') {
+            fetchPublicProducts({ limit: 100, sort: 'newest' });
+        } else if (activeCategory === 'For You') {
             fetchPublicProducts({ limit: 12, sort: 'newest' });
         } else {
             fetchPublicProducts({ category: activeCategory, limit: 24 });
@@ -20,7 +22,7 @@ const ProductGrid = () => {
 
     const displayProducts = products.length > 0 ? products : [];
 
-    const dynamicTitle = activeCategory === 'For You' ? 'New Drops' : `${activeCategory} Collection`;
+    const dynamicTitle = activeCategory === 'For You' ? 'New Drops' : activeCategory === 'All' ? 'All Products' : `${activeCategory} Collection`;
     const themeColor = getCategoryColor(activeCategory) || '#111111';
 
     const getGridBadgeTheme = (categoryName) => {

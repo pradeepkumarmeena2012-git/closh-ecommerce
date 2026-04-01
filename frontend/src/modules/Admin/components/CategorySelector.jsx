@@ -18,9 +18,11 @@ const CategorySelector = ({
   } = useCategoryStore();
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredCategoryId, setHoveredCategoryId] = useState(null);
+  const [hoveredSubcategoryId, setHoveredSubcategoryId] = useState(null);
   const containerRef = useRef(null);
   const parentDropdownRef = useRef(null);
   const subcategoryDropdownRef = useRef(null);
+  const grandCategoryDropdownRef = useRef(null);
   const closeTimeoutRef = useRef(null);
 
   // Get root categories (parent categories)
@@ -37,13 +39,21 @@ const CategorySelector = ({
     ? getCategoryById(selectedSubcategory.parentId)
     : selectedCategory;
 
-  // Get subcategories for hovered category
+  // Get subcategories for hovered root category
   const hoveredSubcategories = useMemo(() => {
     if (!hoveredCategoryId) return [];
     return getCategoriesByParent(hoveredCategoryId).filter(
       (cat) => cat.isActive !== false
     );
   }, [hoveredCategoryId, categories, getCategoriesByParent]);
+
+  // Get grand-subcategories for hovered subcategory
+  const hoveredGrandSubcategories = useMemo(() => {
+    if (!hoveredSubcategoryId) return [];
+    return getCategoriesByParent(hoveredSubcategoryId).filter(
+      (cat) => cat.isActive !== false
+    );
+  }, [hoveredSubcategoryId, categories, getCategoriesByParent]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -85,7 +95,7 @@ const CategorySelector = ({
     };
   }, []);
 
-  // Position subcategory dropdown to the right of parent dropdown
+  // Position subcategory dropdowns
   useEffect(() => {
     if (
       hoveredCategoryId &&
@@ -94,8 +104,7 @@ const CategorySelector = ({
       containerRef.current
     ) {
       const containerRect = containerRef.current.getBoundingClientRect();
-      const parentDropdownRect =
-        parentDropdownRef.current.getBoundingClientRect();
+      const parentDropdownRect = parentDropdownRef.current.getBoundingClientRect();
       const hoveredElement = parentDropdownRef.current.querySelector(
         `[data-category-id="${hoveredCategoryId}"]`
       );
@@ -104,84 +113,98 @@ const CategorySelector = ({
         const elementRect = hoveredElement.getBoundingClientRect();
         const dropdown = subcategoryDropdownRef.current;
         const viewportWidth = window.innerWidth;
-        const dropdownWidth = 200; // min-w-[200px]
+        const dropdownWidth = 200; 
 
-        // Position to the right of the parent dropdown container
-        // Calculate left position relative to container
-        let left = parentDropdownRect.right - containerRect.left + 8; // Right edge of parent dropdown + gap
-        // Calculate top position to align with hovered item, relative to container
+        let left = parentDropdownRect.right - containerRect.left + 8;
         let top = elementRect.top - containerRect.top;
 
-        // Check if dropdown would overflow viewport, adjust if needed
-        const rightEdge = parentDropdownRect.right + dropdownWidth + 8;
-        if (rightEdge > viewportWidth - 20) {
-          // Position to the left of parent dropdown instead
-          left =
-            parentDropdownRect.left - containerRect.left - dropdownWidth - 8;
+        if (parentDropdownRect.right + dropdownWidth + 8 > viewportWidth - 20) {
+          left = parentDropdownRect.left - containerRect.left - dropdownWidth - 8;
         }
 
-        // Ensure dropdown doesn't go above or below viewport
-        if (top < 0) {
-          top = 0;
-        }
-
-        // Ensure dropdown doesn't go below the parent dropdown
-        const maxTop = parentDropdownRect.height - 40; // Leave some space
-        if (top > maxTop) {
-          top = maxTop;
-        }
-
+        if (top < 0) top = 0;
         dropdown.style.top = `${top}px`;
         dropdown.style.left = `${left}px`;
       }
     }
-  }, [hoveredCategoryId, isOpen]);
+
+    // Position Grand Subcategory Dropdown
+    if (
+      hoveredSubcategoryId &&
+      grandCategoryDropdownRef.current &&
+      subcategoryDropdownRef.current &&
+      containerRef.current
+    ) {
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const subDropdownRect = subcategoryDropdownRef.current.getBoundingClientRect();
+      const hoveredSubElement = subcategoryDropdownRef.current.querySelector(
+        `[data-category-id="${hoveredSubcategoryId}"]`
+      );
+
+      if (hoveredSubElement) {
+        const elementRect = hoveredSubElement.getBoundingClientRect();
+        const dropdown = grandCategoryDropdownRef.current;
+        const viewportWidth = window.innerWidth;
+        const dropdownWidth = 200;
+
+        let left = subDropdownRect.right - containerRect.left + 8;
+        let top = elementRect.top - containerRect.top;
+
+        if (subDropdownRect.right + dropdownWidth + 8 > viewportWidth - 20) {
+          left = subDropdownRect.left - containerRect.left - dropdownWidth - 8;
+        }
+
+        if (top < 0) top = 0;
+        dropdown.style.top = `${top}px`;
+        dropdown.style.left = `${left}px`;
+      }
+    }
+  }, [hoveredCategoryId, hoveredSubcategoryId, isOpen]);
 
   const handleCategorySelect = (categoryId) => {
-    // Clear subcategory when selecting a new parent
-    onChange({
-      target: {
-        name: "categoryId",
-        value: categoryId,
-      },
-    });
-    onChange({
-      target: {
-        name: "subcategoryId",
-        value: "",
-      },
-    });
+    onChange({ target: { name: "categoryId", value: categoryId } });
+    onChange({ target: { name: "subcategoryId", value: "" } });
     setIsOpen(false);
     setHoveredCategoryId(null);
+    setHoveredSubcategoryId(null);
   };
 
-  const handleSubcategorySelect = (subcategoryId, parentId) => {
-    onChange({
-      target: {
-        name: "categoryId",
-        value: parentId,
-      },
-    });
-    onChange({
-      target: {
-        name: "subcategoryId",
-        value: subcategoryId,
-      },
-    });
+  const handleSubcategorySelect = (selectedSubcategoryId, parentId) => {
+    onChange({ target: { name: "categoryId", value: parentId } });
+    onChange({ target: { name: "subcategoryId", value: selectedSubcategoryId } });
     setIsOpen(false);
     setHoveredCategoryId(null);
+    setHoveredSubcategoryId(null);
+  };
+
+  const handleGrandSubSelect = (grandId, subId) => {
+    // For 3 levels, we still store the immediate parent if product only supports 2 fields,
+    // but usually categoryId in Product model is the actual leaf node.
+    // However, if the app expects subcategoryId to be the mid-level, we set it.
+    onChange({ target: { name: "categoryId", value: subId } });
+    onChange({ target: { name: "subcategoryId", value: grandId } });
+    setIsOpen(false);
+    setHoveredCategoryId(null);
+    setHoveredSubcategoryId(null);
   };
 
   // Display text
   const displayText = useMemo(() => {
     if (selectedSubcategory && parentCategory) {
+      // Find parent of parent
+      const root = parentCategory.parentId ? getCategoryById(parentCategory.parentId) : null;
+      if (root) {
+        return `${root.name} > ${parentCategory.name} (${selectedSubcategory.name})`;
+      }
       return `${parentCategory.name} (${selectedSubcategory.name})`;
     }
     if (selectedCategory) {
+      const root = selectedCategory.parentId ? getCategoryById(selectedCategory.parentId) : null;
+      if (root) return `${root.name} (${selectedCategory.name})`;
       return selectedCategory.name;
     }
     return "Select Category";
-  }, [selectedCategory, selectedSubcategory, parentCategory]);
+  }, [selectedCategory, selectedSubcategory, parentCategory, getCategoryById]);
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
@@ -197,6 +220,7 @@ const CategorySelector = ({
           }
           if (!isOpen) {
             setHoveredCategoryId(null);
+            setHoveredSubcategoryId(null);
           }
         }}
         className={`w-full px-4 py-2.5 text-left border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white flex items-center justify-between transition-all duration-200 hover:border-primary-400 ${
@@ -223,11 +247,12 @@ const CategorySelector = ({
               onClick={() => {
                 setIsOpen(false);
                 setHoveredCategoryId(null);
+                setHoveredSubcategoryId(null);
               }}
               className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 sm:hidden"
             />
 
-            {/* Categories Dropdown */}
+            {/* Categories Dropdown (Level 0) */}
             <motion.div
               ref={parentDropdownRef}
               initial={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -242,69 +267,41 @@ const CategorySelector = ({
                   </div>
                 ) : (
                   rootCategories.map((category) => {
-                    const subcategories = getCategoriesByParent(
-                      category.id
-                    ).filter((cat) => cat.isActive !== false);
-                    const hasSubcategories = subcategories.length > 0;
+                    const children = getCategoriesByParent(category.id).filter(
+                      (cat) => cat.isActive !== false
+                    );
+                    const hasChildren = children.length > 0;
                     const isSelected = value === category.id && !subcategoryId;
-                    const isHovered = hoveredCategoryId === category.id;
 
                     return (
                       <div key={category.id} data-category-id={category.id}>
                         <motion.div
                           whileHover={{
-                            backgroundColor: isSelected
-                              ? "rgba(40, 116, 240, 0.1)"
-                              : "rgba(249, 250, 251, 1)",
+                            backgroundColor: "rgba(249, 250, 251, 1)",
                           }}
-                          className={`px-4 py-2 cursor-pointer flex items-center justify-between transition-colors duration-150 ${
+                          className={`px-4 py-2.5 cursor-pointer flex items-center justify-between transition-colors duration-150 ${
                             isSelected
-                              ? "bg-primary-50 text-primary-600"
+                              ? "bg-primary-50 text-primary-600 font-bold"
                               : "text-gray-900"
                           }`}
-                          onClick={() => {
-                            handleCategorySelect(category.id);
-                          }}
+                          onClick={() => handleCategorySelect(category.id)}
                           onMouseEnter={() => {
-                            if (hasSubcategories) {
-                              // Clear any pending close timeout
-                              if (closeTimeoutRef.current) {
-                                clearTimeout(closeTimeoutRef.current);
-                                closeTimeoutRef.current = null;
-                              }
-                              setHoveredCategoryId(category.id);
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            // Clear any existing timeout
                             if (closeTimeoutRef.current) {
                               clearTimeout(closeTimeoutRef.current);
-                            }
-                            // 0.20 second delay before closing subcategory dropdown
-                            closeTimeoutRef.current = setTimeout(() => {
-                              if (subcategoryDropdownRef.current) {
-                                const rect =
-                                  subcategoryDropdownRef.current.getBoundingClientRect();
-                                const x = e.clientX;
-                                const y = e.clientY;
-                                const isHoveringSub =
-                                  x >= rect.left &&
-                                  x <= rect.right &&
-                                  y >= rect.top &&
-                                  y <= rect.bottom;
-                                if (!isHoveringSub) {
-                                  setHoveredCategoryId(null);
-                                }
-                              } else {
-                                setHoveredCategoryId(null);
-                              }
                               closeTimeoutRef.current = null;
-                            }, 200); // 0.20 seconds = 200ms
+                            }
+                            setHoveredCategoryId(category.id);
+                            setHoveredSubcategoryId(null); // Reset Level 1 hover
+                          }}
+                          onMouseLeave={(e) => {
+                            if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+                            closeTimeoutRef.current = setTimeout(() => {
+                              setHoveredCategoryId(null);
+                              setHoveredSubcategoryId(null);
+                            }, 300);
                           }}>
                           <span className="flex-1">{category.name}</span>
-                          {hasSubcategories && (
-                            <FiChevronRight className="ml-2 text-gray-400" />
-                          )}
+                          {hasChildren && <FiChevronRight className="ml-2 text-gray-400" />}
                         </motion.div>
                       </div>
                     );
@@ -313,57 +310,91 @@ const CategorySelector = ({
               </div>
             </motion.div>
 
-            {/* Subcategories Dropdown - Positioned to the right of parent dropdown */}
+            {/* Subcategories Dropdown (Level 1) */}
             {hoveredCategoryId && hoveredSubcategories.length > 0 && (
               <motion.div
                 ref={subcategoryDropdownRef}
                 initial={{ opacity: 0, x: -10, scale: 0.95 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: -10, scale: 0.95 }}
-                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                className="absolute bg-white border border-gray-200 rounded-xl shadow-xl min-w-[200px] z-[60]"
+                transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                className="absolute bg-white border border-gray-200 rounded-xl shadow-2xl min-w-[200px] z-[60]"
                 onMouseEnter={() => {
-                  // Clear any pending close timeout when entering subcategory dropdown
                   if (closeTimeoutRef.current) {
                     clearTimeout(closeTimeoutRef.current);
                     closeTimeoutRef.current = null;
                   }
-                  setHoveredCategoryId(hoveredCategoryId);
                 }}
                 onMouseLeave={() => {
-                  // 0.20 second delay before closing
-                  if (closeTimeoutRef.current) {
-                    clearTimeout(closeTimeoutRef.current);
-                  }
+                  if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
                   closeTimeoutRef.current = setTimeout(() => {
                     setHoveredCategoryId(null);
-                    closeTimeoutRef.current = null;
-                  }, 200); // 0.20 seconds = 200ms
+                    setHoveredSubcategoryId(null);
+                  }, 300);
                 }}>
                 <div className="py-1 max-h-60 overflow-y-auto">
                   {hoveredSubcategories.map((subcategory) => {
-                    const isSubSelected = subcategoryId === subcategory.id;
+                    const children = getCategoriesByParent(subcategory.id).filter(
+                      (cat) => cat.isActive !== false
+                    );
+                    const hasChildren = children.length > 0;
+                    const isSelected = subcategoryId === subcategory.id;
+
                     return (
-                      <motion.div
-                        key={subcategory.id}
-                        onClick={() =>
-                          handleSubcategorySelect(
-                            subcategory.id,
-                            hoveredCategoryId
-                          )
-                        }
-                        whileHover={{
-                          backgroundColor: isSubSelected
-                            ? "rgba(40, 116, 240, 0.1)"
-                            : "rgba(249, 250, 251, 1)",
-                        }}
-                        className={`px-4 py-2 cursor-pointer transition-colors duration-150 ${
-                          isSubSelected
-                            ? "bg-primary-50 text-primary-600"
-                            : "text-gray-900"
-                        }`}>
-                        {subcategory.name}
-                      </motion.div>
+                      <div key={subcategory.id} data-category-id={subcategory.id}>
+                        <motion.div
+                          onClick={() => handleSubcategorySelect(subcategory.id, hoveredCategoryId)}
+                          onMouseEnter={() => setHoveredSubcategoryId(subcategory.id)}
+                          whileHover={{ backgroundColor: "rgba(249, 250, 251, 1)" }}
+                          className={`px-4 py-2.5 cursor-pointer flex items-center justify-between transition-colors duration-150 ${
+                            isSelected ? "bg-primary-50 text-primary-600 font-bold" : "text-gray-900"
+                          }`}>
+                          <span className="flex-1">{subcategory.name}</span>
+                          {hasChildren && <FiChevronRight className="ml-2 text-gray-400" />}
+                        </motion.div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Grand-Subcategories Dropdown (Level 2) */}
+            {hoveredSubcategoryId && hoveredGrandSubcategories.length > 0 && (
+              <motion.div
+                ref={grandCategoryDropdownRef}
+                initial={{ opacity: 0, x: -10, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -10, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                className="absolute bg-white border border-gray-200 rounded-xl shadow-2xl min-w-[200px] z-[70]"
+                onMouseEnter={() => {
+                  if (closeTimeoutRef.current) {
+                    clearTimeout(closeTimeoutRef.current);
+                    closeTimeoutRef.current = null;
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+                  closeTimeoutRef.current = setTimeout(() => {
+                    setHoveredCategoryId(null);
+                    setHoveredSubcategoryId(null);
+                  }, 300);
+                }}>
+                <div className="py-1 max-h-60 overflow-y-auto">
+                  {hoveredGrandSubcategories.map((grand) => {
+                    const isSelected = subcategoryId === grand.id;
+                    return (
+                      <div key={grand.id} data-category-id={grand.id}>
+                        <motion.div
+                          onClick={() => handleGrandSubSelect(grand.id, hoveredSubcategoryId)}
+                          whileHover={{ backgroundColor: "rgba(249, 250, 251, 1)" }}
+                          className={`px-4 py-2.5 cursor-pointer flex items-center justify-between transition-colors duration-150 ${
+                            isSelected ? "bg-primary-50 text-primary-600 font-bold" : "text-gray-900"
+                          }`}>
+                          <span className="flex-1">{grand.name}</span>
+                        </motion.div>
+                      </div>
                     );
                   })}
                 </div>
