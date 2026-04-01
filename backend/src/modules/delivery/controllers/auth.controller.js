@@ -6,7 +6,7 @@ import Admin from '../../../models/Admin.model.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { sendEmail } from '../../../services/email.service.js';
-import { cleanupLocalFiles } from '../../../services/upload.service.js';
+import { cleanupLocalFiles, uploadLocalFileToCloudinaryAndCleanup } from '../../../services/upload.service.js';
 import {
     clearRefreshSession,
     decodeRefreshTokenOrThrow,
@@ -15,10 +15,16 @@ import {
 } from '../../../services/refreshToken.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 
-const getUploadedPath = (file) => {
-    if (!file?.filename) return '';
-    return `/uploads/delivery-docs/${file.filename}`;
-};
+// In-memory store for registration OTPs (phone -> { otp, expiry, verified })
+const registrationOtpStore = new Map();
+
+// Cleanup expired OTPs every 10 minutes
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of registrationOtpStore) {
+        if (val.expiry < now) registrationOtpStore.delete(key);
+    }
+}, 10 * 60 * 1000);
 
 // POST /api/delivery/auth/register
 export const register = asyncHandler(async (req, res) => {
@@ -34,27 +40,46 @@ export const register = asyncHandler(async (req, res) => {
     }
 
     const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedPhone = String(phone || '').trim().replace(/\D/g, '').slice(-10);
     let deliveryBoy = null;
 
     try {
-        const existing = await DeliveryBoy.findOne({ email: normalizedEmail });
-        if (existing) throw new ApiError(409, 'Email already registered.');
+        const existing = await DeliveryBoy.findOne({ 
+            $or: [{ email: normalizedEmail }, { phone: normalizedPhone }] 
+        });
+        if (existing) throw new ApiError(409, 'Email or phone already registered.');
 
-        deliveryBoy = await DeliveryBoy.create({
+        if (!isRegistrationPhoneVerified(phone)) {
+            throw new ApiError(400, 'Please verify your mobile number via OTP first.');
+        }
+
+        const [
+            drivingLicenseResult,
+            drivingLicenseBackResult,
+            aadharCardResult,
+            aadharCardBackResult
+        ] = await Promise.all([
+            uploadLocalFileToCloudinaryAndCleanup(drivingLicenseFile.path, 'delivery/documents/licenses'),
+            uploadLocalFileToCloudinaryAndCleanup(drivingLicenseBackFile.path, 'delivery/documents/licenses'),
+            uploadLocalFileToCloudinaryAndCleanup(aadharCardFile.path, 'delivery/documents/aadhar'),
+            uploadLocalFileToCloudinaryAndCleanup(aadharCardBackFile.path, 'delivery/documents/aadhar'),
+        ]);
+
+        const deliveryBoy = await DeliveryBoy.create({
             name: String(name || '').trim(),
             email: normalizedEmail,
-            password,
-            phone: String(phone || '').trim(),
+            password: password || String(Math.random().toString(36).slice(-10)),
+            phone: normalizedPhone,
             emergencyContact: String(emergencyContact || '').trim(),
             aadharNumber: String(aadharNumber || '').trim(),
             address: String(address || '').trim(),
             vehicleType: String(vehicleType || '').trim(),
             vehicleNumber: String(vehicleNumber || '').trim(),
             documents: {
-                drivingLicense: getUploadedPath(drivingLicenseFile),
-                drivingLicenseBack: getUploadedPath(drivingLicenseBackFile),
-                aadharCard: getUploadedPath(aadharCardFile),
-                aadharCardBack: getUploadedPath(aadharCardBackFile),
+                drivingLicense: drivingLicenseResult.url,
+                drivingLicenseBack: drivingLicenseBackResult.url,
+                aadharCard: aadharCardResult.url,
+                aadharCardBack: aadharCardBackResult.url,
             },
             applicationStatus: 'pending',
             isActive: false,
@@ -88,6 +113,8 @@ export const register = asyncHandler(async (req, res) => {
             email: deliveryBoy.email
         });
 
+        clearRegistrationOtp(phone);
+
         res.status(201).json(
             new ApiResponse(201, { email: deliveryBoy.email }, 'Registration submitted. Awaiting admin approval.')
         );
@@ -104,6 +131,92 @@ export const register = asyncHandler(async (req, res) => {
         throw error;
     }
 });
+
+// POST /api/delivery/auth/send-registration-otp
+export const sendRegistrationOTP = asyncHandler(async (req, res) => {
+    const { phone } = req.body;
+    const normalizedPhone = String(phone || '').trim().replace(/\D/g, '').slice(-10);
+
+    if (normalizedPhone.length !== 10) {
+        throw new ApiError(400, 'Please enter a valid 10-digit mobile number');
+    }
+
+    // Check if phone is already registered
+    const existing = await DeliveryBoy.findOne({ phone: normalizedPhone });
+    if (existing) {
+        throw new ApiError(409, 'This mobile number is already registered. Please login instead.');
+    }
+
+    // Generate 6-digit OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expiry = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    // Default OTP for test number
+    const finalOtp = normalizedPhone === '7894561230' ? '123456' : otp;
+
+    registrationOtpStore.set(normalizedPhone, { otp: finalOtp, expiry, verified: false });
+
+    // Send OTP via SMS
+    try {
+        if (normalizedPhone !== '7894561230') {
+            const { sendSmsOtp } = await import('../../../services/sms.service.js');
+            await sendSmsOtp(normalizedPhone, finalOtp);
+        }
+        console.log(`✅ Registration OTP sent to ${normalizedPhone}: ${finalOtp}`);
+    } catch (smsError) {
+        console.warn(`⚠️ SMS failed for ${normalizedPhone}:`, smsError.message);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`🔐 Registration OTP for ${normalizedPhone}: ${finalOtp}`);
+        }
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, { phone: normalizedPhone }, 'OTP sent successfully. Valid for 5 minutes.')
+    );
+});
+
+// POST /api/delivery/auth/verify-registration-otp
+export const verifyRegistrationOTP = asyncHandler(async (req, res) => {
+    const { phone, otp } = req.body;
+    const normalizedPhone = String(phone || '').trim().replace(/\D/g, '').slice(-10);
+
+    if (normalizedPhone.length !== 10) {
+        throw new ApiError(400, 'Invalid mobile number');
+    }
+
+    const stored = registrationOtpStore.get(normalizedPhone);
+    if (!stored) {
+        throw new ApiError(400, 'No OTP requested. Please request OTP first.');
+    }
+    if (stored.expiry < Date.now()) {
+        registrationOtpStore.delete(normalizedPhone);
+        throw new ApiError(400, 'OTP has expired. Please request a new one.');
+    }
+    if (stored.otp !== String(otp)) {
+        throw new ApiError(401, 'Invalid OTP. Please try again.');
+    }
+
+    // Mark as verified
+    stored.verified = true;
+    registrationOtpStore.set(normalizedPhone, stored);
+
+    res.status(200).json(
+        new ApiResponse(200, { phone: normalizedPhone, verified: true }, 'Mobile number verified successfully.')
+    );
+});
+
+// Helper to check if registration OTP was verified (used in register)
+export const isRegistrationPhoneVerified = (phone) => {
+    const normalizedPhone = String(phone || '').trim().replace(/\D/g, '').slice(-10);
+    const stored = registrationOtpStore.get(normalizedPhone);
+    return stored?.verified === true && stored.expiry > Date.now();
+};
+
+// Helper to clear registration OTP after successful registration
+export const clearRegistrationOtp = (phone) => {
+    const normalizedPhone = String(phone || '').trim().replace(/\D/g, '').slice(-10);
+    registrationOtpStore.delete(normalizedPhone);
+};
 
 // POST /api/delivery/auth/forgot-password
 export const forgotPassword = asyncHandler(async (req, res) => {

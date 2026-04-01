@@ -133,27 +133,28 @@ const DeliveryOrders = () => {
     <PageTransition>
       <div className="min-h-screen bg-[#F8FAFC]">
         {/* Sleek Sub-Header */}
-        <div className="bg-[#0F172A] pt-28 pb-24 px-6 relative overflow-hidden">
+        <div className="bg-[#0F172A] pt-16 sm:pt-28 pb-14 sm:pb-24 px-5 sm:px-6 relative overflow-hidden transition-all duration-500">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           
           <div className="relative z-10 flex items-center justify-between">
-            <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                 <FiActivity size={20} className="text-white" />
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-500 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                 <FiActivity size={16} className="text-white sm:hidden" />
+                 <FiActivity size={20} className="text-white hidden sm:block" />
               </div>
               Job Board
             </h1>
-            <div className="px-3 py-1 bg-slate-800 border border-slate-700 rounded-full text-[11px] font-black text-indigo-400 uppercase tracking-widest">
+            <div className="px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-full text-[9px] sm:text-[11px] font-black text-indigo-400 uppercase tracking-widest whitespace-nowrap">
                {filter === 'available' ? 'Searching Live...' : 'Management'}
             </div>
           </div>
 
-          <div className="relative z-10 mt-8 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <div className="relative z-10 mt-5 sm:mt-8 flex gap-2 overflow-x-auto no-scrollbar pb-1">
              {['available', 'pending', 'in-transit', 'delivered'].filter(t => t !== 'available' || isOnline).map((tab) => (
                <button
                  key={tab}
                  onClick={() => { setFilter(tab); setCurrentPage(1); }}
-                 className={`px-5 py-2.5 rounded-2xl text-[13px] font-black tracking-tight whitespace-nowrap transition-all duration-300 ${
+                 className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-[11px] sm:text-[13px] font-black tracking-tight whitespace-nowrap transition-all duration-300 ${
                    filter === tab 
                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' 
                    : 'bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:bg-slate-800'
@@ -166,17 +167,18 @@ const DeliveryOrders = () => {
         </div>
 
         {/* Task List Section */}
-        <div className="px-6 -mt-12 relative z-20 pb-20">
-          <div className="space-y-4">
+        <div className="px-4 sm:px-6 -mt-8 sm:-mt-12 relative z-20 pb-16 transition-all duration-500">
+          <div className="space-y-3 sm:space-y-4">
             {isLoadingOrders ? (
-              Array(3).fill(0).map((_, i) => <div key={i} className="h-40 bg-white rounded-[32px] animate-pulse" />)
+              Array(3).fill(0).map((_, i) => <div key={i} className="h-40 bg-white rounded-[24px] sm:rounded-[32px] animate-pulse" />)
             ) : orders.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-[40px] border border-slate-100 shadow-sm">
-                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                   <FiPackage size={40} className="text-slate-200" />
+              <div className="text-center py-12 sm:py-20 bg-white rounded-[32px] sm:rounded-[40px] border border-slate-100 shadow-sm">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                   <FiPackage size={30} className="text-slate-200 sm:hidden" />
+                   <FiPackage size={40} className="text-slate-200 hidden sm:block" />
                 </div>
-                <p className="text-slate-500 font-black text-lg">Empty Queue</p>
-                <p className="text-slate-400 text-sm mt-1">No orders matched your current filter.</p>
+                <p className="text-slate-500 font-black text-base sm:text-lg">Empty Queue</p>
+                <p className="text-slate-400 text-[11px] sm:text-sm mt-1">No orders matched your filter.</p>
               </div>
             ) : (
               orders.map((order, index) => (
@@ -186,7 +188,7 @@ const DeliveryOrders = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                   onClick={() => navigate(`/delivery/orders/${order.id}`)}
-                  className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer group"
+                  className="bg-white rounded-2xl sm:rounded-[32px] p-4 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer group"
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">

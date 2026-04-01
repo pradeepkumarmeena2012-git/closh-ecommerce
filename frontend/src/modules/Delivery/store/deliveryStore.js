@@ -170,13 +170,75 @@ export const useDeliveryAuthStore = create(
       isUpdatingStatus: false,
 
       // Delivery boy actions
+      sendOtp: async (phone) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/delivery/auth/send-otp', { phone });
+          set({ isLoading: false });
+          return response?.data || response;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      verifyOtpAndLogin: async (phone, otp) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/delivery/auth/verify-otp', { phone, otp });
+          const payload = response?.data || response;
+          const accessToken = payload?.accessToken;
+          const refreshToken = payload?.refreshToken;
+          const user = normalizeDeliveryBoy(payload?.deliveryBoy);
+
+          localStorage.setItem('delivery-token', accessToken);
+          localStorage.setItem('delivery-refresh-token', refreshToken);
+
+          set({
+            deliveryBoy: user,
+            token: accessToken,
+            refreshToken,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          return { success: true, deliveryBoy: user };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      sendRegistrationOtp: async (phone) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/delivery/auth/send-registration-otp', { phone });
+          set({ isLoading: false });
+          return response?.data || response;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      verifyRegistrationOtp: async (phone, otp) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post('/delivery/auth/verify-registration-otp', { phone, otp });
+          set({ isLoading: false });
+          return response?.data || response;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
       register: async (registrationData) => {
         set({ isLoading: true });
         try {
           const formData = new FormData();
           formData.append('name', registrationData.name || '');
           formData.append('email', registrationData.email || '');
-          formData.append('password', registrationData.password || '');
+          if (registrationData.password) formData.append('password', registrationData.password);
           formData.append('phone', registrationData.phone || '');
           formData.append('emergencyContact', registrationData.emergencyContact || '');
           formData.append('aadharNumber', registrationData.aadharNumber || '');

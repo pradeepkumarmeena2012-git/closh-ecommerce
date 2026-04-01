@@ -14,7 +14,7 @@ const STEPS = [
 
 const DeliveryRegister = () => {
   const navigate = useNavigate();
-  const { register, isLoading } = useDeliveryAuthStore();
+  const { register, sendRegistrationOtp, verifyRegistrationOtp, isLoading } = useDeliveryAuthStore();
   const [currentStep, setCurrentStep] = useState(1);
   const fileInputRefs = useRef({});
 
@@ -27,16 +27,21 @@ const DeliveryRegister = () => {
     address: '',
     vehicleType: 'Bike',
     vehicleNumber: '',
-    password: '',
-    confirmPassword: '',
+    // password: '', // Removed
+    // confirmPassword: '', // Removed
     drivingLicense: null,
     drivingLicenseBack: null,
     aadharCard: null,
     aadharCardBack: null,
   });
+  
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [showOtpField, setShowOtpField] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
   const [previews, setPreviews] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -50,14 +55,59 @@ const DeliveryRegister = () => {
       return;
     }
     setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // If phone number changes, reset verification
+    if (name === 'phone') {
+      setIsPhoneVerified(false);
+      setShowOtpField(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!formData.phone || !/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
+      toast.error('Enter a valid 10-digit mobile number');
+      return;
+    }
+    setIsSendingOtp(true);
+    try {
+      await sendRegistrationOtp(formData.phone);
+      setShowOtpField(true);
+      toast.success('OTP sent successfully!');
+    } catch (error) {
+      toast.error(error.message || 'Failed to send OTP');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!phoneOtp || phoneOtp.length !== 6) {
+      toast.error('Enter 6-digit OTP');
+      return;
+    }
+    setIsVerifyingOtp(true);
+    try {
+      await verifyRegistrationOtp(formData.phone, phoneOtp);
+      setIsPhoneVerified(true);
+      setShowOtpField(false);
+      toast.success('Mobile number verified!');
+    } catch (error) {
+      toast.error(error.message || 'Invalid OTP');
+    } finally {
+      setIsVerifyingOtp(false);
+    }
   };
 
   const validateStep = (step) => {
     switch (step) {
       case 1:
         if (!formData.name.trim()) { toast.error('Full name is required'); return false; }
+        if (!formData.email.trim()) { toast.error('Email address is required'); return false; }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email.trim())) { toast.error('Enter a valid email address'); return false; }
         if (!formData.phone.trim()) { toast.error('Mobile number is required'); return false; }
         if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) { toast.error('Enter a valid 10-digit mobile number'); return false; }
+        if (!isPhoneVerified) { toast.error('Please verify your mobile number first'); return false; }
         if (formData.emergencyContact && !/^\d{10}$/.test(formData.emergencyContact.replace(/\D/g, ''))) { toast.error('Enter a valid emergency contact number'); return false; }
         return true;
       case 2:
@@ -67,10 +117,6 @@ const DeliveryRegister = () => {
         if (!formData.aadharCardBack) { toast.error('Aadhaar Card (Back) is required'); return false; }
         return true;
       case 3:
-        if (!formData.email.trim()) { toast.error('Email is required'); return false; }
-        if (!formData.password) { toast.error('Password is required'); return false; }
-        if (formData.password.length < 6) { toast.error('Password must be at least 6 characters'); return false; }
-        if (formData.password !== formData.confirmPassword) { toast.error('Passwords do not match'); return false; }
         return true;
       default:
         return true;
@@ -96,7 +142,7 @@ const DeliveryRegister = () => {
         address: formData.address.trim(),
         vehicleType: formData.vehicleType,
         vehicleNumber: formData.vehicleNumber.trim(),
-        password: formData.password,
+        // password: formData.password,
         drivingLicense: formData.drivingLicense,
         drivingLicenseBack: formData.drivingLicenseBack,
         aadharCard: formData.aadharCard,
@@ -240,12 +286,76 @@ const DeliveryRegister = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Mobile Number *</label>
+                    <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Email Address *</label>
                     <div className="relative">
-                      <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="10-digit mobile number" required maxLength={10} className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900" />
+                      <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="partner@email.com" required className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900" />
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Mobile Number *</label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="relative flex-1 group w-full">
+                        <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+                        <input 
+                          type="tel" 
+                          name="phone" 
+                          value={formData.phone} 
+                          onChange={handleChange} 
+                          placeholder="Mobile number" 
+                          required 
+                          maxLength={10} 
+                          className={`w-full pl-12 ${isPhoneVerified ? 'pr-12' : 'pr-4'} py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100/30 focus:outline-none text-gray-900 font-bold text-sm sm:text-base transition-all`} 
+                          disabled={isPhoneVerified}
+                        />
+                        {isPhoneVerified && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-0">
+                            <FiCheck className="text-emerald-500" size={18} />
+                            <FiCheck className="text-emerald-500 -ml-2.5" size={18} />
+                          </div>
+                        )}
+                      </div>
+                      {!isPhoneVerified && (
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isSendingOtp || !formData.phone || formData.phone.length !== 10}
+                          className="w-full sm:w-auto px-6 py-3.5 bg-[#4F46E5] text-white rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-40 transition-all flex-shrink-0 shadow-lg shadow-indigo-200/50 active:scale-95"
+                        >
+                          {isSendingOtp ? 'Processing...' : 'Verify Number'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {showOtpField && !isPhoneVerified && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0, y: -10 }}
+                      animate={{ height: 'auto', opacity: 1, y: 0 }}
+                      className="bg-indigo-50/40 p-4 sm:p-5 rounded-2xl border border-indigo-100/50 space-y-3.5 shadow-inner"
+                    >
+                      <label className="block text-[10px] font-black text-indigo-900 uppercase tracking-[0.15em] mb-1">Enter OTP Authorization Code</label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          value={phoneOtp}
+                          onChange={(e) => setPhoneOtp(e.target.value)}
+                          placeholder="••••••"
+                          maxLength={6}
+                          className="w-full sm:flex-1 px-4 py-3 bg-white border border-indigo-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-200/40 text-center font-black tracking-[0.4em] text-lg sm:text-xl text-indigo-950 placeholder:tracking-normal placeholder:font-medium placeholder:text-gray-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleVerifyOtp}
+                          disabled={isVerifyingOtp || phoneOtp.length !== 6}
+                          className="w-full sm:w-auto px-8 py-3.5 bg-[#0f172a] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-40 transition-all active:scale-95 shadow-xl shadow-slate-200/50"
+                        >
+                          {isVerifyingOtp ? 'Processing...' : 'Confirm OTP'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
                   <div>
                     <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Emergency Contact</label>
                     <div className="relative">
@@ -321,34 +431,10 @@ const DeliveryRegister = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Email Address *</label>
-                    <div className="relative">
-                      <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="partner@email.com" required className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900" />
-                    </div>
-                  </div>
-                  <div>
                     <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Address</label>
                     <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Your full address" className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:outline-none text-gray-900" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Password *</label>
-                      <div className="relative">
-                        <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} placeholder="Min 6 characters" required className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:outline-none text-gray-900" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900">{showPassword ? <FiEyeOff /> : <FiEye />}</button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Confirm Password *</label>
-                      <div className="relative">
-                        <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="Re-enter password" required className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:outline-none text-gray-900" />
-                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900">{showConfirmPassword ? <FiEyeOff /> : <FiEye />}</button>
-                      </div>
-                    </div>
-                  </div>
+
                   <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4">
                     <p className="text-xs font-medium text-indigo-900">
                       <span className="font-black uppercase text-[9px] bg-indigo-600 text-white px-2 py-0.5 rounded-full mr-2">Info</span>
@@ -360,9 +446,9 @@ const DeliveryRegister = () => {
             </AnimatePresence>
 
             {/* Navigation Buttons */}
-            <div className="flex items-center justify-between mt-8 gap-4">
+            <div className="flex items-center justify-between mt-8 gap-3 sm:gap-4">
               {currentStep > 1 ? (
-                <button type="button" onClick={prevStep} className="flex items-center gap-2 px-6 py-3.5 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm hover:bg-gray-200 active:scale-95 transition-all">
+                <button type="button" onClick={prevStep} className="flex items-center gap-2 px-4 sm:px-6 py-3.5 bg-gray-100 text-gray-700 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm hover:bg-gray-200 active:scale-95 transition-all">
                   <FiChevronLeft size={18} /> Back
                 </button>
               ) : (
@@ -370,12 +456,12 @@ const DeliveryRegister = () => {
               )}
 
               {currentStep < 3 ? (
-                <button type="button" onClick={nextStep} className="flex items-center gap-2 px-8 py-3.5 bg-[#0f172a] text-white rounded-2xl font-black text-sm hover:bg-slate-800 active:scale-95 transition-all shadow-xl">
+                <button type="button" onClick={nextStep} className="flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-[#0f172a] text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm hover:bg-slate-800 active:scale-95 transition-all shadow-xl">
                   Next <FiChevronRight size={18} />
                 </button>
               ) : (
-                <button type="submit" disabled={isLoading} className="flex items-center gap-2 px-8 py-3.5 bg-emerald-600 text-white rounded-2xl font-black text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-xl disabled:opacity-50">
-                  {isLoading ? 'Submitting...' : 'Submit Application'}
+                <button type="submit" disabled={isLoading} className="flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-emerald-600 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-xl disabled:opacity-50">
+                  {isLoading ? 'Submitting...' : 'Submit Now'}
                 </button>
               )}
             </div>

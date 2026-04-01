@@ -229,11 +229,11 @@ const DeliveryDashboard = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <h1 className="text-2xl font-black text-white tracking-tight">
-                Hello, {deliveryBoy?.name?.split(' ')[0] || 'Partner'}! 👋
+              <h1 className="text-lg font-black text-white tracking-tight">
+                Hi, {deliveryBoy?.name?.split(' ')[0] || 'Partner'}! 👋
               </h1>
-              <p className="text-slate-400 text-sm font-medium mt-1">
-                Your performance is at its peak 🚀
+              <p className="text-slate-400 text-[10px] font-medium">
+                Ready for some deliveries? 🚀
               </p>
             </motion.div>
 
@@ -242,14 +242,14 @@ const DeliveryDashboard = () => {
               animate={{ opacity: 1, scale: 1 }}
               className="relative"
             >
-              <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center p-0.5">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center p-0.5">
                  <img 
                    src={deliveryBoy?.avatar || `https://ui-avatars.com/api/?name=${deliveryBoy?.name}&background=6366f1&color=fff`} 
-                   className="w-full h-full object-cover rounded-[14px]"
+                   className="w-full h-full object-cover rounded-[8px] sm:rounded-[14px]"
                    alt="Profile"
                  />
               </div>
-              <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#0F172A] ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+              <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-[#0F172A] ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} />
             </motion.div>
           </div>
 
@@ -258,24 +258,24 @@ const DeliveryDashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className={`mt-4 rounded-3xl p-4 border transition-all duration-500 ${isOnline
-              ? 'bg-white/10 backdrop-blur-xl border-white/20 shadow-xl shadow-indigo-500/10'
+            className={`mt-3 sm:mt-4 rounded-2xl sm:rounded-3xl p-3 sm:p-4 border transition-all duration-500 ${isOnline
+              ? 'bg-white/10 backdrop-blur-xl border-white/20'
               : 'bg-white/5 backdrop-blur-md border-white/10'
               }`}
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${isOnline ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 text-slate-400'}`}>
-                   {isOnline ? <FiZap size={24} /> : <FiActivity size={24} />}
+              <div className="flex items-center gap-2.5 sm:gap-4">
+                <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-colors ${isOnline ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 text-slate-400'}`}>
+                   {isOnline ? <FiZap size={18} /> : <FiActivity size={18} />}
                 </div>
                 <div>
-                  <h2 className="text-white font-bold text-base leading-tight">
-                    {isOnline ? 'Accepting Requests' : 'You are Offline'}
+                  <h2 className="text-white font-bold text-xs sm:text-base leading-tight">
+                    {isOnline ? 'Status: Accepting' : 'You are Offline'}
                   </h2>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    {isOnline && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
-                    <p className="text-slate-400 text-[11px] font-medium">
-                      {isOnline ? 'Live tracking is active' : 'Switch ON to see new orders'}
+                  <div className="flex items-center gap-1 mt-0.5">
+                    {isOnline && <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />}
+                    <p className="text-slate-400 text-[9px] sm:text-[10px] font-medium leading-none">
+                      {isOnline ? 'Live & Active' : 'Go online to start'}
                     </p>
                   </div>
                 </div>
@@ -284,13 +284,13 @@ const DeliveryDashboard = () => {
               <button
                 onClick={handleToggleOnline}
                 disabled={isUpdatingStatus}
-                className={`relative group inline-flex h-10 w-20 flex-shrink-0 items-center rounded-full transition-all duration-500 focus:outline-none ${isOnline ? 'bg-emerald-500 shadow-lg shadow-emerald-500/40' : 'bg-slate-700'}`}
+                className={`relative group inline-flex h-8 w-14 sm:h-10 sm:w-20 flex-shrink-0 items-center rounded-full transition-all duration-500 focus:outline-none ${isOnline ? 'bg-emerald-500' : 'bg-slate-700'}`}
               >
                 <motion.span
-                  animate={{ x: isOnline ? 42 : 4 }}
-                  className="h-8 w-8 rounded-full bg-white shadow-md flex items-center justify-center"
+                  animate={{ x: isOnline ? (window.innerWidth < 640 ? 26 : 42) : 4 }}
+                  className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-white shadow-md flex items-center justify-center"
                 >
-                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                  <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                 </motion.span>
               </button>
             </div>
@@ -298,7 +298,7 @@ const DeliveryDashboard = () => {
         </div>
 
         {/* Space re-calculation using negative margin */}
-        <div className="px-6 -mt-8 relative z-20 pb-12">
+        <div className="px-4 sm:px-6 -mt-8 relative z-20 pb-8">
           
           {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -311,41 +311,50 @@ const DeliveryDashboard = () => {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 group relative overflow-hidden"
+                  className="bg-white rounded-xl sm:rounded-3xl p-3 sm:p-5 shadow-sm border border-slate-100 group relative overflow-hidden flex flex-col justify-between min-h-[85px] sm:min-h-0"
                 >
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${stat.color} ${stat.shadow} flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform`}>
-                    <Icon size={22} />
-                  </div>
-                  <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{stat.label}</p>
-                  <div className="flex items-end justify-between">
-                    <div className="text-slate-900 text-xl font-black">
-                      {isDashboardLoading ? <div className="h-7 w-16 bg-slate-100 animate-pulse rounded-lg" /> : stat.value}
+                  <div className="flex items-center gap-2 sm:block">
+                    <div className={`w-7 h-7 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl bg-gradient-to-br ${stat.color} ${stat.shadow} flex items-center justify-center text-white mb-0 sm:mb-4 shrink-0 shadow-lg`}>
+                      <Icon size={14} className="sm:hidden" />
+                      <Icon size={22} className="hidden sm:block" />
                     </div>
-                    {stat.label === 'Earnings' && !isDashboardLoading && (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setShowWithdrawalModal(true); }}
-                        className="bg-slate-50 hover:bg-indigo-50 p-1.5 rounded-lg text-indigo-600 transition-colors"
-                        title="Withdraw Earning"
-                      >
-                        <FiTrendingUp size={14} />
-                      </button>
-                    )}
+                    <div>
+                      <p className="text-slate-500 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider mb-0.5">{stat.label}</p>
+                      <div className="text-slate-900 text-sm sm:text-xl font-black leading-none">
+                        {isDashboardLoading ? <div className="h-4 w-10 sm:h-7 sm:w-16 bg-slate-100 animate-pulse rounded" /> : stat.value}
+                      </div>
+                    </div>
                   </div>
+                  {stat.label === 'Earnings' && !isDashboardLoading && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowWithdrawalModal(true); }}
+                      className="absolute bottom-2 right-2 bg-slate-50 hover:bg-indigo-50 p-1 rounded-md text-indigo-600 transition-colors sm:hidden"
+                    >
+                      <FiTrendingUp size={12} />
+                    </button>
+                  )}
+                  {stat.label === 'Earnings' && !isDashboardLoading && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setShowWithdrawalModal(true); }}
+                      className="hidden sm:block absolute bottom-4 right-4 bg-slate-50 hover:bg-indigo-50 p-1.5 rounded-lg text-indigo-600 transition-colors"
+                    >
+                      <FiTrendingUp size={14} />
+                    </button>
+                  )}
                 </motion.div>
               );
             })}
           </div>
 
-          {/* Real-time Order Stream */}
-          <div className="mt-8 space-y-8">
+          <div className="mt-6 sm:mt-8 space-y-6 sm:space-y-8">
             
             {/* Available Orders Section */}
             {isOnline && (
               <section>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-6 bg-indigo-500 rounded-full" />
-                    <h2 className="text-lg font-black text-slate-800 tracking-tight">Available Near You</h2>
+                    <span className="w-1.5 h-5 sm:h-6 bg-indigo-500 rounded-full" />
+                    <h2 className="text-base sm:text-lg font-black text-slate-800 tracking-tight">Available Near You</h2>
                   </div>
                   <button onClick={() => navigate('/delivery/orders')} className="text-indigo-600 text-[13px] font-bold flex items-center gap-1 hover:translate-x-1 transition-transform">
                     View Live Feed <FiArrowRight />
@@ -354,12 +363,11 @@ const DeliveryDashboard = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {isDashboardLoading ? (
-                    <div className="h-40 bg-white rounded-3xl animate-pulse" />
+                    <div className="h-32 sm:h-40 bg-white rounded-2xl sm:rounded-3xl animate-pulse" />
                   ) : (availableOrders.length === 0 && availableReturns.length === 0) ? (
-                    <div className="col-span-full py-10 text-center bg-indigo-50/50 rounded-3xl border border-dashed border-indigo-200">
-                      <FiNavigation className="mx-auto text-indigo-300 mb-3" size={32} />
-                      <p className="text-indigo-500 font-bold text-sm">Waiting for new requests...</p>
-                      <p className="text-indigo-400/60 text-[11px] mt-1">Pro Tip: Head to busy market areas!</p>
+                    <div className="col-span-full py-6 sm:py-10 text-center bg-indigo-50/50 rounded-2xl sm:rounded-3xl border border-dashed border-indigo-200">
+                      <FiNavigation className="mx-auto text-indigo-300 mb-2 sm:mb-3" size={24} />
+                      <p className="text-indigo-500 font-bold text-xs sm:text-sm">No new requests nearby</p>
                     </div>
                   ) : (
                     <>

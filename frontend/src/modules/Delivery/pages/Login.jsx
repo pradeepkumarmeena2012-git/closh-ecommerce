@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import toast from 'react-hot-toast';
@@ -10,14 +10,22 @@ import logo from '../../../assets/animations/lottie/logo-removebg.png';
 const DeliveryLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated, isLoading } = useDeliveryAuthStore();
+  const { sendOtp, verifyOtpAndLogin, isAuthenticated, isLoading } = useDeliveryAuthStore();
   
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    phone: '',
+    otp: '',
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [step, setStep] = useState('phone'); // 'phone' or 'otp'
+  const [timer, setTimer] = useState(0);
+
+  useEffect(() => {
+    let interval;
+    if (timer > 0) {
+      interval = setInterval(() => setTimer((t) => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
   useEffect(() => {
     const hasDeliveryToken = Boolean(localStorage.getItem('delivery-token'));
@@ -34,17 +42,36 @@ const DeliveryLogin = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
-    if (!formData.email || !formData.password) {
-      toast.error('Please fill in all fields');
+    if (!formData.phone || formData.phone.length !== 10) {
+      toast.error('Please enter a valid 10-digit mobile number');
       return;
     }
     try {
-      await login(formData.email, formData.password, rememberMe);
+      await sendOtp(formData.phone);
+      setStep('otp');
+      setTimer(60);
+      toast.success('OTP sent successfully!');
+    } catch (error) {
+      toast.error(error.message || 'Failed to send OTP');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (step === 'phone') {
+      return handleSendOtp(e);
+    }
+    if (!formData.otp || formData.otp.length !== 6) {
+      toast.error('Please enter a valid 6-digit OTP');
+      return;
+    }
+    try {
+      await verifyOtpAndLogin(formData.phone, formData.otp);
       toast.success('Login successful!');
     } catch (error) {
-      toast.error(error.message || 'Invalid credentials');
+      toast.error(error.message || 'Invalid OTP');
     }
   };
 
@@ -85,84 +112,81 @@ const DeliveryLogin = () => {
 
             <div className="mb-10 text-center md:text-left">
               <h2 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Partner Login</h2>
-              <p className="text-gray-500 font-medium">Log in to your CLOSH workspace</p>
+              <p className="text-gray-500 font-medium">Log in using your mobile number</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="partner@closh.com"
-                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:border-gray-300 focus:outline-none transition-all text-gray-900 placeholder:text-gray-400"
-                    required
-                  />
+              {step === 'phone' ? (
+                <div>
+                  <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">
+                    Mobile Number
+                  </label>
+                  <div className="relative">
+                    <FiPhone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="10-digit number"
+                      maxLength={10}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:border-gray-300 focus:outline-none transition-all text-gray-900 placeholder:text-gray-400 font-bold"
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">
-                  Secure Password
-                </label>
-                <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="••••••••"
-                    className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:border-gray-300 focus:outline-none transition-all text-gray-900 placeholder:text-gray-400"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-900"
-                  >
-                    {showPassword ? <FiEyeOff /> : <FiEye />}
-                  </button>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest">
+                      Enter OTP
+                    </label>
+                    <button 
+                      type="button" 
+                      onClick={() => setStep('phone')}
+                      className="text-[10px] font-black text-indigo-600 uppercase tracking-wider hover:underline"
+                    >
+                      Change Number
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      name="otp"
+                      value={formData.otp}
+                      onChange={handleChange}
+                      placeholder="6-digit OTP"
+                      maxLength={6}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:border-gray-300 focus:outline-none transition-all text-gray-900 tracking-[0.5em] font-black placeholder:text-gray-400 placeholder:tracking-normal"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                  {timer > 0 ? (
+                    <p className="mt-3 text-[10px] font-bold text-gray-400 uppercase text-center tracking-wider">
+                      Resend OTP in {timer}s
+                    </p>
+                  ) : (
+                    <button 
+                      type="button"
+                      onClick={handleSendOtp}
+                      className="mt-3 w-full text-[10px] font-black text-indigo-600 uppercase text-center tracking-wider hover:underline"
+                    >
+                      Resend OTP Now
+                    </button>
+                  )}
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <label className="flex items-center cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 text-[#0f172a] border-gray-200 rounded focus:ring-[#0f172a]"
-                  />
-                  <span className="ml-2 text-xs font-black text-gray-500 group-hover:text-gray-900 tracking-wider">Stay Active</span>
-                </label>
-                <Link to="/delivery/forgot-password" size="sm" className="text-xs font-black text-gray-500 hover:text-gray-900 tracking-wider">
-                  Need Help?
-                </Link>
-              </div>
+              )}
 
               <button
                 type="submit"
                 disabled={isLoading}
                 className="w-full bg-[#0f172a] text-white py-4 rounded-2xl font-black text-base hover:bg-slate-800 transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50"
               >
-                {isLoading ? 'Connecting...' : 'Access Dashboard'}
+                {isLoading ? 'Processing...' : step === 'phone' ? 'Get OTP' : 'Verify & Login'}
               </button>
             </form>
-
-            <div className="mt-10 p-6 bg-gray-50 rounded-[2rem] border border-gray-100/50">
-              <p className="text-[11px] font-black text-gray-900 uppercase tracking-widest mb-3 px-1">Demo Access:</p>
-              <div className="space-y-1 px-1">
-                <p className="text-sm font-medium text-gray-700">User: <span className="text-gray-900 font-bold">delivery@closh.com</span></p>
-                <p className="text-sm font-medium text-gray-700">Token: <span className="text-gray-900 font-bold">closh123</span></p>
-              </div>
-            </div>
 
             <div className="text-center pt-8">
               <p className="text-sm font-medium text-gray-500">
