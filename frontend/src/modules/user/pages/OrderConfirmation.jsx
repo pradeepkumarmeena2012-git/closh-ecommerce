@@ -8,15 +8,46 @@ import { formatPrice } from '../../../shared/utils/helpers';
 import { formatVariantLabel } from '../../../shared/utils/variant';
 import PageTransition from '../../../shared/components/PageTransition';
 import LazyImage from '../../../shared/components/LazyImage';
+import socketService from '../../../shared/utils/socket';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const MobileOrderConfirmation = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const { getOrder, fetchOrderById, lastError } = useOrderStore();
+  const { user } = useAuthStore();
   const [isResolving, setIsResolving] = useState(true);
   const order = getOrder(orderId);
   const orderItems = Array.isArray(order?.items) ? order.items : [];
   const displayOrderId = order?.id || order?.orderId || orderId;
+
+  useEffect(() => {
+    // Socket.io for real-time updates
+    socketService.connect();
+    
+    // Join order-specific room for status sync
+    if (orderId) {
+      socketService.joinRoom(`order_${orderId}`);
+    }
+
+    if (user?.id) {
+      socketService.joinRoom(`user_${user.id}`);
+    }
+
+    const handleStatusUpdate = (data) => {
+        if (data.orderId === displayOrderId || data.orderId === orderId) {
+            fetchOrderById(orderId);
+        }
+    };
+
+    socketService.on('order_status_updated', handleStatusUpdate);
+    socketService.on('order_accepted', handleStatusUpdate);
+
+    return () => {
+      socketService.off('order_status_updated', handleStatusUpdate);
+      socketService.off('order_accepted', handleStatusUpdate);
+    };
+  }, [orderId, displayOrderId, user?.id, fetchOrderById]);
 
   useEffect(() => {
     let mounted = true;

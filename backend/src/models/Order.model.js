@@ -83,8 +83,11 @@ const orderSchema = new mongoose.Schema(
             enum: ['online'],
             default: 'online',
         },
+        readyAt: Date,
         readyPhoto: String,    // Proof of being ready from vendor
-        deliveryPhoto: String, // Final delivery proof photo
+        pickupPhoto: String,   // Proof of pickups from vendor by rider
+        deliveryPhoto: String, // Full package photo from rider
+        openBoxPhoto: String,  // Proof of internal item state from rider
         customerReceiptPhoto: String, // Optional user-side receipt verification
         pickupLocation: {
             type: { type: String, enum: ['Point'], default: 'Point' },

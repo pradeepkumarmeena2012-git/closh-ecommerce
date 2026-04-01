@@ -104,32 +104,42 @@ export const deleteUserNotification = asyncHandler(async (req, res) => {
 
 // POST /api/user/notifications/fcm-token
 export const registerUserFcmToken = asyncHandler(async (req, res) => {
-    const { token } = req.body;
+    const token = req.body.token || req.body.fcmToken;
+    const platform = req.body.platform || 'web';
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
-    const user = await User.findById(req.user.id);
-    if (!user) throw new ApiError(404, 'User not found');
+    // Atomic Update Pattern to prevent VersionError (Race Conditions)
+    // 1. Remove existing token if present to avoid duplicates and update lastUsed indirectly
+    await User.findByIdAndUpdate(req.user.id, {
+        $pull: { fcmTokens: { token } }
+    });
 
-    if (!user.fcmTokens.includes(token)) {
-        user.fcmTokens.push(token);
-        // Keep only last 10 tokens
-        if (user.fcmTokens.length > 10) user.fcmTokens.shift();
-        await user.save();
-    }
+    // 2. Push new token to the end and slice to keep only last 10
+    const updated = await User.findByIdAndUpdate(req.user.id, {
+        $push: { 
+            fcmTokens: { 
+                $each: [{ token, platform, lastUsed: new Date() }],
+                $slice: -10 
+            } 
+        }
+    }, { new: true, select: '+fcmTokens' });
 
-    res.status(200).json(new ApiResponse(200, null, 'FCM token registered.'));
+    if (!updated) throw new ApiError(404, 'User not found');
+
+    console.log(`[FCM Debug] User: ${updated._id}, Tokens Count: ${updated.fcmTokens?.length}`);
+    console.log(`[FCM Debug] Last Token: ${updated.fcmTokens?.[updated.fcmTokens.length - 1]?.token.substring(0, 10)}...`);
+
+    res.status(200).json(new ApiResponse(200, { token, platform, totalTokens: updated.fcmTokens?.length }, 'FCM token registered.'));
 });
 
 // DELETE /api/user/notifications/fcm-token
 export const removeUserFcmToken = asyncHandler(async (req, res) => {
-    const { token } = req.body;
+    const token = req.body.token || req.body.fcmToken;
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
-    const user = await User.findById(req.user.id);
-    if (!user) throw new ApiError(404, 'User not found');
-
-    user.fcmTokens = user.fcmTokens.filter(t => t !== token);
-    await user.save();
+    await User.findByIdAndUpdate(req.user.id, {
+        $pull: { fcmTokens: { token } }
+    });
 
     res.status(200).json(new ApiResponse(200, null, 'FCM token removed.'));
 });

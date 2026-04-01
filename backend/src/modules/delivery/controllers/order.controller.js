@@ -9,6 +9,7 @@ import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import { OrderWorkflowService } from '../../../services/orderWorkflow.service.js';
 
 const DELIVERY_OTP_TTL_MS = 10 * 60 * 1000;
 const DELIVERY_OTP_MAX_ATTEMPTS = 5;
@@ -311,9 +312,10 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     }
 
     if (status === 'picked_up') {
-        if (pickupPhoto) {
-            order.pickupPhoto = pickupPhoto;
+        if (!pickupPhoto) {
+            throw new ApiError(400, 'Product pickup photo is required to confirm pickup.');
         }
+        order.pickupPhoto = pickupPhoto;
 
         // Generate and Send Delivery OTP at Pickup
         const generatedOtp = generateDeliveryOtp();
@@ -359,9 +361,15 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             throw new ApiError(400, 'Delivery OTP has expired. Please resend OTP.');
         }
 
-        if (deliveryPhoto) {
-            order.deliveryPhoto = deliveryPhoto;
+        if (!deliveryPhoto) {
+            throw new ApiError(400, 'Final delivery photo (package) is required.');
         }
+        if (!req.body.openBoxPhoto) {
+            throw new ApiError(400, 'Open box photo (item verification) is required.');
+        }
+
+        order.deliveryPhoto = deliveryPhoto;
+        order.openBoxPhoto = req.body.openBoxPhoto;
 
         const isMatch = order.deliveryOtpHash === hashDeliveryOtp(normalizedOtp);
         if (!isMatch) {
@@ -377,7 +385,6 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         order.deliveryOtpAttempts = 0;
         order.deliveryOtpDebug = undefined;
         order.deliveredAt = new Date();
-        order.deliveryPhoto = deliveryPhoto;
 
         if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') {
             order.paymentStatus = 'paid';
@@ -530,6 +537,16 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
     }
 
     return res.status(200).json(new ApiResponse(200, null, 'Delivery OTP resent successfully.'));
+});
+
+// POST /api/delivery/orders/:id/arrived
+export const markArrived = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const riderId = req.user.id;
+
+    const order = await OrderWorkflowService.markArrived(id, riderId);
+    
+    return res.status(200).json(new ApiResponse(200, order, 'Rider marked as arrived.'));
 });
 
 // GET /api/delivery/orders/:id/debug-otp (non-production only)

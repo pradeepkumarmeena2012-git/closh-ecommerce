@@ -19,6 +19,8 @@ import errorHandler from './middlewares/errorHandler.js';
 import notFound from './middlewares/notFound.js';
 
 const app = express();
+// Trust proxy (necessary for express-rate-limit when behind Nginx)
+app.set('trust proxy', 1);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadsRoot = path.resolve(__dirname, '../uploads');
@@ -45,6 +47,8 @@ app.use(helmet());
 app.use(mongoSanitize());
 const allowedOrigins = [
     process.env.CLIENT_URL,
+    'https://www.closh.in',
+    'https://closh.in',
     'http://localhost:3000',
     'http://localhost:5173'
 ].filter(Boolean);

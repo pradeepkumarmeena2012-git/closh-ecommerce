@@ -54,21 +54,32 @@ const sendPushToTokens = async (tokens, { title, body, data = {}, sound = 'defau
         const response = await messaging.sendEachForMulticast(message);
         
         if (response.failureCount > 0) {
-            const failedTokens = [];
+            const staleTokens = [];
             response.responses.forEach((resp, idx) => {
                 if (!resp.success) {
                     const error = resp.error;
                     console.warn(`❌ Token failure: ${error.message} (${tokens[idx].substring(0, 10)}...)`);
-                    if (error.code === 'messaging/invalid-registration-token' || 
-                        error.code === 'messaging/registration-token-not-registered') {
-                        failedTokens.push(tokens[idx]);
+                    
+                    // Cleanup codes: NotRegistered, InvalidRegistration, etc.
+                    const isStale = ['messaging/invalid-registration-token', 'messaging/registration-token-not-registered'].includes(error.code);
+                    if (isStale) {
+                        staleTokens.push(tokens[idx]);
                     }
                 }
             });
 
-            if (failedTokens.length > 0) {
-                console.warn(`🧹 Cleaning up ${failedTokens.length} stale FCM tokens...`);
-                // Update specific models to remove failed tokens? (Can be done async)
+            if (staleTokens.length > 0) {
+                console.warn(`🧹 Cleaning up ${staleTokens.length} stale FCM tokens from database...`);
+                // Use a dynamic cleanup across all potential models
+                const models = [User, Vendor, DeliveryBoy, Admin];
+                
+                // Do this in background
+                Promise.all(models.map(Model => 
+                    Model.updateMany(
+                        { 'fcmTokens.token': { $in: staleTokens } },
+                        { $pull: { fcmTokens: { token: { $in: staleTokens } } } }
+                    )
+                )).catch(err => console.error('FCM Token Cleanup Failed:', err.message));
             }
         }
 

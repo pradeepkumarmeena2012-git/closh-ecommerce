@@ -103,31 +103,39 @@ export const deleteDeliveryNotification = asyncHandler(async (req, res) => {
 });
 // POST /api/delivery/notifications/fcm-token
 export const registerDeliveryFcmToken = asyncHandler(async (req, res) => {
-    const { token } = req.body;
+    const token = req.body.token || req.body.fcmToken;
+    const platform = req.body.platform || 'web';
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
-    const deliveryBoy = await DeliveryBoy.findById(req.user.id);
-    if (!deliveryBoy) throw new ApiError(404, 'Delivery Boy not found');
+    // Atomic Update Pattern to prevent VersionError (Race Conditions)
+    // 1. Remove existing token if present to avoid duplicates and update lastUsed indirectly
+    await DeliveryBoy.findByIdAndUpdate(req.user.id, {
+        $pull: { fcmTokens: { token } }
+    });
 
-    if (!deliveryBoy.fcmTokens.includes(token)) {
-        deliveryBoy.fcmTokens.push(token);
-        if (deliveryBoy.fcmTokens.length > 10) deliveryBoy.fcmTokens.shift();
-        await deliveryBoy.save();
-    }
+    // 2. Push new token to the end and slice to keep only last 10
+    const updated = await DeliveryBoy.findByIdAndUpdate(req.user.id, {
+        $push: { 
+            fcmTokens: { 
+                $each: [{ token, platform, lastUsed: new Date() }],
+                $slice: -10 
+            } 
+        }
+    }, { new: true });
 
-    res.status(200).json(new ApiResponse(200, null, 'FCM token registered.'));
+    if (!updated) throw new ApiError(404, 'Delivery Boy not found');
+
+    res.status(200).json(new ApiResponse(200, { token, platform }, 'FCM token registered.'));
 });
 
 // DELETE /api/delivery/notifications/fcm-token
 export const removeDeliveryFcmToken = asyncHandler(async (req, res) => {
-    const { token } = req.body;
+    const token = req.body.token || req.body.fcmToken;
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
-    const deliveryBoy = await DeliveryBoy.findById(req.user.id);
-    if (!deliveryBoy) throw new ApiError(404, 'Delivery Boy not found');
-
-    deliveryBoy.fcmTokens = deliveryBoy.fcmTokens.filter(t => t !== token);
-    await deliveryBoy.save();
+    await DeliveryBoy.findByIdAndUpdate(req.user.id, {
+        $pull: { fcmTokens: { token } }
+    });
 
     res.status(200).json(new ApiResponse(200, null, 'FCM token removed.'));
 });

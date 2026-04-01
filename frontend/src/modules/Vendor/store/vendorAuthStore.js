@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage, subscribeWithSelector } from "zustand/middleware";
 import api from "../../../shared/utils/api";
 import {
   registerVendor,
@@ -11,7 +11,8 @@ import {
 import { decodeJwtPayload } from "../../../shared/utils/helpers";
 
 export const useVendorAuthStore = create(
-  persist(
+  subscribeWithSelector(
+    persist(
     (set, get) => ({
       vendor: null,
       token: null,
@@ -249,6 +250,7 @@ export const useVendorAuthStore = create(
       storage: createJSONStorage(() => localStorage),
     }
   )
+)
 );
 
 // Listen for global auth failure (interceptor clears tokens, store clears state + redirects)

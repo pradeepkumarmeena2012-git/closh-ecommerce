@@ -15,6 +15,7 @@ import { formatPrice } from "../../../shared/utils/helpers";
 import { FiMapPin, FiAlertCircle } from "react-icons/fi";
 import toast from "react-hot-toast";
 import SwipeOrderCard from "../components/SwipeOrderCard";
+import NewOrderModal from "../components/NewOrderModal";
 import socketService from "../../../shared/utils/socket";
 
 const VendorDashboard = () => {
@@ -23,6 +24,10 @@ const VendorDashboard = () => {
   const [locationLoading, setLocationLoading] = useState(false);
   const { products, total: totalProductsCount, fetchProducts } = useVendorProductStore();
   const [isBuzzerActive, setIsBuzzerActive] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
+  const { updateOrderStatus } = useVendorAuthStore();
   const buzzerRef = useRef(null);
 
   const [stats, setStats] = useState({
@@ -150,6 +155,15 @@ const VendorDashboard = () => {
 
     socketService.on("order_created", (newOrder) => {
       startBuzzer();
+      setSelectedOrder(newOrder);
+      setShowOrderModal(true);
+      
+      // Auto-join order room for real-time status sync
+      const orderIdForRoom = newOrder.orderId || newOrder.id;
+      if (orderIdForRoom) {
+          socketService.joinRoom(`order_${orderIdForRoom}`);
+      }
+      
       toast.success(`🎉 New Order #${newOrder.orderId} received!`, { 
         duration: 10000,
         icon: '🔔',
@@ -184,6 +198,23 @@ const VendorDashboard = () => {
       inStockProducts: inStock,
     }));
   }, [products, totalProductsCount]);
+
+  const handleAcceptNewOrder = async (orderId) => {
+      setIsAcceptingOrder(true);
+      try {
+          const res = await updateOrderStatus(orderId, 'accepted', {});
+          if (res.success) {
+              stopBuzzer();
+              setShowOrderModal(false);
+              loadDashboardData();
+              toast.success(`Accepted successfully! Order #${orderId}`);
+          }
+      } catch (err) {
+          toast.error(err?.response?.data?.message || 'Failed to accept order');
+      } finally {
+          setIsAcceptingOrder(false);
+      }
+  };
 
   const statCards = [
     {
@@ -233,14 +264,45 @@ const VendorDashboard = () => {
       className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4">
-        <div className="lg:hidden">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-            Dashboard
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            Welcome back, {vendor?.storeName || vendor?.name}! Here's your store
-            overview.
-          </p>
+        <div className="lg:hidden flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
+              Dashboard
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600">
+              Welcome back, {vendor?.storeName || vendor?.name}!
+            </p>
+          </div>
+          <button 
+            onClick={() => {
+              const audio = new Audio('/sounds/mgs_codec.mp3');
+              audio.volume = 0.3;
+              audio.play().then(() => toast.success('Sound is working!', { icon: '🔊' }))
+                   .catch(e => toast.error('Click again to unblock sound!'));
+            }}
+            className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-all"
+            title="Test Buzzer"
+          >
+            <FiPackage className="animate-pulse" />
+          </button>
+        </div>
+        <div className="hidden lg:flex items-center justify-between">
+           <div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-1">Store Overview</h1>
+              <p className="text-gray-600">Managing {vendor?.storeName || 'your shop'} performance.</p>
+           </div>
+           <button 
+                onClick={() => {
+                  const audio = new Audio('/sounds/mgs_codec.mp3');
+                  audio.volume = 0.3;
+                  audio.play().then(() => toast.success('Sound Active!', { icon: '🔊' }))
+                       .catch(e => toast.error('Unblock sound!'));
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:border-primary-500 hover:text-primary-600 transition-all shadow-sm"
+              >
+                <FiPackage className="text-lg" />
+                Test Order Buzzer
+           </button>
         </div>
       </div>
 
@@ -523,6 +585,14 @@ const VendorDashboard = () => {
           </button>
         </div>
       )}
+      {/* New Order Alarm Modal */}
+      <NewOrderModal 
+        isOpen={showOrderModal}
+        order={selectedOrder}
+        isAccepting={isAcceptingOrder}
+        onAccept={handleAcceptNewOrder}
+        onClose={() => { stopBuzzer(); setShowOrderModal(false); }}
+      />
     </motion.div>
   );
 };

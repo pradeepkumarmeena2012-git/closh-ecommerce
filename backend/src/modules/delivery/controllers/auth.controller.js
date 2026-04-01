@@ -22,7 +22,7 @@ const getUploadedPath = (file) => {
 
 // POST /api/delivery/auth/register
 export const register = asyncHandler(async (req, res) => {
-    const { name, email, password, phone, address, vehicleType, vehicleNumber } = req.body;
+    const { name, email, password, phone, address, vehicleType, vehicleNumber, fcmToken, platform = 'app' } = req.body;
 
     const drivingLicenseFile = req.files?.drivingLicense?.[0];
     const drivingLicenseBackFile = req.files?.drivingLicenseBack?.[0];
@@ -58,6 +58,7 @@ export const register = asyncHandler(async (req, res) => {
             isActive: false,
             isAvailable: false,
             status: 'offline',
+            fcmTokens: fcmToken ? [{ token: fcmToken, platform, lastUsed: new Date() }] : []
         });
 
         const admins = await Admin.find({ isActive: true }).select('_id');
@@ -182,7 +183,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
 
 // POST /api/delivery/auth/login
 export const login = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, fcmToken, platform = 'app' } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
     const deliveryBoy = await DeliveryBoy.findOne({ email: normalizedEmail }).select('+password');
@@ -200,6 +201,20 @@ export const login = asyncHandler(async (req, res) => {
 
     const isMatch = await deliveryBoy.comparePassword(password);
     if (!isMatch) throw new ApiError(401, 'Invalid credentials.');
+
+    if (fcmToken) {
+        await DeliveryBoy.findByIdAndUpdate(deliveryBoy._id, {
+            $pull: { fcmTokens: { token: fcmToken } }
+        });
+        await DeliveryBoy.findByIdAndUpdate(deliveryBoy._id, {
+            $push: { 
+                fcmTokens: { 
+                    $each: [{ token: fcmToken, platform, lastUsed: new Date() }],
+                    $slice: -10 
+                } 
+            }
+        });
+    }
 
     const { accessToken, refreshToken } = generateTokens({ id: deliveryBoy._id, role: 'delivery', email: deliveryBoy.email });
     await persistRefreshSession(deliveryBoy, refreshToken);

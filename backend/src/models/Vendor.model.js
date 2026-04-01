@@ -73,10 +73,39 @@ const vendorSchema = new mongoose.Schema(
         refreshTokenHash: { type: String, select: false },
         refreshTokenExpiresAt: { type: Date, select: false },
         joinDate: { type: Date, default: Date.now },
-        fcmTokens: { type: [String], default: [] },
+        fcmTokens: [
+            {
+                token: { type: String },
+                platform: { type: String, enum: ['web', 'app'], default: 'web' },
+                deviceName: String,
+                lastUsed: { type: Date, default: Date.now },
+            },
+        ],
     },
     { timestamps: true }
 );
+
+// Auto-migrate old string tokens to object format
+vendorSchema.pre('save', function (next) {
+    if (this.fcmTokens) {
+        if (!Array.isArray(this.fcmTokens)) {
+            // If it was a string or something else, make it an empty array (or convert if possible)
+            const oldVal = this.fcmTokens;
+            this.fcmTokens = [];
+            if (typeof oldVal === 'string' && oldVal.trim()) {
+                this.fcmTokens.push({ token: oldVal, platform: 'web', lastUsed: new Date() });
+            }
+        }
+        
+        this.fcmTokens = this.fcmTokens.map(tokenItem => {
+            if (typeof tokenItem === 'string') {
+                return { token: tokenItem, platform: 'web', lastUsed: new Date() };
+            }
+            return tokenItem;
+        }).filter(t => t && t.token); // Remove invalid entries
+    }
+    next();
+});
 vendorSchema.index({ shopLocation: '2dsphere' });
 
 vendorSchema.pre('save', async function (next) {

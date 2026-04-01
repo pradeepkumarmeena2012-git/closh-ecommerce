@@ -4,11 +4,10 @@ import redisClient from '../config/redis.js';
 
 const IS_DEV = String(process.env.NODE_ENV || '').toLowerCase() !== 'production';
 
-// Check if Redis should be used (if explicitly configured AND client exists)
-const useRedis = !!(redisClient && (process.env.REDIS_URL || process.env.REDIS_HOST));
-
 // Helper to create a store with a unique prefix
 const createStore = (prefix) => {
+    const useRedis = !!(redisClient && (process.env.REDIS_URL || process.env.REDIS_HOST));
+    
     if (!useRedis) {
         if (IS_DEV) {
             console.log(`ℹ️  Redis not configured for ${prefix}. Using default MemoryStore.`);

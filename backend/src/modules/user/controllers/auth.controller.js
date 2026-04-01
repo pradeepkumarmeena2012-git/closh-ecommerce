@@ -36,12 +36,23 @@ const extractCloudinaryPublicId = (url = '') => {
 
 // POST /api/user/auth/register
 export const register = asyncHandler(async (req, res) => {
-    const { name, email, password, phone, address: addressData } = req.body;
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-    const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+    const { name, email, password, phone, address: addressData, fcmToken, platform = 'app' } = req.body;
+    const normalizedEmail = email ? String(email).trim().toLowerCase() : undefined;
+    const normalizedPhone = phone ? String(phone).replace(/\D/g, '').slice(-10) : undefined;
 
-    const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) throw new ApiError(409, 'Email already registered.');
+    if (!normalizedEmail && !normalizedPhone) {
+        throw new ApiError(400, 'Either email or phone number is required.');
+    }
+
+    const query = [];
+    if (normalizedEmail) query.push({ email: normalizedEmail });
+    if (normalizedPhone) query.push({ phone: normalizedPhone });
+
+    const existing = await User.findOne({ $or: query });
+    if (existing) {
+        const field = existing.email === normalizedEmail ? 'Email' : 'Phone number';
+        throw new ApiError(409, `${field} already registered.`);
+    }
 
     const user = await User.create({
         name: String(name || '').trim(),
@@ -72,7 +83,7 @@ export const register = asyncHandler(async (req, res) => {
 
 // POST /api/user/auth/verify-otp
 export const verifyOTP = asyncHandler(async (req, res) => {
-    const { email: identifier, otp } = req.body;
+    const { email: identifier, otp, fcmToken, platform = 'app' } = req.body;
     const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
     console.log(`[VerifyOTP] Login request: ${normalizedIdentifier}, OTP: ${otp}`);
     const user = await User.findOne({
@@ -100,6 +111,21 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpiry = undefined;
+
+    if (fcmToken) {
+        await User.findByIdAndUpdate(user._id, {
+            $pull: { fcmTokens: { token: fcmToken } }
+        });
+        await User.findByIdAndUpdate(user._id, {
+            $push: {
+                fcmTokens: {
+                    $each: [{ token: fcmToken, platform, lastUsed: new Date() }],
+                    $slice: -10
+                }
+            }
+        });
+    }
+
     await user.save();
 
     const { accessToken, refreshToken } = generateTokens({ id: user._id, role: 'customer', email: user.email });
@@ -125,10 +151,15 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 
 // POST /api/user/auth/login
 export const login = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const { email: identifierInput, password, fcmToken, platform = 'app' } = req.body;
+    const identifier = String(identifierInput || '').trim().toLowerCase();
 
-    const user = await User.findOne({ email: normalizedEmail }).select('+password');
+    const user = await User.findOne({
+        $or: [
+            { email: identifier },
+            { phone: identifier }
+        ]
+    }).select('+password +isActive +isVerified email');
     if (!user) throw new ApiError(401, 'Invalid email or password.');
     if (!user.isActive) throw new ApiError(403, 'Your account has been deactivated.');
     if (!user.isVerified) {
@@ -138,6 +169,20 @@ export const login = asyncHandler(async (req, res) => {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) throw new ApiError(401, 'Invalid email or password.');
+
+    if (fcmToken) {
+        await User.findByIdAndUpdate(user._id, {
+            $pull: { fcmTokens: { token: fcmToken } }
+        });
+        await User.findByIdAndUpdate(user._id, {
+            $push: {
+                fcmTokens: {
+                    $each: [{ token: fcmToken, platform, lastUsed: new Date() }],
+                    $slice: -10
+                }
+            }
+        });
+    }
 
     const { accessToken, refreshToken } = generateTokens({ id: user._id, role: 'customer', email: user.email });
     await persistRefreshSession(user, refreshToken);
@@ -170,7 +215,7 @@ export const loginOtp = asyncHandler(async (req, res) => {
     const user = await User.findOne({ phone: normalizedPhone });
     if (!user) throw new ApiError(404, 'User not found with this mobile number.');
     if (!user.isActive) throw new ApiError(403, 'Your account has been deactivated.');
-    
+
     await sendOTP(user, 'login_verification');
     res.status(200).json(new ApiResponse(200, { email: user.email }, 'OTP sent successfully.'));
 });
@@ -268,9 +313,14 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'Please verify your email first. A new verification OTP has been sent.');
     }
 
-    const otp = process.env.NODE_ENV === 'production'
-        ? crypto.randomInt(100000, 999999).toString()
-        : '123456';
+    let otp = crypto.randomInt(100000, 999999).toString();
+
+    // Default OTP for specific test number
+    const normalizedPhoneNum = String(user.phone || '').replace(/\D/g, '').slice(-10);
+    if (normalizedPhoneNum === '7894561230') {
+        otp = '123456';
+    }
+
     user.resetOtp = otp;
     user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     user.resetOtpVerified = false;
@@ -281,7 +331,10 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     let smsSent = false;
     if (phone.length === 10) {
         try {
-            await sendSmsOtp(phone, otp);
+            if (phone !== '7894561230') {
+                await sendSmsOtp(phone, otp);
+            }
+
             smsSent = true;
         } catch (smsErr) {
             console.warn(`[User ForgotPassword] SMS failed: ${smsErr.message}`);
@@ -366,7 +419,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
         stylePreference,
         preferredFit
     };
-    
+
     if (email) {
         updatePayload.email = String(email).trim().toLowerCase();
     }

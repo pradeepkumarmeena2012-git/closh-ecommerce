@@ -80,19 +80,30 @@ export const markAllAsRead = asyncHandler(async (req, res) => {
 });
 // POST /api/admin/notifications/fcm-token
 export const registerAdminFcmToken = asyncHandler(async (req, res) => {
-    const { token } = req.body;
+    const token = req.body.token || req.body.fcmToken;
+    const platform = req.body.platform || 'web';
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
-    const adminUser = await Admin.findById(req.user.id);
-    if (!adminUser) throw new ApiError(404, 'Admin not found');
+    // 1. Remove existing token if present
+    await Admin.findByIdAndUpdate(req.user.id, {
+        $pull: { fcmTokens: { token } }
+    });
 
-    if (!adminUser.fcmTokens.includes(token)) {
-        adminUser.fcmTokens.push(token);
-        if (adminUser.fcmTokens.length > 10) adminUser.fcmTokens.shift();
-        await adminUser.save();
-    }
+    // 2. Push new token to the end and slice to keep only last 10
+    const updated = await Admin.findByIdAndUpdate(req.user.id, {
+        $push: { 
+            fcmTokens: { 
+                $each: [{ token, platform, lastUsed: new Date() }],
+                $slice: -10 
+            } 
+        }
+    }, { new: true });
 
-    res.status(200).json(new ApiResponse(200, null, 'FCM token registered.'));
+    if (!updated) throw new ApiError(404, 'Admin not found');
+
+    console.log(`[Admin FCM Debug] Admin: ${updated._id}, Tokens Count: ${updated.fcmTokens?.length}`);
+
+    res.status(200).json(new ApiResponse(200, { token, platform, totalTokens: updated.fcmTokens?.length }, 'FCM token registered.'));
 });
 
 // DELETE /api/admin/notifications/fcm-token
@@ -100,11 +111,9 @@ export const removeAdminFcmToken = asyncHandler(async (req, res) => {
     const { token } = req.body;
     if (!token) throw new ApiError(400, 'FCM token is required.');
 
-    const adminUser = await Admin.findById(req.user.id);
-    if (!adminUser) throw new ApiError(404, 'Admin not found');
-
-    adminUser.fcmTokens = adminUser.fcmTokens.filter(t => t !== token);
-    await adminUser.save();
+    await Admin.findByIdAndUpdate(req.user.id, {
+        $pull: { fcmTokens: { token } }
+    });
 
     res.status(200).json(new ApiResponse(200, null, 'FCM token removed.'));
 });
