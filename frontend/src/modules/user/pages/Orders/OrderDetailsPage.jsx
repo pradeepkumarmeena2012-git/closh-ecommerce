@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
@@ -315,17 +315,17 @@ const OrderDetailsPage = () => {
                                     <div className="flex-1 min-w-0 py-0.5 md:py-1">
                                         <h4 className="text-[13px] md:text-sm font-bold text-gray-900 line-clamp-1">{item.name}</h4>
                                         <p className="text-[9px] md:text-[11px] font-bold text-gray-400 uppercase mt-0.5 md:mt-1">
-                                            {item.brand}
+                                            {item.brand || 'Premium Piece'}
                                         </p>
                                         <div className="flex flex-wrap gap-2 md:gap-4 mt-1.5 md:mt-2">
-                                            <div className="bg-white px-2 py-0.5 md:py-1 rounded text-[9px] md:text-[10px] font-bold text-gray-600 uppercase">
-                                                Size: {item.selectedSize}
+                                            <div className="bg-gray-50 px-2.5 py-1 rounded-lg text-[9px] md:text-[10px] font-bold text-gray-600 uppercase border border-gray-100">
+                                                Size: {item.selectedSize || item.variant?.size || item.variant?.Size || 'N/A'}
                                             </div>
-                                            <div className="bg-white px-2 py-0.5 md:py-1 rounded text-[9px] md:text-[10px] font-bold text-gray-600 uppercase">
+                                            <div className="bg-gray-50 px-2.5 py-1 rounded-lg text-[9px] md:text-[10px] font-bold text-gray-600 uppercase border border-gray-100">
                                                 Qty: {item.quantity}
                                             </div>
                                         </div>
-                                        <p className="text-[13px] md:text-sm font-bold text-black mt-1.5 md:mt-2">₹{item.discountedPrice}</p>
+                                        <p className="text-[14px] md:text-base font-bold text-black mt-2 md:mt-3">₹{item.discountedPrice || item.price}</p>
                                     </div>
                                 </div>
                             ))}

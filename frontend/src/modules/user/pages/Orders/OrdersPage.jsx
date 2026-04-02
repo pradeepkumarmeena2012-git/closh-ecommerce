@@ -50,7 +50,11 @@ const OrdersPage = () => {
                 ) : (
                     <div className="space-y-6">
                         {orders.map((order) => (
-                            <div key={order.id} className="bg-white rounded-[24px] border border-gray-100 p-4 md:p-6 shadow-sm hover:shadow-md transition-all group">
+                            <div 
+                                key={order.id} 
+                                onClick={() => navigate(`/orders/${order.orderId || order.id}`)}
+                                className="bg-white rounded-[24px] border border-gray-100 p-4 md:p-6 shadow-sm hover:shadow-md transition-all group cursor-pointer"
+                            >
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-gray-50">
                                     <div>
                                         <div className="flex items-center gap-3 mb-1">
@@ -70,12 +74,9 @@ const OrdersPage = () => {
                                     </div>
                                     <div className="text-left sm:text-right w-full sm:w-auto flex flex-row sm:flex-col justify-between sm:justify-start items-center sm:items-end">
                                         <p className="text-sm font-bold text-black">₹{order.total}</p>
-                                        <button
-                                            onClick={() => navigate(`/orders/${order.orderId || order.id}`)}
-                                            className="group flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase  mt-0 sm:mt-1 hover:text-black transition-colors"
-                                        >
+                                        <div className="group flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase  mt-0 sm:mt-1 group-hover:text-black transition-colors">
                                             View Details <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform" />
-                                        </button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -107,8 +108,11 @@ const OrdersPage = () => {
                                         <span className="truncate">Instant Delivery (60 Mins)</span>
                                     </div>
                                     <button
-                                        onClick={() => navigate(`/track-order/${order.orderId || order.id}`)}
-                                        className="px-6 py-2.5 bg-black text-white text-[10px] font-bold uppercase rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-gray-200"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/track-order/${order.orderId || order.id}`);
+                                        }}
+                                        className="px-6 py-2.5 bg-black text-white text-[10px] font-bold uppercase rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-gray-200 relative z-10"
                                     >
                                         Track
                                     </button>

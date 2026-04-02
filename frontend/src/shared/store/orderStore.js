@@ -7,6 +7,8 @@ const isMongoId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ''));
 const normalizeOrderItem = (item) => ({
   ...item,
   id: item?.id || item?.productId || item?._id,
+  selectedSize: item?.selectedSize || item?.variant?.size || item?.variant?.Size || 'N/A',
+  discountedPrice: item?.discountedPrice || item?.price || 0,
 });
 
 const normalizeVendorGroup = (group) => ({
