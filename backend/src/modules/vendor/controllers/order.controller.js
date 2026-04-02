@@ -8,7 +8,6 @@ import mongoose from 'mongoose';
 import { createNotification } from '../../../services/notification.service.js';
 import { notifyNearbyDeliveryBoys } from '../../delivery/controllers/assignment.controller.js';
 import { emitEvent } from '../../../services/socket.service.js';
-import { getDistanceMatrix } from '../../../services/googleMaps.service.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 
 const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
@@ -66,7 +65,6 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
 export const updateOrderStatus = asyncHandler(async (req, res) => {
     // Status is already validated and normalized by the middleware
     const status = req.body.status;
-
     const { id } = req.params;
 
     if (!id) {
@@ -87,7 +85,6 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     const vendorItem = order.vendorItems.find((vi) => String(vi.vendorId) === String(req.user.id));
     if (!vendorItem) throw new ApiError(404, 'Vendor order item not found.');
 
-    // Normalize current status defensively (trim + lowercase)
     const currentStatus = String(vendorItem.status || 'pending').trim().toLowerCase();
 
     const transitionMap = {
@@ -115,59 +112,17 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     );
     order.status = deriveTopLevelOrderStatus(order.vendorItems, order.status);
     await order.save();
+
     if (status === 'ready_for_pickup') {
         if (vendor && vendor.shopLocation) {
             order.pickupLocation = vendor.shopLocation;
             await order.save();
         }
-        // Traditional notification (push/DB)
+        
+        // This function now handles BOTH push and targeted real-time socket popup
         await notifyNearbyDeliveryBoys(order).catch(err =>
             console.error(`[Assignment] Failed to notify delivery boys for order ${order.orderId}:`, err)
         );
-
-        // Calculate Distance & Duration for the delivery boy popup
-        let estimatedDistance = 'N/A';
-        let estimatedTime = 'N/A';
-        let deliveryFee = 25; // Default minimum
-
-        try {
-            if (order.pickupLocation?.coordinates?.length === 2 && order.dropoffLocation?.coordinates?.length === 2) {
-                const matrix = await getDistanceMatrix(order.pickupLocation.coordinates, order.dropoffLocation.coordinates);
-                let distanceVal = 0;
-                
-                if (matrix) {
-                    distanceVal = matrix.distance;
-                    estimatedDistance = `${matrix.distance} km`;
-                    estimatedTime = matrix.duration;
-                } else {
-                    // Fallback to Haversine if Google fails
-                    const { calculateDistance } = await import('../../../utils/geo.js');
-                    distanceVal = calculateDistance(order.pickupLocation.coordinates, order.dropoffLocation.coordinates);
-                    estimatedDistance = `${distanceVal} km (est.)`;
-                    estimatedTime = `${Math.round(distanceVal * 3)} mins`; // rough 20km/h
-                }
-                
-                const { getDeliveryEarning } = await import('../../../utils/geo.js');
-                deliveryFee = getDeliveryEarning(distanceVal);
-            }
-        } catch (error) {
-            console.error('[GoogleMaps] Distance calculation failed:', error.message);
-        }
-
-        // Real-time socket event for delivery partners
-        emitEvent('delivery_partners', 'order_ready_for_pickup', {
-            orderId: order.orderId,
-            id: order.orderId, // For frontend compatibility
-            pickupLocation: order.pickupLocation,
-            vendorName: storeName,
-            vendorAddress: vendor?.address || 'Indore, MP',
-            address: order.shippingAddress?.address || 'Customer Address',
-            customer: order.shippingAddress?.name || 'Customer',
-            total: order.total,
-            distance: estimatedDistance,
-            estimatedTime: estimatedTime,
-            deliveryFee: deliveryFee
-        });
     }
 
     // Unified Notification to all parties

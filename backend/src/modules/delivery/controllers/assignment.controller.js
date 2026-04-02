@@ -6,12 +6,11 @@ import { emitEvent } from '../../../services/socket.service.js';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
+import OrderNotificationService from '../../../services/orderNotification.service.js';
+
 
 /**
  * Find nearby delivery boys for an order
- * @param {Object} order - The order document
- * @param {Number} radiusMeters - Search radius in meters
- * @returns {Array} List of nearby delivery boys
  */
 export const findNearbyDeliveryBoys = async (order, radiusMeters = 8000) => {
     const pickupLocation = order.pickupLocation;
@@ -44,7 +43,7 @@ export const findNearbyDeliveryBoys = async (order, radiusMeters = 8000) => {
 };
 
 /**
- * Find nearby delivery partners for a return pickup (origin is customer)
+ * Find nearby delivery partners for a return pickup
  */
 export const findNearbyDeliveryBoysForReturn = async (returnRequest, radiusMeters = 8000) => {
     const pickupLocation = returnRequest.pickupLocation;
@@ -81,6 +80,7 @@ export const findNearbyDeliveryBoysForReturn = async (returnRequest, radiusMeter
  */
 export const notifyNearbyDeliveryBoys = async (order) => {
     const nearbyBoys = await findNearbyDeliveryBoys(order);
+    if (!nearbyBoys.length) return 0;
 
     const notificationPromises = nearbyBoys.map(boy =>
         createNotification({
@@ -98,6 +98,51 @@ export const notifyNearbyDeliveryBoys = async (order) => {
         })
     );
 
+    // Calculate Earning & Distance for the socket popup
+    let estimatedDistance = 'N/A';
+    let estimatedTime = 'N/A';
+    let deliveryFee = order.deliveryFee || 25;
+
+    try {
+        if (order.pickupLocation?.coordinates?.length === 2 && order.shippingAddress?.coordinates?.length === 2) {
+            const { getDistanceMatrix } = await import('../../../services/googleMaps.service.js');
+            const { calculateDistance, getDeliveryEarning } = await import('../../../utils/geo.js');
+            
+            const matrix = await getDistanceMatrix(order.pickupLocation.coordinates, order.shippingAddress.coordinates);
+            let distanceVal = 0;
+
+            if (matrix) {
+                distanceVal = matrix.distance;
+                estimatedDistance = `${matrix.distance} km`;
+                estimatedTime = matrix.duration;
+            } else {
+                distanceVal = calculateDistance(order.pickupLocation.coordinates, order.shippingAddress.coordinates);
+                estimatedDistance = `${distanceVal} km (est.)`;
+                estimatedTime = `${Math.round(distanceVal * 3)} mins`;
+            }
+            deliveryFee = getDeliveryEarning(distanceVal);
+        }
+    } catch (err) {
+        console.error('[AssignmentDistance] Failed to calculate distance:', err.message);
+    }
+
+    const socketPayload = {
+        orderId: order.orderId,
+        id: order._id,
+        pickupLocation: order.pickupLocation,
+        customerName: order.shippingAddress?.name || 'Customer',
+        address: order.shippingAddress?.address || 'Indore, MP',
+        total: order.total,
+        distance: estimatedDistance,
+        estimatedTime: estimatedTime,
+        deliveryFee: deliveryFee,
+        type: 'new_assignment_broadcast'
+    };
+
+    nearbyBoys.forEach(boy => {
+        emitEvent(`delivery_${boy._id}`, 'order_ready_for_pickup', socketPayload);
+    });
+
     await Promise.allSettled(notificationPromises);
     return nearbyBoys.length;
 };
@@ -107,6 +152,8 @@ export const notifyNearbyDeliveryBoys = async (order) => {
  */
 export const notifyNearbyDeliveryBoysForReturn = async (returnRequest) => {
     const nearbyBoys = await findNearbyDeliveryBoysForReturn(returnRequest);
+    if (!nearbyBoys.length) return 0;
+
     const orderId = returnRequest.orderId?.orderId || 'Order';
 
     const notificationPromises = nearbyBoys.map(boy =>
@@ -154,8 +201,7 @@ export const notifyNearbyDeliveryBoysForReturn = async (returnRequest) => {
         console.error('[ReturnDistance] Failed to calculate return distance:', err.message);
     }
 
-    // Emit real-time event for available return
-    emitEvent('delivery_partners', 'return_ready_for_pickup', {
+    const returnPayload = {
         returnId: String(returnRequest._id),
         orderId: orderId,
         pickupLocation: returnRequest.pickupLocation,
@@ -166,6 +212,10 @@ export const notifyNearbyDeliveryBoysForReturn = async (returnRequest) => {
         estimatedTime: estimatedTime,
         deliveryFee: deliveryFee,
         type: 'return'
+    };
+
+    nearbyBoys.forEach(boy => {
+        emitEvent(`delivery_${boy._id}`, 'return_ready_for_pickup', returnPayload);
     });
 
     await Promise.allSettled(notificationPromises);
@@ -206,29 +256,16 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
         throw new ApiError(409, 'Order is no longer available or has already been assigned.');
     }
 
-    // Notify customer in real-time
-    if (order.userId) {
-        emitEvent(`user_${order.userId}`, 'order_status_updated', {
-            orderId: order.orderId,
-            status: 'assigned',
-            message: `A delivery partner has been assigned to your order ${order.orderId}.`
-        });
-    }
-
-    // Notify vendor(s) in real-time
-    order.vendorItems?.forEach(vi => {
-        if (vi.vendorId) {
-            emitEvent(`vendor_${vi.vendorId}`, 'order_status_updated', {
-                orderId: order.orderId,
-                status: 'assigned',
-                message: `Delivery partner assigned for order ${order.orderId}.`
-            });
-        }
+    // Unified Notification to all parties
+    await OrderNotificationService.notifyOrderUpdate(order._id, 'assigned', {
+        title: 'Delivery Partner Assigned',
+        message: `A delivery partner has been assigned to order ${order.orderId}.`
     });
 
-    // Notify other delivery partners that this order is taken
+    // Notify other delivery partners that this order is taken (Global broadcast to clear UI)
     emitEvent('delivery_partners', 'order_taken', {
         orderId: order.orderId,
+        id: order._id
     });
 
     res.status(200).json(new ApiResponse(200, order, 'Order assigned successfully.'));

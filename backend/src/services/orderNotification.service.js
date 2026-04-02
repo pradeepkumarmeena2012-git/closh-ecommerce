@@ -31,6 +31,13 @@ export const OrderNotificationService = {
                     title: notificationTitle,
                     message: notificationMessage
                 });
+                
+                // Real-time status update for customer
+                emitEvent(`user_${order.userId}`, 'order_status_updated', {
+                    orderId: order.orderId,
+                    status,
+                    message: notificationMessage
+                });
             }
 
             // 2. Vendors
@@ -43,6 +50,21 @@ export const OrderNotificationService = {
                     message: `Status update for order ${order.orderId}: ${status.replace(/_/g, ' ')}`,
                     sound: status === 'pending' ? 'mgs_codec.mp3' : 'default' // Buzzer sound only for new orders
                 });
+
+                // Real-time event for Vendor Dashboard (especially for buzzer/popup)
+                if (status === 'pending') {
+                    emitEvent(`vendor_${vId}`, 'order_created', {
+                        ...order.toObject(),
+                        id: order._id, // compatibility
+                        message: `New Order #${order.orderId} received!`
+                    });
+                } else {
+                    emitEvent(`vendor_${vId}`, 'order_status_updated', {
+                        orderId: order.orderId,
+                        status,
+                        message: notificationMessage
+                    });
+                }
             });
 
             // 3. Delivery Partner
@@ -54,9 +76,28 @@ export const OrderNotificationService = {
                     message: notificationMessage,
                     sound: status === 'ready_for_pickup' || status === 'searching' ? 'mgs_codec.mp3' : 'default' // Buzzer sound only for new jobs
                 });
+
+                // Real-time status update for assigned delivery boy
+                emitEvent(`delivery_${order.deliveryBoyId}`, 'order_status_updated', {
+                    orderId: order.orderId,
+                    status,
+                    message: notificationMessage
+                });
+
+                // If specialized status (e.g. searching/pending), also emit specialized event if frontend expects it
+                if (status === 'ready_for_pickup' || status === 'pending' || status === 'searching') {
+                    emitEvent(`delivery_${order.deliveryBoyId}`, 'order_ready_for_pickup', {
+                        orderId: order.orderId,
+                        id: order.orderId,
+                        pickupLocation: order.pickupLocation,
+                        customer: order.shippingAddress?.name,
+                        address: order.shippingAddress?.address,
+                        total: order.total
+                    });
+                }
             }
 
-            // Execute notifications
+            // Execute notifications (DB persistence + Push)
             const tasks = recipients
                 .filter(r => String(r.id) !== String(options.excludeRecipientId))
                 .map(r => createNotification({
@@ -69,7 +110,7 @@ export const OrderNotificationService = {
                     sound: r.sound || 'default'
                 }));
 
-            // Socket Room Broadcast
+            // Generic Order Tracking Room Broadcast
             const trackingRoom = `order_${order.orderId}`;
             emitEvent(trackingRoom, 'order_status_updated', {
                 orderId: order.orderId,
@@ -82,6 +123,7 @@ export const OrderNotificationService = {
             console.error('OrderNotificationService Error:', error.message);
         }
     }
+
 };
 
 export default OrderNotificationService;

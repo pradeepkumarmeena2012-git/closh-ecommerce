@@ -211,6 +211,27 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         return orderObj;
     });
 
+    // Calculate Cash in Hand (Unsettled COD/Cash orders)
+    const cashStats = await Order.aggregate([
+        {
+            $match: {
+                deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId),
+                status: 'delivered',
+                paymentMethod: { $in: ['cod', 'cash'] },
+                isDeleted: { $ne: true }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                cashInHand: { $sum: { $cond: [{ $ne: ['$isCashSettled', true] }, '$total', 0] } },
+                totalCashCollected: { $sum: '$total' }
+            }
+        }
+    ]);
+
+    const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
+
     const summary = {
         totalOrders: statusStats.reduce((sum, row) => sum + Number(row?.count || 0), 0),
         completedToday: Number(completedTodayCount || 0),
@@ -219,6 +240,8 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             Number(countByStatus.picked_up || 0) +
             Number(countByStatus.out_for_delivery || 0),
         earnings: Number(earningsStats?.[0]?.totalDeliveryFees || 0),
+        cashInHand: Number(cashRow.cashInHand || 0),
+        totalCashCollected: Number(cashRow.totalCashCollected || 0),
         recentOrders: augmentedOrders,
     };
 
@@ -260,7 +283,28 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
         }),
     ]);
 
+    // Calculate Cash Stats
+    const cashStats = await Order.aggregate([
+        {
+            $match: {
+                deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId),
+                status: 'delivered',
+                paymentMethod: { $in: ['cod', 'cash'] },
+                isDeleted: { $ne: true }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                cashInHand: { $sum: { $cond: [{ $ne: ['$isCashSettled', true] }, '$total', 0] } },
+                totalCashCollected: { $sum: '$total' }
+            }
+        }
+    ]);
+
     const row = deliveredStats?.[0] || {};
+    const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
+
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -268,6 +312,8 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
                 totalDeliveries: Number(row.totalDeliveries || 0),
                 completedToday: Number(completedTodayCount || 0),
                 earnings: Number(row.earnings || 0),
+                cashInHand: Number(cashRow.cashInHand || 0),
+                totalCashCollected: Number(cashRow.totalCashCollected || 0),
             },
             'Profile summary fetched.'
         )

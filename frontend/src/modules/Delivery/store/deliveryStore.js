@@ -322,6 +322,21 @@ export const useDeliveryAuthStore = create(
         }
       },
 
+      fetchProfileSummary: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await api.get('/delivery/orders/profile-summary');
+          const payload = response?.data ?? response;
+          const currentBoy = get().deliveryBoy;
+          const merged = normalizeDeliveryBoy({ ...currentBoy, ...payload });
+          set({ deliveryBoy: merged, isLoading: false });
+          return merged;
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
       updateStatus: async (status) => {
         const current = get().deliveryBoy;
         if (!current) return false;
