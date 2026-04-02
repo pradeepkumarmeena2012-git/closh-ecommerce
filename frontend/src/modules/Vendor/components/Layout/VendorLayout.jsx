@@ -75,8 +75,22 @@ const VendorLayout = () => {
     const vendorId = vendor?.id || vendor?._id;
     if (!vendorId) return;
 
+    // Connect socket if not already
+    socketService.connect();
+
+    const registerVendor = () => {
+      console.log(`🔌 Registering Vendor Socket for ID: ${vendorId}`);
+      socketService.socket?.emit('vendor_register', vendorId);
+    };
+
+    if (socketService.socket?.connected) {
+      registerVendor();
+    }
+    socketService.socket?.on('connect', registerVendor);
+
     // Listen for new orders globally
     const handleNewOrder = (newOrder) => {
+      console.log('🍕 New order received via socket:', newOrder);
       startBuzzer();
       setSelectedOrder(newOrder);
       setShowOrderModal(true);
@@ -96,9 +110,14 @@ const VendorLayout = () => {
     };
 
     socketService.on("order_created", handleNewOrder);
+    socketService.on("order_status_updated", (data) => {
+        window.dispatchEvent(new CustomEvent('vendor-order-updated', { detail: data }));
+    });
     
     return () => {
+      socketService.socket?.off('connect', registerVendor);
       socketService.off("order_created", handleNewOrder);
+      socketService.off("order_status_updated");
       stopBuzzer();
     };
   }, [vendor?.id, vendor?._id, startBuzzer, stopBuzzer]);

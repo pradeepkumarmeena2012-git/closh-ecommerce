@@ -5,37 +5,19 @@ import api from '../../../shared/utils/api';
 const normalizeDeliveryBoy = (raw) => {
   if (!raw) return null;
   const id = raw.id || raw._id;
-  const status = raw.status
-    ? raw.status
-    : raw.isAvailable === false
-      ? 'offline'
-      : 'available';
-
-  return {
-    ...raw,
-    id,
-    _id: id,
-    status,
-  };
+  const status = raw.status || (raw.isAvailable === false ? 'offline' : 'available');
+  return { ...raw, id, _id: id, status };
 };
 
 const mapBackendStatusToUI = (status) => {
-  if (status === 'ready_for_pickup') return 'pending';
-  if (status === 'assigned') return 'accepted';
-  if (status === 'picked_up') return 'picked-up';
-  if (status === 'out_for_delivery') return 'out-for-delivery';
-  if (status === 'delivered') return 'delivered';
-  return status || 'pending';
-};
-
-/** Map a top-level status to a deliveryFlow phase (fallback when deliveryFlow not present) */
-const statusToPhase = (status) => {
   const map = {
-    assigned: 'assigned', ready_for_pickup: 'assigned',
-    picked_up: 'picked_up', out_for_delivery: 'out_for_delivery',
-    delivered: 'delivered',
+    ready_for_pickup: 'pending',
+    assigned: 'accepted',
+    picked_up: 'picked-up',
+    out_for_delivery: 'out-for-delivery',
+    delivered: 'delivered'
   };
-  return map[status] || 'assigned';
+  return map[status] || status || 'pending';
 };
 
 const toAddressLine = (shippingAddress = {}) => {
@@ -44,76 +26,46 @@ const toAddressLine = (shippingAddress = {}) => {
     shippingAddress.locality,
     shippingAddress.city,
     shippingAddress.state,
-    shippingAddress.zipCode || shippingAddress.pincode,
+    shippingAddress.zipCode || shippingAddress.pincode
   ].filter(Boolean);
   return parts.join(', ');
 };
 
 const normalizeOrder = (raw) => {
+  if (!raw) return null;
   const shippingAddress = raw?.shippingAddress || {};
   const guestInfo = raw?.guestInfo || {};
   const backendStatus = raw?.status || 'pending';
   const uiStatus = mapBackendStatusToUI(backendStatus);
-  const itemCount = Array.isArray(raw?.items)
-    ? raw.items.length
-    : typeof raw?.items === 'number'
-      ? raw.items
-      : 0;
-
+  const itemCount = Array.isArray(raw?.items) ? raw.items.length : (typeof raw?.items === 'number' ? raw.items : 0);
   const vendorFirst = Array.isArray(raw?.vendorItems) && raw.vendorItems.length > 0 ? raw.vendorItems[0] : null;
   const vendorData = vendorFirst?.vendorId || {};
+  
+  let vendorAddress = vendorData.shopAddress || (vendorData.address?.street ? `${vendorData.address.street}, ${vendorData.address.city || ''}` : (vendorFirst?.vendorName ? 'Address in notes' : 'Address unavailable'));
 
-  let vendorAddress = '';
-  if (vendorData.shopAddress) {
-    vendorAddress = vendorData.shopAddress;
-  } else if (vendorData.address?.street) {
-    vendorAddress = `${vendorData.address.street}, ${vendorData.address.city || ''}`;
-  } else if (vendorFirst?.vendorName) {
-    vendorAddress = 'Address details in order notes';
-  }
-
-  // Extract customer delivery lat/lng from dropoffLocation GeoJSON [lng, lat]
   const dropoffCoords = raw?.dropoffLocation?.coordinates;
-  const derivedLat = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[1] !== 0
-    ? dropoffCoords[1] : raw?.latitude || null;
-  const derivedLng = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[0] !== 0
-    ? dropoffCoords[0] : raw?.longitude || null;
+  const derivedLat = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[1] !== 0 ? dropoffCoords[1] : raw?.latitude || null;
+  const derivedLng = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[0] !== 0 ? dropoffCoords[0] : raw?.longitude || null;
 
   return {
     ...raw,
     id: raw?.orderId || raw?._id || raw?.id,
     orderId: raw?.orderId || raw?._id || raw?.id,
     customer: shippingAddress?.name || guestInfo?.name || 'Customer',
-    phone: shippingAddress?.phone || shippingAddress?.mobile || shippingAddress?.mobileNumber || guestInfo?.phone || raw?.customerPhone || raw?.phone || '',
-    email: shippingAddress?.email || guestInfo?.email || raw?.customerEmail || raw?.email || '',
+    phone: shippingAddress?.phone || shippingAddress?.mobile || guestInfo?.phone || raw?.customerPhone || raw?.phone || '',
     address: toAddressLine(shippingAddress) || 'Address unavailable',
     vendorName: vendorData.storeName || vendorFirst?.vendorName || 'Vendor',
-    vendorAddress: vendorAddress || 'Vendor address unavailable',
-    amount: Number(raw?.subtotal ?? 0),
-    subtotal: Number(raw?.subtotal ?? 0),
+    vendorAddress,
     total: Number(raw?.total ?? 0),
     deliveryFee: Number(raw?.deliveryEarnings ?? raw?.shipping ?? 0),
-    deliveryEarnings: Number(raw?.deliveryEarnings ?? 0),
-    deliveryDistance: Number(raw?.deliveryDistance ?? 0),
-    tax: Number(raw?.tax ?? 0),
-    discount: Number(raw?.discount ?? raw?.couponDiscount ?? 0),
     status: uiStatus,
     rawStatus: backendStatus,
-    deliveryType: raw?.deliveryType || 'standard',
-    orderType: raw?.orderType || 'standard',
     items: Array.isArray(raw?.items) ? raw.items : [],
     itemCount,
-    distance: raw?.distance || '-',
-    estimatedTime: raw?.estimatedTime || '-',
     latitude: derivedLat,
     longitude: derivedLng,
     paymentMethod: raw?.paymentMethod || 'standard',
     paymentStatus: raw?.paymentStatus || 'pending',
-    pickupPhoto: raw?.pickupPhoto || null,
-    deliveryPhoto: raw?.deliveryPhoto || null,
-    // ── Antigravity Engine fields ──
-    phase: raw?.deliveryFlow?.phase || statusToPhase(backendStatus),
-    deliveryFlow: raw?.deliveryFlow || null,
   };
 };
 
@@ -121,11 +73,8 @@ const normalizeReturn = (raw) => {
   if (!raw) return null;
   const id = raw._id || raw.id;
   const status = raw.status || 'approved';
-  
-  // For returns, pickup is from customer, dropoff is to vendor
   const customerAddress = raw.orderId?.shippingAddress || {};
   const vendorData = raw.vendorId || {};
-
   return {
     ...raw,
     id,
@@ -135,15 +84,10 @@ const normalizeReturn = (raw) => {
     address: toAddressLine(customerAddress) || 'Customer Address',
     vendorName: vendorData.storeName || 'Vendor',
     vendorAddress: vendorData.shopAddress || vendorData.address?.street || 'Vendor Address',
-    amount: Number(raw.refundAmount || 0),
     total: Number(raw.refundAmount || 0),
     status: status === 'approved' ? 'pending' : (status === 'processing' ? 'accepted' : status),
     rawStatus: status,
-    items: Array.isArray(raw.items) ? raw.items : [],
-    pickupLocation: raw.pickupLocation,
-    dropoffLocation: raw.dropoffLocation,
-    pickupPhoto: raw.pickupPhoto || null,
-    deliveryPhoto: raw.deliveryPhoto || null,
+    items: Array.isArray(raw.items) ? raw.items : []
   };
 };
 
@@ -157,588 +101,206 @@ export const useDeliveryAuthStore = create(
       isLoading: false,
       orders: [],
       returns: [],
-      ordersPagination: {
-        total: 0,
-        page: 1,
-        limit: 20,
-        pages: 1,
-      },
       selectedOrder: null,
       isLoadingOrders: false,
       isLoadingOrder: false,
       isUpdatingOrderStatus: false,
       isUpdatingStatus: false,
 
-      // Delivery boy actions
+      // --- AUTH ACTIONS ---
       sendOtp: async (phone) => {
         set({ isLoading: true });
         try {
-          const response = await api.post('/delivery/auth/send-otp', { phone });
-          set({ isLoading: false });
-          return response?.data || response;
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
+          const res = await api.post('/delivery/auth/send-otp', { phone });
+          set({ isLoading: false }); return res.data || res;
+        } catch (e) { set({ isLoading: false }); throw e; }
       },
-
       verifyOtpAndLogin: async (phone, otp) => {
         set({ isLoading: true });
         try {
-          const response = await api.post('/delivery/auth/verify-otp', { phone, otp });
-          const payload = response?.data || response;
-          const accessToken = payload?.accessToken;
-          const refreshToken = payload?.refreshToken;
-          const user = normalizeDeliveryBoy(payload?.deliveryBoy);
-
-          localStorage.setItem('delivery-token', accessToken);
-          localStorage.setItem('delivery-refresh-token', refreshToken);
-
-          set({
-            deliveryBoy: user,
-            token: accessToken,
-            refreshToken,
-            isAuthenticated: true,
-            isLoading: false,
-          });
+          const res = await api.post('/delivery/auth/verify-otp', { phone, otp });
+          const payload = res.data || res;
+          const user = normalizeDeliveryBoy(payload.deliveryBoy);
+          localStorage.setItem('delivery-token', payload.accessToken);
+          localStorage.setItem('delivery-refresh-token', payload.refreshToken);
+          set({ deliveryBoy: user, token: payload.accessToken, refreshToken: payload.refreshToken, isAuthenticated: true, isLoading: false });
           return { success: true, deliveryBoy: user };
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
+        } catch (e) { set({ isLoading: false }); throw e; }
       },
-
-      sendRegistrationOtp: async (phone) => {
-        set({ isLoading: true });
-        try {
-          const response = await api.post('/delivery/auth/send-registration-otp', { phone });
-          set({ isLoading: false });
-          return response?.data || response;
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
-      },
-
-      verifyRegistrationOtp: async (phone, otp) => {
-        set({ isLoading: true });
-        try {
-          const response = await api.post('/delivery/auth/verify-registration-otp', { phone, otp });
-          set({ isLoading: false });
-          return response?.data || response;
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
-      },
-
-      register: async (registrationData) => {
-        set({ isLoading: true });
-        try {
-          const formData = new FormData();
-          formData.append('name', registrationData.name || '');
-          formData.append('email', registrationData.email || '');
-          if (registrationData.password) formData.append('password', registrationData.password);
-          formData.append('phone', registrationData.phone || '');
-          formData.append('emergencyContact', registrationData.emergencyContact || '');
-          formData.append('aadharNumber', registrationData.aadharNumber || '');
-          formData.append('address', registrationData.address || '');
-          formData.append('vehicleType', registrationData.vehicleType || '');
-          formData.append('vehicleNumber', registrationData.vehicleNumber || '');
-          if (registrationData.drivingLicense) formData.append('drivingLicense', registrationData.drivingLicense);
-          if (registrationData.drivingLicenseBack) formData.append('drivingLicenseBack', registrationData.drivingLicenseBack);
-          if (registrationData.aadharCard) formData.append('aadharCard', registrationData.aadharCard);
-          if (registrationData.aadharCardBack) formData.append('aadharCardBack', registrationData.aadharCardBack);
-
-          const response = await api.post('/delivery/auth/register', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          const payload = response?.data ?? response;
-          set({ isLoading: false });
-          return { success: true, message: payload?.message || 'Registration submitted.' };
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
-      },
-
       login: async (email, password) => {
         set({ isLoading: true });
         try {
-          const response = await api.post('/delivery/auth/login', { email, password });
-          const payload = response?.data ?? response;
-          const accessToken = payload?.accessToken;
-          const refreshToken = payload?.refreshToken;
-          const user = normalizeDeliveryBoy(payload?.deliveryBoy);
-
-          localStorage.setItem('delivery-token', accessToken);
-          localStorage.setItem('delivery-refresh-token', refreshToken);
-
-          set({
-            deliveryBoy: user,
-            token: accessToken,
-            refreshToken,
-            isAuthenticated: true,
-            isLoading: false,
-          });
+          const res = await api.post('/delivery/auth/login', { email, password });
+          const payload = res.data || res;
+          const user = normalizeDeliveryBoy(payload.deliveryBoy);
+          localStorage.setItem('delivery-token', payload.accessToken);
+          localStorage.setItem('delivery-refresh-token', payload.refreshToken);
+          set({ deliveryBoy: user, token: payload.accessToken, refreshToken: payload.refreshToken, isAuthenticated: true, isLoading: false });
           return { success: true, deliveryBoy: user };
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
+        } catch (e) { set({ isLoading: false }); throw e; }
       },
-
       logout: () => {
-        const refreshToken = localStorage.getItem('delivery-refresh-token');
-        if (refreshToken) {
-          api.post('/delivery/auth/logout', { refreshToken }).catch(() => { });
-        }
-        set({
-          deliveryBoy: null,
-          token: null,
-          refreshToken: null,
-          isAuthenticated: false,
-          orders: [],
-          returns: [],
-          selectedOrder: null,
-        });
+        const rt = localStorage.getItem('delivery-refresh-token');
+        if (rt) api.post('/delivery/auth/logout', { refreshToken: rt }).catch(() => { });
+        set({ deliveryBoy: null, token: null, refreshToken: null, isAuthenticated: false, orders: [], returns: [] });
         localStorage.removeItem('delivery-token');
         localStorage.removeItem('delivery-refresh-token');
         localStorage.removeItem('delivery-auth-storage');
         window.location.href = '/delivery/login';
       },
 
+      // --- PROFILE ACTIONS ---
       fetchProfile: async () => {
         set({ isLoading: true });
         try {
-          const response = await api.get('/delivery/auth/profile');
-          const payload = response?.data ?? response;
-          const deliveryBoy = normalizeDeliveryBoy(payload);
-          set({ deliveryBoy, isLoading: false });
-          return deliveryBoy;
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
+          const res = await api.get('/delivery/auth/profile');
+          const user = normalizeDeliveryBoy(res.data || res);
+          set({ deliveryBoy: user, isLoading: false }); return user;
+        } catch (e) { set({ isLoading: false }); throw e; }
       },
-
       fetchProfileSummary: async () => {
-        set({ isLoading: true });
         try {
-          const response = await api.get('/delivery/orders/profile-summary');
-          const payload = response?.data ?? response;
-          const currentBoy = get().deliveryBoy;
-          const merged = normalizeDeliveryBoy({ ...currentBoy, ...payload });
-          set({ deliveryBoy: merged, isLoading: false });
-          return merged;
-        } catch (error) {
-          set({ isLoading: false });
-          throw error;
-        }
+          const res = await api.get('/delivery/orders/profile-summary');
+          const merged = normalizeDeliveryBoy({ ...get().deliveryBoy, ...(res.data || res) });
+          set({ deliveryBoy: merged }); return merged;
+        } catch (e) { throw e; }
       },
-
       updateStatus: async (status) => {
         const current = get().deliveryBoy;
         if (!current) return false;
-        const isAvailable = status === 'available';
-
-        // Optimistic update — change UI immediately
-        set({
-          isUpdatingStatus: true,
-          deliveryBoy: normalizeDeliveryBoy({ ...current, status }),
-        });
-
+        set({ isUpdatingStatus: true, deliveryBoy: normalizeDeliveryBoy({ ...current, status }) });
         try {
-          const response = await api.put('/delivery/auth/profile', { isAvailable, status });
-          const payload = response?.data ?? response;
-          set({
-            deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload, status }),
-            isUpdatingStatus: false,
-          });
+          const res = await api.put('/delivery/auth/profile', { isAvailable: status === 'available', status });
+          const payload = res.data || res;
+          set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload, status }), isUpdatingStatus: false });
           return true;
-        } catch (error) {
-          // Rollback on failure
-          set({
-            deliveryBoy: normalizeDeliveryBoy(current),
-            isUpdatingStatus: false,
-          });
-          throw error;
-        }
+        } catch (e) { set({ deliveryBoy, isUpdatingStatus: false }); throw e; }
       },
-
       updateLocation: async (latitude, longitude) => {
         const current = get().deliveryBoy;
         if (!current || current.status === 'offline') return;
-
         try {
-          // GeoJSON expects [longitude, latitude]
-          const response = await api.put('/delivery/auth/profile', {
-            currentLocation: {
-              type: 'Point',
-              coordinates: [longitude, latitude],
-            },
-          });
-          const payload = response?.data ?? response;
-          set({
-            deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload }),
-          });
-        } catch (error) {
-          console.error("Store Location Update Error:", error);
-          // Don't throw here to avoid breaking the background watch task
-        }
+          const res = await api.put('/delivery/auth/profile', { currentLocation: { type: 'Point', coordinates: [longitude, latitude] } });
+          set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...(res.data || res) }) });
+        } catch (e) { console.error("Location Update Failed", e); }
       },
 
+      // --- ORDER ACTIONS ---
       fetchDashboardSummary: async () => {
-        const response = await api.get('/delivery/orders/dashboard-summary');
-        const payload = response?.data ?? response ?? {};
-        return {
-          totalOrders: Number(payload?.totalOrders || 0),
-          completedToday: Number(payload?.completedToday || 0),
-          openOrders: Number(payload?.openOrders || 0),
-          earnings: Number(payload?.earnings || 0),
-          recentOrders: (payload?.recentOrders || []).map(normalizeOrder),
-        };
+        try {
+          const res = await api.get('/delivery/orders/dashboard-summary');
+          const p = res.data || res || {};
+          return { ...p, recentOrders: (p.recentOrders || []).map(normalizeOrder) };
+        } catch (e) { throw e; }
       },
-
-      fetchAvailableOrders: async (options = {}) => {
+      fetchAvailableOrders: async (opt = {}) => {
         set({ isLoadingOrders: true });
         try {
-          const response = await api.get('/delivery/orders/available', { params: options });
-          const payload = response?.data ?? response;
-          const list = (payload?.orders || []).map(normalizeOrder);
-          set({ orders: list, isLoadingOrders: false });
-          return list;
-        } catch (error) {
-          set({ isLoadingOrders: false });
-          throw error;
-        }
+          const res = await api.get('/delivery/orders/available', { params: opt });
+          const list = ((res.data || res)?.orders || []).map(normalizeOrder);
+          set({ orders: list, isLoadingOrders: false }); return list;
+        } catch (e) { set({ isLoadingOrders: false }); throw e; }
       },
-
-      acceptOrder: async (id) => {
-        set({ isUpdatingOrderStatus: true });
-        try {
-          const response = await api.post(`/delivery/orders/${id}/accept`);
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload?.data || payload);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) {
-          set({ isUpdatingOrderStatus: false });
-          throw error;
-        }
-      },
-
-      updateOrderStatus: async (id, status, options = {}) => {
-        set({ isUpdatingOrderStatus: true });
-        try {
-          const response = await api.patch(`/delivery/orders/${id}/status`, { status, ...options });
-          const payload = response?.data ?? response;
-          
-          const orderData = payload?.data?.order || payload?.data || payload;
-          if (payload?.data?.rider) {
-            const current = get().deliveryBoy;
-            set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload.data.rider }) });
-          }
-
-          const normalized = normalizeOrder(orderData);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) {
-          set({ isUpdatingOrderStatus: false });
-          throw error;
-        }
-      },
-
-      fetchOrders: async (options = {}) => {
+      fetchOrders: async (opt = {}) => {
         set({ isLoadingOrders: true });
         try {
-          const response = await api.get('/delivery/orders', { params: options });
-          const payload = response?.data ?? response;
-          const orders = (payload?.orders || (Array.isArray(payload) ? payload : [])).map(normalizeOrder);
-          const pagination = payload?.pagination || { total: orders.length, page: 1, limit: 20, pages: 1 };
-          set({ orders, ordersPagination: pagination, isLoadingOrders: false });
-          return orders;
-        } catch (error) {
-          set({ isLoadingOrders: false });
-          throw error;
-        }
+          const res = await api.get('/delivery/orders', { params: opt });
+          const p = res.data || res;
+          const orders = (p?.orders || (Array.isArray(p) ? p : [])).map(normalizeOrder);
+          set({ orders, isLoadingOrders: false }); return orders;
+        } catch (e) { set({ isLoadingOrders: false }); throw e; }
       },
-
-      fetchDashboardSummary: async () => {
-        set({ isLoadingOrders: true });
-        try {
-          const response = await api.get('/delivery/orders/dashboard-summary');
-          const payload = response?.data ?? response;
-          
-          if (payload && Array.isArray(payload.recentOrders)) {
-             payload.recentOrders = payload.recentOrders.map(normalizeOrder);
-          }
-
-          set({ isLoadingOrders: false });
-          return payload;
-        } catch (error) {
-          set({ isLoadingOrders: false });
-          throw error;
-        }
-      },
-
       fetchOrderById: async (id) => {
         set({ isLoadingOrder: true });
         try {
-          const response = await api.get(`/delivery/orders/${id}`);
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
-          set({ selectedOrder: normalized, isLoadingOrder: false });
-          return normalized;
-        } catch (error) {
-          set({ isLoadingOrder: false });
-          throw error;
-        }
+          const res = await api.get(`/delivery/orders/${id}`);
+          const order = normalizeOrder(res.data || res);
+          set({ selectedOrder: order, isLoadingOrder: false }); return order;
+        } catch (e) { set({ isLoadingOrder: false }); throw e; }
       },
-
-      fetchAvailableOrders: async (options = {}) => {
-        set({ isLoadingOrders: true });
-        try {
-          const response = await api.get('/delivery/orders/available', { params: options });
-          const payload = response?.data ?? response;
-          const list = (payload?.orders || []).map(normalizeOrder);
-          set({ isLoadingOrders: false });
-          return list;
-        } catch (error) {
-          set({ isLoadingOrders: false });
-          throw error;
-        }
-      },
-
       acceptOrder: async (id) => {
         set({ isUpdatingOrderStatus: true });
         try {
-          const response = await api.post(`/delivery/orders/${id}/accept`);
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) {
-          set({ isUpdatingOrderStatus: false });
-          throw error;
-        }
+          const res = await api.post(`/delivery/orders/${id}/accept`);
+          const order = normalizeOrder(res.data || res);
+          set({ isUpdatingOrderStatus: false }); return order;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
-
-      updateOrderStatus: async (id, status, options = {}) => {
+      updateOrderStatus: async (id, status, opt = {}) => {
         set({ isUpdatingOrderStatus: true });
         try {
-          const response = await api.patch(`/delivery/orders/${id}/status`, { status, ...options });
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
-          // If we are looking at the selected order, update it
-          if (get().selectedOrder?.id === id) {
-             set({ selectedOrder: normalized });
-          }
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) {
-          set({ isUpdatingOrderStatus: false });
-          throw error;
-        }
+          const res = await api.patch(`/delivery/orders/${id}/status`, { status, ...opt });
+          const payload = res.data || res;
+          const order = normalizeOrder(payload.order || payload);
+          if (payload.rider) set({ deliveryBoy: normalizeDeliveryBoy({ ...get().deliveryBoy, ...payload.rider }) });
+          if (get().selectedOrder?.id === id) set({ selectedOrder: order });
+          set({ isUpdatingOrderStatus: false }); return order;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
-
-      completeOrder: async (id, otp, options = {}) => {
+      completeOrder: async (id, otp, opt = {}) => {
         set({ isUpdatingOrderStatus: true });
         try {
-          const response = await api.patch(`/delivery/orders/${id}/status`, { 
-            status: 'delivered', 
-            otp, 
-            ...options 
-          });
-          const payload = response?.data ?? response;
-          
-          const orderData = payload.order || payload;
-          if (payload.rider) {
-            const current = get().deliveryBoy;
-            set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload.rider }) });
-          }
-
-          const normalized = normalizeOrder(orderData);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) {
-          set({ isUpdatingOrderStatus: false });
-          throw error;
-        }
+          const res = await api.patch(`/delivery/orders/${id}/status`, { status: 'delivered', otp, ...opt });
+          const payload = res.data || res;
+          const order = normalizeOrder(payload.order || payload);
+          if (payload.rider) set({ deliveryBoy: normalizeDeliveryBoy({ ...get().deliveryBoy, ...payload.rider }) });
+          set({ isUpdatingOrderStatus: false }); return order;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
-
-      setBalance: (data) => {
-        const current = get().deliveryBoy;
-        if (!current) return;
-        set({ 
-          deliveryBoy: normalizeDeliveryBoy({ 
-            ...current, 
-            ...data 
-          }) 
-        });
+      markArrivedAtCustomer: async (id, opt = {}) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const res = await api.post(`/delivery/orders/${id}/arrived`, opt);
+          const order = normalizeOrder(res.data || res);
+          set({ isUpdatingOrderStatus: false }); return order;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
-
       resendDeliveryOtp: async (id) => {
-        const response = await api.post(`/delivery/orders/${id}/resend-delivery-otp`);
-        return response?.data ?? response;
+        const res = await api.post(`/delivery/orders/${id}/resend-delivery-otp`);
+        return res.data || res;
       },
-
-      markArrivedAtCustomer: async (id) => {
-        set({ isUpdatingOrderStatus: true });
-        try {
-          const response = await api.post(`/delivery/orders/${id}/arrived`);
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) {
-          set({ isUpdatingOrderStatus: false });
-          throw error;
-        }
-      },
-
       getCompanyQR: async (id) => {
-        const response = await api.get(`/delivery/orders/${id}/company-qr`);
-        return response?.data ?? response;
+        const res = await api.get(`/delivery/orders/${id}/company-qr`);
+        return res.data || res;
+      },
+      setBalance: (data) => {
+        const c = get().deliveryBoy;
+        if (c) set({ deliveryBoy: normalizeDeliveryBoy({ ...c, ...data }) });
       },
 
-      // ── Antigravity Engine API Methods ──
-
-      getDeliveryFlow: async (id) => {
-        const response = await api.get(`/delivery/orders/${id}/flow`);
-        return response?.data ?? response;
-      },
-
-      enginePickup: async (id, pickupPhoto) => {
-        set({ isUpdatingOrderStatus: true });
-        try {
-          const response = await api.patch(`/delivery/orders/${id}/pickup`, { pickupPhoto });
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
-      },
-
-      engineStart: async (id) => {
-        set({ isUpdatingOrderStatus: true });
-        try {
-          const response = await api.patch(`/delivery/orders/${id}/start`);
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
-      },
-
-      engineArrived: async (id) => {
-        set({ isUpdatingOrderStatus: true });
-        try {
-          const response = await api.patch(`/delivery/orders/${id}/arrived`);
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
-      },
-
-      engineTryBuy: async (id, items) => {
-        set({ isUpdatingOrderStatus: true });
-        try {
-          const response = await api.patch(`/delivery/orders/${id}/try-buy`, { items });
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
-      },
-
-      enginePayment: async (id, method) => {
-        set({ isUpdatingOrderStatus: true });
-        try {
-          const response = await api.patch(`/delivery/orders/${id}/payment`, { method });
-          const payload = response?.data ?? response;
-          const orderData = payload?.order || payload;
-          const normalized = normalizeOrder(orderData);
-          normalized._qrUrl = payload?.qrUrl || null;
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
-      },
-
-      engineComplete: async (id, otp, openBoxPhoto, deliveryProofPhoto) => {
-        set({ isUpdatingOrderStatus: true });
-        try {
-          const response = await api.patch(`/delivery/orders/${id}/complete`, { otp, openBoxPhoto, deliveryProofPhoto });
-          const payload = response?.data ?? response;
-          const orderData = payload?.order || payload;
-          if (payload?.rider) {
-            const current = get().deliveryBoy;
-            set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload.rider }) });
-          }
-          const normalized = normalizeOrder(orderData);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) { set({ isUpdatingOrderStatus: false }); throw error; }
-      },
-
-      // Return related actions
+      // --- RETURN ACTIONS ---
       fetchAvailableReturns: async () => {
         set({ isLoadingOrders: true });
         try {
-          const response = await api.get('/delivery/returns/available');
-          const payload = response?.data ?? response;
-          const list = (payload?.returns || []).map(normalizeReturn);
-          set({ returns: list, isLoadingOrders: false });
-          return list;
-        } catch (error) {
-          set({ isLoadingOrders: false });
-          throw error;
-        }
+          const res = await api.get('/delivery/returns/available');
+          const list = ((res.data || res)?.returns || []).map(normalizeReturn);
+          set({ returns: list, isLoadingOrders: false }); return list;
+        } catch (e) { set({ isLoadingOrders: false }); throw e; }
       },
-
       acceptReturn: async (id) => {
         set({ isUpdatingOrderStatus: true });
         try {
-          const response = await api.post(`/delivery/returns/${id}/accept`);
-          const payload = response?.data ?? response;
-          const normalized = normalizeReturn(payload);
-          set((state) => ({
-            returns: state.returns.filter(ret => String(ret.id) !== String(id)),
-            isUpdatingOrderStatus: false,
-          }));
-          return normalized;
-        } catch (error) {
-          set({ isUpdatingOrderStatus: false });
-          throw error;
-        }
+          const res = await api.post(`/delivery/returns/${id}/accept`);
+          const ret = normalizeReturn(res.data || res);
+          set((s) => ({ returns: s.returns.filter(r => String(r.id) !== String(id)), isUpdatingOrderStatus: false }));
+          return ret;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
-
-      updateReturnStatus: async (id, status, options = {}) => {
+      updateReturnStatus: async (id, status, opt = {}) => {
         set({ isUpdatingOrderStatus: true });
         try {
-          const response = await api.patch(`/delivery/returns/${id}/status`, { status, ...options });
-          const payload = response?.data ?? response;
-          const normalized = normalizeReturn(payload);
-          set({ isUpdatingOrderStatus: false });
-          return normalized;
-        } catch (error) {
-          set({ isUpdatingOrderStatus: false });
-          throw error;
-        }
+          const res = await api.patch(`/delivery/returns/${id}/status`, { status, ...opt });
+          const ret = normalizeReturn(res.data || res);
+          set({ isUpdatingOrderStatus: false }); return ret;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
 
       initialize: () => {
         const token = localStorage.getItem('delivery-token');
         if (token) {
-          const storedState = JSON.parse(localStorage.getItem('delivery-auth-storage') || '{}');
-          if (storedState.state?.deliveryBoy) {
-            set({
-              deliveryBoy: normalizeDeliveryBoy(storedState.state.deliveryBoy),
-              token,
-              refreshToken: localStorage.getItem('delivery-refresh-token') || null,
-              isAuthenticated: true,
-            });
+          const stored = JSON.parse(localStorage.getItem('delivery-auth-storage') || '{}');
+          if (stored.state?.deliveryBoy) {
+            set({ deliveryBoy: normalizeDeliveryBoy(stored.state.deliveryBoy), token, refreshToken: localStorage.getItem('delivery-refresh-token'), isAuthenticated: true });
           }
         }
       },
@@ -746,16 +308,13 @@ export const useDeliveryAuthStore = create(
     {
       name: 'delivery-auth-storage',
       storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({ token: s.token, refreshToken: s.refreshToken, deliveryBoy: s.deliveryBoy, isAuthenticated: s.isAuthenticated }),
     }
   )
 );
 
-// Listen for global auth failure (interceptor clears tokens, store clears state + redirects)
 if (typeof window !== 'undefined') {
   window.addEventListener('global-auth-failure', (e) => {
-    if (e.detail?.scope === 'delivery') {
-      const state = useDeliveryAuthStore.getState();
-      state.logout();
-    }
+    if (e.detail?.scope === 'delivery') useDeliveryAuthStore.getState().logout();
   });
 }

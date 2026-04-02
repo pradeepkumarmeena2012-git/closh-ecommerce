@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow, Circle } from '@react-google-maps/api';
 import { FiNavigation, FiMapPin, FiTrendingUp } from 'react-icons/fi';
 
 const containerStyle = {
@@ -28,16 +28,16 @@ const mapOptions = {
   ]
 };
 
-// Animated Delivery Boy SVG Marker
+// High-Visibility Rider Icon (Blue Dot with Directional Arrow)
 const createDeliveryBoyIcon = (heading = 0) => {
   return {
-    path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-    fillColor: '#4F46E5',
+    path: 'M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71L12 2z',
+    fillColor: '#6366f1',
     fillOpacity: 1,
     strokeColor: '#ffffff',
     strokeWeight: 2,
-    scale: 2,
-    anchor: { x: 12, y: 22 },
+    scale: 1.2,
+    anchor: { x: 12, y: 12 },
     rotation: heading
   };
 };
@@ -48,12 +48,16 @@ const DeliveryBoyLiveMap = ({
   path = [], 
   distanceTraveled = 0,
   earnings = 0,
-  orderDetails = null
+  orderDetails = null,
+  isLoaded: isLoadedProp
 }) => {
-  const { isLoaded } = useJsApiLoader({
-    id: 'delivery-boy-live-map',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""
+  const { isLoaded: internalIsLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+    libraries: ['places', 'geometry', 'drawing']
   });
+
+  const isLoaded = isLoadedProp !== undefined ? isLoadedProp : internalIsLoaded;
 
   const [map, setMap] = useState(null);
   const [center, setCenter] = useState(currentLocation || { lat: 20.5937, lng: 78.9629 });
@@ -118,14 +122,31 @@ const DeliveryBoyLiveMap = ({
         onUnmount={onUnmount}
         options={mapOptions}
       >
-        {/* Current Location Marker (Delivery Boy) */}
+        {/* Current Location Marker (Rider) */}
         {currentLocation && (
-          <Marker
-            position={currentLocation}
-            icon={createDeliveryBoyIcon(heading)}
-            onClick={() => setShowInfo(!showInfo)}
-            animation={window.google?.maps?.Animation?.BOUNCE}
-          />
+          <>
+            {/* Accuracy Radius */}
+            <Circle
+              center={currentLocation}
+              radius={30}
+              options={{
+                fillColor: '#6366f1',
+                fillOpacity: 0.1,
+                strokeColor: '#4f46e5',
+                strokeOpacity: 0.2,
+                strokeWeight: 1,
+                clickable: false,
+                zIndex: 1
+              }}
+            />
+            {/* The Rider Dot */}
+            <Marker
+              position={currentLocation}
+              icon={createDeliveryBoyIcon(heading)}
+              onClick={() => setShowInfo(!showInfo)}
+              zIndex={10}
+            />
+          </>
         )}
 
         {/* Info Window */}
@@ -176,52 +197,6 @@ const DeliveryBoyLiveMap = ({
         )}
       </GoogleMap>
 
-      {/* Stats Overlay */}
-      <div className="absolute top-4 left-4 right-4 flex gap-3 pointer-events-none">
-        {/* Distance Card */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg p-3 flex items-center gap-3 flex-1 pointer-events-auto">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-            <FiNavigation className="text-white text-lg" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Distance</p>
-            <p className="text-lg font-bold text-gray-900">
-              {distanceTraveled.toFixed(2)} km
-            </p>
-          </div>
-        </div>
-
-        {/* Earnings Card */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg p-3 flex items-center gap-3 flex-1 pointer-events-auto">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-            <FiTrendingUp className="text-white text-lg" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Earnings</p>
-            <p className="text-lg font-bold text-emerald-600">
-              ₹{earnings}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Order Info Overlay */}
-      {orderDetails && (
-        <div className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg p-4 pointer-events-auto">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Current Delivery</p>
-              <p className="font-bold text-gray-900">Order #{orderDetails.orderId}</p>
-              <p className="text-sm text-gray-600 mt-1">{orderDetails.customerName}</p>
-            </div>
-            <div className="text-right">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
-                {orderDetails.status}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Recenter Button */}
       {currentLocation && (

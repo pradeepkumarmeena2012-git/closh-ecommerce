@@ -130,9 +130,11 @@ const VendorDashboard = () => {
     window.addEventListener('vendor-order-updated', handleOrderUpdatedEvent);
 
     // Socket listeners for other status updates
+    socketService.on("order_created", () => loadDashboardData());
     socketService.on("order_picked_up", () => loadDashboardData());
     socketService.on("order_delivered", () => loadDashboardData());
     socketService.on("order_updated", () => loadDashboardData());
+    socketService.on("order_status_updated", () => loadDashboardData());
 
     const pollInterval = setInterval(() => {
       loadDashboardData();
@@ -142,9 +144,11 @@ const VendorDashboard = () => {
       clearInterval(pollInterval);
       window.removeEventListener('vendor-new-order', handleNewOrderEvent);
       window.removeEventListener('vendor-order-updated', handleOrderUpdatedEvent);
+      socketService.off("order_created");
       socketService.off("order_picked_up");
       socketService.off("order_delivered");
       socketService.off("order_updated");
+      socketService.off("order_status_updated");
     };
   }, [vendorId, fetchProducts, loadDashboardData, products.length]);
 

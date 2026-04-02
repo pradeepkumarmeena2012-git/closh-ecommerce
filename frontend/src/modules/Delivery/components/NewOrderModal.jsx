@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiMapPin, FiPackage, FiClock, FiX, FiNavigation, FiZap, FiTarget } from 'react-icons/fi';
 import { formatPrice } from '../../../shared/utils/helpers';
 import SwipeToAccept from './SwipeToAccept';
 import { createPortal } from 'react-dom';
 
-const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting }) => {
+const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLocation }) => {
     const buzzerRef = useRef(null);
 
     // Play buzzer sound when modal opens, stop when it closes
@@ -30,6 +30,28 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting }) => {
             }
         };
     }, [isOpen, order]);
+
+    // Calculate live distance from rider to pickup
+    const [liveDistance, setLiveDistance] = useState(order?.distance || '...');
+    
+    useEffect(() => {
+        if (riderLocation && order && window.google) {
+            const isRet = !!order?.isReturn;
+            const pickupCoords = isRet 
+                ? order?.customerLocation?.coordinates 
+                : (order?.pickupLocation?.coordinates || order?.vendorLocation?.coordinates);
+            
+            if (Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[0] !== 0) {
+                const pickupLat = pickupCoords[1];
+                const pickupLng = pickupCoords[0];
+                
+                const p1 = new window.google.maps.LatLng(riderLocation.lat, riderLocation.lng);
+                const p2 = new window.google.maps.LatLng(pickupLat, pickupLng);
+                const distMeters = window.google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
+                setLiveDistance(`${(distMeters / 1000).toFixed(1)} km`);
+            }
+        }
+    }, [riderLocation, order]);
 
     // Safety guard
     if (!order && isOpen) return null;
@@ -113,7 +135,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting }) => {
                                 {[
                                     { label: 'Earnings', value: formatPrice(order.deliveryFee || 0), icon: <FiZap className={`${isReturn ? 'text-orange-500' : 'text-amber-500'}`} />, bg: isReturn ? 'bg-orange-50' : 'bg-amber-50' },
                                     { label: 'Est. Time', value: order.estimatedTime || '15 min', icon: <FiClock className="text-blue-500" />, bg: 'bg-blue-50' },
-                                    { label: 'Distance', value: order.distance || '2.4 km', icon: <FiTarget className="text-emerald-500" />, bg: 'bg-emerald-50' }
+                                    { label: 'Distance', value: liveDistance, icon: <FiTarget className="text-emerald-500" />, bg: 'bg-emerald-50' }
                                 ].map((stat) => (
                                     <div key={stat.label} className={`${stat.bg} rounded-3xl p-4 flex flex-col items-center text-center border border-white`}>
                                         <div className="mb-2">{stat.icon}</div>

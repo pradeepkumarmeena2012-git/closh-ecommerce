@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import { FiArrowLeft, FiNavigation, FiPackage, FiMapPin } from 'react-icons/fi';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { useDeliveryTracking } from '../../../shared/hooks/useDeliveryTracking';
@@ -10,6 +10,7 @@ import PageTransition from '../../../shared/components/PageTransition';
 import toast from 'react-hot-toast';
 
 const LiveTracking = () => {
+  const { isLoaded } = useOutletContext();
   const navigate = useNavigate();
   const { orderId } = useParams();
   const { deliveryBoy } = useDeliveryAuthStore();
@@ -137,6 +138,7 @@ const LiveTracking = () => {
               customerName: orderDetails.user?.name || 'Customer',
               status: orderDetails.status
             } : null}
+            isLoaded={isLoaded}
           />
         </div>
 

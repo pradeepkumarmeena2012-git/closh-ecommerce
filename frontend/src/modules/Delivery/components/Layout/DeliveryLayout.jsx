@@ -10,6 +10,8 @@ import DeliveryBottomNav from "./DeliveryBottomNav";
 import { useDeliveryTracking } from "@shared/hooks/useDeliveryTracking";
 import socketService from "@shared/utils/socket";
 import NewOrderModal from "../NewOrderModal";
+import { useJsApiLoader } from "@react-google-maps/api";
+const GOOGLE_MAPS_LIBRARIES = ['places', 'geometry', 'drawing'];
 
 const DeliveryLayout = () => {
   const navigate = useNavigate();
@@ -21,20 +23,20 @@ const DeliveryLayout = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
+      fetchProfileSummary();
+      fetchNotifications(1);
+      const interval = setInterval(() => {
         fetchProfileSummary();
         fetchNotifications(1);
-        const interval = setInterval(() => {
-            fetchProfileSummary();
-            fetchNotifications(1);
-        }, 60000);
-        return () => clearInterval(interval);
+      }, 60000);
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated, fetchProfileSummary, fetchNotifications]);
 
   useEffect(() => {
     const handleGlobalRefresh = () => {
-        fetchProfileSummary();
-        fetchNotifications(1);
+      fetchProfileSummary();
+      fetchNotifications(1);
     };
     window.addEventListener('delivery-dashboard-refresh', handleGlobalRefresh);
     return () => window.removeEventListener('delivery-dashboard-refresh', handleGlobalRefresh);
@@ -43,18 +45,18 @@ const DeliveryLayout = () => {
   // Audio Policy Unlock: User interaction required
   useEffect(() => {
     const unlock = () => {
-        if (audioUnlockedRef.current) return;
-        const dummy = new Audio();
-        dummy.play().catch(() => {});
-        audioUnlockedRef.current = true;
-        window.removeEventListener('click', unlock);
-        window.removeEventListener('touchstart', unlock);
+      if (audioUnlockedRef.current) return;
+      const dummy = new Audio();
+      dummy.play().catch(() => { });
+      audioUnlockedRef.current = true;
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
     };
     window.addEventListener('click', unlock);
     window.addEventListener('touchstart', unlock);
     return () => {
-        window.removeEventListener('click', unlock);
-        window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
     };
   }, []);
 
@@ -67,11 +69,11 @@ const DeliveryLayout = () => {
 
   const stopBuzzer = useCallback(() => {
     if (buzzerRef.current) {
-        try {
-            buzzerRef.current.pause();
-            buzzerRef.current.currentTime = 0;
-        } catch (e) {}
-        buzzerRef.current = null;
+      try {
+        buzzerRef.current.pause();
+        buzzerRef.current.currentTime = 0;
+      } catch (e) { }
+      buzzerRef.current = null;
     }
     setIsBuzzerActive(false);
   }, []);
@@ -79,16 +81,16 @@ const DeliveryLayout = () => {
   const startBuzzer = useCallback(() => {
     if (buzzerRef.current) return;
     try {
-        const audio = new Audio('/sounds/mgs_codec.mp3');
-        audio.loop = true;
-        audio.volume = 0.6;
-        audio.play().catch(err => {
-            console.warn('Audio blocked:', err);
-        });
-        buzzerRef.current = audio;
-        setIsBuzzerActive(true);
-        setTimeout(() => { if (buzzerRef.current === audio) stopBuzzer(); }, 120000);
-    } catch(e) {}
+      const audio = new Audio('/sounds/mgs_codec.mp3');
+      audio.loop = true;
+      audio.volume = 0.6;
+      audio.play().catch(err => {
+        console.warn('Audio blocked:', err);
+      });
+      buzzerRef.current = audio;
+      setIsBuzzerActive(true);
+      setTimeout(() => { if (buzzerRef.current === audio) stopBuzzer(); }, 120000);
+    } catch (e) { }
   }, [stopBuzzer]);
 
   // Socket management
@@ -109,31 +111,32 @@ const DeliveryLayout = () => {
 
     // Global listeners for new tasks
     const handleNewOrder = (data) => {
-        const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
-        if (currentStatus !== 'available') return;
-        startBuzzer();
-        toast.success(`⚡ New Order #${data.id || data.orderId} available!`, { duration: 10000 });
-        setSelectedNewOrder(data);
-        setShowNewOrderModal(true);
-        window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
+      const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
+      if (currentStatus !== 'available') return;
+      setIsAcceptingOrder(false); // Force reset
+      startBuzzer();
+      toast.success(`⚡ New Order available!`, { duration: 10000 });
+      setSelectedNewOrder(data);
+      setShowNewOrderModal(true);
+      window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
     };
 
     const handleNewReturn = (data) => {
-        const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
-        if (currentStatus !== 'available') return;
-        startBuzzer();
-        toast.success(`📦 New Return Pickup available!`, { duration: 10000 });
-        setSelectedNewOrder({ ...data, isReturn: true });
-        setShowNewOrderModal(true);
-        window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
+      const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
+      if (currentStatus !== 'available') return;
+      startBuzzer();
+      toast.success(`📦 New Return Pickup available!`, { duration: 10000 });
+      setSelectedNewOrder({ ...data, isReturn: true });
+      setShowNewOrderModal(true);
+      window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
     };
 
     const handleViewOrder = (e) => {
-        const order = e.detail;
-        if (order) {
-            setSelectedNewOrder(order);
-            setShowNewOrderModal(true);
-        }
+      const order = e.detail;
+      if (order) {
+        setSelectedNewOrder(order);
+        setShowNewOrderModal(true);
+      }
     };
 
     socketService.on('order_ready_for_pickup', handleNewOrder);
@@ -142,17 +145,17 @@ const DeliveryLayout = () => {
 
     // Listen for order taken by someone else
     socketService.on('order_taken', (data) => {
-        const currentOrderId = selectedNewOrder?.id || selectedNewOrder?.orderId || selectedNewOrder?._id;
-        const takenOrderId = data.orderId || data.id;
-        
-        if (currentOrderId && String(currentOrderId) === String(takenOrderId)) {
-            stopBuzzer();
-            setShowNewOrderModal(false);
-            setSelectedNewOrder(null);
-            toast.error('Order taken by another rider', { icon: '⌛' });
-        }
-        // Always refresh dashboard list regardless of if modal was open
-        window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
+      const currentOrderId = selectedNewOrder?.id || selectedNewOrder?.orderId || selectedNewOrder?._id;
+      const takenOrderId = data.orderId || data.id;
+
+      if (currentOrderId && String(currentOrderId) === String(takenOrderId)) {
+        stopBuzzer();
+        setShowNewOrderModal(false);
+        setSelectedNewOrder(null);
+        toast.error('Order taken by another rider', { icon: '⌛' });
+      }
+      // Always refresh dashboard list regardless of if modal was open
+      window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
     });
 
     socketService.on('balance_updated', (data) => {
@@ -190,7 +193,13 @@ const DeliveryLayout = () => {
     }
   };
 
-  useDeliveryTracking(deliveryBoy?.id);
+  const riderLocation = useDeliveryTracking(deliveryBoy?.id);
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+    libraries: GOOGLE_MAPS_LIBRARIES
+  });
 
   const handleLogout = () => {
     logout();
@@ -275,14 +284,14 @@ const DeliveryLayout = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-100">
-                    <div className="p-2 bg-orange-50 rounded-xl border border-orange-100/50">
-                        <p className="text-[9px] font-black text-orange-500 uppercase tracking-tighter">In Hand</p>
-                        <p className="text-[13px] font-black text-orange-700">₹{deliveryBoy?.cashInHand || 0}</p>
-                    </div>
-                    <div className="p-2 bg-green-50 rounded-xl border border-green-100/50">
-                        <p className="text-[9px] font-black text-green-500 uppercase tracking-tighter">Collected</p>
-                        <p className="text-[13px] font-black text-green-700">₹{deliveryBoy?.totalCashCollected || 0}</p>
-                    </div>
+                  <div className="p-2 bg-orange-50 rounded-xl border border-orange-100/50">
+                    <p className="text-[9px] font-black text-orange-500 uppercase tracking-tighter">In Hand</p>
+                    <p className="text-[13px] font-black text-orange-700">₹{deliveryBoy?.cashInHand || 0}</p>
+                  </div>
+                  <div className="p-2 bg-green-50 rounded-xl border border-green-100/50">
+                    <p className="text-[9px] font-black text-green-500 uppercase tracking-tighter">Collected</p>
+                    <p className="text-[13px] font-black text-green-700">₹{deliveryBoy?.totalCashCollected || 0}</p>
+                  </div>
                 </div>
               </div>
 
@@ -317,7 +326,7 @@ const DeliveryLayout = () => {
       </AnimatePresence>
 
       <main id="delivery-scroll-container" className="flex-1 overflow-y-auto pb-20 scrollbar-responsive">
-        <Outlet context={{ startBuzzer, stopBuzzer }} />
+        <Outlet context={{ startBuzzer, stopBuzzer, isLoaded }} />
       </main>
 
       <DeliveryBottomNav />
@@ -325,28 +334,33 @@ const DeliveryLayout = () => {
       {/* Global Notifications Layer */}
       <AnimatePresence>
         {isBuzzerActive && (
-          <motion.div 
+          <motion.div
             initial={{ y: 100, x: 0, opacity: 0 }}
             animate={{ y: 0, x: 0, opacity: 1 }}
             exit={{ y: 100, x: 0, opacity: 0 }}
             className="fixed bottom-24 right-6 z-[1000] flex flex-col gap-2 pointer-events-none"
           >
-            <button 
-                onClick={stopBuzzer}
-                className="bg-red-500 text-white p-4 rounded-2xl shadow-2xl animate-bounce flex items-center gap-2 font-black uppercase text-xs tracking-widest border-2 border-white pointer-events-auto"
+            <button
+              onClick={stopBuzzer}
+              className="bg-red-500 text-white p-4 rounded-2xl shadow-2xl animate-bounce flex items-center gap-2 font-black uppercase text-xs tracking-widest border-2 border-white pointer-events-auto"
             >
-                <FiAlertCircle className="animate-pulse" /> 🛑 Stop Alarm
+              <FiAlertCircle className="animate-pulse" /> 🛑 Stop Alarm
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <NewOrderModal 
+      <NewOrderModal
         isOpen={showNewOrderModal}
         order={selectedNewOrder}
         isAccepting={isAcceptingOrder}
         onAccept={handleAcceptNewTask}
-        onClose={() => { stopBuzzer(); setShowNewOrderModal(false); }}
+        onClose={() => { 
+          stopBuzzer(); 
+          setShowNewOrderModal(false); 
+          setIsAcceptingOrder(false); // Safety reset
+        }}
+        riderLocation={riderLocation}
       />
     </div>
   );

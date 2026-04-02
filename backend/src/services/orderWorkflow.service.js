@@ -35,11 +35,10 @@ async function notifyEligibleRiders(order) {
         }
     }).select('_id');
 
-    console.log(`[GeoSearch] Found ${eligibleRiders.length} riders within 8km of Order #${order.orderId}`);
-
-    // Emit targeted event to each eligible rider
-    eligibleRiders.forEach(rider => {
-        emitEvent(`delivery_${rider._id}`, 'order_ready_for_pickup', {
+    // 3. Fallback: If no targeted riders found, broadcast to everyone as a last resort
+    if (eligibleRiders.length === 0) {
+        console.log(`[GeoSearch] 0 riders found within 8km. Broadcasting to all delivery_partners room.`);
+        emitEvent('delivery_partners', 'order_ready_for_pickup', {
             orderId: order.orderId,
             id: order._id,
             total: order.total,
@@ -47,7 +46,19 @@ async function notifyEligibleRiders(order) {
             address: order.shippingAddress?.address,
             isReturn: false
         });
-    });
+    } else {
+        // Emit targeted event to each eligible rider
+        eligibleRiders.forEach(rider => {
+            emitEvent(`delivery_${rider._id}`, 'order_ready_for_pickup', {
+                orderId: order.orderId,
+                id: order._id,
+                total: order.total,
+                pickupName: order.shippingAddress?.name || 'Vendor',
+                address: order.shippingAddress?.address,
+                isReturn: false
+            });
+        });
+    }
 }
 
 /**

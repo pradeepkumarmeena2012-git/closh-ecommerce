@@ -71,9 +71,8 @@ const DeliveryBottomNav = () => {
                 )}
               </motion.div>
               <span
-                className={`text-xs font-medium ${
-                  active ? "text-primary-600" : "text-gray-500"
-                }`}>
+                className={`text-xs font-medium ${active ? "text-primary-600" : "text-gray-500"
+                  }`}>
                 {item.label}
               </span>
             </Link>

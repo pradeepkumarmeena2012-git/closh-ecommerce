@@ -5,7 +5,7 @@ import { useDeliveryEngineStore } from '../../modules/Delivery/store/deliveryEng
 
 const UPDATE_INTERVAL = 10000; // 10 seconds (Throttling)
 const MIN_DISTANCE_METERS = 20; // Ignore small movements
-const IDEAL_ACCURACY_METERS = 50; // Preferred accuracy
+const IDEAL_ACCURACY_METERS = 100; // Increased to be less noisy
 const MAX_ACCURACY_METERS = 200; // Absolute max — accept anything under this after retries
 
 // Helper to calculate distance between two coordinates in meters
