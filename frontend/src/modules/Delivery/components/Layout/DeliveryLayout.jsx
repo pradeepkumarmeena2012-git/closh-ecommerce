@@ -16,7 +16,26 @@ const GOOGLE_MAPS_LIBRARIES = ['places', 'geometry', 'drawing'];
 const DeliveryLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { deliveryBoy, logout, isAuthenticated, acceptOrder, acceptReturn, fetchProfileSummary } = useDeliveryAuthStore();
+  const { 
+    deliveryBoy, logout, isAuthenticated, acceptOrder, 
+    acceptReturn, fetchProfileSummary, updateStatus, 
+    isUpdatingStatus 
+  } = useDeliveryAuthStore();
+  const isOnline = deliveryBoy?.status === 'available';
+
+  const handleToggleOnline = async () => {
+    if (isUpdatingStatus) return;
+    const wasOnline = isOnline;
+    const newStatus = wasOnline ? 'offline' : 'available';
+    try {
+      await updateStatus(newStatus);
+      toast.success(wasOnline ? 'You are now Offline' : 'You are now Online!');
+      window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Failed to update status';
+      toast.error(msg);
+    }
+  };
   const { unreadCount, fetchNotifications } = useDeliveryNotificationStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const audioUnlockedRef = useRef(false);
@@ -237,16 +256,38 @@ const DeliveryLayout = () => {
 
           <Link to="/delivery/dashboard" className="flex items-center gap-0.5 no-underline group shrink-0">
             <img src={logo} alt="CLOSH" className="h-9 w-auto object-contain" />
-            <span className="text-[20px] font-black text-white tracking-tighter">CLOSH</span>
           </Link>
 
-          <div className="flex items-center gap-2 ml-auto">
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg transform rotate-3 active:rotate-0 transition-transform">
-              <FiTruck className="text-white text-lg" />
+          <div className="flex items-center gap-4 ml-auto">
+            {/* Premium Status Toggle */}
+            <div className="flex items-center gap-2">
+              <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${isOnline ? 'text-emerald-400' : 'text-slate-500'}`}>
+                {isOnline ? 'Live' : 'Off'}
+              </span>
+              <button 
+                onClick={handleToggleOnline} 
+                disabled={isUpdatingStatus}
+                className={`group relative h-5 w-10 flex-shrink-0 items-center rounded-full transition-all duration-500 border border-white/10 ${isOnline ? 'bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]' : 'bg-slate-800'}`}
+              >
+                <div className={`absolute inset-0 rounded-full transition-opacity duration-500 ${isOnline ? 'opacity-100 bg-emerald-500/20 animate-pulse' : 'opacity-0'}`} />
+                <motion.div 
+                  animate={{ x: isOnline ? 22 : 2 }} 
+                  transition={{ type: "spring", stiffness: 600, damping: 30 }}
+                  className={`relative h-3.5 w-3.5 rounded-full shadow-lg flex items-center justify-center transition-colors duration-300 ${isOnline ? 'bg-emerald-400' : 'bg-slate-500'}`}
+                >
+                  {isOnline && <div className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-25" />}
+                </motion.div>
+              </button>
             </div>
-            <div className="flex flex-col">
-              <h1 className="text-[13px] font-black text-white leading-none">Delivery</h1>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">Partner</span>
+
+            <div className="flex items-center gap-2 pl-3 border-l border-white/10">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg transform rotate-2 active:rotate-0 transition-all">
+                <FiTruck className="text-white text-sm" />
+              </div>
+              <div className="flex flex-col hidden xs:flex">
+                <h1 className="text-[11px] font-black text-white leading-tight tracking-tight">DELIVERY</h1>
+                <span className="text-[9px] font-bold text-indigo-300/80 uppercase tracking-widest -mt-0.5">PARTNER</span>
+              </div>
             </div>
           </div>
         </div>

@@ -124,15 +124,23 @@ const Payouts = () => {
 
   return (
     <PageTransition>
-      <div className="px-4 pt-20 pb-24 space-y-6">
+      <div className="px-4 pt-4 pb-24 space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center"
+          className="flex items-center justify-between"
         >
-          <h1 className="text-3xl font-bold text-gray-800">Payouts</h1>
-          <p className="text-gray-600 text-sm mt-1">Manage your earnings and withdrawals</p>
+          <div className="text-left">
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Payouts</h1>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Earnings Manager</p>
+          </div>
+          <button
+            onClick={() => fetchProfile()}
+            className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:rotate-180 duration-500"
+          >
+            <FiRefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+          </button>
         </motion.div>
 
         {/* Balance Card */}
@@ -140,26 +148,19 @@ const Payouts = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-primary-600 to-emerald-600 rounded-3xl p-6 text-white shadow-2xl"
+          className="bg-indigo-600 rounded-2xl p-4 text-white shadow-xl relative overflow-hidden"
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                <FiDollarSign className="text-2xl" />
-              </div>
-              <div>
-                <p className="text-white/80 text-sm">Available Balance</p>
-                <p className="text-3xl font-bold">
-                  {formatPrice(deliveryBoy?.availableBalance || 0)}
-                </p>
-              </div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl opacity-50" />
+          <div className="relative z-10 flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md shadow-inner border border-white/20">
+              <FiDollarSign size={20} />
             </div>
-            <button
-              onClick={() => fetchProfile()}
-              className="p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors"
-            >
-              <FiRefreshCw className="text-xl" />
-            </button>
+            <div>
+              <p className="text-indigo-100 text-[10px] font-black uppercase tracking-[0.2em]">Available Balance</p>
+              <p className="text-2xl font-black tracking-tight mt-0.5">
+                {formatPrice(deliveryBoy?.availableBalance || 0)}
+              </p>
+            </div>
           </div>
 
           {/* Request Payout Button */}
@@ -167,24 +168,21 @@ const Payouts = () => {
             <button
               onClick={() => setShowWithdrawalModal(true)}
               disabled={!deliveryBoy?.availableBalance || deliveryBoy?.availableBalance <= 0}
-              className="w-full py-4 bg-white text-primary-600 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 bg-white text-indigo-600 rounded-xl font-black text-sm uppercase tracking-widest shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none relative z-10"
             >
               Request Payout
             </button>
           ) : (
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 text-center">
-              <p className="text-white/90 text-sm font-semibold mb-1">
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 text-center relative z-10">
+              <p className="text-white/90 text-[10px] font-bold mb-0.5">
                 Next payout available on:
               </p>
-              <p className="text-white text-lg font-bold">
+              <p className="text-base font-black">
                 {nextAvailableDate?.toLocaleDateString('en-IN', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric',
                 })}
-              </p>
-              <p className="text-white/70 text-xs mt-2">
-                You can request one payout every 7 days
               </p>
             </div>
           )}

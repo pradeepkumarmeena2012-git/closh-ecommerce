@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
-import { FiUser, FiMail, FiPhone, FiTruck, FiEdit2, FiSave, FiX, FiLogOut } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiTruck, FiEdit2, FiSave, FiX, FiLogOut, FiCheckCircle, FiCreditCard } from 'react-icons/fi';
 import PageTransition from '../../../shared/components/PageTransition';
 import toast from 'react-hot-toast';
 import { formatPrice } from '../../../shared/utils/helpers';
@@ -116,81 +116,85 @@ const DeliveryProfile = () => {
   };
 
   const stats = [
-    { label: 'Total Deliveries', value: Number(profileMetrics.totalDeliveries || 0) },
-    { label: 'Completed Today', value: Number(profileMetrics.completedToday || 0) },
-    { label: 'Rating', value: Number(deliveryBoy?.rating || 0).toFixed(1) },
-    { label: 'Earnings', value: formatPrice(Number(profileMetrics.earnings || 0)) },
+    { label: 'Total Deliveries', value: Number(profileMetrics.totalDeliveries || 0), icon: FiTruck, bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100' },
+    { label: 'Completed Today', value: Number(profileMetrics.completedToday || 0), icon: FiCheckCircle, bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100' },
+    { label: 'Rating', value: Number(deliveryBoy?.rating || 0).toFixed(1), icon: FiUser, bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' },
+    { label: 'Earnings', value: formatPrice(Number(profileMetrics.earnings || 0)), icon: FiCreditCard, bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100' },
   ];
 
   return (
     <PageTransition>
-      <div className="px-4 pt-28 pb-6 space-y-6">
+      <div className="px-4 pt-4 pb-6 space-y-6">
         {/* Profile Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl p-6 text-white"
+          className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-[28px] p-6 text-white shadow-xl relative overflow-hidden"
         >
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">My Profile</h1>
-            {loadFailed && (
-              <button
-                onClick={loadProfile}
-                className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg font-semibold"
-              >
-                Retry
-              </button>
-            )}
-            {!isEditing ? (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="p-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30"
-              >
-                <FiEdit2 />
-              </button>
-            ) : (
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSave}
-                  disabled={isLoading}
-                  className="p-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30"
-                >
-                  <FiSave />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+          <div className="flex items-center justify-between mb-6 relative z-10">
+            <h1 className="text-2xl font-black tracking-tight">Account</h1>
+            <div className="flex gap-2">
+              {!isEditing ? (
+                <button onClick={() => setIsEditing(true)} className="p-2.5 bg-white/20 rounded-xl hover:bg-white/30 backdrop-blur-md transition-all">
+                  <FiEdit2 size={18} />
                 </button>
-                <button
-                  onClick={handleCancel}
-                  className="p-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30"
-                >
-                  <FiX />
-                </button>
-              </div>
-            )}
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={handleSave} disabled={isLoading} className="p-2.5 bg-emerald-500 rounded-xl hover:bg-emerald-600 shadow-lg transition-all">
+                    <FiSave size={18} />
+                  </button>
+                  <button onClick={handleCancel} className="p-2.5 bg-white/20 rounded-xl hover:bg-white/30 backdrop-blur-md transition-all">
+                    <FiX size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 gradient-green rounded-full flex items-center justify-center text-3xl font-bold">
+
+          <div className="flex items-center gap-5 relative z-10">
+            <div className="w-20 h-20 shrink-0 aspect-square bg-white/20 rounded-full flex items-center justify-center text-4xl font-black backdrop-blur-md border border-white/20 shadow-inner">
               {deliveryBoy?.name?.charAt(0) || 'D'}
             </div>
             <div>
-              <p className="text-xl font-semibold">{deliveryBoy?.name || 'Delivery Boy'}</p>
-              <p className="text-primary-100 text-sm">{deliveryBoy?.email || 'email@example.com'}</p>
+              <p className="text-xl font-black tracking-tight">
+                {isEditing ? (formData.name || 'Your Name') : (deliveryBoy?.name || 'Delivery Boy')}
+              </p>
+              <div className="flex items-center gap-1.5 mt-1 text-primary-100/80">
+                <FiMail size={12} />
+                <p className="text-xs font-bold">
+                  {isEditing ? (formData.email || 'your@email.com') : (deliveryBoy?.email || 'email@example.com')}
+                </p>
+              </div>
             </div>
           </div>
         </motion.div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-4">
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-white rounded-xl p-4 shadow-sm"
-            >
-              <p className="text-gray-600 text-sm mb-1">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
-            </motion.div>
-          ))}
+          {stats.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className={`${stat.bg} ${stat.border} border rounded-[24px] p-4 shadow-sm relative overflow-hidden group`}
+              >
+                <div className="relative z-10">
+                  <div className={`w-8 h-8 ${stat.bg.replace('50', '100')} rounded-lg flex items-center justify-center mb-3 text-lg ${stat.text}`}>
+                    <Icon />
+                  </div>
+                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>
+                  <p className={`text-2xl font-black ${stat.text.replace('600', '700')}`}>{stat.value}</p>
+                </div>
+                <div className={`absolute -right-2 -bottom-2 opacity-5 scale-150 transform group-hover:rotate-12 transition-transform ${stat.text}`}>
+                  <Icon size={60} />
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Profile Information */}

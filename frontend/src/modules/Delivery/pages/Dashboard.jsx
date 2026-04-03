@@ -125,13 +125,18 @@ const DeliveryDashboard = () => {
                   className="w-full h-full object-cover rounded-[14px]" 
                   alt="Profile" 
                 />
-                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm flex items-center justify-center ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                  {isOnline && <div className="w-full h-full rounded-full bg-emerald-500 animate-ping opacity-40" />}
+                </div>
               </div>
-              <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 shadow-lg">
-                <h1 className="text-[14px] font-black text-slate-800 leading-none">Hi, {deliveryBoy?.name?.split(' ')[0] || 'Partner'}</h1>
-                <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${isOnline ? 'text-emerald-600' : 'text-slate-500'}`}>
-                  {isOnline ? 'System Online' : 'Currently Offline'}
-                </p>
+              <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 shadow-lg relative group overflow-hidden">
+                <div className="relative z-10">
+                  <h1 className="text-[14px] font-black text-slate-800 leading-none">Hi, {deliveryBoy?.name?.split(' ')[0] || 'Partner'}</h1>
+                  <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${isOnline ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {isOnline ? 'System Online' : 'Currently Offline'}
+                  </p>
+                </div>
+                {isOnline && <div className="absolute top-0 right-0 w-8 h-8 bg-emerald-500/10 blur-xl rounded-full -mr-2 -mt-2" />}
               </div>
             </motion.div>
             
@@ -145,60 +150,28 @@ const DeliveryDashboard = () => {
             </motion.button>
           </div>
 
-          {/* ONLINE/OFFLINE TOGGLE */}
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }} 
-            animate={{ opacity: 1, y: 0 }}
-            className={`rounded-[24px] p-4 border shadow-2xl flex items-center justify-between transition-all duration-500 ${isOnline ? 'bg-white/95 backdrop-blur-xl border-white/30' : 'bg-slate-900/90 backdrop-blur-md border-slate-700/50'}`}
-          >
-            <div className="flex items-center gap-4">
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${isOnline ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-slate-800 text-slate-400'}`}>
-                {isOnline ? <FiZap className="animate-pulse" size={20} /> : <FiActivity size={20} />}
-              </div>
-              <div>
-                <h2 className={`font-black text-xs uppercase tracking-wider ${isOnline ? 'text-slate-800' : 'text-white'}`}>
-                  {isOnline ? 'Accepting Orders' : 'Offline'}
-                </h2>
-                <p className={`text-[10px] font-bold ${isOnline ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  {isOnline ? 'Live Tracking Active' : 'Switch to start work'}
-                </p>
-              </div>
-            </div>
-            <button 
-              onClick={handleToggleOnline} 
-              disabled={isUpdatingStatus} 
-              className={`relative h-10 w-18 flex-shrink-0 items-center rounded-full transition-all duration-500 ${isOnline ? 'bg-emerald-500 shadow-lg' : 'bg-slate-700'}`}
-            >
-              <motion.div 
-                animate={{ x: isOnline ? 32 : 4 }} 
-                className="h-8 w-8 rounded-full bg-white shadow-xl flex items-center justify-center"
-              >
-                <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-              </motion.div>
-            </button>
-          </motion.div>
         </div>
 
         {/* BOTTOM ACTIVE TASK OVERLAY */}
-        <div className="absolute inset-x-0 bottom-6 z-10 pointer-events-none p-4">
+        <div className="absolute inset-x-0 bottom-4 z-10 pointer-events-none px-4">
           <AnimatePresence>
             {recentOrders.filter(o => ['pending', 'accepted', 'assigned', 'picked_up', 'out_for_delivery'].includes(o.status?.toLowerCase())).length > 0 ? (
               <motion.div 
                 initial={{ y: 100, opacity: 0 }} 
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 100, opacity: 0 }}
-                className="bg-white/95 backdrop-blur-xl rounded-[32px] p-6 shadow-2xl border border-white/30 pointer-events-auto max-w-md mx-auto"
+                className="bg-white/95 backdrop-blur-xl rounded-[24px] p-3 shadow-2xl border border-white/30 pointer-events-auto max-w-sm mx-auto"
               >
-                <div className="flex items-center justify-between mb-4 px-1">
-                  <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-6 bg-indigo-600 rounded-full" />
-                    <h2 className="text-[13px] font-black text-slate-900 uppercase tracking-widest">Active Delivery Task</h2>
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-4 bg-indigo-600 rounded-full" />
+                    <h2 className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-none">Active Task</h2>
                   </div>
                   <button 
                     onClick={() => navigate('/delivery/orders')}
-                    className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-indigo-600 shadow-inner"
+                    className="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center text-indigo-600 shadow-inner"
                   >
-                    <FiArrowRight size={16} />
+                    <FiArrowRight size={12} />
                   </button>
                 </div>
 
@@ -207,21 +180,20 @@ const DeliveryDashboard = () => {
                     key={order.id}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate(`/delivery/orders/${order.id}`)}
-                    className="bg-slate-900 rounded-[24px] p-5 flex items-center gap-5 shadow-2xl border border-white/10 cursor-pointer group"
+                    className="bg-slate-900 rounded-[18px] p-3 flex items-center gap-3 shadow-xl border border-white/5 cursor-pointer group"
                   >
-                    <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg text-white shrink-0 transform group-hover:rotate-6 transition-transform">
-                      <FiTruck size={28} />
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg text-white shrink-0 transform group-hover:rotate-3 transition-transform">
+                      <FiTruck size={20} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="font-black text-white text-[15px]">#{String(order.id).slice(-8)}</h3>
-                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter ${getStatusColor(order.status)}`}>
+                      <div className="flex items-center justify-between gap-1">
+                        <h3 className="font-black text-white text-xs truncate">#{String(order.id).slice(-8)}</h3>
+                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter ${getStatusColor(order.status)}`}>
                           {order.status.replace(/_/g, ' ')}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-2">
-                        <div className="w-1 h-1 rounded-full bg-slate-500" />
-                        <p className="text-[11px] text-slate-400 font-bold truncate tracking-tight">{order.address}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <p className="text-[10px] text-slate-400 font-bold truncate tracking-tight">{order.address}</p>
                       </div>
                     </div>
                   </motion.div>

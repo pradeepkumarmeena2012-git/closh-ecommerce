@@ -41,36 +41,35 @@ const DeliveryNotifications = () => {
 
   return (
     <PageTransition>
-      <div className="px-4 pt-28 pb-6 space-y-4">
+      <div className="px-4 pt-4 pb-6 space-y-4">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start justify-between gap-3"
+          className="flex items-center justify-between gap-2"
         >
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Notifications</h1>
-            <p className="text-sm text-gray-600">
-              {unreadCount} unread
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Notifications</h1>
+            <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">
+              {unreadCount} UNREAD
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => fetchNotifications(1)}
-              className="px-3 py-2 rounded-lg border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-white hover:text-black"
+              className="p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+              title="Refresh"
               type="button"
             >
-              <span className="inline-flex items-center gap-1">
-                <FiRefreshCw />
-                Refresh
-              </span>
+              <FiRefreshCw className={`sm:mr-1 ${isLoading ? 'animate-spin' : ''}`} size={16} />
+              <span className="hidden sm:inline text-xs font-bold uppercase tracking-tighter">Refresh</span>
             </button>
             <button
               onClick={markAllAsRead}
               disabled={!notifications.length || unreadCount === 0}
-              className="px-3 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-indigo-600 text-white text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
               type="button"
             >
-              Mark all read
+              Mark All Read
             </button>
           </div>
         </motion.div>

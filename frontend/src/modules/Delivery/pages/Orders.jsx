@@ -133,7 +133,7 @@ const DeliveryOrders = () => {
     <PageTransition>
       <div className="min-h-screen bg-[#F8FAFC]">
         {/* Sleek Sub-Header */}
-        <div className="bg-[#0F172A] pt-16 sm:pt-28 pb-14 sm:pb-24 px-5 sm:px-6 relative overflow-hidden transition-all duration-500">
+        <div className="bg-[#0F172A] pt-6 sm:pt-10 pb-12 sm:pb-16 px-5 sm:px-6 relative overflow-hidden transition-all duration-500">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           
           <div className="relative z-10 flex items-center justify-between">
@@ -149,7 +149,7 @@ const DeliveryOrders = () => {
             </div>
           </div>
 
-          <div className="relative z-10 mt-5 sm:mt-8 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <div className="relative z-10 mt-5 sm:mt-8 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
              {['available', 'pending', 'in-transit', 'delivered'].filter(t => t !== 'available' || isOnline).map((tab) => (
                <button
                  key={tab}
