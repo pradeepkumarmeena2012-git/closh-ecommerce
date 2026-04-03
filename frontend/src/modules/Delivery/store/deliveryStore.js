@@ -139,6 +139,38 @@ export const useDeliveryAuthStore = create(
           return { success: true, deliveryBoy: user };
         } catch (e) { set({ isLoading: false }); throw e; }
       },
+      sendRegistrationOtp: async (phone) => {
+        set({ isLoading: true });
+        try {
+          const res = await api.post('/delivery/auth/send-registration-otp', { phone });
+          set({ isLoading: false });
+          return res.data || res;
+        } catch (e) { set({ isLoading: false }); throw e; }
+      },
+      verifyRegistrationOtp: async (phone, otp) => {
+        set({ isLoading: true });
+        try {
+          const res = await api.post('/delivery/auth/verify-registration-otp', { phone, otp });
+          set({ isLoading: false });
+          return res.data || res;
+        } catch (e) { set({ isLoading: false }); throw e; }
+      },
+      register: async (data) => {
+        set({ isLoading: true });
+        try {
+          const formData = new FormData();
+          Object.keys(data).forEach(key => {
+            if (data[key] !== null && data[key] !== undefined) {
+              formData.append(key, data[key]);
+            }
+          });
+          const res = await api.post('/delivery/auth/register', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          set({ isLoading: false });
+          return res.data || res;
+        } catch (e) { set({ isLoading: false }); throw e; }
+      },
       logout: () => {
         const rt = localStorage.getItem('delivery-refresh-token');
         if (rt) api.post('/delivery/auth/logout', { refreshToken: rt }).catch(() => { });
@@ -174,7 +206,7 @@ export const useDeliveryAuthStore = create(
           const payload = res.data || res;
           set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload, status }), isUpdatingStatus: false });
           return true;
-        } catch (e) { set({ deliveryBoy, isUpdatingStatus: false }); throw e; }
+        } catch (e) { set({ deliveryBoy: current, isUpdatingStatus: false }); throw e; }
       },
       updateLocation: async (latitude, longitude) => {
         const current = get().deliveryBoy;

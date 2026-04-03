@@ -10,9 +10,13 @@ export const registerSchema = Joi.object({
     email: Joi.string().email().lowercase().required(),
     password: Joi.string().min(6).optional().allow(''),
     phone: Joi.string().trim().required(),
+    emergencyContact: Joi.string().trim().allow('').optional(),
+    aadharNumber: Joi.string().trim().allow('').optional(),
     address: Joi.string().trim().allow('').optional(),
     vehicleType: Joi.string().trim().allow('').optional(),
     vehicleNumber: Joi.string().trim().allow('').optional(),
+    fcmToken: Joi.string().trim().allow('').optional(),
+    platform: Joi.string().trim().allow('').optional(),
 });
 
 export const forgotPasswordSchema = Joi.object({
