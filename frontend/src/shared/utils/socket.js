@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
 
 // In production, force the API URL to our production domain if env is missing
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'https://api.closh.in';
@@ -11,7 +12,7 @@ class SocketService {
     }
 
     connect() {
-        if (this.socket) return;
+        if (this.socket?.connected) return;
 
         this.socket = io(SOCKET_URL, {
             withCredentials: true,
@@ -32,6 +33,8 @@ class SocketService {
 
         this.socket.on('connect', () => {
             console.log('🔌 [SOCKET] Connected:', this.socket.id);
+            toast.success('System Connected (Live)', { icon: '⚡', id: 'socket-status' });
+            
             // Re-join all general rooms
             this.rooms.forEach(room => this.socket.emit('join_room', room));
             
@@ -44,7 +47,10 @@ class SocketService {
         });
 
         this.socket.on('disconnect', (reason) => {
-            console.log('🔌 [SOCKET] Disconnected:', reason);
+            console.warn('🔌 [SOCKET] Disconnected:', reason);
+            if (reason === 'io server disconnect') {
+                this.socket.connect();
+            }
         });
 
         this.socket.on('connect_error', (error) => {
