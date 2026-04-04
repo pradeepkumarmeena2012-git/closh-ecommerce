@@ -11,6 +11,8 @@ export const initSocket = (server) => {
         cors: {
             origin: [
                 process.env.CLIENT_URL,
+                'https://www.closh.in',
+                'https://closh.in',
                 'http://localhost:3000',
                 'http://localhost:5173'
             ].filter(Boolean),

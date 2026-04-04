@@ -25,7 +25,7 @@ const app = express();
 // ─── Body Parsing ────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(detailedRequestLogger);
+// app.use(detailedRequestLogger);
 
 // Trust proxy (necessary for express-rate-limit when behind Nginx)
 app.set('trust proxy', 1);
