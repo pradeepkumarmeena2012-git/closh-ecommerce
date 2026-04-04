@@ -4,9 +4,9 @@ import { createNotification } from './notification.service.js';
 import { emitEvent } from './socket.service.js';
 
 /**
- * Find nearby delivery boys for an order
+ * Find nearby delivery boys for an order (Radius increased to 100km for wide coverage)
  */
-export const findNearbyDeliveryBoys = async (order, radiusMeters = 8000) => {
+export const findNearbyDeliveryBoys = async (order, radiusMeters = 100000) => {
     const pickupLocation = order.pickupLocation;
     
     if (!pickupLocation || !pickupLocation.coordinates || (pickupLocation.coordinates[0] === 0 && pickupLocation.coordinates[1] === 0)) {
