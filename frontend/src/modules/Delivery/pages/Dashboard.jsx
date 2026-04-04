@@ -9,6 +9,7 @@ import WithdrawalModal from '../components/WithdrawalModal';
 import socketService from '../../../shared/utils/socket';
 import { useDeliveryTracking } from '../../../shared/hooks/useDeliveryTracking';
 import DashboardMap from '../components/DashboardMap';
+import NewOrderModal from '../components/NewOrderModal';
 
 const DeliveryDashboard = () => {
   const { isLoaded } = useOutletContext();
@@ -23,6 +24,8 @@ const DeliveryDashboard = () => {
   const isOnline = deliveryBoy?.status === 'available';
 
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [newOrderRequest, setNewOrderRequest] = useState(null);
+  const [isAccepting, setIsAccepting] = useState(false);
 
   // --- Real-time Delivery Tracking ---
   const activeTasks = recentOrders.filter(o => 
@@ -51,39 +54,54 @@ const DeliveryDashboard = () => {
   useEffect(() => {
     loadDashboardData();
 
+    if (deliveryBoy?.id) {
+       socketService.connect();
+       socketService.deliveryRegister(deliveryBoy.id);
+    }
+
     const handleRefresh = () => {
       loadDashboardData();
     };
     window.addEventListener('delivery-dashboard-refresh', handleRefresh);
 
-    socketService.on('order_assigned', (data) => {
-      console.log("STEP 6 - Received Data (assigned):", data);
+    const handleNewOrder = (data) => {
+      console.log("🔔 [SOCKET] New Order Request Recieved:", data);
+      setNewOrderRequest(data);
+    };
+
+    socketService.on('order_ready_for_pickup', handleNewOrder);
+    socketService.on('return_ready_for_pickup', handleNewOrder);
+    
+    socketService.on('order_assigned', () => {
+      setNewOrderRequest(null);
       handleRefresh();
     });
-    socketService.on('order_accepted', (data) => {
-      console.log("STEP 6 - Received Data (accepted):", data);
-      handleRefresh();
+
+    socketService.on('order_taken', (data) => {
+       if (newOrderRequest?.id === data.id || newOrderRequest?.orderId === data.orderId) {
+          setNewOrderRequest(null);
+          toast('Order taken by another partner', { icon: 'ℹ️' });
+       }
     });
-    socketService.on('newOrder', (data) => {
-      console.log("STEP 6 - Received Data (newOrder):", data);
-      handleRefresh();
-    });
+
+    socketService.on('newOrder', handleRefresh);
     socketService.on('order_picked_up', handleRefresh);
     socketService.on('order_delivered', handleRefresh);
-    socketService.on('delivery_location_sync', handleRefresh);
 
-    const interval = setInterval(loadDashboardData, 30000); // 30s fallback refresh
+    const interval = setInterval(loadDashboardData, 30000); 
 
     return () => {
       window.removeEventListener('delivery-dashboard-refresh', handleRefresh);
-      socketService.off('order_assigned', handleRefresh);
-      socketService.off('order_accepted', handleRefresh);
-      socketService.off('order_picked_up', handleRefresh);
-      socketService.off('order_delivered', handleRefresh);
-      socketService.off('delivery_location_sync', handleRefresh);
+      socketService.off('order_ready_for_pickup');
+      socketService.off('return_ready_for_pickup');
+      socketService.off('order_assigned');
+      socketService.off('order_taken');
+      socketService.off('newOrder');
+      socketService.off('order_picked_up');
+      socketService.off('order_delivered');
       clearInterval(interval);
     };
-  }, []);
+  }, [deliveryBoy?.id, newOrderRequest?.id]);
 
   const handleToggleOnline = async () => {
     if (isUpdatingStatus) return;
@@ -252,6 +270,32 @@ const DeliveryDashboard = () => {
           onClose={() => setShowWithdrawalModal(false)}
           balance={deliveryBoy?.availableBalance || 0}
           onWithdrawalRequested={() => { setShowWithdrawalModal(false); loadDashboardData(); }}
+        />
+
+        <NewOrderModal
+          isOpen={!!newOrderRequest}
+          order={newOrderRequest}
+          onClose={() => setNewOrderRequest(null)}
+          onAccept={async (id) => {
+            setIsAccepting(true);
+            try {
+              if (newOrderRequest?.type === 'return') {
+                 await useDeliveryAuthStore.getState().acceptReturn(id);
+              } else {
+                 await useDeliveryAuthStore.getState().acceptOrder(id);
+              }
+              toast.success('Order Accepted!');
+              setNewOrderRequest(null);
+              loadDashboardData();
+              navigate(`/delivery/orders/${id}`);
+            } catch (err) {
+              toast.error(err?.response?.data?.message || 'Failed to accept order');
+            } finally {
+              setIsAccepting(false);
+            }
+          }}
+          isAccepting={isAccepting}
+          riderLocation={currentLocation}
         />
       </div>
     </PageTransition>

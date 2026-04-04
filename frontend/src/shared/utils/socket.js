@@ -16,11 +16,12 @@ class SocketService {
             withCredentials: true,
             autoConnect: true,
             reconnection: true,
-            reconnectionAttempts: 10,
+            reconnectionAttempts: 20,
             reconnectionDelay: 1000,
+            transports: ['websocket', 'polling'],
         });
 
-        // Attach any queued listeners from before connect was called
+        // Attach any queued listeners
         if (this._queuedListeners.length > 0) {
             this._queuedListeners.forEach(({ event, callback }) => {
                 this.socket.on(event, callback);
@@ -29,12 +30,8 @@ class SocketService {
         }
 
         this.socket.on('connect', () => {
-            console.log('🔌 [SOCKET] Connected to server:', this.socket.id);
-            // Re-join all rooms on reconnection
-            this.rooms.forEach(room => {
-                console.log(`🏠 [SOCKET] Re-joining room: ${room}`);
-                this.socket.emit('join_room', room);
-            });
+            console.log('🔌 [SOCKET] Connected:', this.socket.id);
+            this.rooms.forEach(room => this.socket.emit('join_room', room));
         });
 
         this.socket.on('disconnect', (reason) => {
@@ -44,6 +41,16 @@ class SocketService {
         this.socket.on('connect_error', (error) => {
             console.error('🔌 [SOCKET] Connection error:', error.message);
         });
+    }
+
+    deliveryRegister(deliveryBoyId) {
+        if (!deliveryBoyId) return;
+        console.log(`🚴 Registering Delivery Partner: ${deliveryBoyId}`);
+        if (this.socket?.connected) {
+            this.socket.emit('delivery_register', deliveryBoyId);
+        } else {
+            this.on('connect', () => this.socket.emit('delivery_register', deliveryBoyId));
+        }
     }
 
     joinRoom(room) {

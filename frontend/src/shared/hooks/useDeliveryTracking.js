@@ -50,6 +50,7 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
 
         // Connect socket if not connected
         socketService.connect();
+        socketService.deliveryRegister(deliveryBoyId);
 
         const handleSubmits = (lat, lng, accuracy) => {
             const now = Date.now();
