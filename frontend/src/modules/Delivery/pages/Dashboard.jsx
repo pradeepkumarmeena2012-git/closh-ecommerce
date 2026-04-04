@@ -85,10 +85,13 @@ const DeliveryDashboard = () => {
     });
 
     socketService.on('order_taken', (data) => {
-       if (newOrderRequest?.id === data.id || newOrderRequest?.orderId === data.orderId) {
-          setNewOrderRequest(null);
-          toast('Order taken by another partner', { icon: 'ℹ️' });
-       }
+       setNewOrderRequest(prev => {
+          if (prev?.id === data.id || prev?.orderId === data.orderId) {
+             toast('Order taken by another partner', { icon: 'ℹ️' });
+             return null;
+          }
+          return prev;
+       });
     });
 
     socketService.on('newOrder', handleRefresh);
