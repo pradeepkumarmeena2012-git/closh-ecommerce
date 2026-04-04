@@ -96,18 +96,29 @@ const DeliveryOrderDetail = () => {
 
   useEffect(() => {
     loadOrder();
-    if (id) socketService.joinRoom(`order_${id}`);
     
     const handleUpdate = () => loadOrder();
     socketService.on('order_status_updated', handleUpdate);
     socketService.on('return_status_updated', handleUpdate);
 
+    // Initial join with URL param ID
+    if (id) socketService.joinRoom(`order_${id}`);
+
     return () => {
       socketService.off('order_status_updated');
       socketService.off('return_status_updated');
-      if (id) socketService.leaveRoom?.(`order_${id}`);
     };
   }, [id, loadOrder]);
+
+  // Secondary join once the human-readable orderId is known
+  useEffect(() => {
+    if (order?.orderId) {
+       socketService.joinRoom(`order_${order.orderId}`);
+    }
+    if (order?._id) {
+       socketService.joinRoom(`order_${order._id}`);
+    }
+  }, [order?.orderId, order?._id]);
 
   const handleUpdateStatus = async (newBackendStatus, successMessage, options = {}) => {
     try {
@@ -282,6 +293,13 @@ const DeliveryOrderDetail = () => {
                      
                      {/* 1. Main Photo Task */}
                      <div className="space-y-2">
+                        {/* Preview */}
+                        {(trackingPhase === 'to_vendor' ? pickupPhoto : deliveryPhoto) && (
+                            <div className="relative w-full aspect-video rounded-2xl overflow-hidden mb-3 border-2 border-emerald-500 group animate-in zoom-in-95 duration-200">
+                                <img src={trackingPhase === 'to_vendor' ? pickupPhoto : deliveryPhoto} className="w-full h-full object-cover" />
+                                <button onClick={() => trackingPhase === 'to_vendor' ? setPickupPhoto(null) : setDeliveryPhoto(null)} className="absolute top-2 right-2 w-8 h-8 bg-slate-900/80 text-white rounded-full flex items-center justify-center backdrop-blur-sm">×</button>
+                            </div>
+                        )}
                         <p className="text-xs font-bold text-slate-700">{trackingPhase === 'to_vendor' ? '1. Take Photo of pickup package' : '1. Take Photo of delivery package'}</p>
                         <div className="flex gap-2">
                             <button onClick={() => (trackingPhase === 'to_vendor' ? pickupPhotoInputRef : deliveryPhotoInputRef).current.click()} className={`flex-1 h-14 rounded-xl border-2 border-dashed flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest transition-all ${ (trackingPhase === 'to_vendor' ? pickupPhoto : deliveryPhoto) ? 'bg-emerald-50 border-emerald-500 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
@@ -297,6 +315,13 @@ const DeliveryOrderDetail = () => {
                      {trackingPhase === 'to_customer' && (
                         <div className="space-y-2">
                             <p className="text-xs font-bold text-slate-700">2. Proof of item verification (Open Box)</p>
+                            {/* Preview */}
+                            {openBoxPhoto && (
+                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden mb-3 border-2 border-emerald-500 animate-in zoom-in-95 duration-200">
+                                    <img src={openBoxPhoto} className="w-full h-full object-cover" />
+                                    <button onClick={() => setOpenBoxPhoto(null)} className="absolute top-2 right-2 w-8 h-8 bg-slate-900/80 text-white rounded-full flex items-center justify-center backdrop-blur-sm">×</button>
+                                </div>
+                            )}
                             <div className="flex gap-2">
                                 <button onClick={() => openBoxInputRef.current.click()} className={`flex-1 h-14 rounded-xl border-2 border-dashed flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest transition-all ${openBoxPhoto ? 'bg-emerald-50 border-emerald-400 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
                                     <FiShield size={18} /> Camera

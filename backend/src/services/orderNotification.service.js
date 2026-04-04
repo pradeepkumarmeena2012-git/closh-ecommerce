@@ -1,6 +1,7 @@
 import { createNotification } from './notification.service.js';
 import { emitEvent } from './socket.service.js';
 import Order from '../models/Order.model.js';
+import { triggerDeliveryAssignment } from './deliveryAssignment.service.js';
 
 /**
  * Unified service to notify all parties involved in an order (Customer, Vendors, Rider)
@@ -130,14 +131,24 @@ export const OrderNotificationService = {
                     sound: r.sound || 'default'
                 }));
 
-            // Generic Order Tracking Room Broadcast
-            const trackingRoom = `order_${order.orderId}`;
-            console.log(`📡 [SOCKET EMIT] Room: ${trackingRoom}, Event: order_status_updated (Generic Tracking)`);
-            emitEvent(trackingRoom, 'order_status_updated', {
-                orderId: order.orderId,
-                status,
-                message: notificationMessage
+            // Generic Order Tracking Room Broadcast (Both Human ID and Mongo ID)
+            const trackingRooms = [`order_${order.orderId}`, `order_${order._id}`];
+            trackingRooms.forEach(room => {
+                console.log(`📡 [SOCKET EMIT] Room: ${room}, Event: order_status_updated`);
+                emitEvent(room, 'order_status_updated', {
+                    orderId: order.orderId,
+                    status,
+                    message: notificationMessage
+                });
             });
+            
+            // 4. Trigger Delivery Assignment if Ready
+            if (status === 'ready_for_pickup' || status === 'searching') {
+                console.log(`📡 [AUTO-ASSIGN] Triggering delivery search for order: ${order.orderId}`);
+                triggerDeliveryAssignment(order).catch(err => 
+                    console.error(`[AutoAssign] Error triggering search: ${err.message}`)
+                );
+            }
 
             await Promise.allSettled(tasks);
             console.log(`--- ✅ [NOTIFICATION COMPLETE] ---\n`);

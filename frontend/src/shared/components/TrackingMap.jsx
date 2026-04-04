@@ -155,8 +155,7 @@ const TrackingMap = ({
   followMode = true,
   isLoaded: isLoadedProp
 }) => {
-  const { isLoaded: internalIsLoaded } = useJsApiLoader({
-    id: 'google-map-script',
+    // IMPORTANT: Ensure VITE_GOOGLE_MAPS_API_KEY is set in your .env during build
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
     libraries: ['places', 'geometry', 'drawing']
   });

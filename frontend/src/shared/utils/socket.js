@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// In production, force the API URL to our production domain if env is missing
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'https://api.closh.in';
 
 class SocketService {
     constructor() {
@@ -31,7 +32,15 @@ class SocketService {
 
         this.socket.on('connect', () => {
             console.log('🔌 [SOCKET] Connected:', this.socket.id);
+            // Re-join all general rooms
             this.rooms.forEach(room => this.socket.emit('join_room', room));
+            
+            // Critical: If we have a stored delivery ID, re-register it automatically on every connect
+            const storedId = localStorage.getItem('delivery_boy_id');
+            if (storedId) {
+                 console.log(`🚴 [SOCKET] Auto-restoring registration for: ${storedId}`);
+                 this.socket.emit('delivery_register', storedId);
+            }
         });
 
         this.socket.on('disconnect', (reason) => {
@@ -45,11 +54,10 @@ class SocketService {
 
     deliveryRegister(deliveryBoyId) {
         if (!deliveryBoyId) return;
-        console.log(`🚴 Registering Delivery Partner: ${deliveryBoyId}`);
+        localStorage.setItem('delivery_boy_id', deliveryBoyId);
+        console.log(`🚴 [SOCKET] Registering: ${deliveryBoyId}`);
         if (this.socket?.connected) {
             this.socket.emit('delivery_register', deliveryBoyId);
-        } else {
-            this.on('connect', () => this.socket.emit('delivery_register', deliveryBoyId));
         }
     }
 
