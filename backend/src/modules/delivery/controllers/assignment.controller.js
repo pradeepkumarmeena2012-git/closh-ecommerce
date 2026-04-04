@@ -45,12 +45,12 @@ export const findNearbyDeliveryBoys = async (order, radiusMeters = 8000) => {
     ]);
 
     if (nearbyBoys.length > 0) {
-        console.log(`[Radius Search] ✅ Found ${nearbyBoys.length} boys:`);
-        nearbyBoys.forEach(boy => {
-            console.log(`   - ${boy.name} (${boy._id}): ${Math.round(boy.distance)}m away`);
+        console.log(`\n✅ [RADIUS MATCH] Found ${nearbyBoys.length} available delivery partners:`);
+        nearbyBoys.forEach((boy, i) => {
+            console.log(`   ${i+1}. ${boy.name.padEnd(20)} | ID: ${boy._id} | Dist: ${Math.round(boy.distance)}m`);
         });
     } else {
-        console.log(`[Radius Search] ❌ No available boys found within ${radiusMeters}m.`);
+        console.log(`\n❌ [RADIUS MATCH] No available delivery partners found within ${radiusMeters}m.`);
         // Optional: Log distance to the single closest available boy if any exist
         if (totalAvailable > 0) {
             const closest = await DeliveryBoy.aggregate([
