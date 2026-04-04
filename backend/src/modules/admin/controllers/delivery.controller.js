@@ -38,7 +38,7 @@ const buildDocUrl = (req, relativePath = '') => {
  * @access  Private (Admin)
  */
 export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, search = '', status, applicationStatus } = req.query;
+    const { page = 1, limit = 10, search = '', status, applicationStatus, kycStatus } = req.query;
     const numericPage = Number(page) || 1;
     const numericLimit = Number(limit) || 10;
 
@@ -59,6 +59,10 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
 
     if (applicationStatus) {
         filter.applicationStatus = applicationStatus;
+    }
+    
+    if (kycStatus) {
+        filter.kycStatus = kycStatus;
     }
 
     const deliveryBoys = await DeliveryBoy.find(filter)
@@ -85,7 +89,7 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
                 $group: {
                     _id: null,
                     totalDeliveries: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
-                    pendingDeliveries: { $sum: { $cond: [{ $in: ['$status', ['assigned', 'picked_up', 'out_for_delivery']] }, 1, 0] } },
+                    totalEarnings: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, '$shipping', 0] } },
                     cashInHand: {
                         $sum: {
                             $cond: [
@@ -100,32 +104,34 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
                                 0
                             ]
                         }
+                    },
+                    pendingDeliveries: {
+                        $sum: { $cond: [{ $in: ['$status', ['assigned', 'picked_up', 'out_for_delivery']] }, 1, 0] }
                     }
                 }
             }
         ]);
 
         const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: boy.totalDeliveries || 0, pendingDeliveries: 0, cashInHand: 0 };
+        const boyObj = boy.toObject();
+
         return {
-            ...boy._doc,
+            ...boyObj,
             id: boy._id,
             isActive: boy.isActive,
             status: boy.status || (boy.isAvailable ? 'available' : 'offline'),
             isAvailable: boy.isAvailable,
             applicationStatus: boy.applicationStatus || 'approved',
-            totalDeliveries: boyStats.totalDeliveries || boy.totalDeliveries || 0,
-            documents: {
-                drivingLicense: boy.documents?.drivingLicense || '',
-                drivingLicenseBack: boy.documents?.drivingLicenseBack || '',
-                aadharCard: boy.documents?.aadharCard || '',
-                aadharCardBack: boy.documents?.aadharCardBack || '',
-            },
             documentUrls: {
                 drivingLicense: buildDocUrl(req, boy.documents?.drivingLicense || ''),
                 drivingLicenseBack: buildDocUrl(req, boy.documents?.drivingLicenseBack || ''),
                 aadharCard: buildDocUrl(req, boy.documents?.aadharCard || ''),
                 aadharCardBack: buildDocUrl(req, boy.documents?.aadharCardBack || ''),
             },
+            bankDetails: boyObj.bankDetails || {},
+            upiId: boyObj.upiId || '',
+            kycStatus: boyObj.kycStatus || 'none',
+            kycRejectionReason: boyObj.kycRejectionReason || '',
             stats: {
                 totalDeliveries: boyStats.totalDeliveries,
                 pendingDeliveries: boyStats.pendingDeliveries,
@@ -197,9 +203,11 @@ export const getDeliveryBoyById = asyncHandler(async (req, res) => {
 
     const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: boy.totalDeliveries || 0, totalEarnings: 0, cashInHand: 0 };
 
+    const boyObj = boy.toObject();
+
     res.status(200).json(
         new ApiResponse(200, {
-            ...boy._doc,
+            ...boyObj,
             id: boy._id,
             isActive: boy.isActive,
             status: boy.status || (boy.isAvailable ? 'available' : 'offline'),
@@ -212,6 +220,9 @@ export const getDeliveryBoyById = asyncHandler(async (req, res) => {
                 aadharCard: buildDocUrl(req, boy.documents?.aadharCard || ''),
                 aadharCardBack: buildDocUrl(req, boy.documents?.aadharCardBack || ''),
             },
+            bankDetails: boyObj.bankDetails || {},
+            upiId: boyObj.upiId || '',
+            kycStatus: boyObj.kycStatus || 'none',
             stats: boyStats,
             recentOrders: orders
         }, 'Delivery boy details fetched successfully')
@@ -356,7 +367,11 @@ export const updateDeliveryBoyApplicationStatus = asyncHandler(async (req, res) 
  * @access  Private (Admin)
  */
 export const updateDeliveryBoy = asyncHandler(async (req, res) => {
-    const { name, email, phone, address, vehicleType, vehicleNumber, isActive } = req.body;
+    const { 
+        name, email, phone, address, 
+        vehicleType, vehicleNumber, isActive,
+        bankDetails, upiId, kycStatus
+    } = req.body;
 
     const existing = await DeliveryBoy.findOne({
         _id: { $ne: req.params.id },
@@ -375,6 +390,9 @@ export const updateDeliveryBoy = asyncHandler(async (req, res) => {
         vehicleNumber,
     };
     if (typeof isActive === 'boolean') payload.isActive = isActive;
+    if (bankDetails) payload.bankDetails = bankDetails;
+    if (upiId) payload.upiId = upiId;
+    if (kycStatus) payload.kycStatus = kycStatus;
 
     const boy = await DeliveryBoy.findByIdAndUpdate(
         req.params.id,
@@ -515,5 +533,49 @@ export const getCashHistory = asyncHandler(async (req, res) => {
                 paymentMethod: o.paymentMethod
             }))
         }, 'Cash history fetched successfully')
+    );
+});
+
+/**
+ * @desc    Approve or reject delivery partner KYC (Banking)
+ * @route   PATCH /api/admin/delivery-boys/:id/kyc-status
+ * @access  Private (Admin)
+ */
+export const updateKycStatus = asyncHandler(async (req, res) => {
+    const { kycStatus, reason = '' } = req.body;
+    const { id } = req.params;
+
+    if (!['verified', 'rejected', 'pending'].includes(kycStatus)) {
+        throw new ApiError(400, 'kycStatus must be verified, rejected or pending');
+    }
+
+    const boy = await DeliveryBoy.findById(id);
+    if (!boy) {
+        throw new ApiError(404, 'Delivery partner not found');
+    }
+
+    boy.kycStatus = kycStatus;
+    if (kycStatus === 'rejected') {
+        boy.kycRejectionReason = String(reason || '').trim();
+    } else if (kycStatus === 'verified') {
+        boy.kycRejectionReason = '';
+    }
+
+    await boy.save();
+
+    // Notify the delivery boy
+    await createNotification({
+        recipientId: boy._id,
+        recipientType: 'delivery',
+        title: kycStatus === 'verified' ? 'KYC Verified' : 'KYC Update Required',
+        message: kycStatus === 'verified' 
+            ? 'Your bank details and KYC have been verified. Payouts are now enabled.' 
+            : `Your KYC was rejected. Reason: ${boy.kycRejectionReason || 'Please check and resubmit.'}`,
+        type: 'system',
+        data: { kycStatus, reason: boy.kycRejectionReason }
+    });
+
+    res.status(200).json(
+        new ApiResponse(200, boy, `KYC status updated to ${kycStatus}`)
     );
 });

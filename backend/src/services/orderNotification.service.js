@@ -15,7 +15,14 @@ export const OrderNotificationService = {
     notifyOrderUpdate: async (orderId, status, options = {}) => {
         try {
             const order = await Order.findById(orderId).populate('vendorItems.vendorId');
-            if (!order) return;
+            if (!order) {
+                console.error(`❌ [NOTIFICATION ERROR] Order NOT found: ${orderId}. If inside transaction, this is a visibility bug.`);
+                return;
+            }
+
+            console.log(`\n--- 🔔 [ORDER NOTIFICATION] ---`);
+            console.log(`Order: ${order.orderId} (${order._id})`);
+            console.log(`Status Update: ${status}`);
 
             const { title, message, data = {} } = options;
             const notificationTitle = title || `Order Update: ${status.replace(/_/g, ' ')}`;
@@ -25,6 +32,7 @@ export const OrderNotificationService = {
 
             // 1. Customer
             if (order.userId) {
+                console.log(`👤 [NOTIFY USER] UserID: ${order.userId}`);
                 recipients.push({
                     id: order.userId,
                     type: 'user',
@@ -33,7 +41,9 @@ export const OrderNotificationService = {
                 });
                 
                 // Real-time status update for customer
-                emitEvent(`user_${order.userId}`, 'order_status_updated', {
+                const userRoom = `user_${order.userId}`;
+                console.log(`📡 [SOCKET EMIT] Room: ${userRoom}, Event: order_status_updated`);
+                emitEvent(userRoom, 'order_status_updated', {
                     orderId: order.orderId,
                     status,
                     message: notificationMessage
@@ -42,6 +52,8 @@ export const OrderNotificationService = {
 
             // 2. Vendors
             const vendorIds = [...new Set(order.vendorItems.map(vi => String(vi.vendorId?._id || vi.vendorId)))];
+            console.log(`🏪 [NOTIFY VENDORS] Found ${vendorIds.length} vendors: ${vendorIds.join(', ')}`);
+            
             vendorIds.forEach(vId => {
                 recipients.push({
                     id: vId,
@@ -52,14 +64,17 @@ export const OrderNotificationService = {
                 });
 
                 // Real-time event for Vendor Dashboard (especially for buzzer/popup)
+                const vendorRoom = `vendor_${vId}`;
                 if (status === 'pending') {
-                    emitEvent(`vendor_${vId}`, 'order_created', {
+                    console.log(`📡 [SOCKET EMIT] Room: ${vendorRoom}, Event: order_created (New Order Alert)`);
+                    emitEvent(vendorRoom, 'order_created', {
                         ...order.toObject(),
                         id: order._id, // compatibility
                         message: `New Order #${order.orderId} received!`
                     });
                 } else {
-                    emitEvent(`vendor_${vId}`, 'order_status_updated', {
+                    console.log(`📡 [SOCKET EMIT] Room: ${vendorRoom}, Event: order_status_updated`);
+                    emitEvent(vendorRoom, 'order_status_updated', {
                         orderId: order.orderId,
                         status,
                         message: notificationMessage
@@ -69,6 +84,7 @@ export const OrderNotificationService = {
 
             // 3. Delivery Partner
             if (order.deliveryBoyId) {
+                console.log(`🚴 [NOTIFY DELIVERY] RiderID: ${order.deliveryBoyId}`);
                 recipients.push({
                     id: order.deliveryBoyId,
                     type: 'delivery',
@@ -78,7 +94,9 @@ export const OrderNotificationService = {
                 });
 
                 // Real-time status update for assigned delivery boy
-                emitEvent(`delivery_${order.deliveryBoyId}`, 'order_status_updated', {
+                const deliveryRoom = `delivery_${order.deliveryBoyId}`;
+                console.log(`📡 [SOCKET EMIT] Room: ${deliveryRoom}, Event: order_status_updated`);
+                emitEvent(deliveryRoom, 'order_status_updated', {
                     orderId: order.orderId,
                     status,
                     message: notificationMessage
@@ -86,7 +104,8 @@ export const OrderNotificationService = {
 
                 // If specialized status (e.g. searching/pending), also emit specialized event if frontend expects it
                 if (status === 'ready_for_pickup' || status === 'pending' || status === 'searching') {
-                    emitEvent(`delivery_${order.deliveryBoyId}`, 'order_ready_for_pickup', {
+                    console.log(`📡 [SOCKET EMIT] Room: ${deliveryRoom}, Event: order_ready_for_pickup`);
+                    emitEvent(deliveryRoom, 'order_ready_for_pickup', {
                         orderId: order.orderId,
                         id: order.orderId,
                         pickupLocation: order.pickupLocation,
@@ -98,6 +117,7 @@ export const OrderNotificationService = {
             }
 
             // Execute notifications (DB persistence + Push)
+            console.log(`💾 [DB PERSIST] Creating ${recipients.length} notification records...`);
             const tasks = recipients
                 .filter(r => String(r.id) !== String(options.excludeRecipientId))
                 .map(r => createNotification({
@@ -112,6 +132,7 @@ export const OrderNotificationService = {
 
             // Generic Order Tracking Room Broadcast
             const trackingRoom = `order_${order.orderId}`;
+            console.log(`📡 [SOCKET EMIT] Room: ${trackingRoom}, Event: order_status_updated (Generic Tracking)`);
             emitEvent(trackingRoom, 'order_status_updated', {
                 orderId: order.orderId,
                 status,
@@ -119,6 +140,7 @@ export const OrderNotificationService = {
             });
 
             await Promise.allSettled(tasks);
+            console.log(`--- ✅ [NOTIFICATION COMPLETE] ---\n`);
         } catch (error) {
             console.error('OrderNotificationService Error:', error.message);
         }

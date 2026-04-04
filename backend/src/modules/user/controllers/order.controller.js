@@ -13,9 +13,10 @@ import mongoose from 'mongoose';
 import { createNotification } from '../../../services/notification.service.js';
 import { calculateVendorShippingForGroups } from '../../../services/vendorShipping.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
-import { calculateDistance } from '../../../utils/geo.js';
+import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
 import Vendor from '../../../models/Vendor.model.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
+import { geocodeAddress, getDistanceMatrix } from '../../../services/googleMaps.service.js';
 
 const normalizeVariantPart = (value) => String(value || '').trim().toLowerCase();
 const normalizeAxisName = (value) =>
@@ -201,6 +202,7 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
 // POST /api/user/orders
 export const placeOrder = asyncHandler(async (req, res) => {
     const { items, shippingAddress, paymentMethod, couponCode, shippingOption, orderType, deliveryType, deviceToken } = req.body;
+    console.log("STEP 3 - req.body.customerLocation:", req.body.dropoffLocation);
 
     // Validate order type
     const allowedOrderTypes = ['check_and_buy', 'try_and_buy'];
@@ -238,6 +240,10 @@ export const placeOrder = asyncHandler(async (req, res) => {
         }
     }
 
+    console.log(`\n--- 📦 [PLACE ORDER] ---`);
+    console.log(`User/Guest: ${idempotencyScope}`);
+    console.log(`Items: ${items.length}, Type: ${orderType}, Delivery: ${deliveryType}`);
+
     // 1. Validate items and calculate subtotal
     let subtotal = 0;
     const enrichedItems = [];
@@ -249,6 +255,9 @@ export const placeOrder = asyncHandler(async (req, res) => {
             'commissionRate storeName shippingEnabled defaultShippingRate freeShippingThreshold shopLocation'
         );
         if (!product) throw new ApiError(404, `Product not found: ${item.productId}`);
+        
+        console.log(`🛒 [ITEM] ${product.name} x${item.quantity}, Price: ${product.price}, Vendor: ${product.vendorId.storeName}`);
+
         if (product.stock === 'out_of_stock') throw new ApiError(400, `${product.name} is out of stock.`);
         if (product.stockQuantity < item.quantity) throw new ApiError(400, `Only ${product.stockQuantity} units of ${product.name} available.`);
 
@@ -304,6 +313,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
         vendorMap[vid].subtotal += itemSubtotal;
         vendorMap[vid].shopLocation = product.vendorId.shopLocation;
     }
+    console.log(`[OrderCalc] Subtotal: ₹${subtotal}, Vendors: ${Object.keys(vendorMap).length}`);
 
     // 2. Validate coupon
     let couponDiscount = 0;
@@ -325,10 +335,26 @@ export const placeOrder = asyncHandler(async (req, res) => {
         appliedCoupon = coupon;
     }
 
-    // 3. Calculate distance-based shipping
-    const dropoffCoords = req.body.dropoffLocation?.coordinates || [0, 0];
+    // 3. Resolve Dropoff Location & Calculate distance-based shipping
+    let dropoffCoords = req.body.dropoffLocation?.coordinates;
+    const isInvalidCoords = !dropoffCoords || (dropoffCoords[0] === 0 && dropoffCoords[1] === 0);
+
+    if (isInvalidCoords) {
+        console.log(`🔍 [Geocoding] Missing coordinates. Attempting geocode for address...`);
+        const fullAddress = `${shippingAddress.address}, ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zipCode}, ${shippingAddress.country}`;
+        const geocoded = await geocodeAddress(fullAddress);
+        if (geocoded) {
+            console.log(`✅ [Geocoding] Success:`, geocoded);
+            dropoffCoords = geocoded;
+        } else {
+            console.warn(`❌ [Geocoding] No results. Falling back to [0, 0].`);
+            dropoffCoords = [0, 0];
+        }
+    }
+
     const shippingByVendor = {};
     let totalShipping = 0;
+    let maxDistanceToCustomer = 0;
 
     for (const vid in vendorMap) {
         const v = vendorMap[vid];
@@ -338,8 +364,18 @@ export const placeOrder = asyncHandler(async (req, res) => {
         }
 
         const vendorCoords = v.shopLocation?.coordinates || [0, 0];
-        const distKm = calculateDistance(vendorCoords, dropoffCoords);
+        let distKm = 0;
+
+        // Try Google Distance Matrix first for accuracy
+        const matrixResult = await getDistanceMatrix(vendorCoords, dropoffCoords);
+        if (matrixResult) {
+            distKm = matrixResult.distance;
+        } else {
+            // Fallback to Haversine
+            distKm = calculateDistance(vendorCoords, dropoffCoords);
+        }
         v.distance = distKm;
+        if (distKm > maxDistanceToCustomer) maxDistanceToCustomer = distKm;
 
         // Formula: 0-3km = 25, then 9 per additional km
         let fee = 25;
@@ -355,12 +391,14 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
         shippingByVendor[vid] = fee;
         totalShipping += fee;
+        console.log(`🚚 [SHIPPING] Vendor: ${v.vendorName}, Dist: ${distKm}km, Fee: ₹${fee}`);
     }
     const shipping = totalShipping;
 
     // 4. Calculate tax (18%)
     const tax = parseFloat(((subtotal - couponDiscount) * 0.18).toFixed(2));
     const total = parseFloat((subtotal - couponDiscount + shipping + tax).toFixed(2));
+    console.log(`💰 [TOTALS] Shipping: ₹${shipping}, Tax: ₹${tax}, Grand Total: ₹${total}`);
 
     // 5. Build vendor item groups
     const vendorItems = Object.values(vendorMap).map((v) => {
@@ -417,8 +455,10 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 couponCode: couponCode?.toUpperCase(),
                 couponDiscount,
                 orderType,
-                pickupLocation: Object.values(vendorMap)[0]?.shopLocation || undefined, // Use first vendor's location for pickup group
-                dropoffLocation: req.body.dropoffLocation || undefined,
+                pickupLocation: Object.values(vendorMap)[0]?.shopLocation || { type: 'Point', coordinates: [0, 0] },
+                dropoffLocation: { type: 'Point', coordinates: dropoffCoords },
+                deliveryDistance: maxDistanceToCustomer,
+                deliveryEarnings: getDeliveryEarning(maxDistanceToCustomer),
                 trackingNumber: generateTrackingNumber(),
                 estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // +5 days
                 idempotencyKey: idempotencyKey || undefined,
@@ -427,14 +467,18 @@ export const placeOrder = asyncHandler(async (req, res) => {
             }], { session });
 
             order = createdOrder;
+            console.log("STEP 4 - Saved order.customerLocation:", order.dropoffLocation);
+        });
 
-            // Unified Notification to all parties (Customer will get 'pending' update, Vendors will get 'new order' alert)
-            await OrderNotificationService.notifyOrderUpdate(order._id, 'pending', {
-                excludeRecipientId: userId, // Customer knows they placed it
+        // 10. Unified Notification to all parties (CALLED OUTSIDE TRANSACTION)
+        if (order && !idempotentReplay) {
+            console.log("STEP 5 - Emitting Order:", order);
+            OrderNotificationService.notifyOrderUpdate(order._id, 'pending', {
+                excludeRecipientId: userId,
                 title: 'New Order Received!',
                 message: `You have a new ${orderType?.replace(/_/g, ' ') || 'order'} of Rs.${order.total}.`
-            });
-        });
+            }).catch(err => console.error('[OrderDebug] Notification failed:', err));
+        }
     } catch (err) {
         if (idempotencyKey && err?.code === 11000) {
             const existingOrder = await Order.findOne({ idempotencyScope, idempotencyKey })

@@ -197,40 +197,88 @@ api.interceptors.response.use(
     const getUnderstandableMessage = (err) => {
       const status = err.response?.status;
       const data = err.response?.data;
-      
-      if (status === 401) return 'Session expired. Please login again.';
+      const originalRequest = err.config || {};
+      const url = originalRequest.url || '';
+      const scope = getScopeFromUrl(url);
+
+      // 1. If it's an auth request (login/register), always prefer server-provided message
+      if (isExcludedAuthRequest(scope, url)) {
+        return data?.message || data?.error || 'Authentication failed. Please try again.';
+      }
+
+      // 2. Specific status code handling
+      if (status === 401) {
+        const token = localStorage.getItem(AUTH_SCOPES[scope].accessKey);
+        // Distinguish between actual expiration and just not being logged in
+        if (!token) return 'Access restricted. Please log in to continue.';
+        return 'Your session has expired. Please log in again.';
+      }
+
       if (status === 403) return 'You are not authorized to perform this action.';
       if (status === 404) return 'The requested information was not found.';
       if (status === 429) return 'Taking too many actions? Please wait a few seconds.';
       if (status >= 500) return 'Our servers are currently busy. Please try again in a moment.';
-      
-      // Specific business logic errors
+
+      // 3. Specific business logic errors
       if (data?.message?.toLowerCase().includes('out of stock')) return 'Sorry, one or more items just went out of stock.';
       if (data?.message?.toLowerCase().includes('coupon')) return 'This coupon code is not valid or has expired.';
-      
+
       return data?.message || err.message || 'Something went wrong. Please check your connection.';
     };
 
     const understandableMessage = getUnderstandableMessage(error);
 
-    const is401_403 = error.response?.status === 401 || error.response?.status === 403;
-    const isCrossScopeError = is401_403 && scope !== pathScope;
+    const isAuthPage =
+      currentPath === '/login' ||
+      currentPath === '/register' ||
+      currentPath === '/verification' ||
+      currentPath === '/forgot-password' ||
+      currentPath === '/reset-password' ||
+      currentPath.includes('/admin/login') ||
+      currentPath.includes('/vendor/login') ||
+      currentPath.includes('/delivery/login');
 
-    // Suppress toast for GPS location update rate limits (429 on profile update)
-    const is429 = error.response?.status === 429;
-    const isLocationUpdate =
-      originalRequest.url?.includes('/delivery/auth/profile') &&
-      originalRequest.method?.toLowerCase() === 'put';
+    const isPublicPage =
+      currentPath === '/' ||
+      currentPath === '/home' ||
+      currentPath === '/shop' ||
+      currentPath.startsWith('/products') ||
+      currentPath.startsWith('/product/') ||
+      currentPath === '/offers' ||
+      currentPath === '/events';
 
-    if (!is429 && !isLocationUpdate && !isCrossScopeError) {
+    // Suppress toast for:
+    // 1. Silent location updates (429)
+    // 2. Cross-scope errors (e.g. user API failing while on admin page)
+    // 3. 401s on public pages for guest users (unless they triggered a specific action)
+    const token = localStorage.getItem(AUTH_SCOPES[scope].accessKey);
+    const status = error.response?.status;
+    const url = originalRequest.url || '';
+
+    const is401_403 = status === 401 || status === 403;
+    const is429 = status === 429;
+    const isLocationUpdate = url.includes('/location');
+    const isCrossScopeError = scope !== pathScope;
+
+    const isGuestOnPublicPage = is401_403 && isPublicPage && !token;
+
+    if (!is429 && !isLocationUpdate && !isCrossScopeError && !isGuestOnPublicPage) {
       toast.error(understandableMessage, {
+        duration: 4000,
+        position: 'top-center',
         style: {
-          borderRadius: '16px',
-          background: '#111',
+          background: 'rgba(17, 17, 17, 0.9)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           color: '#fff',
-          fontSize: '13px',
-          fontWeight: 'bold',
-          padding: '12px 20px',
+          padding: '14px 24px',
+          borderRadius: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          fontSize: '14px',
+          fontWeight: '500',
+          boxShadow: '0 12px 30px rgba(0,0,0,0.4)',
+          maxWidth: '90%',
+          textAlign: 'center',
         },
         iconTheme: {
           primary: '#ff4b4b',
@@ -251,27 +299,10 @@ api.interceptors.response.use(
 
       const routeConfig = AUTH_SCOPES[scope];
       if (scope === 'user') {
-        const isAuthPage =
-          currentPath === '/login' ||
-          currentPath === '/register' ||
-          currentPath === '/verification' ||
-          currentPath === '/forgot-password' ||
-          currentPath === '/reset-password';
-
-        const isPublicPage =
-          currentPath === '/' ||
-          currentPath === '/home' ||
-          currentPath === '/shop' ||
-          currentPath.startsWith('/products') ||
-          currentPath.startsWith('/product/') ||
-          currentPath === '/offers' ||
-          currentPath === '/events';
-
         if (!isAuthPage && !isPublicPage) {
           redirectTo(routeConfig.loginPath);
         }
       } else if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {
-        toast.error('Session expired. Please login again.');
         redirectTo(routeConfig.loginPath);
       }
     }

@@ -2,11 +2,22 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import api from '../../../shared/utils/api';
 
-const normalizeDeliveryBoy = (raw) => {
-  if (!raw) return null;
+const normalizeDeliveryBoy = (input) => {
+  if (!input) return null;
+  // Handle ApiResponse wrapper
+  const raw = input.data && input.statusCode ? input.data : input;
+  
   const id = raw.id || raw._id;
   const status = raw.status || (raw.isAvailable === false ? 'offline' : 'available');
-  return { ...raw, id, _id: id, status };
+  return { 
+    ...raw, 
+    id, 
+    _id: id, 
+    status,
+    bankDetails: raw.bankDetails || {},
+    upiId: raw.upiId || '',
+    kycStatus: raw.kycStatus || 'none'
+  };
 };
 
 const mapBackendStatusToUI = (status) => {
@@ -47,6 +58,10 @@ const normalizeOrder = (raw) => {
   const derivedLat = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[1] !== 0 ? dropoffCoords[1] : raw?.latitude || null;
   const derivedLng = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[0] !== 0 ? dropoffCoords[0] : raw?.longitude || null;
 
+  const pickupCoords = raw?.pickupLocation?.coordinates;
+  const vendorLat = Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[1] !== 0 ? pickupCoords[1] : null;
+  const vendorLng = Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[0] !== 0 ? pickupCoords[0] : null;
+
   return {
     ...raw,
     id: raw?.orderId || raw?._id || raw?.id,
@@ -57,15 +72,22 @@ const normalizeOrder = (raw) => {
     vendorName: vendorData.storeName || vendorFirst?.vendorName || 'Vendor',
     vendorAddress,
     total: Number(raw?.total ?? 0),
-    deliveryFee: Number(raw?.deliveryEarnings ?? raw?.shipping ?? 0),
+    deliveryEarnings: Number(raw?.deliveryEarnings ?? 0),
+    deliveryDistance: Number(raw?.deliveryDistance ?? 0),
     status: uiStatus,
     rawStatus: backendStatus,
     items: Array.isArray(raw?.items) ? raw.items : [],
     itemCount,
     latitude: derivedLat,
     longitude: derivedLng,
+    vendorLatitude: vendorLat,
+    vendorLongitude: vendorLng,
     paymentMethod: raw?.paymentMethod || 'standard',
     paymentStatus: raw?.paymentStatus || 'pending',
+    orderType: raw?.orderType || 'standard',
+    isTryAndBuy: raw?.orderType === 'try_and_buy' || raw?.orderType === 'check_and_buy',
+    isCheckAndBuy: raw?.orderType === 'check_and_buy',
+    tryAndBuyCompleted: !!raw?.deliveryFlow?.tryAndBuyCompletedAt,
   };
 };
 
@@ -196,6 +218,14 @@ export const useDeliveryAuthStore = create(
           const merged = normalizeDeliveryBoy({ ...get().deliveryBoy, ...(res.data || res) });
           set({ deliveryBoy: merged }); return merged;
         } catch (e) { throw e; }
+      },
+      updateProfile: async (data) => {
+        set({ isLoading: true });
+        try {
+          const res = await api.put('/delivery/auth/profile', data);
+          const user = normalizeDeliveryBoy(res.data || res);
+          set({ deliveryBoy: user, isLoading: false }); return user;
+        } catch (e) { set({ isLoading: false }); throw e; }
       },
       updateStatus: async (status) => {
         const current = get().deliveryBoy;

@@ -98,9 +98,11 @@ export const createNotification = async ({ recipientId, recipientType, title, me
     let notification = null;
     if (recipientId) {
         notification = await Notification.create({ recipientId, recipientType, title, message, type, data });
+        console.log(`💾 [DB NOTIFICATION] ID: ${notification._id}, For: ${recipientType}_${recipientId}`);
 
         // 2. Real-time socket updates (for active web clients)
         const room = recipientType === 'admin' ? 'admin' : `${recipientType}_${recipientId}`;
+        console.log(`📡 [SOCKET NOTIFY] Room: ${room}, Event: new_notification`);
         emitEvent(room, 'new_notification', notification);
     }
 

@@ -1,13 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiMapPin, FiNavigation, FiZap, FiRefreshCw, FiShare2, FiCheckCircle } from 'react-icons/fi';
-import DeliveryBoyLiveMap from '../../../shared/components/DeliveryBoyLiveMap';
+import TrackingMap from '../../../shared/components/TrackingMap';
 import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 
-const DashboardMap = ({ currentLocation, isOnline, isLoaded, height = '300px', hideHeader = false }) => {
+const DashboardMap = ({ currentLocation, activeOrder, isOnline, isLoaded, height = '300px', hideHeader = false }) => {
   const [isSharing, setIsSharing] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const { updateLocation } = useDeliveryAuthStore();
+
+  useEffect(() => {
+    if (activeOrder) {
+      console.log('🗺️ [DashboardMap] Active mission data:', {
+        id: activeOrder.id,
+        status: activeOrder.status,
+        customer: { lat: activeOrder.latitude, lng: activeOrder.longitude },
+        vendor: { lat: activeOrder.vendorLatitude, lng: activeOrder.vendorLongitude },
+        rider: currentLocation
+      });
+    }
+  }, [activeOrder, currentLocation]);
 
   const handleShareLocation = async () => {
     if (!isOnline) {
@@ -30,6 +43,14 @@ const DashboardMap = ({ currentLocation, isOnline, isLoaded, height = '300px', h
       setTimeout(() => setIsSharing(false), 2000);
     }
   };
+
+  const vendorCoords = activeOrder?.vendorLatitude && activeOrder?.vendorLongitude 
+    ? { lat: Number(activeOrder.vendorLatitude), lng: Number(activeOrder.vendorLongitude) } 
+    : null;
+    
+  const customerCoords = activeOrder?.latitude && activeOrder?.longitude 
+    ? { lat: Number(activeOrder.latitude), lng: Number(activeOrder.longitude) } 
+    : null;
 
   return (
     <motion.div 
@@ -55,35 +76,54 @@ const DashboardMap = ({ currentLocation, isOnline, isLoaded, height = '300px', h
             </div>
           </div>
           
-          <button 
-            onClick={handleShareLocation}
-            disabled={!isOnline || isSharing}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all
-              ${isOnline 
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200 active:scale-95' 
-                : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
-            `}
-          >
-            {isSharing ? (
-              <>
-                <FiCheckCircle className="animate-bounce" /> Shared
-              </>
-            ) : (
-              <>
-                <FiShare2 /> Share Location
-              </>
-            )}
-          </button>
+          {activeOrder && (
+            <div className="flex flex-col items-end mr-auto ml-10">
+               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Active Task</span>
+               <span className="text-[10px] font-black text-indigo-600 uppercase">#{String(activeOrder.id).slice(-6)}</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowDebug(!showDebug)}
+              className="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 transition-all active:scale-95 border border-slate-200"
+              title="Debug Coords"
+            >
+              <FiActivity size={18} />
+            </button>
+
+            <button 
+              onClick={handleShareLocation}
+              disabled={!isOnline || isSharing}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all
+                ${isOnline 
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200 active:scale-95' 
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'}
+              `}
+            >
+              {isSharing ? (
+                <>
+                  <FiCheckCircle className="animate-bounce" /> Shared
+                </>
+              ) : (
+                <>
+                  <FiShare2 /> Share Location
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
       <div style={{ height }} className="w-full relative">
         {currentLocation ? (
-          <DeliveryBoyLiveMap 
-            currentLocation={currentLocation}
-            // Passing minimal props for dashboard view
-            distanceTraveled={0}
-            earnings={0}
+          <TrackingMap 
+            deliveryLocation={currentLocation}
+            customerLocation={customerCoords}
+            vendorLocation={vendorCoords}
+            customerAddress={activeOrder?.address}
+            vendorAddress={activeOrder?.vendorAddress}
+            status={activeOrder?.status}
             isLoaded={isLoaded}
           />
         ) : (
@@ -98,12 +138,46 @@ const DashboardMap = ({ currentLocation, isOnline, isLoaded, height = '300px', h
 
         {/* Custom Mini Info Overlay */}
         <AnimatePresence>
-          {isOnline && currentLocation && (
+          {(isOnline || showDebug) && currentLocation && (
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="absolute left-4 bottom-4 z-10"
+              className="absolute left-4 bottom-4 z-10 space-y-2 pointer-events-none"
             >
+              {showDebug && (
+                <div className="bg-slate-900 shadow-2xl rounded-2xl p-4 border border-white/10 min-w-[200px]">
+                  <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 border-b border-white/5 pb-2">Mission Telemetry</h4>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase">Rider</span>
+                      <span className="text-[10px] font-mono text-emerald-400">{currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase">Vendor</span>
+                      <span className={`text-[10px] font-mono ${vendorCoords ? 'text-indigo-400' : 'text-rose-500'}`}>
+                        {vendorCoords ? `${vendorCoords.lat.toFixed(4)}, ${vendorCoords.lng.toFixed(4)}` : 'MISSING DATA'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase">Customer</span>
+                      <span className={`text-[10px] font-mono ${customerCoords ? 'text-indigo-400' : 'text-rose-500'}`}>
+                        {customerCoords ? `${customerCoords.lat.toFixed(4)}, ${customerCoords.lng.toFixed(4)}` : 'MISSING DATA'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {(!vendorCoords || !customerCoords) && (
+                    <div className="mt-4 pt-3 border-t border-white/5 flex items-start gap-2 text-rose-400">
+                      <FiAlertCircle size={12} className="shrink-0 mt-0.5" />
+                      <p className="text-[8px] font-bold leading-tight">Markers cannot be placed if mission coordinates are missing from the order object.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="bg-[#0F172A]/90 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/10 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                   <FiZap size={14} />
@@ -122,5 +196,6 @@ const DashboardMap = ({ currentLocation, isOnline, isLoaded, height = '300px', h
     </motion.div>
   );
 };
+
 
 export default DashboardMap;

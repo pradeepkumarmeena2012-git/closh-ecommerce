@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiTruck, FiNavigation, FiZap, FiArrowRight, FiActivity, FiAlertCircle } from 'react-icons/fi';
+import { FiTruck, FiNavigation, FiZap, FiArrowRight, FiActivity, FiAlertCircle, FiTrendingUp } from 'react-icons/fi';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import PageTransition from '../../../shared/components/PageTransition';
 import toast from 'react-hot-toast';
@@ -25,12 +25,15 @@ const DeliveryDashboard = () => {
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
 
   // --- Real-time Delivery Tracking ---
-  const activeOrdersForTracking = recentOrders.filter(o =>
-    ['picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase())
+  const activeTasks = recentOrders.filter(o => 
+    ['assigned', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase())
   );
   
+  // Prioritize "on-going" tasks for the map focus
+  const primaryOrder = activeTasks.find(o => ['picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase())) || activeTasks[0];
+
   // Capture current location and sync with backend
-  const currentLocation = useDeliveryTracking(deliveryBoy?.id, activeOrdersForTracking);
+  const currentLocation = useDeliveryTracking(deliveryBoy?.id, activeTasks);
 
   const loadDashboardData = async () => {
     try {
@@ -53,13 +56,32 @@ const DeliveryDashboard = () => {
     };
     window.addEventListener('delivery-dashboard-refresh', handleRefresh);
 
+    socketService.on('order_assigned', (data) => {
+      console.log("STEP 6 - Received Data (assigned):", data);
+      handleRefresh();
+    });
+    socketService.on('order_accepted', (data) => {
+      console.log("STEP 6 - Received Data (accepted):", data);
+      handleRefresh();
+    });
+    socketService.on('newOrder', (data) => {
+      console.log("STEP 6 - Received Data (newOrder):", data);
+      handleRefresh();
+    });
     socketService.on('order_picked_up', handleRefresh);
     socketService.on('order_delivered', handleRefresh);
+    socketService.on('delivery_location_sync', handleRefresh);
+
+    const interval = setInterval(loadDashboardData, 30000); // 30s fallback refresh
 
     return () => {
       window.removeEventListener('delivery-dashboard-refresh', handleRefresh);
-      socketService.off('order_picked_up');
-      socketService.off('order_delivered');
+      socketService.off('order_assigned', handleRefresh);
+      socketService.off('order_accepted', handleRefresh);
+      socketService.off('order_picked_up', handleRefresh);
+      socketService.off('order_delivered', handleRefresh);
+      socketService.off('delivery_location_sync', handleRefresh);
+      clearInterval(interval);
     };
   }, []);
 
@@ -102,6 +124,7 @@ const DeliveryDashboard = () => {
         <div className="absolute inset-0 z-0">
           <DashboardMap 
             currentLocation={currentLocation} 
+            activeOrder={primaryOrder}
             isOnline={isOnline} 
             isLoaded={isLoaded}
             height="100%"
@@ -194,6 +217,18 @@ const DeliveryDashboard = () => {
                       </div>
                       <div className="flex items-center gap-1 mt-1">
                         <p className="text-[10px] text-slate-400 font-bold truncate tracking-tight">{order.address}</p>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 pt-1 border-t border-white/10">
+                        <div className="flex items-center gap-1">
+                          <FiTrendingUp size={10} className="text-emerald-400" />
+                          <span className="text-[10px] font-black text-emerald-400 tracking-tighter">₹{order.deliveryEarnings || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-indigo-300">
+                          <FiNavigation size={10} />
+                          <span className="text-[10px] font-black tracking-tighter">
+                            {order.deliveryDistance ? `${Number(order.deliveryDistance).toFixed(1)} KM` : '0 KM'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </motion.div>

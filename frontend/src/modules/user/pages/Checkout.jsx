@@ -234,6 +234,10 @@ const MobileCheckout = () => {
 
   const handleSelectAddress = (address) => {
     setSelectedAddressId(address.id);
+    const lat = address.coordinates?.coordinates?.[1] || address.coordinates?.lat || null;
+    const lng = address.coordinates?.coordinates?.[0] || address.coordinates?.lng || null;
+    console.log("STEP 1 - Selected Location:", lat, lng);
+    
     setFormData({
       ...formData,
       name: address.fullName,
@@ -323,6 +327,9 @@ const MobileCheckout = () => {
     } else if (step === 2) {
       setIsPlacingOrder(true);
       try {
+        const customerLocation = selectedCoordinates ? { type: 'Point', coordinates: selectedCoordinates } : null;
+        console.log("STEP 2 - Sending customerLocation:", customerLocation);
+        
         const order = await createOrder({
           userId: isAuthenticated ? user?.id : null,
           items: items,
@@ -336,7 +343,7 @@ const MobileCheckout = () => {
           couponCode: appliedCoupon ? (appliedCoupon.code || couponCode.trim().toUpperCase()) : null,
           orderType: formData.orderType || "check_and_buy",
           deliveryType: 'online',
-          dropoffLocation: selectedCoordinates ? { type: 'Point', coordinates: selectedCoordinates } : null,
+          dropoffLocation: customerLocation,
         });
 
         clearCart();

@@ -54,6 +54,19 @@ const deliveryBoySchema = new mongoose.Schema(
         cashCollected: { type: Number, default: 0 },
         totalEarnings: { type: Number, default: 0 },
         availableBalance: { type: Number, default: 0 },
+        bankDetails: {
+            accountHolderName: { type: String, trim: true },
+            accountNumber: { type: String, trim: true },
+            ifscCode: { type: String, trim: true },
+            bankName: { type: String, trim: true },
+        },
+        upiId: { type: String, trim: true },
+        kycStatus: {
+            type: String,
+            enum: ['none', 'pending', 'verified', 'rejected'],
+            default: 'none',
+        },
+        kycRejectionReason: { type: String, trim: true },
         fcmTokens: [
             {
                 token: { type: String },

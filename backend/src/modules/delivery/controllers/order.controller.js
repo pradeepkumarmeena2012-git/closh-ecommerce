@@ -148,6 +148,9 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
 // GET /api/delivery/orders/dashboard-summary
 export const getDashboardSummary = asyncHandler(async (req, res) => {
     const deliveryBoyId = req.user.id;
+    const rider = await DeliveryBoy.findById(deliveryBoyId);
+    if (!rider) throw new ApiError(404, 'Rider profile not found.');
+
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -182,7 +185,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             {
                 $group: {
                     _id: null,
-                    totalDeliveryFees: { $sum: { $ifNull: ['$deliveryEarnings', { $ifNull: ['$shipping', 0] }] } },
+                    totalDeliveryFees: { $sum: { $ifNull: ['$deliveryEarnings', 0] } },
                 },
             },
         ]),
@@ -240,6 +243,8 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             Number(countByStatus.picked_up || 0) +
             Number(countByStatus.out_for_delivery || 0),
         earnings: Number(earningsStats?.[0]?.totalDeliveryFees || 0),
+        totalEarnings: Number(rider.totalEarnings || 0),
+        availableBalance: Number(rider.availableBalance || 0),
         cashInHand: Number(cashRow.cashInHand || 0),
         totalCashCollected: Number(cashRow.totalCashCollected || 0),
         recentOrders: augmentedOrders,
@@ -267,7 +272,7 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
                 $group: {
                     _id: null,
                     totalDeliveries: { $sum: 1 },
-                    earnings: { $sum: { $ifNull: ['$shipping', 0] } },
+                    earnings: { $sum: { $ifNull: ['$deliveryEarnings', 0] } },
                 },
             },
         ]),
@@ -301,7 +306,7 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
             }
         }
     ]);
-
+    const rider = await DeliveryBoy.findById(deliveryBoyId).select('totalEarnings availableBalance');
     const row = deliveredStats?.[0] || {};
     const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
 
@@ -312,6 +317,8 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
                 totalDeliveries: Number(row.totalDeliveries || 0),
                 completedToday: Number(completedTodayCount || 0),
                 earnings: Number(row.earnings || 0),
+                totalEarnings: Number(rider.totalEarnings || 0),
+                availableBalance: Number(rider.availableBalance || 0),
                 cashInHand: Number(cashRow.cashInHand || 0),
                 totalCashCollected: Number(cashRow.totalCashCollected || 0),
             },
@@ -500,6 +507,15 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         if (order.deliveryFlow) {
             order.deliveryFlow.phase = 'delivered';
         }
+        
+        // Sync vendorItems statuses
+        if (order.vendorItems && order.vendorItems.length > 0) {
+            order.vendorItems.forEach(group => {
+                group.status = 'delivered';
+                group.deliveredAt = new Date();
+            });
+        }
+
         await order.save();
 
         // Emit socket event for real-time tracking updates
@@ -537,6 +553,16 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     // ── CRITICAL: Actually persist the status change ──
     order.status = status;
     if (status === 'picked_up') order.pickedUpAt = new Date();
+    
+    // Sync vendorItems statuses
+    if (order.vendorItems && order.vendorItems.length > 0) {
+        order.vendorItems.forEach(group => {
+            group.status = status;
+            if (status === 'picked_up') group.pickedUpAt = new Date();
+            if (status === 'delivered') group.deliveredAt = new Date();
+        });
+    }
+
     // Sync deliveryFlow if it exists
     if (order.deliveryFlow) {
         const phaseMap = { picked_up: 'picked_up', out_for_delivery: 'out_for_delivery' };
@@ -797,6 +823,15 @@ export const handlePickup = asyncHandler(async (req, res) => {
     order.status = 'picked_up';
     order.pickedUpAt = new Date();
     order.pickupPhoto = pickupPhoto;
+
+    // Sync vendorItems statuses
+    if (order.vendorItems && order.vendorItems.length > 0) {
+        order.vendorItems.forEach(group => {
+            group.status = 'picked_up';
+            group.pickedUpAt = new Date();
+        });
+    }
+
     await order.save();
 
     emitEvent(`user_${order.userId}`, 'order_picked_up', { orderId: order.orderId });
@@ -824,6 +859,14 @@ export const handleStartDelivery = asyncHandler(async (req, res) => {
     flow.phase = 'out_for_delivery';
     flow.startedAt = new Date();
     order.status = 'out_for_delivery';
+
+    // Sync vendorItems statuses
+    if (order.vendorItems && order.vendorItems.length > 0) {
+        order.vendorItems.forEach(group => {
+            group.status = 'out_for_delivery';
+        });
+    }
+
     await order.save();
 
     emitEvent(`user_${order.userId}`, 'order_out_for_delivery', { orderId: order.orderId });
@@ -1001,11 +1044,12 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     if (!/^\d{6}$/.test(String(otp || '').trim())) {
         throw new ApiError(400, 'Valid 6-digit OTP is required.');
     }
-    if (!deliveryProofPhoto) throw new ApiError(400, 'Delivery proof photo is required.');
-    if (!openBoxPhoto) throw new ApiError(400, 'Open box photo is required.');
-
     const order = await findOrderForRider(req.params.id, req.user.id);
     const flow = ensureDeliveryFlow(order);
+
+    const isCodOrder = order.paymentMethod === 'cod' || order.paymentMethod === 'cash';
+    if (!deliveryProofPhoto) throw new ApiError(400, 'Delivery proof photo is required.');
+    if (isCodOrder && !openBoxPhoto) throw new ApiError(400, 'Open box photo (item verification) is required for COD orders.');
     if (flow.phase !== 'payment_pending') {
         throw new ApiError(409, `Cannot complete from phase "${flow.phase}". Expected: payment_pending.`);
     }
@@ -1043,6 +1087,14 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
         order.isCashSettled = false;
         order.codCollectionMethod = flow.paymentMethod;
         order.codCollectedAt = new Date();
+    }
+
+    // Sync vendorItems statuses
+    if (order.vendorItems && order.vendorItems.length > 0) {
+        order.vendorItems.forEach(group => {
+            group.status = 'delivered';
+            group.deliveredAt = new Date();
+        });
     }
 
     await order.save();

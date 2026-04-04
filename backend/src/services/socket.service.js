@@ -20,16 +20,16 @@ export const initSocket = (server) => {
     });
 
     io.on('connection', (socket) => {
-        console.log(`🔌 Client connected: ${socket.id}`);
+        console.log(`🔌 [SOCKET CONNECT] Client: ${socket.id}`);
 
         socket.on('join_room', (room) => {
             socket.join(room);
-            console.log(`🏠 Client ${socket.id} joined room: ${room}`);
+            console.log(`🏠 [ROOM JOIN] Client ${socket.id} joined: ${room}`);
         });
 
         socket.on('leave_room', (room) => {
             socket.leave(room);
-            console.log(`🏠 Client ${socket.id} left room: ${room}`);
+            console.log(`🏠 [ROOM LEAVE] Client ${socket.id} left: ${room}`);
         });
 
         // Targeted registration based on ID and role (for targeted notifications)
@@ -37,25 +37,25 @@ export const initSocket = (server) => {
             const room = `delivery_${deliveryBoyId}`;
             socket.join(room);
             socket.join('delivery_partners'); // Global room for new broadcasts
-            console.log(`🚴 Delivery Partner ${deliveryBoyId} registered and joined: ${room}`);
+            console.log(`🚴 [DELIVERY REGISTER] Partner: ${deliveryBoyId}, Room: ${room}`);
         });
 
         socket.on('batch_register', (batchId) => {
             const room = `batch_${batchId}`;
             socket.join(room);
-            console.log(`📦 Delivery Batch ${batchId} registered and joined: ${room}`);
+            console.log(`📦 [BATCH REGISTER] Batch: ${batchId}, Room: ${room}`);
         });
 
         socket.on('vendor_register', (vendorId) => {
             const room = `vendor_${vendorId}`;
             socket.join(room);
-            console.log(`🏪 Vendor ${vendorId} registered and joined: ${room}`);
+            console.log(`🏪 [VENDOR REGISTER] Vendor: ${vendorId}, Room: ${room}`);
         });
 
         socket.on('user_register', (userId) => {
             const room = `user_${userId}`;
             socket.join(room);
-            console.log(`👤 User ${userId} registered and joined: ${room}`);
+            console.log(`👤 [USER REGISTER] User: ${userId}, Room: ${room}`);
         });
 
         // --- Delivery Tracking System ---
@@ -64,7 +64,7 @@ export const initSocket = (server) => {
         socket.on('join_order_room', (orderId) => {
             const room = `order_${orderId}`;
             socket.join(room);
-            console.log(`📦 Client ${socket.id} joined tracking room: ${room}`);
+            console.log(`📦 [ORDER ROOM JOIN] Client ${socket.id} joined tracking: ${room}`);
         });
 
         // Delivery boy updates their location
@@ -72,6 +72,8 @@ export const initSocket = (server) => {
             const { lat, lng, deliveryBoyId, orderId, batchId } = payload;
             
             if (!lat || !lng || !deliveryBoyId) return;
+
+            console.log(`📍 [LOCATION UPDATE] ID: ${deliveryBoyId}, Pos: (${lat}, ${lng}), Order: ${orderId || 'N/A'}`);
 
             // 1. Update In-Memory Cache for performance (Mongo Persistence)
             locationCache.set(deliveryBoyId, {
@@ -136,7 +138,7 @@ export const initSocket = (server) => {
 
 
         socket.on('disconnect', () => {
-            console.log(`🔌 Client disconnected: ${socket.id}`);
+            console.log(`🔌 [SOCKET DISCONNECT] Client: ${socket.id}`);
         });
     });
 

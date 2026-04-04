@@ -230,6 +230,9 @@ export const updateDeliveryBoyStatus = (id, isActive) =>
 export const updateDeliveryBoyApplicationStatus = (id, applicationStatus, reason = '') =>
     api.patch(`/admin/delivery-boys/${id}/application-status`, { applicationStatus, reason });
 
+export const updateKycStatus = (id, kycStatus, reason = '') =>
+    api.patch(`/admin/delivery-boys/${id}/kyc-status`, { kycStatus, reason });
+
 export const settleCash = (id, amount) =>
     api.post(`/admin/delivery-boys/${id}/settle-cash`, { amount });
 

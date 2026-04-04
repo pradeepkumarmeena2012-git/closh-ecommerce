@@ -508,55 +508,72 @@ export const getProfile = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, deliveryBoy, 'Profile fetched.'));
 });
 
-// PUT /api/delivery/auth/profile
 export const updateProfile = asyncHandler(async (req, res) => {
-    const { name, phone, email, vehicleType, vehicleNumber, currentLocation, isAvailable, status } = req.body;
-    const update = {};
+    const { 
+        name, phone, email, 
+        vehicleType, vehicleNumber, 
+        emergencyContact, aadharNumber,
+        currentLocation, isAvailable, status,
+        bankDetails, upiId
+    } = req.body;
 
-    if (typeof name === 'string') {
-        const trimmedName = name.trim();
-        if (!trimmedName) throw new ApiError(400, 'Name is required.');
-        update.name = trimmedName;
-    }
+    const boy = await DeliveryBoy.findById(req.user.id);
+    if (!boy) throw new ApiError(404, 'Delivery partner not found.');
 
-    if (typeof phone === 'string') {
-        const trimmedPhone = phone.trim();
-        if (!trimmedPhone) throw new ApiError(400, 'Phone is required.');
-        update.phone = trimmedPhone;
-    }
-
-    if (typeof email === 'string') {
+    if (name) boy.name = name.trim();
+    if (phone) boy.phone = phone.trim();
+    if (email) {
         const normalizedEmail = email.trim().toLowerCase();
-        if (!normalizedEmail) throw new ApiError(400, 'Email is required.');
-        const existingEmail = await DeliveryBoy.findOne({
-            email: normalizedEmail,
-            _id: { $ne: req.user.id },
-        });
-        if (existingEmail) throw new ApiError(409, 'Email is already in use.');
-        update.email = normalizedEmail;
-    }
-
-    if (typeof vehicleType === 'string') update.vehicleType = vehicleType.trim();
-    if (typeof vehicleNumber === 'string') update.vehicleNumber = vehicleNumber.trim();
-    if (typeof currentLocation === 'object' && currentLocation !== null) update.currentLocation = currentLocation;
-
-    if (typeof status === 'string') {
-        const normalized = status.toLowerCase();
-        const allowed = ['available', 'busy', 'offline'];
-        if (!allowed.includes(normalized)) {
-            throw new ApiError(400, `Status must be one of: ${allowed.join(', ')}`);
+        if (normalizedEmail !== boy.email) {
+            const existingEmail = await DeliveryBoy.findOne({ email: normalizedEmail, _id: { $ne: req.user.id } });
+            if (existingEmail) throw new ApiError(409, 'Email is already in use.');
+            boy.email = normalizedEmail;
         }
-        update.status = normalized;
-        update.isAvailable = normalized !== 'offline';
-    } else if (typeof isAvailable === 'boolean') {
-        update.isAvailable = isAvailable;
-        update.status = isAvailable ? 'available' : 'offline';
+    }
+    if (vehicleType) boy.vehicleType = vehicleType.trim();
+    if (vehicleNumber) boy.vehicleNumber = vehicleNumber.trim();
+    if (emergencyContact) boy.emergencyContact = emergencyContact.trim();
+    if (aadharNumber) boy.aadharNumber = aadharNumber.trim();
+    
+    // Bank Details handling
+    if (bankDetails) {
+        const { accountHolderName, accountNumber, ifscCode, bankName } = bankDetails;
+        const normalizedBank = {
+            accountHolderName: (accountHolderName || '').trim(),
+            accountNumber: (accountNumber || '').trim(),
+            ifscCode: (ifscCode || '').trim(),
+            bankName: (bankName || '').trim()
+        };
+
+        const hasChanged = 
+            normalizedBank.accountNumber !== boy.bankDetails?.accountNumber ||
+            normalizedBank.ifscCode !== boy.bankDetails?.ifscCode;
+
+        boy.bankDetails = normalizedBank;
+        if (hasChanged) {
+            boy.kycStatus = 'pending';
+        }
     }
 
-    const deliveryBoy = await DeliveryBoy.findByIdAndUpdate(
-        req.user.id,
-        update,
-        { new: true, runValidators: true }
-    );
-    res.status(200).json(new ApiResponse(200, deliveryBoy, 'Profile updated.'));
+    if (typeof upiId === 'string') {
+        const trimmedUpi = upiId.trim();
+        if (trimmedUpi !== boy.upiId) {
+            boy.upiId = trimmedUpi;
+            boy.kycStatus = 'pending';
+        }
+    }
+
+    if (currentLocation) boy.currentLocation = currentLocation;
+
+    if (status) {
+        const normalized = status.toLowerCase();
+        boy.status = normalized;
+        boy.isAvailable = normalized !== 'offline';
+    } else if (typeof isAvailable === 'boolean') {
+        boy.isAvailable = isAvailable;
+        boy.status = isAvailable ? 'available' : 'offline';
+    }
+
+    await boy.save();
+    res.status(200).json(new ApiResponse(200, boy, 'Profile updated.'));
 });

@@ -8,6 +8,7 @@ export const deliveryListQuerySchema = Joi.object({
     search: Joi.string().trim().allow('').optional(),
     status: Joi.string().valid('active', 'inactive').optional(),
     applicationStatus: Joi.string().valid('pending', 'approved', 'rejected').optional(),
+    kycStatus: Joi.string().valid('none', 'pending', 'verified', 'rejected').optional(),
 });
 
 export const deliveryBoyIdParamSchema = Joi.object({
@@ -46,4 +47,9 @@ export const updateDeliveryApplicationStatusSchema = Joi.object({
 
 export const settleCashSchema = Joi.object({
     amount: Joi.number().min(0).optional(),
+});
+
+export const updateKycStatusSchema = Joi.object({
+    kycStatus: Joi.string().valid('pending', 'verified', 'rejected').required(),
+    reason: Joi.string().allow('').optional(),
 });

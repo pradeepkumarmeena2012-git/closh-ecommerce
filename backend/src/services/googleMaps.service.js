@@ -51,3 +51,36 @@ export const getDistanceMatrix = async (origin, destination) => {
         return null;
     }
 };
+
+/**
+ * Geocode an address to get [longitude, latitude] coordinates
+ * @param {String} address - The full address string
+ * @returns {Array|null} [longitude, latitude]
+ */
+export const geocodeAddress = async (address) => {
+    if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === 'your_google_maps_api_key') {
+        console.warn('Geocoding failed: Missing or invalid Google Maps API key.');
+        return null;
+    }
+
+    try {
+        const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+            params: {
+                address: address,
+                key: GOOGLE_MAPS_API_KEY,
+            }
+        });
+
+        const data = response.data;
+        if (data.status !== 'OK' || !data.results?.[0]) {
+            console.warn('Geocoding result not OK for:', address, 'Status:', data.status);
+            return null;
+        }
+
+        const location = data.results[0].geometry.location;
+        return [location.lng, location.lat];
+    } catch (error) {
+        console.error('Geocoding Error:', error.message);
+        return null;
+    }
+};

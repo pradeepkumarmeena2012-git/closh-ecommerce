@@ -669,26 +669,32 @@ function App() {
             position="top-center"
             containerStyle={{ zIndex: 99999 }}
             toastOptions={{
-              duration: 3000,
+              duration: 3500,
               style: {
-                background: "#212121",
+                background: "rgba(18, 18, 18, 0.92)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
                 color: "#fff",
-                fontSize: "13px",
-                fontWeight: "600",
-                borderRadius: "12px",
-                padding: "12px 16px",
+                fontSize: "14px",
+                fontWeight: "500",
+                borderRadius: "24px",
+                padding: "12px 24px",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                boxShadow: "0 12px 32px rgba(0, 0, 0, 0.4)",
+                maxWidth: "420px",
+                textAlign: "center",
               },
               success: {
                 duration: 3000,
                 iconTheme: {
-                  primary: "#388E3C",
+                  primary: "#22c55e",
                   secondary: "#fff",
                 },
               },
               error: {
                 duration: 4000,
                 iconTheme: {
-                  primary: "#FF6161",
+                  primary: "#ef4444",
                   secondary: "#fff",
                 },
               },

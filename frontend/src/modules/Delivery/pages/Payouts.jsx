@@ -165,19 +165,37 @@ const Payouts = () => {
 
           {/* Request Payout Button */}
           {canRequestPayout ? (
-            <button
-              onClick={() => setShowWithdrawalModal(true)}
-              disabled={!deliveryBoy?.availableBalance || deliveryBoy?.availableBalance <= 0}
-              className="w-full py-2.5 bg-white text-indigo-600 rounded-xl font-black text-sm uppercase tracking-widest shadow-md hover:shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none relative z-10"
-            >
-              Request Payout
-            </button>
+            <div className="space-y-3 relative z-10">
+              <button
+                onClick={() => setShowWithdrawalModal(true)}
+                disabled={
+                  !deliveryBoy?.availableBalance || 
+                  deliveryBoy?.availableBalance <= 0 || 
+                  deliveryBoy?.kycStatus !== 'verified'
+                }
+                className="w-full py-3.5 bg-white text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
+              >
+                {deliveryBoy?.kycStatus !== 'verified' ? 'KYC Verification Required' : 'Request Payout Now'}
+              </button>
+              
+              {deliveryBoy?.kycStatus !== 'verified' && (
+                <div 
+                  onClick={() => navigate('/delivery/profile')}
+                  className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:bg-white/20 transition-all"
+                >
+                  <FiAlertCircle className="text-white shrink-0" />
+                  <p className="text-[10px] font-bold text-white leading-tight uppercase tracking-wider">
+                    Complete your KYC and Bank Details in profile to enable payouts
+                  </p>
+                </div>
+              )}
+            </div>
           ) : (
-            <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 text-center relative z-10">
-              <p className="text-white/90 text-[10px] font-bold mb-0.5">
-                Next payout available on:
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 text-center relative z-10 border border-white/20 shadow-inner">
+              <p className="text-indigo-100 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
+                Next Payout Eligibility
               </p>
-              <p className="text-base font-black">
+              <p className="text-lg font-black text-white">
                 {nextAvailableDate?.toLocaleDateString('en-IN', {
                   day: 'numeric',
                   month: 'long',

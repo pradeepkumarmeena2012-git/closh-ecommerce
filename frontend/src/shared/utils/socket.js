@@ -29,40 +29,47 @@ class SocketService {
         }
 
         this.socket.on('connect', () => {
-            console.log('🔌 Connected to Socket.io server');
+            console.log('🔌 [SOCKET] Connected to server:', this.socket.id);
             // Re-join all rooms on reconnection
             this.rooms.forEach(room => {
+                console.log(`🏠 [SOCKET] Re-joining room: ${room}`);
                 this.socket.emit('join_room', room);
             });
         });
 
-        this.socket.on('disconnect', () => {
-            console.log('🔌 Disconnected from Socket.io server');
+        this.socket.on('disconnect', (reason) => {
+            console.log('🔌 [SOCKET] Disconnected:', reason);
         });
 
         this.socket.on('connect_error', (error) => {
-            console.error('🔌 Socket connection error:', error);
+            console.error('🔌 [SOCKET] Connection error:', error.message);
         });
     }
 
     joinRoom(room) {
+        if (!room) return;
         this.rooms.add(room);
+        console.log(`🏠 [SOCKET] Joining room: ${room}`);
         if (this.socket && this.socket.connected) {
             this.socket.emit('join_room', room);
         }
     }
 
     leaveRoom(room) {
+        if (!room) return;
         this.rooms.delete(room);
+        console.log(`🏠 [SOCKET] Leaving room: ${room}`);
         if (this.socket) {
             this.socket.emit('leave_room', room);
         }
     }
 
     on(event, callback) {
+        console.log(`👂 [SOCKET] Listening for: ${event}`);
         if (this.socket) {
             this.socket.on(event, callback);
         } else {
+            console.log(`⏳ [SOCKET] Queuing listener for: ${event}`);
             this._queuedListeners.push({ event, callback });
         }
     }

@@ -54,6 +54,7 @@ import {
     updateDeliveryBoySchema,
     updateDeliveryStatusSchema,
     updateDeliveryApplicationStatusSchema,
+    updateKycStatusSchema,
     settleCashSchema,
 } from '../validators/delivery.validator.js';
 import {
@@ -167,6 +168,7 @@ router.put('/delivery-boys/:id', ...adminAuth, checkPermission('delivery_manage'
 router.delete('/delivery-boys/:id', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), deliveryController.deleteDeliveryBoy);
 router.patch('/delivery-boys/:id/status', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), validate(updateDeliveryStatusSchema), deliveryController.updateDeliveryBoyStatus);
 router.patch('/delivery-boys/:id/application-status', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), validate(updateDeliveryApplicationStatusSchema), deliveryController.updateDeliveryBoyApplicationStatus);
+router.patch('/delivery-boys/:id/kyc-status', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), validate(updateKycStatusSchema), deliveryController.updateKycStatus);
 router.get('/delivery-boys/:id/cash-history', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), deliveryController.getCashHistory);
 router.post('/delivery-boys/:id/settle-cash', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), validate(settleCashSchema), deliveryController.settleCash);
 

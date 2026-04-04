@@ -3,8 +3,8 @@ import socketService from '../utils/socket';
 import { useDeliveryAuthStore } from '../../modules/Delivery/store/deliveryStore';
 import { useDeliveryEngineStore } from '../../modules/Delivery/store/deliveryEngineStore';
 
-const UPDATE_INTERVAL = 10000; // 10 seconds (Throttling)
-const MIN_DISTANCE_METERS = 20; // Ignore small movements
+const UPDATE_INTERVAL = 3000; // 3 seconds (Faster updates)
+const MIN_DISTANCE_METERS = 5; // Track even small movements for smooth polylines
 const IDEAL_ACCURACY_METERS = 100; // Increased to be less noisy
 const MAX_ACCURACY_METERS = 200; // Absolute max — accept anything under this after retries
 

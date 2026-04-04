@@ -9,23 +9,51 @@ import DeliveryBoy from '../models/DeliveryBoy.model.js';
  * Helper to notify eligible riders within 8km
  */
 async function notifyEligibleRiders(order) {
+    // 1. Populate vendor info if not already there to show shop address
+    if (typeof order.populate === 'function' && !order.populated('vendorItems.vendorId')) {
+        await order.populate({
+            path: 'vendorItems.vendorId',
+            select: 'storeName shopAddress address shopLocation'
+        });
+    }
+
+    const firstVendorGroup = order.vendorItems?.[0] || {};
+    const vendorData = firstVendorGroup.vendorId || {};
+    const vendorName = vendorData.storeName || firstVendorGroup.vendorName || 'Vendor';
+    
+    let vendorAddress = vendorData.shopAddress || 'Shop Address';
+    if (!vendorAddress || vendorAddress === 'Shop Address') {
+        if (vendorData.address?.street) {
+            vendorAddress = `${vendorData.address.street}, ${vendorData.address.city || ''}`;
+        }
+    }
+
+    const payload = {
+        orderId: order.orderId,
+        id: order._id,
+        total: order.total,
+        customer: order.shippingAddress?.name || 'Customer',
+        address: order.shippingAddress?.address || 'Address',
+        vendorName,
+        vendorAddress,
+        distance: 'N/A',
+        estimatedTime: 'Searching...',
+        deliveryFee: 25,
+        isReturn: false,
+        type: 'new_assignment_broadcast'
+    };
+
     if (!order.pickupLocation || !order.pickupLocation.coordinates || 
         (order.pickupLocation.coordinates[0] === 0 && order.pickupLocation.coordinates[1] === 0)) {
         // Fallback: Broadcast to all if no pickup location (safeguard)
-        emitEvent('delivery_partners', 'order_ready_for_pickup', {
-            orderId: order.orderId,
-            id: order._id,
-            total: order.total,
-            pickupName: order.shippingAddress?.name || 'Vendor',
-            address: order.shippingAddress?.address,
-            isReturn: false
-        });
+        emitEvent('delivery_partners', 'order_ready_for_pickup', payload);
         return;
     }
 
     const pickupCoords = order.pickupLocation.coordinates; // [lng, lat]
     
     // Find delivery boys within 8km (8km = 8 / 6378.1 in radians)
+    // Relaxed: Just check if they are available (they could be pending application)
     const eligibleRiders = await DeliveryBoy.find({
         status: 'available',
         currentLocation: {
@@ -38,25 +66,11 @@ async function notifyEligibleRiders(order) {
     // 3. Fallback: If no targeted riders found, broadcast to everyone as a last resort
     if (eligibleRiders.length === 0) {
         console.log(`[GeoSearch] 0 riders found within 8km. Broadcasting to all delivery_partners room.`);
-        emitEvent('delivery_partners', 'order_ready_for_pickup', {
-            orderId: order.orderId,
-            id: order._id,
-            total: order.total,
-            pickupName: order.shippingAddress?.name || 'Vendor',
-            address: order.shippingAddress?.address,
-            isReturn: false
-        });
+        emitEvent('delivery_partners', 'order_ready_for_pickup', payload);
     } else {
         // Emit targeted event to each eligible rider
         eligibleRiders.forEach(rider => {
-            emitEvent(`delivery_${rider._id}`, 'order_ready_for_pickup', {
-                orderId: order.orderId,
-                id: order._id,
-                total: order.total,
-                pickupName: order.shippingAddress?.name || 'Vendor',
-                address: order.shippingAddress?.address,
-                isReturn: false
-            });
+            emitEvent(`delivery_${rider._id}`, 'order_ready_for_pickup', payload);
         });
     }
 }
@@ -313,7 +327,9 @@ export const OrderWorkflowService = {
             {
                 $set: {
                     status: 'picked_up',
-                    pickedUpAt: new Date()
+                    pickedUpAt: new Date(),
+                    'vendorItems.$[].status': 'picked_up',
+                    'vendorItems.$[].pickedUpAt': new Date()
                 }
             },
             { new: true }

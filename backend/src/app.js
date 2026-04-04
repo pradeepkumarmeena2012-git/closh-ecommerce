@@ -17,12 +17,19 @@ import deliveryTrackingRoutes from './modules/delivery/routes/tracking.routes.js
 
 // Middleware imports
 import { apiLimiter } from './middlewares/rateLimiter.js';
+import { detailedRequestLogger } from './middlewares/debug.middleware.js';
 import errorHandler from './middlewares/errorHandler.js';
 import notFound from './middlewares/notFound.js';
 
 const app = express();
+// ─── Body Parsing ────────────────────────────────────────────────────────────
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(detailedRequestLogger);
+
 // Trust proxy (necessary for express-rate-limit when behind Nginx)
 app.set('trust proxy', 1);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const uploadsRoot = path.resolve(__dirname, '../uploads');
@@ -45,8 +52,6 @@ const isValidDeliveryDocToken = (relativePath, rawToken) => {
 };
 
 // ─── Security Middleware ─────────────────────────────────────────────────────
-app.use(helmet());
-app.use(mongoSanitize());
 const allowedOrigins = [
     process.env.CLIENT_URL,
     'https://www.closh.in',
@@ -55,20 +60,25 @@ const allowedOrigins = [
     'http://localhost:5173'
 ].filter(Boolean);
 
+// CORS MUST come before Helmet so preflight OPTIONS get proper headers
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
-            callback(new Error('Not allowed by CORS'));
+            console.error(`CORS BLOCKED for origin: ${origin}`);
+            callback(new Error(`Not allowed by CORS: ${origin}`));
         }
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-idempotency-key'],
 }));
 
-// ─── Body Parsing ────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+app.use(mongoSanitize());
 
 // ─── Rate Limiting ───────────────────────────────────────────────────────────
 app.use('/api', apiLimiter);

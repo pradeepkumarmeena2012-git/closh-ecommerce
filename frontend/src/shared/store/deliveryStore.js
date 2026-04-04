@@ -24,6 +24,10 @@ export const useDeliveryStore = create(
                     isActive: boy.isActive,
                     status: boy.status || (boy.isAvailable ? 'available' : 'offline'),
                     applicationStatus: boy.applicationStatus || 'approved',
+                    kycStatus: boy.kycStatus || 'none',
+                    kycRejectionReason: boy.kycRejectionReason || '',
+                    bankDetails: boy.bankDetails || {},
+                    upiId: boy.upiId || '',
                     documentUrls: boy.documentUrls || {},
                     totalDeliveries: boy.totalDeliveries ?? boy.stats?.totalDeliveries ?? 0,
                     pendingDeliveries: boy.pendingDeliveries ?? boy.stats?.pendingDeliveries ?? 0,
@@ -102,6 +106,29 @@ export const useDeliveryStore = create(
                 return true;
             } catch (error) {
                 toast.error(error.message || `Failed to ${applicationStatus} application`);
+                return false;
+            }
+        },
+
+        updateKycStatus: async (id, kycStatus, reason = '') => {
+            try {
+                const response = await adminService.updateKycStatus(id, kycStatus, reason);
+                const updated = response?.data || {};
+                set((state) => ({
+                    deliveryBoys: state.deliveryBoys.map((boy) =>
+                        String(boy.id) === String(id)
+                            ? {
+                                ...boy,
+                                kycStatus: updated.kycStatus || kycStatus,
+                                kycRejectionReason: updated.kycRejectionReason || (kycStatus === 'rejected' ? reason : ''),
+                            }
+                            : boy
+                    ),
+                }));
+                toast.success(`KYC ${kycStatus} successfully`);
+                return true;
+            } catch (error) {
+                toast.error(error.message || `Failed to ${kycStatus} KYC`);
                 return false;
             }
         },

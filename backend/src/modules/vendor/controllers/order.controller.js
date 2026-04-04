@@ -106,20 +106,25 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     const vendor = await mongoose.model('Vendor').findById(req.user.id);
     const storeName = vendor?.storeName || req.user.email || 'Store';
 
+    console.log(`\n--- 🏪 [VENDOR ORDER UPDATE] ---`);
+    console.log(`Order: ${id}, Vendor: ${req.user.id}, Next Status: ${status}`);
+
     // Update only this vendor's items status
     order.vendorItems = order.vendorItems.map((vi) =>
         vi.vendorId.toString() === req.user.id ? { ...vi.toObject(), status } : vi
     );
+    const oldStatus = order.status;
     order.status = deriveTopLevelOrderStatus(order.vendorItems, order.status);
+    console.log(`[VendorUpdate] New Group Status: ${status}, Overall Order Status: ${oldStatus} -> ${order.status}`);
     await order.save();
 
-    if (status === 'ready_for_pickup') {
+    if (status === 'ready_for_pickup' || status === 'accepted') {
         if (vendor && vendor.shopLocation) {
             order.pickupLocation = vendor.shopLocation;
             await order.save();
         }
         
-        // This function now handles BOTH push and targeted real-time socket popup
+        // Notify delivery boys when order is accepted OR marked ready
         await notifyNearbyDeliveryBoys(order).catch(err =>
             console.error(`[Assignment] Failed to notify delivery boys for order ${order.orderId}:`, err)
         );

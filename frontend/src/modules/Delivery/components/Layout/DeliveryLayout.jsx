@@ -112,6 +112,57 @@ const DeliveryLayout = () => {
     } catch (e) { }
   }, [stopBuzzer]);
 
+  // Global listeners for new tasks
+  const handleNewOrder = useCallback((data) => {
+    console.log('⚡ Incoming Socket Order:', data);
+    
+    const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
+    // Aggressive: Show popup even if store is slightly out of sync, as long as we expected to be available
+    if (currentStatus === 'offline') {
+      console.warn('⚠️ Order received while offline. Ignoring popup.');
+      return;
+    }
+
+    setIsAcceptingOrder(false); 
+    startBuzzer();
+    
+    // Full details required for the modal
+    setSelectedNewOrder(data);
+    setShowNewOrderModal(true);
+    
+    toast.success(`⚡ NEW ORDER AVAILABLE!`, { 
+      duration: 8000, 
+      icon: '📦',
+      style: { fontWeight: '900', border: '2px solid #4f46e5' } 
+    });
+
+    // Vibrate if mobile
+    if ('vibrate' in navigator) {
+      navigator.vibrate([200, 100, 200, 100, 200]);
+    }
+
+    window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
+  }, [startBuzzer]);
+
+  const handleNewReturn = useCallback((data) => {
+    const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
+    if (currentStatus === 'offline') return;
+    
+    startBuzzer();
+    setSelectedNewOrder({ ...data, isReturn: true });
+    setShowNewOrderModal(true);
+    toast.success(`📦 NEW RETURN PICKUP!`, { duration: 8000 });
+    window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
+  }, [startBuzzer]);
+
+  const handleViewOrder = useCallback((e) => {
+    const order = e.detail;
+    if (order) {
+      setSelectedNewOrder(order);
+      setShowNewOrderModal(true);
+    }
+  }, []);
+
   // Socket management
   useEffect(() => {
     const isOnline = deliveryBoy?.status === 'available' || deliveryBoy?.status === 'busy';
@@ -128,58 +179,26 @@ const DeliveryLayout = () => {
     }
     socketService.socket?.on('connect', registerDelivery);
 
-    // Global listeners for new tasks
-    const handleNewOrder = (data) => {
-      const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
-      if (currentStatus !== 'available') return;
-      setIsAcceptingOrder(false); // Force reset
-      startBuzzer();
-      toast.success(`⚡ New Order available!`, { duration: 10000 });
-      setSelectedNewOrder(data);
-      setShowNewOrderModal(true);
-      window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
-    };
-
-    const handleNewReturn = (data) => {
-      const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
-      if (currentStatus !== 'available') return;
-      startBuzzer();
-      toast.success(`📦 New Return Pickup available!`, { duration: 10000 });
-      setSelectedNewOrder({ ...data, isReturn: true });
-      setShowNewOrderModal(true);
-      window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
-    };
-
-    const handleViewOrder = (e) => {
-      const order = e.detail;
-      if (order) {
-        setSelectedNewOrder(order);
-        setShowNewOrderModal(true);
-      }
-    };
-
     socketService.on('order_ready_for_pickup', handleNewOrder);
     socketService.on('return_ready_for_pickup', handleNewReturn);
     window.addEventListener('delivery-view-order', handleViewOrder);
 
     // Listen for order taken by someone else
     socketService.on('order_taken', (data) => {
-      const currentOrderId = selectedNewOrder?.id || selectedNewOrder?.orderId || selectedNewOrder?._id;
-      const takenOrderId = data.orderId || data.id;
+      const currentId = selectedNewOrder?.id || selectedNewOrder?.orderId || selectedNewOrder?._id;
+      const takenId = data.orderId || data.id;
 
-      if (currentOrderId && String(currentOrderId) === String(takenOrderId)) {
+      if (currentId && String(currentId) === String(takenId)) {
         stopBuzzer();
         setShowNewOrderModal(false);
         setSelectedNewOrder(null);
         toast.error('Order taken by another rider', { icon: '⌛' });
       }
-      // Always refresh dashboard list regardless of if modal was open
       window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
     });
 
     socketService.on('balance_updated', (data) => {
       useDeliveryAuthStore.getState().setBalance(data);
-      toast.success('Wallet balance updated!', { icon: '💰' });
     });
 
     return () => {
@@ -191,7 +210,7 @@ const DeliveryLayout = () => {
       socketService.off('balance_updated');
       stopBuzzer();
     };
-  }, [deliveryBoy?.status, deliveryBoy?.id, startBuzzer, stopBuzzer]);
+  }, [deliveryBoy?.status, deliveryBoy?.id, startBuzzer, stopBuzzer, selectedNewOrder?.id, handleNewOrder, handleNewReturn, handleViewOrder]);
 
   const handleAcceptNewTask = async (id) => {
     setIsAcceptingOrder(true);
