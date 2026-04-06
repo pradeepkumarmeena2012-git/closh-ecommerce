@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, matchPath, useNavigate } from "react-router-dom";
-import { FiHeart } from "react-icons/fi";
+import { FiHeart, FiArrowRight } from "react-icons/fi";
 import MobileLayout from "../components/Layout/MobileLayout";
 import ProductCard from "../../../shared/components/ProductCard";
 import AnimatedBanner from "../components/Mobile/AnimatedBanner";
@@ -26,6 +26,7 @@ import PageTransition from "../../../shared/components/PageTransition";
 import usePullToRefresh from "../hooks/usePullToRefresh";
 import toast from "react-hot-toast";
 import api from "../../../shared/utils/api";
+import { useCategoryStore } from "../../../shared/store/categoryStore";
 import heroSlide1 from "../../../../data/hero/slide1.png";
 import heroSlide2 from "../../../../data/hero/slide2.png";
 import heroSlide3 from "../../../../data/hero/slide3.png";
@@ -196,6 +197,87 @@ const MobileHome = () => {
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [homeVendors, setHomeVendors] = useState([]);
   const [homeBrands, setHomeBrands] = useState([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  const { categories: storeCategories, initialize: initCategories, getRootCategories } = useCategoryStore();
+
+  useEffect(() => { initCategories(); }, [initCategories]);
+
+  // Listen for category selection events from the header
+  useEffect(() => {
+    const handleCategorySelect = (e) => {
+      const catId = e.detail?.categoryId;
+      setSelectedCategoryId(catId || null);
+    };
+    window.addEventListener('home-category-select', handleCategorySelect);
+    return () => window.removeEventListener('home-category-select', handleCategorySelect);
+  }, []);
+
+  // Get root categories for category tab bar
+  const rootCategories = useMemo(() => {
+    return getRootCategories().filter(c => c.isActive !== false);
+  }, [storeCategories, getRootCategories]);
+
+  // Import fallback categories for name resolution
+  // The header uses hardcoded IDs (1-6) from data/categories.js
+  // We need to resolve these to actual category names for filtering
+  const headerCategories = useMemo(() => {
+    // Lazy import to avoid circular deps
+    try {
+      const cats = require('../../../../data/categories').categories;
+      return Array.isArray(cats) ? cats : [];
+    } catch { return []; }
+  }, []);
+
+  // Resolve the selected header category to actual DB category IDs
+  const resolvedCategoryIds = useMemo(() => {
+    if (!selectedCategoryId) return [];
+    // Find the header category name by its hardcoded ID
+    const headerCat = headerCategories.find(c => String(c.id) === normalizeId(selectedCategoryId));
+    const catName = headerCat?.name?.toLowerCase() || '';
+    if (!catName) return [normalizeId(selectedCategoryId)];
+    
+    // Find all store categories that match this name (root + children)
+    const matchingRoot = rootCategories.find(c => c.name?.toLowerCase() === catName);
+    if (!matchingRoot) return [normalizeId(selectedCategoryId)];
+    
+    // Return the root ID + all child category IDs
+    const rootId = normalizeId(matchingRoot.id || matchingRoot._id);
+    const childIds = storeCategories
+      .filter(c => {
+        const parentId = typeof c.parentId === 'object' ? (c.parentId?._id || c.parentId?.id) : c.parentId;
+        return normalizeId(parentId) === rootId;
+      })
+      .map(c => normalizeId(c.id || c._id));
+    
+    // Also get grandchildren
+    const grandChildIds = storeCategories
+      .filter(c => {
+        const parentId = typeof c.parentId === 'object' ? (c.parentId?._id || c.parentId?.id) : c.parentId;
+        return childIds.includes(normalizeId(parentId));
+      })
+      .map(c => normalizeId(c.id || c._id));
+    
+    return [rootId, ...childIds, ...grandChildIds];
+  }, [selectedCategoryId, headerCategories, rootCategories, storeCategories]);
+
+  // Products filtered by selected category
+  const categoryFilteredProducts = useMemo(() => {
+    if (!selectedCategoryId || catalogProducts.length === 0) return [];
+    if (resolvedCategoryIds.length === 0) return [];
+    return catalogProducts.filter(p => {
+      const catId = normalizeId(p.categoryId);
+      return resolvedCategoryIds.includes(catId);
+    });
+  }, [selectedCategoryId, catalogProducts, resolvedCategoryIds]);
+
+  // Selected category name
+  const selectedCategoryName = useMemo(() => {
+    if (!selectedCategoryId) return '';
+    const headerCat = headerCategories.find(c => String(c.id) === normalizeId(selectedCategoryId));
+    if (headerCat) return headerCat.name;
+    const cat = rootCategories.find(c => normalizeId(c.id || c._id) === normalizeId(selectedCategoryId));
+    return cat?.name || 'Category';
+  }, [selectedCategoryId, headerCategories, rootCategories]);
 
   const fallbackMostPopular = getMostPopular();
   const fallbackTrending = getTrending();
@@ -499,17 +581,16 @@ const MobileHome = () => {
             transform: `translateY(${Math.min(pullDistance, 80)}px)`,
             transition: isPulling ? "none" : "transform 0.3s ease-out",
           }}>
-          {/* Hero Banner */}
-          <div className="px-4 py-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Hero Banner - Compact */}
+          <div className="px-3 pt-2 pb-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div
-                className="relative w-full aspect-[2/1] md:aspect-[21/9] lg:h-[350px] xl:h-[400px] rounded-xl overflow-hidden lg:col-span-2"
+                className="relative w-full aspect-[2.2/1] md:aspect-[21/9] lg:h-[320px] xl:h-[360px] rounded-xl overflow-hidden lg:col-span-2"
                 data-carousel
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
                 style={{ touchAction: "pan-y", userSelect: "none" }}>
-                {/* Slider Container - All slides in a row */}
                 <motion.div
                   className="flex h-full"
                   style={{
@@ -525,7 +606,7 @@ const MobileHome = () => {
                   }}
                   transition={{
                     duration: dragOffset !== 0 ? 0 : 0.6,
-                    ease: [0.25, 0.46, 0.45, 0.94], // Smooth easing
+                    ease: [0.25, 0.46, 0.45, 0.94],
                     type: "tween",
                   }}>
                   {slides.map((slide, index) => (
@@ -551,7 +632,7 @@ const MobileHome = () => {
                     </div>
                   ))}
                 </motion.div>
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 pointer-events-none">
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 pointer-events-none">
                   {slides.map((_, index) => (
                     <button
                       key={index}
@@ -560,8 +641,8 @@ const MobileHome = () => {
                         setAutoSlidePaused(true);
                         setTimeout(() => setAutoSlidePaused(false), 2000);
                       }}
-                      className={`h-1.5 rounded-full transition-all pointer-events-auto ${index === currentSlide
-                        ? "bg-white w-6"
+                      className={`h-1 rounded-full transition-all pointer-events-auto ${index === currentSlide
+                        ? "bg-white w-5"
                         : "bg-gray-500 w-1.5"
                         }`}
                     />
@@ -570,27 +651,27 @@ const MobileHome = () => {
               </div>
 
               {/* Side Banner for Large Screens */}
-              <div className="hidden lg:block lg:col-span-1 h-[350px] xl:h-[400px] rounded-xl overflow-hidden relative bg-gray-900 group">
+              <div className="hidden lg:block lg:col-span-1 h-[320px] xl:h-[360px] rounded-xl overflow-hidden relative bg-gray-900 group">
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/90 z-10" />
                 <LazyImage
                   src={sideBanner?.image || stylishWatchImg}
                   alt={sideBanner?.title || "Premium Watch"}
-                  className="w-full h-full object-contain p-8 group-hover:scale-110 transition-transform duration-700"
+                  className="w-full h-full object-contain p-6 group-hover:scale-110 transition-transform duration-700"
                   onError={(e) => {
                     e.target.src = "https://via.placeholder.com/400x400?text=Premium+Watch";
                   }}
                 />
-                <div className="absolute inset-x-0 bottom-0 p-8 z-20 flex flex-col items-center text-center">
-                  <span className="text-yellow-400 font-bold text-3xl mb-2  drop-shadow-lg">
+                <div className="absolute inset-x-0 bottom-0 p-6 z-20 flex flex-col items-center text-center">
+                  <span className="text-yellow-400 font-bold text-2xl mb-1 drop-shadow-lg">
                     {sideBanner?.title || "PREMIUM"}
                   </span>
-                  <p className="text-gray-300 text-sm mb-6 font-medium">
+                  <p className="text-gray-300 text-sm mb-4 font-medium">
                     {sideBanner?.subtitle || "Exclusive Collection"}
                   </p>
                   <button
                     type="button"
                     onClick={() => handleBannerNavigation(sideBanner?.link || "/offers")}
-                    className="bg-white text-gray-900 font-bold py-3.5 px-10 rounded-xl w-full hover:bg-gray-100 transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-xl uppercase  text-sm"
+                    className="bg-white text-gray-900 font-bold py-3 px-8 rounded-xl w-full hover:bg-gray-100 transition-all transform hover:-translate-y-1 shadow-lg hover:shadow-xl uppercase text-sm"
                   >
                     Shop Now
                   </button>
@@ -599,41 +680,100 @@ const MobileHome = () => {
             </div>
           </div>
 
+          {/* ─── Category-Filtered Product Results (shown when a category is selected) ─── */}
+          {selectedCategoryId && (
+            <div className="px-3 pt-2 pb-1">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-base font-black text-gray-900 uppercase tracking-tight">
+                  {selectedCategoryName}'s COLLECTION
+                </h2>
+                <Link
+                  to={`/category/${selectedCategoryId}`}
+                  className="flex items-center gap-1 text-xs text-primary-600 font-bold uppercase">
+                  <span>VIEW ALL</span>
+                  <FiArrowRight className="text-xs" />
+                </Link>
+              </div>
+              {categoryFilteredProducts.length > 0 ? (
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                  {categoryFilteredProducts.slice(0, 9).map((product, index) => (
+                    <motion.div
+                      key={product.id}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.03 }}>
+                      <ProductCard product={product} />
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <span className="text-3xl mb-2">🔍</span>
+                  <p className="text-xs text-gray-500 font-medium">No products found in this category</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Brand Logos Scroll */}
           <BrandLogosScroll brands={computedBrands} />
+
+          {/* Most Popular - Moved up, right below banner for compact layout */}
+          <div className="px-3 py-2">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base font-bold text-gray-800">Most Popular</h2>
+              <Link
+                to="/search"
+                className="text-xs text-primary-600 font-semibold">
+                See All
+              </Link>
+            </div>
+            <div className="flex overflow-x-auto pb-2 -mx-3 px-3 gap-2 snap-x scrollbar-hide">
+              {computedMostPopular.map((product, index) => (
+                <motion.div
+                  key={product.id}
+                  className="w-[120px] sm:w-[140px] md:w-[180px] flex-shrink-0 snap-center"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.04 }}>
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </div>
+          </div>
 
           {/* Categories */}
           <MobileCategoryGrid />
 
-          {/* Featured Vendors Section */}
-          <FeaturedVendorsSection vendors={computedVendors} />
-
           {/* Animated Banner */}
           <AnimatedBanner banners={promoBanners} />
+
+          {/* Featured Vendors Section */}
+          <FeaturedVendorsSection vendors={computedVendors} />
 
           {/* New Arrivals */}
           <NewArrivalsSection products={computedNewArrivals} />
 
 
 
-          {/* Most Popular */}
-          <div className="px-4 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Most Popular</h2>
+          {/* Trending Now - Compact */}
+          <div className="px-3 py-2">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base font-bold text-gray-800">Trending Now</h2>
               <Link
                 to="/search"
-                className="text-sm text-primary-600 font-semibold">
+                className="text-xs text-primary-600 font-semibold">
                 See All
               </Link>
             </div>
-            <div className="flex overflow-x-auto pb-4 -mx-4 px-4 gap-3 snap-x scrollbar-hide">
-              {computedMostPopular.map((product, index) => (
+            <div className="flex overflow-x-auto pb-2 -mx-3 px-3 gap-2 snap-x scrollbar-hide">
+              {computedTrending.map((product, index) => (
                 <motion.div
                   key={product.id}
-                  className="w-[140px] sm:w-[160px] md:w-[200px] flex-shrink-0 snap-center"
-                  initial={{ opacity: 0, y: 20 }}
+                  className="w-[120px] sm:w-[140px] md:w-[180px] flex-shrink-0 snap-center"
+                  initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}>
+                  transition={{ delay: index * 0.04 }}>
                   <ProductCard product={product} />
                 </motion.div>
               ))}
@@ -645,30 +785,30 @@ const MobileHome = () => {
 
 
 
-          {/* Flash Sale */}
+          {/* Flash Sale - Compact */}
           {computedFlashSale.length > 0 && (
-            <div className="px-4 py-4 bg-gradient-to-br from-red-50 to-orange-50">
-              <div className="flex items-center justify-between mb-4">
+            <div className="px-3 py-2 bg-gradient-to-br from-red-50 to-orange-50">
+              <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-800">
+                  <h2 className="text-base font-bold text-gray-800">
                     Flash Sale
                   </h2>
-                  <p className="text-xs text-gray-600">Limited time offers</p>
+                  <p className="text-[10px] text-gray-600">Limited time offers</p>
                 </div>
                 <Link
                   to="/flash-sale"
-                  className="text-sm text-primary-600 font-semibold">
+                  className="text-xs text-primary-600 font-semibold">
                   See All
                 </Link>
               </div>
-              <div className="flex overflow-x-auto pb-4 -mx-4 px-4 gap-3 snap-x scrollbar-hide">
+              <div className="flex overflow-x-auto pb-2 -mx-3 px-3 gap-2 snap-x scrollbar-hide">
                 {computedFlashSale.map((product, index) => (
                   <motion.div
                     key={product.id}
-                    className="w-[140px] sm:w-[160px] md:w-[200px] flex-shrink-0 snap-center"
-                    initial={{ opacity: 0, y: 20 }}
+                    className="w-[120px] sm:w-[140px] md:w-[180px] flex-shrink-0 snap-center"
+                    initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}>
+                    transition={{ delay: index * 0.04 }}>
                     <ProductCard product={product} isFlashSale={true} />
                   </motion.div>
                 ))}
@@ -676,64 +816,36 @@ const MobileHome = () => {
             </div>
           )}
 
-          {/* Trending Items */}
-          <div className="px-4 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Trending Now</h2>
-              <Link
-                to="/search"
-                className="text-sm text-primary-600 font-semibold">
-                See All
-              </Link>
-            </div>
-            <div className="flex overflow-x-auto pb-4 -mx-4 px-4 gap-3 snap-x scrollbar-hide">
-              {computedTrending.map((product, index) => (
-                <motion.div
-                  key={product.id}
-                  className="w-[140px] sm:w-[160px] md:w-[200px] flex-shrink-0 snap-center"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}>
-                  <ProductCard product={product} />
-                </motion.div>
-              ))}
-            </div>
-          </div>
+
 
           {/* Recommended for You */}
           <RecommendedSection products={computedRecommended} />
 
-          {/* Tagline Section */}
+          {/* Tagline Section - Compact */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="px-4 py-12 text-left">
+            transition={{ duration: 0.5 }}
+            className="px-3 py-6 text-left">
             <motion.h2
-              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-400 leading-tight flex items-center justify-start gap-3 flex-wrap"
+              className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-400 leading-tight flex items-center justify-start gap-2 flex-wrap"
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: 0.2 }}>
+              transition={{ duration: 0.6, delay: 0.15 }}>
               <span>Shop from 50+ Trusted Vendors</span>
               <motion.span
-                animate={{
-                  scale: [1, 1.2, 1],
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  repeatDelay: 2,
-                }}
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
                 className="text-primary-500 inline-block">
-                <FiHeart className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl fill-primary-500" />
+                <FiHeart className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl fill-primary-500" />
               </motion.span>
             </motion.h2>
           </motion.div>
 
           {/* Bottom Spacing */}
-          <div className="h-4" />
+          <div className="h-2" />
         </div>
       </MobileLayout>
     </PageTransition>

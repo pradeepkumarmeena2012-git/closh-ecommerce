@@ -20,7 +20,7 @@ const NewArrivalsSection = ({ products = null }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       whileHover={{ scale: 1.01 }}
-      className="relative mx-4 my-4 rounded-2xl overflow-hidden shadow-xl border-2 border-cyan-200 bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-500">
+      className="relative mx-3 my-2 rounded-2xl overflow-hidden shadow-xl border-2 border-cyan-200 bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-500">
       {/* Animated Gradient Overlay */}
       <motion.div
         className="absolute inset-0 opacity-20"
@@ -72,9 +72,9 @@ const NewArrivalsSection = ({ products = null }) => {
       </div>
 
       {/* Content */}
-      <div className="relative px-4 py-5">
+      <div className="relative px-3 py-3">
         {/* Header with Badge */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <motion.div
               className="bg-gray-200 backdrop-blur-sm rounded-full p-2"
@@ -105,7 +105,7 @@ const NewArrivalsSection = ({ products = null }) => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}>
               <motion.h2
-                className="text-xl font-extrabold text-white drop-shadow-lg"
+                className="text-base font-extrabold text-white drop-shadow-lg"
                 animate={{
                   textShadow: [
                     "0 2px 4px rgba(0,0,0,0.2)",

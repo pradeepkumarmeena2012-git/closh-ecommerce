@@ -15,10 +15,10 @@ const FeaturedVendorsSection = ({ vendors = null }) => {
   if (featuredVendors.length === 0) return null;
 
   return (
-    <div className="px-4 py-4">
-      <div className="flex items-center justify-between mb-4">
+    <div className="px-3 py-2">
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Best Sellers</h2>
+          <h2 className="text-base font-bold text-gray-800">Best Sellers</h2>
           <p className="text-xs text-gray-600 mt-0.5">Shop from trusted stores</p>
         </div>
         <Link
@@ -30,7 +30,7 @@ const FeaturedVendorsSection = ({ vendors = null }) => {
         </Link>
       </div>
 
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-3 px-3">
         {featuredVendors.map((vendor, index) => (
           <VendorShowcaseCard key={vendor.id} vendor={vendor} index={index} />
         ))}

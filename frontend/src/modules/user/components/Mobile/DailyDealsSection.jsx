@@ -51,7 +51,7 @@ const DailyDealsSection = ({ products = null }) => {
   }
 
   return (
-    <div className="relative my-4 rounded-2xl overflow-hidden shadow-xl border-2 border-red-200 bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500">
+    <div className="relative my-2 rounded-2xl overflow-hidden shadow-xl border-2 border-red-200 bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500">
       {/* Decorative Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl"></div>
@@ -59,16 +59,16 @@ const DailyDealsSection = ({ products = null }) => {
       </div>
 
       {/* Content */}
-      <div className="relative px-3 py-5">
+      <div className="relative px-3 py-3">
         {/* Header with Badge */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-3">
+        <div className="mb-2">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <div className="bg-gray-200 backdrop-blur-sm rounded-full p-2 md:p-3">
                 <FiZap className="text-white text-lg md:text-2xl" />
               </div>
               <div>
-                <h2 className="text-xl md:text-3xl font-extrabold text-white drop-shadow-lg uppercase ">
+                <h2 className="text-base md:text-2xl font-extrabold text-white drop-shadow-lg uppercase ">
                   Daily Deals
                 </h2>
                 <p className="text-xs md:text-sm text-white/90 font-medium">
@@ -87,7 +87,7 @@ const DailyDealsSection = ({ products = null }) => {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl p-4 shadow-2xl border-2 border-gray-1000">
+            className="bg-white rounded-lg p-3 shadow-xl border-2 border-gray-1000">
             <div className="mb-2">
               <p className="text-xs font-semibold text-gray-700 mb-2 ml-11">
                 Deal ends in
@@ -124,14 +124,14 @@ const DailyDealsSection = ({ products = null }) => {
         </div>
 
         {/* Products Grid */}
-        <div className="flex overflow-x-auto pb-4 gap-3 snap-x scrollbar-hide -mx-2 px-2">
+        <div className="flex overflow-x-auto pb-2 gap-2 snap-x scrollbar-hide -mx-2 px-2">
           {dailyDeals.map((product, index) => (
             <motion.div
               key={product.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="w-[140px] sm:w-[160px] md:w-[200px] flex-shrink-0 snap-center h-full">
+              transition={{ delay: index * 0.04 }}
+              className="w-[120px] sm:w-[140px] md:w-[180px] flex-shrink-0 snap-center h-full">
               <ProductCard product={product} isFlashSale={true} />
             </motion.div>
           ))}
