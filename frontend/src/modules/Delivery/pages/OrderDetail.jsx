@@ -231,9 +231,20 @@ const DeliveryOrderDetail = () => {
                     </div>
 
                     {trackingPhase === 'to_vendor' ? (
-                        <button onClick={() => pickupPhotoInputRef.current.click()} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl shadow-slate-200">
-                            <FiCamera size={18} /> COMPLETE PICKUP
-                        </button>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => pickupPhotoInputRef.current.click()} 
+                                className="flex-1 h-14 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl shadow-slate-200"
+                            >
+                                <FiCamera size={18} /> CAMERA PICKUP
+                            </button>
+                            <button 
+                                onClick={() => pickupGalleryRef.current.click()} 
+                                className="w-16 h-14 bg-black text-white rounded-2xl flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-slate-200 border border-white/10"
+                            >
+                                <FiImage size={20} />
+                            </button>
+                        </div>
                     ) : (
                         <button onClick={handleMarkArrived} className="w-full h-14 bg-[#F59E0B] text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl shadow-amber-100">
                              I HAVE REACHED

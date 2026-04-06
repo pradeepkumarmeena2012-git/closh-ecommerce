@@ -64,7 +64,13 @@ const Payouts = () => {
 
   useEffect(() => {
     loadWithdrawalHistory();
-    fetchProfile();
+    const syncProfile = async () => {
+      await fetchProfile();
+      if (useDeliveryAuthStore.getState().fetchProfileSummary) {
+        await useDeliveryAuthStore.getState().fetchProfileSummary();
+      }
+    };
+    syncProfile();
   }, [loadWithdrawalHistory, fetchProfile]);
 
   const handleWithdrawalRequested = () => {
@@ -145,23 +151,38 @@ const Payouts = () => {
             </div>
           </div>
 
-          <div className="space-y-3 relative z-10">
-            {!canRequestPayout ? (
-              <div className="bg-black/10 backdrop-blur-md rounded-2xl p-3 text-center border border-white/10">
-                <p className="text-primary-100 text-[7px] font-black uppercase tracking-[0.2em] mb-0.5">Next Eligibility</p>
-                <p className="text-sm font-black tracking-tight">
-                  {nextAvailableDate?.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
+          <div className="space-y-4 relative z-10">
+            {/* Action Area */}
+            <div>
+              {!canRequestPayout ? (
+                <div className="bg-black/10 backdrop-blur-md rounded-2xl p-3 text-center border border-white/10">
+                  <p className="text-primary-100 text-[7px] font-black uppercase tracking-[0.2em] mb-0.5">Next Eligibility</p>
+                  <p className="text-sm font-black tracking-tight font-mono">
+                    {nextAvailableDate?.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowWithdrawalModal(true)}
+                  disabled={!deliveryBoy?.availableBalance || deliveryBoy?.availableBalance <= 0 || deliveryBoy?.kycStatus !== 'verified'}
+                  className="w-full py-4 bg-white text-indigo-700 rounded-[22px] font-black text-[11px] uppercase tracking-[0.15em] shadow-xl active:scale-[0.98] transition-all disabled:opacity-30 disabled:bg-indigo-300/20 disabled:text-white/50 disabled:shadow-none"
+                >
+                  {deliveryBoy?.kycStatus !== 'verified' ? 'KYC Verification Required' : 'Request Withdrawal'}
+                </button>
+              )}
+            </div>
+
+            {/* Secondary Stats Strip */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-white/10 backdrop-blur-md rounded-[20px] p-2.5 border border-white/10 flex flex-col items-center justify-center">
+                <p className="text-[7px] font-black text-indigo-100 uppercase tracking-widest opacity-60 mb-0.5">Total Earned</p>
+                <p className="text-xs font-black tracking-tight">{formatPrice(deliveryBoy?.totalEarnings || 0)}</p>
               </div>
-            ) : (
-              <button
-                onClick={() => setShowWithdrawalModal(true)}
-                disabled={!deliveryBoy?.availableBalance || deliveryBoy?.availableBalance <= 0 || deliveryBoy?.kycStatus !== 'verified'}
-                className="w-full py-4 bg-white text-indigo-700 rounded-[22px] font-black text-[11px] uppercase tracking-[0.15em] shadow-xl active:scale-[0.98] transition-all disabled:opacity-30 disabled:bg-indigo-300/20 disabled:text-white/50 disabled:shadow-none"
-              >
-                {deliveryBoy?.kycStatus !== 'verified' ? 'KYC Verification Required' : 'Request Withdrawal'}
-              </button>
-            )}
+              <div className="bg-white/10 backdrop-blur-md rounded-[20px] p-2.5 border border-white/10 flex flex-col items-center justify-center">
+                <p className="text-[7px] font-black text-indigo-100 uppercase tracking-widest opacity-60 mb-0.5">Cash in Hand</p>
+                <p className="text-xs font-black tracking-tight">{formatPrice(deliveryBoy?.cashInHand || 0)}</p>
+              </div>
+            </div>
 
             {deliveryBoy?.kycStatus !== 'verified' && (
               <div 
