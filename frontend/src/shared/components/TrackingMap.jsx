@@ -251,13 +251,18 @@ const TrackingMap = ({
     }
   }, [isLoaded, customerLocation, vendorLocation]);
 
+  const [eta, setEta] = useState({ duration: '', distance: '' });
+
   // Update directions when positions change
   useEffect(() => {
     if (isLoaded && deliveryLocation && destination) {
+        // Log for debugging
+        console.log(`📡 [Tracking] Updating route from ${deliveryLocation.lat},${deliveryLocation.lng} to destination.`);
+        
         const origin = new window.google.maps.LatLng(deliveryLocation.lat, deliveryLocation.lng);
         const dest = new window.google.maps.LatLng(destination.lat, destination.lng);
         
-        const currentParams = `${deliveryLocation.lat.toFixed(4)},${deliveryLocation.lng.toFixed(4)}|${destination.lat.toFixed(4)},${destination.lng.toFixed(4)}`;
+        const currentParams = `${deliveryLocation.lat.toFixed(5)},${deliveryLocation.lng.toFixed(5)}|${destination.lat.toFixed(5)},${destination.lng.toFixed(5)}`;
         
         if (currentParams !== lastRouteParams) {
             setLastRouteParams(currentParams);
@@ -271,6 +276,13 @@ const TrackingMap = ({
                 (result, status) => {
                     if (status === 'OK') {
                         setDirections(result);
+                        const leg = result.routes[0]?.legs[0];
+                        if (leg) {
+                           setEta({
+                             duration: leg.duration.text,
+                             distance: leg.distance.text
+                           });
+                        }
                     }
                 }
             );
@@ -286,80 +298,97 @@ const TrackingMap = ({
   );
 
   return (
-    <GoogleMap
-      mapContainerStyle={containerStyle}
-      center={center}
-      zoom={15}
-      onLoad={onLoad}
-      onUnmount={onUnmount}
-      options={mapOptions}
-    >
-      {/* Rider Marker - Navigation Arrow */}
-      {deliveryLocation && window.google && (
-        <Marker 
-          position={deliveryLocation}
-          icon={{
-            path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-            fillColor: '#3b82f6',
-            fillOpacity: 1,
-            strokeWeight: 3,
-            strokeColor: '#ffffff',
-            scale: 8,
-            rotation: 0
-          }}
-          zIndex={1000}
-        />
+    <div className="relative w-full h-full">
+      {/* Floating ETA Badge */}
+      {eta.duration && (
+        <div className="absolute top-4 left-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl z-30 border border-slate-100 flex items-center justify-between transition-all animate-in slide-in-from-top-4 duration-500">
+           <div>
+              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Estimated Time</p>
+              <h2 className="text-xl font-black text-slate-900 leading-none">{eta.duration}</h2>
+           </div>
+           <div className="w-px h-8 bg-slate-200 mx-4" />
+           <div className="text-right flex-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Remaining</p>
+              <p className="text-sm font-bold text-slate-700">{eta.distance}</p>
+           </div>
+        </div>
       )}
 
-      {/* Destination Marker */}
-      {destination && (
-        <Marker 
-          position={destination}
-          label={{
-             text: isPickedUp ? '🏠' : '📦',
-             fontSize: '24px',
-             className: 'map-label'
-          }}
-          title={isPickedUp ? 'Deliver Here' : 'Pick Up Here'}
-        />
-      )}
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={center}
+        zoom={15}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        options={mapOptions}
+      >
+        {/* Rider Marker - Navigation Arrow */}
+        {deliveryLocation && window.google && (
+          <Marker 
+            position={deliveryLocation}
+            icon={{
+              path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+              fillColor: '#3b82f6',
+              fillOpacity: 1,
+              strokeWeight: 4,
+              strokeColor: '#ffffff',
+              scale: 8,
+              rotation: 0 // Ideally this should come from heading
+            }}
+            zIndex={1000}
+          />
+        )}
 
-      {/* Show Vendor if heading to customer */}
-      {isPickedUp && vendorLocation && (
-        <Marker 
-          position={vendorLocation}
-          label={{ text: '✅', fontSize: '18px' }}
-          opacity={0.7}
-        />
-      )}
+        {/* Destination Marker */}
+        {destination && (
+          <Marker 
+            position={destination}
+            label={{
+               text: isPickedUp ? '🏠' : '📦',
+               fontSize: '24px',
+               className: 'map-label'
+            }}
+            title={isPickedUp ? 'Deliver Here' : 'Pick Up Here'}
+          />
+        )}
 
-      {/* Route Display */}
-      {directions && (
-        <DirectionsRenderer
-          directions={directions}
-          options={{
-            suppressMarkers: true,
-            polylineOptions: {
+        {/* Show Vendor if heading to customer */}
+        {isPickedUp && vendorLocation && (
+          <Marker 
+            position={vendorLocation}
+            label={{ text: '✅', fontSize: '18px' }}
+            opacity={0.7}
+          />
+        )}
+
+        {/* Route Display */}
+        {directions && (
+          <DirectionsRenderer
+            directions={directions}
+            options={{
+              suppressMarkers: true,
+              polylineOptions: {
+                strokeColor: "#6366f1",
+                strokeWeight: 7,
+                strokeOpacity: 0.9
+              }
+            }}
+          />
+        )}
+
+        {!directions && deliveryLocation && destination && (
+          <Polyline
+            path={[deliveryLocation, destination]}
+            options={{
               strokeColor: "#6366f1",
-              strokeWeight: 7,
-              strokeOpacity: 0.9
-            }
-          }}
-        />
-      )}
-
-      {!directions && deliveryLocation && destination && (
-        <Polyline
-          path={[deliveryLocation, destination]}
-          options={{
-            strokeColor: "#6366f1",
-            strokeOpacity: 0.8,
-            strokeWeight: 4,
-            geodesic: true,
-          }}
-        />
-      )}
-    </GoogleMap>
+              strokeOpacity: 0.8,
+              strokeWeight: 4,
+              geodesic: true,
+            }}
+          />
+        )}
+      </GoogleMap>
+    </div>
   );
 };
 

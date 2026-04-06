@@ -61,7 +61,7 @@ export const OrderNotificationService = {
                     type: 'vendor',
                     title: notificationTitle,
                     message: `Status update for order ${order.orderId}: ${status.replace(/_/g, ' ')}`,
-                    sound: status === 'pending' ? 'mgs_codec.mp3' : 'default' // Buzzer sound only for new orders
+                    sound: status === 'pending' ? 'buzzer.mp3' : 'default' // Buzzer sound only for new orders
                 });
 
                 // Real-time event for Vendor Dashboard (especially for buzzer/popup)
@@ -91,7 +91,7 @@ export const OrderNotificationService = {
                     type: 'delivery',
                     title: notificationTitle,
                     message: notificationMessage,
-                    sound: status === 'ready_for_pickup' || status === 'searching' ? 'mgs_codec.mp3' : 'default' // Buzzer sound only for new jobs
+                    sound: status === 'ready_for_pickup' || status === 'searching' ? 'buzzer.mp3' : 'default' // Buzzer sound only for new jobs
                 });
 
                 // Real-time status update for assigned delivery boy
@@ -142,8 +142,8 @@ export const OrderNotificationService = {
                 });
             });
             
-            // 4. Trigger Delivery Assignment if Ready
-            if (status === 'ready_for_pickup' || status === 'searching') {
+            // 4. Trigger Delivery Assignment if Ready and NO one is assigned yet
+            if ((status === 'ready_for_pickup' || status === 'searching') && !order.deliveryBoyId) {
                 console.log(`📡 [AUTO-ASSIGN] Triggering delivery search for order: ${order.orderId}`);
                 triggerDeliveryAssignment(order).catch(err => 
                     console.error(`[AutoAssign] Error triggering search: ${err.message}`)

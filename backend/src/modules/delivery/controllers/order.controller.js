@@ -465,10 +465,21 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         }
 
         // Calculate delivery earnings based on distance between vendor and customer
+        const { getDistanceMatrix } = await import('../../../services/googleMaps.service.js');
         const { calculateDistance, getDeliveryEarning } = await import('../../../utils/geo.js');
         const pickup = order.pickupLocation?.coordinates || [0, 0];
         const dropoff = order.dropoffLocation?.coordinates || [0, 0];
-        const distanceKm = calculateDistance(pickup, dropoff);
+
+        let distanceKm = order.deliveryDistance || 0;
+        
+        // Re-verify distance for accuracy
+        const matrix = await getDistanceMatrix(pickup, dropoff);
+        if (matrix) {
+            distanceKm = matrix.distance;
+        } else if (!distanceKm) {
+            distanceKm = calculateDistance(pickup, dropoff);
+        }
+        
         const riderEarnings = getDeliveryEarning(distanceKm);
 
         // Persist earnings and distance on the order

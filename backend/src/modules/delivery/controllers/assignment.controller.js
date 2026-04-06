@@ -133,31 +133,38 @@ export const notifyNearbyDeliveryBoys = async (order) => {
     console.log(`[Assignment] Nearby Boys matches from DB: ${nearbyBoys.length}`);
     
     // Calculate Earning & Distance for the socket popup
-    let estimatedDistance = 'N/A';
+    let estimatedDistance = order.deliveryDistance ? `${order.deliveryDistance} km` : '0 km';
     let estimatedTime = 'N/A';
-    let deliveryFee = order.deliveryFee || 25;
+    let deliveryFee = order.deliveryEarnings || 25;
 
     try {
-        if (order.pickupLocation?.coordinates?.length === 2 && order.shippingAddress?.coordinates?.length === 2) {
-            console.log(`[Assignment] Calculating distance to customer...`);
+        const dropoffCoords = order.dropoffLocation?.coordinates;
+        const pickupCoords = order.pickupLocation?.coordinates;
+
+        if (pickupCoords?.length === 2 && dropoffCoords?.length === 2 && (dropoffCoords[0] !== 0 || dropoffCoords[1] !== 0)) {
+            console.log(`[Assignment] Calculating distance to customer at ${dropoffCoords.join(', ')}...`);
             const { getDistanceMatrix } = await import('../../../services/googleMaps.service.js');
             const { calculateDistance, getDeliveryEarning } = await import('../../../utils/geo.js');
             
-            const matrix = await getDistanceMatrix(order.pickupLocation.coordinates, order.shippingAddress.coordinates);
-            let distanceVal = 0;
+            const matrix = await getDistanceMatrix(pickupCoords, dropoffCoords);
+            let distanceVal = order.deliveryDistance || 0;
 
             if (matrix) {
                 distanceVal = matrix.distance;
                 estimatedDistance = `${matrix.distance} km`;
                 estimatedTime = matrix.duration;
                 console.log(`[Assignment] Distance Matrix result: ${estimatedDistance}, ${estimatedTime}`);
-            } else {
-                distanceVal = calculateDistance(order.pickupLocation.coordinates, order.shippingAddress.coordinates);
+            } else if (!order.deliveryDistance) {
+                distanceVal = calculateDistance(pickupCoords, dropoffCoords);
                 estimatedDistance = `${distanceVal} km (est.)`;
                 estimatedTime = `${Math.round(distanceVal * 3)} mins`;
                 console.log(`[Assignment] Haversine fallback result: ${estimatedDistance}`);
             }
-            deliveryFee = getDeliveryEarning(distanceVal);
+            
+            // Update fee if we have a fresh distance
+            if (distanceVal > 0) {
+                deliveryFee = getDeliveryEarning(distanceVal);
+            }
             console.log(`[Assignment] Calculated Delivery Fee: ₹${deliveryFee}`);
         }
     } catch (err) {

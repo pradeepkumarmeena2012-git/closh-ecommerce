@@ -69,7 +69,7 @@ const DeliveryDashboard = () => {
       
       // Play Buzzer Sound
       try {
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        const audio = new Audio('/sounds/buzzer.mp3');
         audio.play().catch(() => {});
       } catch {}
 
@@ -78,6 +78,8 @@ const DeliveryDashboard = () => {
 
     socketService.on('order_ready_for_pickup', handleNewOrder);
     socketService.on('return_ready_for_pickup', handleNewOrder);
+    socketService.on('newOrder', handleNewOrder);
+    socketService.on('new_order', handleNewOrder);
     
     socketService.on('order_assigned', () => {
       setNewOrderRequest(null);

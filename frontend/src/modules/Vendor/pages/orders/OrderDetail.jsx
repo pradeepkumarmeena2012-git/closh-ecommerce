@@ -7,6 +7,7 @@ import {
     FiUser,
     FiDollarSign,
     FiCamera,
+    FiTruck
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
@@ -382,6 +383,51 @@ const OrderDetail = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Delivery Partner (Assigned) */}
+                    {order.deliveryBoyId && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                            <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                <FiTruck className="text-indigo-500" />
+                                Assigned Partner
+                            </h2>
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0 border border-indigo-100 overflow-hidden">
+                                    {order.deliveryBoyId.profileImage ? (
+                                        <img 
+                                            src={order.deliveryBoyId.profileImage} 
+                                            alt="Rider" 
+                                            className="w-full h-full object-cover" 
+                                        />
+                                    ) : (
+                                        <FiTruck className="text-indigo-600 text-xl" />
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-gray-800 truncate">
+                                        {order.deliveryBoyId.name || 'Delivery Partner'}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {order.deliveryBoyId.phone || 'N/A'}
+                                    </p>
+                                    {order.deliveryBoyId.vehicleNumber && (
+                                        <p className="text-[10px] text-gray-400 mt-0.5">
+                                            Vehicle: {order.deliveryBoyId.vehicleNumber}
+                                        </p>
+                                    )}
+                                </div>
+                                {order.deliveryBoyId.phone && (
+                                    <a
+                                        href={`tel:${order.deliveryBoyId.phone}`}
+                                        className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
+                                        title="Call Partner"
+                                    >
+                                        <FiUser />
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Payment Info */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">

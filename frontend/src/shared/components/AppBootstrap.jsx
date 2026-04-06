@@ -187,12 +187,15 @@ const AppBootstrap = () => {
           });
         }
         
-        // Also show regular UI toast and play a sound if it is for a delivery boy
+        // Also show regular UI toast and play a sound if it is for a delivery boy or vendor
         toast.success(`${title}: ${body}`, { duration: 5000 });
         
         const deliveryBoy = useDeliveryAuthStore.getState().deliveryBoy;
-        if (deliveryBoy && (payload.data?.type === 'new_assignment_broadcast' || payload.data?.type === 'return_pickup_broadcast' || payload.data?.type === 'order')) {
-          const audio = new Audio('/sounds/mgs_codec.mp3');
+        const vendor = useVendorAuthStore.getState().vendor;
+
+        if ((deliveryBoy && (payload.data?.type === 'new_assignment_broadcast' || payload.data?.type === 'return_pickup_broadcast' || payload.data?.type === 'order')) ||
+            (vendor && (payload.data?.type === 'order' || payload.data?.type === 'order_created'))) {
+          const audio = new Audio('/sounds/buzzer.mp3');
           audio.play().catch(e => console.warn('Buzzer playback failed (user interaction required):', e.message));
         }
 

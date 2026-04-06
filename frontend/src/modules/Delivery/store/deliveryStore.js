@@ -59,8 +59,16 @@ const normalizeOrder = (raw) => {
   const derivedLng = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[0] !== 0 ? dropoffCoords[0] : raw?.longitude || null;
 
   const pickupCoords = raw?.pickupLocation?.coordinates;
-  const vendorLat = Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[1] !== 0 ? pickupCoords[1] : null;
-  const vendorLng = Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[0] !== 0 ? pickupCoords[0] : null;
+  const vendorDataCoords = vendorData?.shopLocation?.coordinates;
+
+  // Priority: Latest Shop Profile > Order Snapshot
+  const vendorLat = Array.isArray(vendorDataCoords) && vendorDataCoords.length === 2 && vendorDataCoords[1] !== 0 
+    ? vendorDataCoords[1] 
+    : (Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[1] !== 0 ? pickupCoords[1] : null);
+
+  const vendorLng = Array.isArray(vendorDataCoords) && vendorDataCoords.length === 2 && vendorDataCoords[0] !== 0 
+    ? vendorDataCoords[0] 
+    : (Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[0] !== 0 ? pickupCoords[0] : null);
 
   return {
     ...raw,

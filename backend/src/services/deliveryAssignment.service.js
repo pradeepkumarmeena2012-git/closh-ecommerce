@@ -78,6 +78,40 @@ export const triggerDeliveryAssignment = async (order) => {
         const vendorName = vData.storeName || firstVendor.vendorName || 'Vendor';
         const vendorAddress = vData.shopAddress || (vData.address?.street ? `${vData.address.street}, ${vData.address.city}` : 'Vendor Address');
 
+        // Calculate Earning & Distance for the socket popup
+        let estimatedDistance = order.deliveryDistance ? `${order.deliveryDistance} km` : '0 km';
+        let estimatedTime = 'N/A';
+        let deliveryFee = order.deliveryEarnings || 25;
+
+        try {
+            const dropoffCoords = order.dropoffLocation?.coordinates;
+            const pickupCoords = order.pickupLocation?.coordinates;
+
+            if (pickupCoords?.length === 2 && dropoffCoords?.length === 2 && (dropoffCoords[0] !== 0 || dropoffCoords[1] !== 0)) {
+                const { getDistanceMatrix } = await import('./googleMaps.service.js');
+                const { calculateDistance, getDeliveryEarning } = await import('../utils/geo.js');
+                
+                const matrix = await getDistanceMatrix(pickupCoords, dropoffCoords);
+                let distanceVal = order.deliveryDistance || 0;
+
+                if (matrix) {
+                    distanceVal = matrix.distance;
+                    estimatedDistance = `${matrix.distance} km`;
+                    estimatedTime = matrix.duration;
+                } else if (!order.deliveryDistance) {
+                    distanceVal = calculateDistance(pickupCoords, dropoffCoords);
+                    estimatedDistance = `${distanceVal} km (est.)`;
+                    estimatedTime = `${Math.round(distanceVal * 3)} mins`;
+                }
+                
+                if (distanceVal > 0) {
+                    deliveryFee = getDeliveryEarning(distanceVal);
+                }
+            }
+        } catch (err) {
+            console.error('❌ [AssignmentTriggerDistance Error]', err.message);
+        }
+
         const socketPayload = {
             orderId: order.orderId,
             id: order._id,
@@ -87,7 +121,9 @@ export const triggerDeliveryAssignment = async (order) => {
             vendorName,
             vendorAddress,
             total: order.total,
-            deliveryFee: order.deliveryEarnings || 25,
+            deliveryFee: deliveryFee,
+            distance: estimatedDistance,
+            estimatedTime: estimatedTime,
             isTryAndBuy: order.orderType === 'try_and_buy' || order.orderType === 'check_and_buy',
             type: 'new_assignment_broadcast'
         };

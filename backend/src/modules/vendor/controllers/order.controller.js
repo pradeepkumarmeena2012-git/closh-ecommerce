@@ -55,7 +55,7 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
     const order = await Order.findOne({
         $or: idFilter,
         'vendorItems.vendorId': req.user.id,
-    });
+    }).populate('deliveryBoyId', 'name phone profileImage vehicleNumber status');
     if (!order) throw new ApiError(404, 'Order not found.');
 
     res.status(200).json(new ApiResponse(200, order, 'Order fetched.'));
@@ -124,10 +124,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
             await order.save();
         }
         
-        // Notify delivery boys when order is accepted OR marked ready
-        await notifyNearbyDeliveryBoys(order).catch(err =>
-            console.error(`[Assignment] Failed to notify delivery boys for order ${order.orderId}:`, err)
-        );
+        // Notify delivery boys only if NO one is assigned yet
+        if (!order.deliveryBoyId) {
+            await notifyNearbyDeliveryBoys(order).catch(err =>
+                console.error(`[Assignment] Failed to notify delivery boys for order ${order.orderId}:`, err)
+            );
+        }
     }
 
     // Unified Notification to all parties
