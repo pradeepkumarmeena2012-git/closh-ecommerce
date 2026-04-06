@@ -54,7 +54,7 @@ const ProductGrid = () => {
                 </div>
 
                 {isLoading && displayProducts.length === 0 ? (
-                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-x-2 gap-y-6 md:gap-x-5 md:gap-y-8">
+                    <div className="premium-product-grid">
                         {[...Array(8)].map((_, i) => (
                             <div key={i} className="flex flex-col gap-4">
                                 <div className="aspect-[3/4] bg-gray-100 animate-pulse rounded-2xl" />
@@ -64,7 +64,7 @@ const ProductGrid = () => {
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-x-2 gap-y-6 md:gap-x-5 md:gap-y-8">
+                    <div className="premium-product-grid">
                         {displayProducts.map((product) => (
                             <ProductCard key={product.id} product={product} />
                         ))}
