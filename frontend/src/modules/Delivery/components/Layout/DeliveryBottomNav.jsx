@@ -3,10 +3,12 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FiHome, FiPackage, FiUser, FiBell, FiDollarSign } from "react-icons/fi";
 import { useDeliveryNotificationStore } from "../../store/deliveryNotificationStore";
+import { useDeliveryAuthStore } from "../../store/deliveryStore";
 
 const DeliveryBottomNav = () => {
   const location = useLocation();
   const { unreadCount } = useDeliveryNotificationStore();
+  const { deliveryBoy } = useDeliveryAuthStore();
 
   const navItems = [
     { path: "/delivery/dashboard", icon: FiHome, label: "Dashboard" },
@@ -56,14 +58,20 @@ const DeliveryBottomNav = () => {
                 variants={iconVariants}
                 initial="inactive"
                 animate={active ? "active" : "inactive"}>
-                <Icon
-                  className="text-2xl"
-                  style={{
-                    fill: "none",
-                    stroke: "currentColor",
-                    strokeWidth: 2,
-                  }}
-                />
+                {item.path === "/delivery/profile" && deliveryBoy?.avatar ? (
+                  <div className={`w-6 h-6 rounded-full overflow-hidden border-2 transition-colors ${active ? 'border-primary-500' : 'border-gray-300'}`}>
+                    <img src={deliveryBoy.avatar} className="w-full h-full object-cover" alt="P" />
+                  </div>
+                ) : (
+                  <Icon
+                    className="text-2xl"
+                    style={{
+                      fill: "none",
+                      stroke: "currentColor",
+                      strokeWidth: 2,
+                    }}
+                  />
+                )}
                 {item.path === "/delivery/notifications" && unreadCount > 0 && (
                   <span className="absolute -top-1 -right-2 min-w-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold text-center leading-4">
                     {unreadCount > 99 ? "99+" : unreadCount}

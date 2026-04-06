@@ -514,12 +514,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
         vehicleType, vehicleNumber, 
         emergencyContact, aadharNumber,
         currentLocation, isAvailable, status,
-        bankDetails, upiId
+        bankDetails, upiId, avatar
     } = req.body;
-
+ 
     const boy = await DeliveryBoy.findById(req.user.id);
     if (!boy) throw new ApiError(404, 'Delivery partner not found.');
-
+ 
+    if (avatar) boy.avatar = avatar;
     if (name) boy.name = name.trim();
     if (phone) boy.phone = phone.trim();
     if (email) {

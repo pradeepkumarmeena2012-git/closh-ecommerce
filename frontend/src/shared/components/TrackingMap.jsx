@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, Polyline, DirectionsRenderer, Marker } from '@react-google-maps/api';
+import { FiNavigation, FiActivity } from 'react-icons/fi';
 
 const containerStyle = {
   width: '100%',
@@ -14,132 +15,79 @@ const mapOptions = {
   mapTypeControl: false,
   fullscreenControl: false,
   styles: [
+    { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
+    { elementType: "labels.icon", stylers: [{ visibility: "on" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#f5f5f5" }] },
     {
-      "elementType": "geometry",
-      "stylers": [{ "color": "#1d2c4d" }]
+      featureType: "administrative.land_parcel",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#bdbdbd" }],
     },
     {
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#8ec3b9" }]
+      featureType: "poi",
+      elementType: "geometry",
+      stylers: [{ color: "#eeeeee" }]
     },
     {
-      "elementType": "labels.text.stroke",
-      "stylers": [{ "color": "#1a3646" }]
+      featureType: "poi",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#757575" }]
     },
     {
-      "featureType": "administrative.country",
-      "elementType": "geometry.stroke",
-      "stylers": [{ "color": "#4b6878" }]
+      featureType: "poi.park",
+      elementType: "geometry",
+      stylers: [{ color: "#e5e5e5" }]
     },
     {
-      "featureType": "administrative.land_parcel",
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#64779e" }]
+      featureType: "poi.park",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#9e9e9e" }]
     },
     {
-      "featureType": "administrative.province",
-      "elementType": "geometry.stroke",
-      "stylers": [{ "color": "#4b6878" }]
+      featureType: "road",
+      elementType: "geometry",
+      stylers: [{ color: "#ffffff" }]
     },
     {
-      "featureType": "landscape.man_made",
-      "elementType": "geometry.stroke",
-      "stylers": [{ "color": "#334e87" }]
+      featureType: "road.arterial",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#757575" }]
     },
     {
-      "featureType": "landscape.natural",
-      "elementType": "geometry",
-      "stylers": [{ "color": "#023e58" }]
+      featureType: "road.highway",
+      elementType: "geometry",
+      stylers: [{ color: "#dadada" }]
     },
     {
-      "featureType": "poi",
-      "elementType": "geometry",
-      "stylers": [{ "color": "#283d6a" }]
+      featureType: "road.highway",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#616161" }]
     },
     {
-      "featureType": "poi",
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#6f9ba5" }]
+      featureType: "road.local",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#9e9e9e" }]
     },
     {
-      "featureType": "poi",
-      "elementType": "labels.text.stroke",
-      "stylers": [{ "color": "#1d2c4d" }]
+      featureType: "transit.line",
+      elementType: "geometry",
+      stylers: [{ color: "#e5e5e5" }]
     },
     {
-      "featureType": "poi.park",
-      "elementType": "geometry.fill",
-      "stylers": [{ "color": "#023e58" }]
+      featureType: "transit.station",
+      elementType: "geometry",
+      stylers: [{ color: "#eeeeee" }]
     },
     {
-      "featureType": "poi.park",
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#3C7680" }]
+      featureType: "water",
+      elementType: "geometry",
+      stylers: [{ color: "#c9c9c9" }]
     },
     {
-      "featureType": "road",
-      "elementType": "geometry",
-      "stylers": [{ "color": "#304a7d" }]
-    },
-    {
-      "featureType": "road",
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#98a5be" }]
-    },
-    {
-      "featureType": "road",
-      "elementType": "labels.text.stroke",
-      "stylers": [{ "color": "#1d2c4d" }]
-    },
-    {
-      "featureType": "road.highway",
-      "elementType": "geometry",
-      "stylers": [{ "color": "#2c6675" }]
-    },
-    {
-      "featureType": "road.highway",
-      "elementType": "geometry.stroke",
-      "stylers": [{ "color": "#255762" }]
-    },
-    {
-      "featureType": "road.highway",
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#b0d5ce" }]
-    },
-    {
-      "featureType": "road.highway",
-      "elementType": "labels.text.stroke",
-      "stylers": [{ "color": "#023e58" }]
-    },
-    {
-      "featureType": "transit",
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#98a5be" }]
-    },
-    {
-      "featureType": "transit",
-      "elementType": "labels.text.stroke",
-      "stylers": [{ "color": "#1d2c4d" }]
-    },
-    {
-      "featureType": "transit.line",
-      "elementType": "geometry.fill",
-      "stylers": [{ "color": "#283d6a" }]
-    },
-    {
-      "featureType": "transit.station",
-      "elementType": "geometry",
-      "stylers": [{ "color": "#3a4762" }]
-    },
-    {
-      "featureType": "water",
-      "elementType": "geometry",
-      "stylers": [{ "color": "#0e1626" }]
-    },
-    {
-      "featureType": "water",
-      "elementType": "labels.text.fill",
-      "stylers": [{ "color": "#4e6d70" }]
+      featureType: "water",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#9e9e9e" }]
     }
   ]
 };
@@ -150,8 +98,8 @@ const TrackingMap = ({
   vendorLocation: initialVendorLocation,   // { lat, lng }
   customerAddress,
   vendorAddress,
-  status = 'assigned', // current order status
-  path = [],        // Array of { lat, lng }
+  status = 'assigned', 
+  path = [],        
   followMode = true,
   isLoaded: isLoadedProp
 }) => {
@@ -160,223 +108,201 @@ const TrackingMap = ({
   const [map, setMap] = useState(null);
   const [customerLocation, setCustomerLocation] = useState(initialCustomerLocation);
   const [vendorLocation, setVendorLocation] = useState(initialVendorLocation);
-  const [center, setCenter] = useState(deliveryLocation || initialCustomerLocation || { lat: 22.7196, lng: 75.8577 });
+  const [center, setCenter] = useState(deliveryLocation || initialCustomerLocation || { lat: 21.1458, lng: 79.0882 });
   const [directions, setDirections] = useState(null);
   const [lastRouteParams, setLastRouteParams] = useState(null);
+  const [lineOffset, setLineOffset] = useState(0);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulatedRider, setSimulatedRider] = useState(null);
+  const [heading, setHeading] = useState(0);
+  const animFrameRef = useRef();
 
-  // --- Geocoder Fallback ---
+  // --- Utility: Calculate Heading ---
+  const calculateHeading = (from, to) => {
+    if (!window.google) return 0;
+    return window.google.maps.geometry.spherical.computeHeading(
+      new window.google.maps.LatLng(from.lat, from.lng),
+      new window.google.maps.LatLng(to.lat, to.lng)
+    );
+  };
+
+  // --- Animation loop for polyline ---
   useEffect(() => {
-    if (!isLoaded || !window.google) return;
-
-    const geocoder = new window.google.maps.Geocoder();
-
-    if (!initialCustomerLocation && customerAddress) {
-       console.log('🔄 [TrackingMap] Attempting to geocode customer address...', customerAddress);
-       geocoder.geocode({ address: customerAddress }, (results, status) => {
-         if (status === 'OK' && results[0]) {
-           console.log('✅ [TrackingMap] Customer coordinates found via geocoder!');
-           setCustomerLocation({
-             lat: results[0].geometry.location.lat(),
-             lng: results[0].geometry.location.lng()
-           });
-         }
-       });
-    } else {
-       setCustomerLocation(initialCustomerLocation);
-    }
-
-    if (!initialVendorLocation && vendorAddress) {
-       console.log('🔄 [TrackingMap] Attempting to geocode vendor address...', vendorAddress);
-       geocoder.geocode({ address: vendorAddress }, (results, status) => {
-         if (status === 'OK' && results[0]) {
-           console.log('✅ [TrackingMap] Vendor coordinates found via geocoder!');
-           setVendorLocation({
-             lat: results[0].geometry.location.lat(),
-             lng: results[0].geometry.location.lng()
-           });
-         }
-       });
-    } else {
-       setVendorLocation(initialVendorLocation);
-    }
-  }, [isLoaded, initialCustomerLocation, initialVendorLocation, customerAddress, vendorAddress]);
-
-  const onLoad = useCallback(function callback(map) {
-    setMap(map);
-    
-    // Initial fit bounds to see the whole mission
-    const bounds = new window.google.maps.LatLngBounds();
-    let pointsCount = 0;
-
-    if (deliveryLocation) { bounds.extend(deliveryLocation); pointsCount++; }
-    if (customerLocation) { bounds.extend(customerLocation); pointsCount++; }
-    if (vendorLocation) { bounds.extend(vendorLocation); pointsCount++; }
-    
-    if (pointsCount > 1) {
-      map.fitBounds(bounds, 100);
-    } else if (deliveryLocation) {
-      map.setCenter(deliveryLocation);
-      map.setZoom(16);
-    }
-  }, [deliveryLocation, customerLocation, vendorLocation]);
-
-  const onUnmount = useCallback(function callback() {
-    setMap(null);
+    let count = 0;
+    const animate = () => {
+      count = (count + 1) % 200;
+      setLineOffset(count / 10);
+      animFrameRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+    return () => cancelAnimationFrame(animFrameRef.current);
   }, []);
 
-  // Destination logic
+  // --- Simulation Logic ---
+  useEffect(() => {
+    if (!isSimulating || !directions || !isLoaded) return;
+    const steps = directions.routes[0].overview_path;
+    let stepIdx = 0;
+    const interval = setInterval(() => {
+      if (stepIdx >= steps.length) {
+        setIsSimulating(false);
+        return;
+      }
+      const cur = { lat: steps[stepIdx].lat(), lng: steps[stepIdx].lng() };
+      setSimulatedRider(cur);
+      if (stepIdx < steps.length - 1) {
+         const nxt = { lat: steps[stepIdx+1].lat(), lng: steps[stepIdx+1].lng() };
+         setHeading(calculateHeading(cur, nxt));
+      }
+      stepIdx++;
+    }, 450);
+    return () => clearInterval(interval);
+  }, [isSimulating, directions, isLoaded]);
+
+  const effectiveRider = isSimulating ? simulatedRider : deliveryLocation;
   const isPickedUp = ['picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery', 'arrived'].includes(status?.toLowerCase());
   const destination = isPickedUp ? customerLocation : (vendorLocation || customerLocation);
 
-  // Focus update (Follow Mode)
+  // --- Geocoder ---
   useEffect(() => {
-    if (followMode && deliveryLocation && map) {
-      map.panTo(deliveryLocation);
-    }
-  }, [deliveryLocation, followMode, map]);
-
-  useEffect(() => {
-    if (isLoaded) {
-       console.log("STEP 7 - Map Data:", {
-          vendor: vendorLocation,
-          customer: customerLocation
+    if (!isLoaded || !window.google) return;
+    const geocoder = new window.google.maps.Geocoder();
+    if (!initialCustomerLocation && customerAddress) {
+       geocoder.geocode({ address: customerAddress }, (res, stat) => {
+         if (stat === 'OK' && res[0]) setCustomerLocation({ lat: res[0].geometry.location.lat(), lng: res[0].geometry.location.lng() });
        });
+    } else { setCustomerLocation(initialCustomerLocation); }
+
+    if (!initialVendorLocation && vendorAddress) {
+       geocoder.geocode({ address: vendorAddress }, (res, stat) => {
+         if (stat === 'OK' && res[0]) setVendorLocation({ lat: res[0].geometry.location.lat(), lng: res[0].geometry.location.lng() });
+       });
+    } else { setVendorLocation(initialVendorLocation); }
+  }, [isLoaded, initialCustomerLocation, initialVendorLocation, customerAddress, vendorAddress]);
+
+  // --- Map Center / Follow ---
+  const onLoad = useCallback((map) => {
+    setMap(map);
+    if (effectiveRider) {
+      map.setCenter(effectiveRider);
+      map.setZoom(17);
     }
-  }, [isLoaded, customerLocation, vendorLocation]);
+  }, [effectiveRider]);
 
-  const [eta, setEta] = useState({ duration: '', distance: '' });
-
-  // Update directions when positions change
   useEffect(() => {
-    if (isLoaded && deliveryLocation && destination) {
-        // Log for debugging
-        console.log(`📡 [Tracking] Updating route from ${deliveryLocation.lat},${deliveryLocation.lng} to destination.`);
-        
-        const origin = new window.google.maps.LatLng(deliveryLocation.lat, deliveryLocation.lng);
-        const dest = new window.google.maps.LatLng(destination.lat, destination.lng);
-        
-        const currentParams = `${deliveryLocation.lat.toFixed(5)},${deliveryLocation.lng.toFixed(5)}|${destination.lat.toFixed(5)},${destination.lng.toFixed(5)}`;
-        
-        if (currentParams !== lastRouteParams) {
-            setLastRouteParams(currentParams);
-            const service = new window.google.maps.DirectionsService();
-            service.route(
-                {
-                    origin: origin,
-                    destination: dest,
-                    travelMode: window.google.maps.TravelMode.DRIVING,
-                },
-                (result, status) => {
-                    if (status === 'OK') {
-                        setDirections(result);
-                        const leg = result.routes[0]?.legs[0];
-                        if (leg) {
-                           setEta({
-                             duration: leg.duration.text,
-                             distance: leg.distance.text
-                           });
-                        }
-                    }
-                }
-            );
-        }
+    if (map && effectiveRider && followMode) {
+      map.panTo(effectiveRider);
     }
-  }, [isLoaded, deliveryLocation, destination, lastRouteParams]);
+  }, [effectiveRider, followMode, map]);
 
-  if (!isLoaded) return (
-    <div className="h-full w-full bg-slate-900 flex flex-col items-center justify-center gap-3">
-       <div className="w-8 h-8 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
-       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Initalizing Satellite Data...</span>
-    </div>
-  );
+  // --- Directions ---
+  const [eta, setEta] = useState({ duration: '', distance: '' });
+  useEffect(() => {
+    if (isLoaded && effectiveRider && destination) {
+       const key = `${effectiveRider.lat.toFixed(5)},${effectiveRider.lng.toFixed(5)}|${destination.lat.toFixed(5)},${destination.lng.toFixed(5)}`;
+       if (key !== lastRouteParams) {
+          setLastRouteParams(key);
+          const service = new window.google.maps.DirectionsService();
+          service.route(
+            { origin: effectiveRider, destination, travelMode: 'DRIVING' },
+            (res, stat) => {
+              if (stat === 'OK') {
+                setDirections(res);
+                const leg = res.routes[0]?.legs[0];
+                if (leg) setEta({ duration: leg.duration.text, distance: leg.distance.text });
+              }
+            }
+          );
+       }
+    } else {
+       setDirections(null);
+       setEta({ duration: '', distance: '' });
+    }
+  }, [isLoaded, effectiveRider, destination, lastRouteParams]);
+
+  const handleExternalNav = () => {
+    if (effectiveRider && destination) {
+       const url = `https://www.google.com/maps/dir/?api=1&origin=${effectiveRider.lat},${effectiveRider.lng}&destination=${destination.lat},${destination.lng}&travelmode=driving`;
+       window.open(url, '_blank');
+    }
+  };
+
+  if (!isLoaded) return <div className="h-full w-full bg-slate-100 flex items-center justify-center animate-pulse" />;
 
   return (
-    <div className="relative w-full h-full">
-      {/* Floating ETA Badge */}
+    <div className="relative w-full h-full rounded-[24px] overflow-hidden">
+      {/* ETA HUD */}
       {eta.duration && (
-        <div className="absolute top-4 left-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl z-30 border border-slate-100 flex items-center justify-between transition-all animate-in slide-in-from-top-4 duration-500">
+        <div className="absolute top-4 left-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl z-30 border border-slate-100 flex items-center justify-between">
            <div>
-              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Estimated Time</p>
+              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-0.5">Estimated Arrival</p>
               <h2 className="text-xl font-black text-slate-900 leading-none">{eta.duration}</h2>
            </div>
-           <div className="w-px h-8 bg-slate-200 mx-4" />
-           <div className="text-right flex-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Remaining</p>
+           <div className="text-right">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Route Distance</p>
               <p className="text-sm font-bold text-slate-700">{eta.distance}</p>
            </div>
         </div>
       )}
 
+      {/* EXTERNAL NAV BUTTON (Now Top-Right) */}
+      {destination && (
+        <button 
+          onClick={handleExternalNav}
+          className="absolute top-24 right-6 z-40 w-12 h-12 bg-white/95 backdrop-blur-md text-indigo-600 rounded-2xl shadow-2xl flex items-center justify-center hover:bg-white active:scale-95 transition-all border border-indigo-50"
+        >
+          <FiNavigation size={22} />
+        </button>
+      )}
+
+      {import.meta.env.DEV && (
+        <button onClick={() => setIsSimulating(!isSimulating)} className="absolute top-24 left-6 z-40 bg-slate-900/90 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-xl">
+          {isSimulating ? 'Stop SIM' : 'Simulate'}
+        </button>
+      )}
+
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center}
-        zoom={15}
+        zoom={17}
         onLoad={onLoad}
-        onUnmount={onUnmount}
+        onUnmount={() => setMap(null)}
         options={mapOptions}
       >
-        {/* Rider Marker - Navigation Arrow */}
-        {deliveryLocation && window.google && (
+        {effectiveRider && window.google && (
           <Marker 
-            position={deliveryLocation}
+            position={effectiveRider}
             icon={{
               path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
               fillColor: '#3b82f6',
               fillOpacity: 1,
               strokeWeight: 4,
               strokeColor: '#ffffff',
-              scale: 8,
-              rotation: 0 // Ideally this should come from heading
+              scale: 7,
+              rotation: heading
             }}
+            zIndex={2000}
+          />
+        )}
+
+        {destination && (
+          <Marker 
+            position={destination}
+            label={{ text: isPickedUp ? '🏠' : '📦', fontSize: '22px' }}
             zIndex={1000}
           />
         )}
 
-        {/* Destination Marker */}
-        {destination && (
-          <Marker 
-            position={destination}
-            label={{
-               text: isPickedUp ? '🏠' : '📦',
-               fontSize: '24px',
-               className: 'map-label'
-            }}
-            title={isPickedUp ? 'Deliver Here' : 'Pick Up Here'}
-          />
-        )}
-
-        {/* Show Vendor if heading to customer */}
-        {isPickedUp && vendorLocation && (
-          <Marker 
-            position={vendorLocation}
-            label={{ text: '✅', fontSize: '18px' }}
-            opacity={0.7}
-          />
-        )}
-
-        {/* Route Display */}
         {directions && (
           <DirectionsRenderer
             directions={directions}
             options={{
               suppressMarkers: true,
               polylineOptions: {
-                strokeColor: "#6366f1",
+                strokeColor: "#4f46e5",
                 strokeWeight: 7,
                 strokeOpacity: 0.9
               }
-            }}
-          />
-        )}
-
-        {!directions && deliveryLocation && destination && (
-          <Polyline
-            path={[deliveryLocation, destination]}
-            options={{
-              strokeColor: "#6366f1",
-              strokeOpacity: 0.8,
-              strokeWeight: 4,
-              geodesic: true,
             }}
           />
         )}
@@ -386,4 +312,3 @@ const TrackingMap = ({
 };
 
 export default React.memo(TrackingMap);
-

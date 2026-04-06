@@ -123,10 +123,19 @@ const DeliveryBoys = () => {
             key: 'name',
             label: 'Partner Details',
             render: (_, row) => (
-                <div className="flex flex-col">
-                    <span className="font-bold text-gray-800">{row.name}</span>
-                    <span className="text-xs text-gray-500 font-medium">{row.phone}</span>
-                    <span className="text-[10px] text-gray-400 truncate max-w-[150px]">{row.email}</span>
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm">
+                        <img 
+                          src={row.avatar || `https://ui-avatars.com/api/?name=${row.name}&background=6366f1&color=fff`} 
+                          alt={row.name} 
+                          className="w-full h-full object-cover"
+                        />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="font-black text-gray-800 text-sm truncate">{row.name}</span>
+                        <span className="text-[10px] text-gray-400 font-bold tracking-tight">{row.phone}</span>
+                        <span className="text-[10px] text-indigo-500 opacity-60 truncate max-w-[120px]">{row.email}</span>
+                    </div>
                 </div>
             ),
         },
@@ -278,10 +287,22 @@ const DeliveryBoys = () => {
                             className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative z-10 no-scrollbar"
                         >
                             <div className="flex items-center justify-between mb-8">
-                              <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">
-                                  {editingBoy.id ? 'Partner Profile' : 'New Partnership'}
-                              </h3>
-                              <button onClick={() => setEditingBoy(null)} className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"><FiXCircle size={20} /></button>
+                                <div className="flex items-center gap-4">
+                                  <div className="w-16 h-16 rounded-2xl bg-indigo-50 overflow-hidden border-2 border-indigo-100 shadow-lg shrink-0">
+                                    <img 
+                                      src={editingBoy.avatar || `https://ui-avatars.com/api/?name=${editingBoy.name}&background=6366f1&color=fff`} 
+                                      className="w-full h-full object-cover" 
+                                      alt="Avatar" 
+                                    />
+                                  </div>
+                                  <div>
+                                    <h3 className="text-xl font-black text-gray-800 uppercase tracking-tighter">
+                                        {editingBoy.id ? editingBoy.name : 'New Partnership'}
+                                    </h3>
+                                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest opacity-60">Partner Identity Verified</p>
+                                  </div>
+                                </div>
+                                <button onClick={() => setEditingBoy(null)} className="p-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"><FiXCircle size={20} /></button>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

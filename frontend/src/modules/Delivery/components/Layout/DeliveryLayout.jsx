@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import DeliveryBottomNav from "./DeliveryBottomNav";
 import { useDeliveryTracking } from "@shared/hooks/useDeliveryTracking";
+import { formatPrice } from "../../../../shared/utils/helpers";
 import socketService from "@shared/utils/socket";
 import NewOrderModal from "../NewOrderModal";
 import { useJsApiLoader } from "@react-google-maps/api";
@@ -273,9 +274,10 @@ const DeliveryLayout = () => {
             <FiMenu className="text-white text-xl" />
           </button>
 
-          <Link to="/delivery/dashboard" className="flex items-center gap-0.5 no-underline group shrink-0">
-            <img src={logo} alt="CLOSH" className="h-9 w-auto object-contain" />
-          </Link>
+          <div className="flex flex-col ml-1">
+             <h1 className="text-[11px] font-black text-white leading-tight tracking-tighter">CLOSH</h1>
+             <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest -mt-1">PARTNER APP</span>
+          </div>
 
           <div className="flex items-center gap-4 ml-auto">
             {/* Premium Status Toggle */}
@@ -300,12 +302,8 @@ const DeliveryLayout = () => {
             </div>
 
             <div className="flex items-center gap-2 pl-3 border-l border-white/10">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg transform rotate-2 active:rotate-0 transition-all">
-                <FiTruck className="text-white text-sm" />
-              </div>
-              <div className="flex flex-col hidden xs:flex">
-                <h1 className="text-[11px] font-black text-white leading-tight tracking-tight">DELIVERY</h1>
-                <span className="text-[9px] font-bold text-indigo-300/80 uppercase tracking-widest -mt-0.5">PARTNER</span>
+              <div className="w-10 h-10 bg-[#1e293b] rounded-xl flex items-center justify-center p-1 shadow-2xl border border-white/10 overflow-hidden">
+                <img src={logo} alt="CLOSH" className="w-full h-full object-cover" />
               </div>
             </div>
           </div>
@@ -330,8 +328,12 @@ const DeliveryLayout = () => {
               className="fixed left-0 top-0 bottom-0 w-64 bg-white shadow-xl z-[110] overflow-y-auto">
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center">
-                    <FiTruck className="text-white text-xl" />
+                  <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center overflow-hidden border-2 border-indigo-100/50 shadow-sm">
+                    {deliveryBoy?.avatar ? (
+                      <img src={deliveryBoy.avatar} className="w-full h-full object-cover" alt="Profile" />
+                    ) : (
+                      <FiTruck className="text-white text-xl" />
+                    )}
                   </div>
                   <div>
                     <h2 className="font-semibold text-gray-800">{deliveryBoy?.name || "Partner"}</h2>
@@ -346,11 +348,11 @@ const DeliveryLayout = () => {
                 <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-100">
                   <div className="p-2 bg-orange-50 rounded-xl border border-orange-100/50">
                     <p className="text-[9px] font-black text-orange-500 uppercase tracking-tighter">In Hand</p>
-                    <p className="text-[13px] font-black text-orange-700">₹{deliveryBoy?.cashInHand || 0}</p>
+                    <p className="text-[13px] font-black text-orange-700">{formatPrice(deliveryBoy?.cashInHand || 0)}</p>
                   </div>
                   <div className="p-2 bg-green-50 rounded-xl border border-green-100/50">
                     <p className="text-[9px] font-black text-green-500 uppercase tracking-tighter">Collected</p>
-                    <p className="text-[13px] font-black text-green-700">₹{deliveryBoy?.totalCashCollected || 0}</p>
+                    <p className="text-[13px] font-black text-green-700">{formatPrice(deliveryBoy?.totalCashCollected || 0)}</p>
                   </div>
                 </div>
               </div>

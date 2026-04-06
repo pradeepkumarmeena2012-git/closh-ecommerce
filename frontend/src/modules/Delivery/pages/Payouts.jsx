@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiDollarSign, 
   FiClock, 
@@ -7,8 +7,11 @@ import {
   FiXCircle, 
   FiAlertCircle,
   FiRefreshCw,
-  FiFilter
+  FiFilter,
+  FiChevronRight,
+  FiInfo
 } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import PageTransition from '../../../shared/components/PageTransition';
 import WithdrawalModal from '../components/WithdrawalModal';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
@@ -17,6 +20,7 @@ import toast from 'react-hot-toast';
 import { formatPrice } from '../../../shared/utils/helpers';
 
 const Payouts = () => {
+  const navigate = useNavigate();
   const { deliveryBoy, fetchProfile } = useDeliveryAuthStore();
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [withdrawalHistory, setWithdrawalHistory] = useState([]);
@@ -24,6 +28,7 @@ const Payouts = () => {
   const [filter, setFilter] = useState('all'); // all, pending, approved, rejected, completed
   const [nextAvailableDate, setNextAvailableDate] = useState(null);
   const [canRequestPayout, setCanRequestPayout] = useState(true);
+  const [showPolicy, setShowPolicy] = useState(false);
 
   const loadWithdrawalHistory = useCallback(async () => {
     try {
@@ -32,7 +37,6 @@ const Payouts = () => {
       const history = response.data?.data || [];
       setWithdrawalHistory(history);
 
-      // Calculate next available date based on 7-day cooldown
       const lastNonRejectedRequest = history.find(
         (req) => req.status !== 'rejected'
       );
@@ -53,7 +57,6 @@ const Payouts = () => {
       }
     } catch (error) {
       toast.error('Failed to load payout history');
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -72,31 +75,21 @@ const Payouts = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'pending':
-        return <FiClock className="text-yellow-500" />;
-      case 'approved':
-        return <FiCheckCircle className="text-blue-500" />;
-      case 'completed':
-        return <FiCheckCircle className="text-green-500" />;
-      case 'rejected':
-        return <FiXCircle className="text-red-500" />;
-      default:
-        return <FiAlertCircle className="text-gray-500" />;
+      case 'pending': return <FiClock size={16} className="text-amber-500" />;
+      case 'approved': return <FiCheckCircle size={16} className="text-blue-500" />;
+      case 'completed': return <FiCheckCircle size={16} className="text-emerald-500" />;
+      case 'rejected': return <FiXCircle size={16} className="text-rose-500" />;
+      default: return <FiAlertCircle size={16} className="text-slate-400" />;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-700';
-      case 'approved':
-        return 'bg-blue-100 text-blue-700';
-      case 'completed':
-        return 'bg-green-100 text-green-700';
-      case 'rejected':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
+      case 'pending': return 'bg-amber-100 text-amber-700';
+      case 'approved': return 'bg-blue-100 text-blue-700';
+      case 'completed': return 'bg-emerald-100 text-emerald-700';
+      case 'rejected': return 'bg-rose-100 text-rose-700';
+      default: return 'bg-slate-100 text-slate-700';
     }
   };
 
@@ -107,230 +100,190 @@ const Payouts = () => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   };
 
   return (
     <PageTransition>
-      <div className="px-4 pt-4 pb-24 space-y-6">
+      <div className="px-4 pt-3 pb-24 space-y-3 max-w-lg mx-auto flex flex-col h-[calc(100vh-80px)] overflow-hidden">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between"
-        >
-          <div className="text-left">
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Payouts</h1>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Earnings Manager</p>
+        <div className="flex items-center justify-between shrink-0">
+          <div>
+            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none">Payouts</h1>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">Earnings Management</p>
           </div>
           <button
-            onClick={() => fetchProfile()}
-            className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:rotate-180 duration-500"
+            onClick={() => { loadWithdrawalHistory(); fetchProfile(); }}
+            className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 active:rotate-180 transition-all duration-500 shadow-sm"
           >
-            <FiRefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+            <FiRefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
           </button>
-        </motion.div>
+        </div>
 
-        {/* Balance Card */}
+        {/* Balance Card - Premium Gradient */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-          className="bg-indigo-600 rounded-2xl p-4 text-white shadow-xl relative overflow-hidden"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-[#4f46e5] via-[#4338ca] to-[#3730a3] rounded-[32px] p-5 text-white shadow-2xl relative overflow-hidden shrink-0 border border-white/10"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl opacity-50" />
-          <div className="relative z-10 flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md shadow-inner border border-white/20">
-              <FiDollarSign size={20} />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-12 -mt-12 blur-3xl opacity-60" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-400/20 rounded-full -ml-8 -mb-8 blur-2xl" />
+          
+          <div className="flex items-center justify-between mb-5 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20 shadow-inner">
+                <FiDollarSign className="text-white" size={20} />
+              </div>
+              <p className="text-indigo-100 text-[9px] font-black uppercase tracking-[0.2em] opacity-80">Available Funds</p>
             </div>
-            <div>
-              <p className="text-indigo-100 text-[10px] font-black uppercase tracking-[0.2em]">Available Balance</p>
-              <p className="text-2xl font-black tracking-tight mt-0.5">
-                {formatPrice(deliveryBoy?.availableBalance || 0)}
-              </p>
+            <div className="text-right">
+              <p className="text-3xl font-black tracking-tighter leading-none">{formatPrice(deliveryBoy?.availableBalance || 0)}</p>
+              <div className="flex items-center justify-end gap-1 mt-1">
+                <div className={`w-1.5 h-1.5 rounded-full ${deliveryBoy?.kycStatus === 'verified' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-amber-400'}`} />
+                <p className="text-[7px] font-black uppercase tracking-widest opacity-60">{deliveryBoy?.kycStatus === 'verified' ? 'Verified' : 'Pending KYC'}</p>
+              </div>
             </div>
           </div>
 
-          {/* Request Payout Button */}
-          {canRequestPayout ? (
-            <div className="space-y-3 relative z-10">
+          <div className="space-y-3 relative z-10">
+            {!canRequestPayout ? (
+              <div className="bg-black/10 backdrop-blur-md rounded-2xl p-3 text-center border border-white/10">
+                <p className="text-primary-100 text-[7px] font-black uppercase tracking-[0.2em] mb-0.5">Next Eligibility</p>
+                <p className="text-sm font-black tracking-tight">
+                  {nextAvailableDate?.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+            ) : (
               <button
                 onClick={() => setShowWithdrawalModal(true)}
-                disabled={
-                  !deliveryBoy?.availableBalance || 
-                  deliveryBoy?.availableBalance <= 0 || 
-                  deliveryBoy?.kycStatus !== 'verified'
-                }
-                className="w-full py-3.5 bg-white text-indigo-600 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
+                disabled={!deliveryBoy?.availableBalance || deliveryBoy?.availableBalance <= 0 || deliveryBoy?.kycStatus !== 'verified'}
+                className="w-full py-4 bg-white text-indigo-700 rounded-[22px] font-black text-[11px] uppercase tracking-[0.15em] shadow-xl active:scale-[0.98] transition-all disabled:opacity-30 disabled:bg-indigo-300/20 disabled:text-white/50 disabled:shadow-none"
               >
-                {deliveryBoy?.kycStatus !== 'verified' ? 'KYC Verification Required' : 'Request Payout Now'}
+                {deliveryBoy?.kycStatus !== 'verified' ? 'KYC Verification Required' : 'Request Withdrawal'}
               </button>
-              
-              {deliveryBoy?.kycStatus !== 'verified' && (
-                <div 
-                  onClick={() => navigate('/delivery/profile')}
-                  className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:bg-white/20 transition-all"
-                >
-                  <FiAlertCircle className="text-white shrink-0" />
-                  <p className="text-[10px] font-bold text-white leading-tight uppercase tracking-wider">
-                    Complete your KYC and Bank Details in profile to enable payouts
-                  </p>
+            )}
+
+            {deliveryBoy?.kycStatus !== 'verified' && (
+              <div 
+                onClick={() => navigate('/delivery/profile')}
+                className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[20px] p-3 flex items-center justify-between cursor-pointer group hover:bg-white/10 transition-all shadow-inner"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center">
+                    <FiAlertCircle size={14} className="text-indigo-200 shrink-0" />
+                  </div>
+                  <p className="text-[8px] font-black text-indigo-100 leading-tight uppercase tracking-widest italic opacity-80">Setup KYC to enable payouts</p>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 text-center relative z-10 border border-white/20 shadow-inner">
-              <p className="text-indigo-100 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
-                Next Payout Eligibility
-              </p>
-              <p className="text-lg font-black text-white">
-                {nextAvailableDate?.toLocaleDateString('en-IN', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
-              </p>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Info Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-blue-50 rounded-2xl p-4 flex gap-3"
-        >
-          <FiAlertCircle className="text-blue-600 text-xl flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-700">
-            <p className="font-semibold mb-1">Payout Policy</p>
-            <ul className="space-y-1 text-xs">
-              <li>• Payouts are processed within 24-48 hours after admin approval</li>
-              <li>• You can request one payout every 7 days</li>
-              <li>• Minimum withdrawal amount is ₹1</li>
-              <li>• Funds will be transferred to your registered bank account</li>
-            </ul>
+                <FiChevronRight size={14} className="text-white/40 group-hover:text-white transition-all group-hover:translate-x-1" />
+              </div>
+            )}
           </div>
         </motion.div>
 
-        {/* Filter Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-white rounded-2xl p-2 shadow-sm"
-        >
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-            <FiFilter className="text-gray-400 ml-2 flex-shrink-0" />
-            {['all', 'pending', 'approved', 'completed', 'rejected'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-4 py-2 rounded-xl font-semibold text-sm whitespace-nowrap transition-all ${
-                  filter === status
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+        {/* Mini Payout Policy */}
+        <div className="shrink-0">
+          <button 
+            onClick={() => setShowPolicy(!showPolicy)}
+            className="w-full flex items-center justify-between px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl group active:bg-slate-100 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <FiInfo className="text-slate-400 group-hover:text-primary-500 transition-colors" size={14} />
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Payout Policy</span>
+            </div>
+            <FiChevronRight className={`text-slate-400 transition-transform ${showPolicy ? 'rotate-90' : ''}`} size={14} />
+          </button>
+          
+          <AnimatePresence>
+            {showPolicy && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
               >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </button>
-            ))}
-          </div>
-        </motion.div>
+                <div className="p-3 mt-1 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                  {[
+                    'Processed within 24-48 hours',
+                    'One request every 7 days',
+                    'Minimum amount: ₹1',
+                    'Transferred to bank account'
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                       <div className="w-1 h-1 bg-primary-400 rounded-full" />
+                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-tight">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Tab Filters */}
+        <div className="flex gap-2 p-1.5 bg-slate-100 rounded-[24px] shrink-0 overflow-x-auto no-scrollbar border border-slate-200/50">
+          {['all', 'pending', 'approved', 'completed', 'rejected'].map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`px-5 py-2.5 rounded-[18px] text-[9px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap ${filter === s ? 'bg-white text-indigo-600 shadow-lg shadow-indigo-100/50 scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
 
         {/* Payout History */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="space-y-3"
-        >
-          <h2 className="text-xl font-bold text-gray-800">Payout History</h2>
+        <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-1 h-3 bg-primary-600 rounded-full" />
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Transfer History</h2>
+          </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <FiRefreshCw className="text-4xl text-primary-600 animate-spin" />
+            <div className="py-12 flex flex-col items-center justify-center gap-3">
+              <FiRefreshCw className="text-primary-600 animate-spin" size={24} />
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Fetching Transfers...</p>
             </div>
           ) : filteredHistory.length === 0 ? (
-            <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
-              <FiDollarSign className="text-5xl text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-600 font-semibold">No payout requests found</p>
-              <p className="text-gray-400 text-sm mt-1">
-                {filter !== 'all' ? 'Try changing the filter' : 'Request your first payout above'}
-              </p>
+            <div className="py-12 bg-white rounded-[28px] border border-slate-100 text-center space-y-2 shadow-sm">
+              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
+                <FiDollarSign className="text-slate-300" size={24} />
+              </div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Transfers Found</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredHistory.map((withdrawal, index) => (
-                <motion.div
-                  key={withdrawal._id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 mt-1">
-                        {getStatusIcon(withdrawal.status)}
-                      </div>
-                      <div>
-                        <p className="text-2xl font-bold text-gray-800">
-                          {formatPrice(withdrawal.amount)}
-                        </p>
-                        <p className="text-gray-500 text-sm mt-1">
-                          {formatDate(withdrawal.createdAt)} • {formatTime(withdrawal.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                        withdrawal.status
-                      )}`}
-                    >
-                      {withdrawal.status.charAt(0).toUpperCase() + withdrawal.status.slice(1)}
-                    </span>
+            filteredHistory.map((item, idx) => (
+              <motion.div
+                key={item._id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className="bg-white rounded-[26px] p-4 border border-slate-200/50 shadow-sm flex items-center justify-between group active:scale-[0.98] transition-all hover:border-indigo-100 hover:shadow-md"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 ${getStatusColor(item.status).replace('bg-', 'border-').split(' ')[0]} shrink-0 shadow-xl bg-slate-50`}>
+                    {getStatusIcon(item.status)}
                   </div>
-
-                  {withdrawal.transactionId && (
-                    <div className="bg-gray-50 rounded-xl p-3 mb-2">
-                      <p className="text-xs text-gray-500 mb-1">Transaction ID</p>
-                      <p className="text-sm font-mono text-gray-800">{withdrawal.transactionId}</p>
-                    </div>
-                  )}
-
-                  {withdrawal.adminNotes && (
-                    <div className="bg-blue-50 rounded-xl p-3">
-                      <p className="text-xs text-blue-600 font-semibold mb-1">Admin Notes</p>
-                      <p className="text-sm text-blue-700">{withdrawal.adminNotes}</p>
-                    </div>
-                  )}
-
-                  {withdrawal.processedAt && (
-                    <p className="text-xs text-gray-400 mt-2">
-                      Processed on: {formatDate(withdrawal.processedAt)}
+                  <div className="min-w-0">
+                    <p className="text-lg font-black text-slate-800 tracking-tighter leading-none mb-1">{formatPrice(item.amount)}</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none opacity-80 italic">
+                      {formatDate(item.createdAt)} • {new Date(item.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                     </p>
-                  )}
-                </motion.div>
-              ))}
-            </div>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col items-end gap-1.5">
+                  <span className={`px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest shadow-sm ${getStatusColor(item.status)}`}>
+                    {item.status}
+                  </span>
+                  {item.transactionId && <p className="text-[8px] font-mono text-slate-300 leading-none tracking-tighter">#{item.transactionId.slice(-6).toUpperCase()}</p>}
+                </div>
+              </motion.div>
+            ))
           )}
-        </motion.div>
+        </div>
       </div>
 
-      {/* Withdrawal Modal */}
       <WithdrawalModal
         isOpen={showWithdrawalModal}
         onClose={() => setShowWithdrawalModal(false)}

@@ -189,24 +189,24 @@ const DeliveryOrderDetail = () => {
 
   return (
     <PageTransition>
-      <div className="relative min-h-screen w-full bg-slate-50 font-sans text-slate-900 select-none overflow-x-hidden">
+      <div className="relative h-screen w-full bg-white font-sans text-slate-900 select-none overflow-hidden flex flex-col">
         
-        {/* APP HEADER */}
-        <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-100 flex items-center h-16 px-4">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-900"><FiArrowLeft size={24} /></button>
-          <div className="flex-1 ml-2">
-            <h2 className="text-lg font-bold text-slate-900 leading-tight">#{String(order.id).slice(-8)}</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                {trackingPhase === 'to_vendor' ? 'Pickup Task' : 'Delivery Task'}
+        {/* NATIVE HEADER (Fixed Height) */}
+        <header className="shrink-0 z-50 bg-white border-b border-slate-100 flex items-center h-14 px-4">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-900"><FiArrowLeft size={22} /></button>
+          <div className="flex-1 ml-1">
+            <h2 className="text-sm font-black text-slate-900 leading-tight">Order #{String(order.id).slice(-6)}</h2>
+            <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest">
+                {trackingPhase === 'to_vendor' ? 'Pickup Mission' : 'Delivery Mission'}
             </p>
           </div>
-          <button onClick={()=>window.open(`tel:${order.phone}`)} className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center"><FiPhone size={20}/></button>
+          <button onClick={()=>window.open(`tel:${order.phone}`)} className="w-9 h-9 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center active:scale-90 transition-transform"><FiPhone size={18}/></button>
         </header>
 
-        <main className="pt-16 pb-32">
+        <main className="flex-1 relative overflow-hidden flex flex-col">
           {(!hasArrived && trackingPhase === 'to_customer') || (trackingPhase === 'to_vendor' && !pickupPhoto) ? (
-            /* --- TRANSIT VIEW: MAP + MINIMAL BOTTOM CARD --- */
-            <div className="relative h-[calc(100vh-64px)] w-full">
+            /* --- MISSION VIEW: FULL MAP + CONTROL CENTER --- */
+            <div className="flex-1 relative overflow-hidden">
               <TrackingMap 
                 deliveryLocation={currentLocation} 
                 vendorLocation={vendorLocation} 
@@ -215,36 +215,36 @@ const DeliveryOrderDetail = () => {
                 customerAddress={order.address}
                 vendorAddress={order.vendorAddress}
                 followMode={true} 
+                isLoaded={isLoaded}
               />
               
-              {/* Floating Bottom Strip (Native App Feel) */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 pb-8 bg-gradient-to-t from-slate-900/10 to-transparent">
-                 <div className="bg-white rounded-2xl p-4 shadow-2xl border border-slate-100">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><FiMapPin size={24}/></div>
+              {/* MISSION CARD (Locked at bottom) */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 z-30">
+                 <div className="bg-white rounded-3xl p-4 shadow-[0_-8px_40px_-12px_rgba(0,0,0,0.15)] border border-slate-100">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 shrink-0"><FiMapPin size={22}/></div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">On the route to</p>
-                            <h3 className="text-base font-bold text-slate-900 truncate">{trackingPhase === 'to_vendor' ? order.vendorName : order.customer}</h3>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">On the route to</p>
+                            <h3 className="text-[15px] font-black text-slate-900 truncate tracking-tight">{trackingPhase === 'to_vendor' ? order.vendorName : order.customer}</h3>
                         </div>
-                        {/* Focus / Re-center Button (No more external Tabs) */}
-                        <button onClick={() => { if(currentLocation) navigate(0); }} className="w-11 h-11 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg"><FiNavigation size={20}/></button>
+                        <button onClick={openInGoogleMaps} className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-100 active:scale-95 transition-all"><FiNavigation size={22}/></button>
                     </div>
 
                     {trackingPhase === 'to_vendor' ? (
-                        <button onClick={() => pickupPhotoInputRef.current.click()} className="w-full h-14 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                            <FiCamera size={18} /> Take Pickup Photo
+                        <button onClick={() => pickupPhotoInputRef.current.click()} className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl shadow-slate-200">
+                            <FiCamera size={18} /> COMPLETE PICKUP
                         </button>
                     ) : (
-                        <button onClick={handleMarkArrived} className="w-full h-14 bg-[#F59E0B] text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2">
-                             I Have Reached
+                        <button onClick={handleMarkArrived} className="w-full h-14 bg-[#F59E0B] text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.1em] flex items-center justify-center gap-2 active:scale-95 transition-all shadow-xl shadow-amber-100">
+                             I HAVE REACHED
                         </button>
                     )}
                  </div>
               </div>
             </div>
           ) : (
-            /* --- FULFILLMENT VIEW: DEDICATED TASKS (NATIVE LIST FEEL) --- */
-            <div className="p-4 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            /* --- CHECKLIST VIEW: SCROLLABLE LIST --- */
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 pb-24 bg-slate-50">
                 
                 {/* Information Card */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
