@@ -51,13 +51,7 @@ const DeliveryBoyLiveMap = ({
   orderDetails = null,
   isLoaded: isLoadedProp
 }) => {
-  const { isLoaded: internalIsLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
-    libraries: ['places', 'geometry', 'drawing']
-  });
-
-  const isLoaded = isLoadedProp !== undefined ? isLoadedProp : internalIsLoaded;
+  const isLoaded = isLoadedProp;
 
   const [map, setMap] = useState(null);
   const [center, setCenter] = useState(currentLocation || { lat: 20.5937, lng: 78.9629 });
