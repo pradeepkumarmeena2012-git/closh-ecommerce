@@ -65,8 +65,16 @@ const HeroSection = () => {
     return (
         <section className={`w-full bg-gradient-to-b ${currentHeroBg} transition-colors duration-700`}>
             <div className="max-w-[1600px] mx-auto px-0 md:px-6 lg:px-8 py-0 md:py-4">
-                <div className="relative h-[220px] md:h-[260px] lg:h-[300px] w-full overflow-hidden rounded-none md:rounded-[24px] shadow-lg group">
+                <div className="relative h-[180px] md:h-[260px] lg:h-[300px] w-full overflow-hidden rounded-none md:rounded-[24px] shadow-lg group">
                     
+                    {/* Floating Promo Tags - Premium Aesthetic */}
+                    <div className="absolute top-3 left-3 z-[25] flex items-center gap-1.5 px-2.5 py-1 bg-red-600 text-white text-[9px] font-black uppercase rounded-[6px] shadow-[0_4px_15px_rgba(220,38,38,0.4)] animate-fadeIn">
+                         Holi Special
+                    </div>
+                    <div className="absolute top-3 right-3 z-[25] flex items-center gap-1.5 px-2.5 py-1 bg-black/40 backdrop-blur-md text-[#FFC107] text-[9px] font-black uppercase rounded-[6px] border border-[#FFC107]/30 shadow-xl animate-fadeIn">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#FFC107] animate-pulse" /> New
+                    </div>
+
                     {/* Main Banner Slider */}
                     {slides.map((banner, index) => (
                         <div
@@ -75,12 +83,15 @@ const HeroSection = () => {
                         >
                             {/* Background Image */}
                             <div
-                                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                                style={{ backgroundImage: `url(${banner.image})` }}
+                                className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-[10s] ease-linear overflow-hidden"
+                                style={{ 
+                                    backgroundImage: `url(${banner.image})`,
+                                    transform: index === currentSlide ? 'scale(1.1)' : 'scale(1)'
+                                }}
                             />
                             
                             {/* Pro Overlay for Readability */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent" />
 
                             {/* Content Layer */}
                             <div className="absolute inset-0 flex flex-col justify-center px-6 md:px-12 lg:px-16 z-20">
@@ -90,7 +101,7 @@ const HeroSection = () => {
                                         <span className="text-[8px] font-bold text-white tracking-[0.3em] uppercase opacity-60">Featured Collection</span>
                                     </div>
                                     
-                                    <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-white leading-[1] mb-2 md:mb-3 tracking-tighter shadow-black/20 drop-shadow-md">
+                                    <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-white leading-tight mb-2 md:mb-3 tracking-tighter drop-shadow-lg max-w-[80%] md:max-w-full">
                                         {banner.title}
                                     </h2>
                                     
@@ -98,16 +109,13 @@ const HeroSection = () => {
                                         {banner.subtitle || "The season's most-wanted essentials, exclusively curated for you."}
                                     </p>
 
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 mt-1 md:mt-0">
                                         <button
                                             onClick={() => navigate(banner.link)}
-                                            className="bg-white text-black py-2 px-6 rounded-lg font-black text-[10px] md:text-[12px] uppercase hover:bg-black hover:text-white transition-all shadow-xl active:scale-95"
+                                            className="bg-white text-black py-2.5 px-8 rounded-lg font-black text-[10px] md:text-[12px] uppercase hover:bg-black hover:text-white transition-all shadow-2xl active:scale-95 border-none outline-none"
                                         >
                                             {banner.cta || "Shop Now"}
                                         </button>
-                                        <div className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/40 backdrop-blur-md text-white/90 text-[8px] font-bold border border-white/10 uppercase">
-                                            <div className="w-1 h-1 rounded-full bg-emerald-400" /> New
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -120,7 +128,7 @@ const HeroSection = () => {
                             <button
                                 key={index}
                                 onClick={() => setCurrentSlide(index)}
-                                className={`h-1 rounded-full transition-all duration-500 ${index === currentSlide ? 'w-6 bg-white' : 'w-1.5 bg-white/20 hover:bg-white/40'}`}
+                                className={`h-1.5 rounded-full transition-all duration-500 ${index === currentSlide ? 'w-8 bg-white' : 'w-2 bg-white/30 hover:bg-white/50'}`}
                             />
                         ))}
                     </div>
@@ -139,4 +147,5 @@ const HeroSection = () => {
 };
 
 export default HeroSection;
+
 

@@ -78,7 +78,7 @@ const MobileProductCard = ({ product }) => {
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 mb-2">{product.unit}</p>
+
 
             {/* Vendor Badge */}
             {product.vendorId && (

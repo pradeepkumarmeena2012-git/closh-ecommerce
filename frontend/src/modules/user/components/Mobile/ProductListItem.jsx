@@ -92,7 +92,7 @@ const ProductListItem = ({ product, index, isFlashSale = false }) => {
                 <span className="text-[9px] text-gray-400 font-medium ml-1">({product.reviewCount || 0})</span>
               </div>
             )}
-            <span className="text-[10px] md:text-xs text-gray-500 border-l border-gray-200 pl-2">{product.unit}</span>
+
           </div>
 
           {/* Flash Sale Progress */}

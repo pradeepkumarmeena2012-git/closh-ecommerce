@@ -652,7 +652,7 @@ const MobileProductDetail = () => {
                         </button>
                       </div>
                       <span className="text-sm text-gray-500">
-                        {selectedAvailableStock} {product.unit}s available
+                        {selectedAvailableStock} in stock
                       </span>
                     </div>
                   </div>
@@ -723,8 +723,7 @@ const MobileProductDetail = () => {
                       <p>{product.description}</p>
                     ) : (
                       <p>
-                        High-quality {product.name.toLowerCase()} available in{" "}
-                        {product.unit.toLowerCase()}. This product is carefully selected
+                        High-quality {product.name.toLowerCase()} available. This product is carefully selected
                         to ensure the best quality and freshness.
                       </p>
                     )}

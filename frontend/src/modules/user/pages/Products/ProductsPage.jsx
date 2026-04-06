@@ -233,98 +233,63 @@ const ProductsPage = () => {
 
     return (
         <div className="bg-white min-h-screen pb-20 md:pb-0 text-gray-900 font-sans">
-            {/* Universal Header - Mobile Only (Hidden on Desktop to prevent duplication) */}
-            <div className="sticky top-0 z-[60] border-b border-gray-100 shadow-[0_4px_30px_rgba(0,0,0,0.3)] md:hidden overflow-hidden">
-                <div className="absolute inset-0 bg-gray-100/90 backdrop-blur-2xl z-0" />
-                <div className={`absolute inset-0 bg-gradient-to-b ${headerTheme} z-0 opacity-100 pointer-events-none`} />
+            {/* Universal Header - Mobile Only (Synced with Global Header) */}
+            <div className="sticky top-0 z-[60] border-b border-gray-100 shadow-[0_8px_32px_rgba(0,0,0,0.08)] md:hidden">
+                <div className="absolute inset-0 bg-white/95 backdrop-blur-2xl z-0" />
+                <div className={`absolute inset-0 bg-gradient-to-b ${headerTheme} z-0 opacity-10 pointer-events-none`} />
 
-                <div className="container mx-auto px-4 py-3 pb-0 relative z-10">
+                <div className="container mx-auto px-4 py-2 relative z-10 flex items-center justify-between">
                     {/* Top Row: Back, Title, Actions */}
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                            <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors shrink-0" onClick={() => window.history.back()}>
-                                <ArrowLeft size={16} className="text-gray-900" />
-                            </button>
-                            <div className="flex flex-col">
-                                <h1 className="text-[17px] font-bold truncate uppercase  text-gray-900 leading-tight mb-0.5 mt-0.5">
-                                    {selectedBrands[0] || subCategoryFromUrl || category || "Products"}
-                                </h1>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-[9px] font-semibold text-black uppercase  whitespace-nowrap">
-                                        {filteredProducts.length} Items
-                                    </span>
-                                </div>
+                    <div className="flex items-center gap-3">
+                        <button className="w-8 h-8 rounded-full border border-black/5 bg-white flex items-center justify-center shadow-sm shrink-0 active:scale-90 transition-transform" onClick={() => window.history.back()}>
+                            <ArrowLeft size={16} className="text-black" />
+                        </button>
+                        <div className="flex flex-col min-w-0">
+                            <h1 className="text-[15px] font-black truncate uppercase text-black leading-none mb-1">
+                                {selectedBrands[0] || subCategoryFromUrl || category || "Products"}
+                            </h1>
+                            <div className="flex items-center gap-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                                <span className="text-[9px] font-bold text-black/50 uppercase whitespace-nowrap">
+                                    {filteredProducts.length} Items
+                                </span>
                             </div>
                         </div>
+                    </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
-                            <button onClick={() => setIsLocationModalOpen(true)} className="relative transition-colors group p-2 hover:bg-gray-50 rounded-full">
-                                <MapPin size={18} className="text-gray-900 group-hover:text-black transition-colors" />
-                            </button>
-                            <Link to="/wishlist" className="relative transition-colors group p-2 hover:bg-gray-50 rounded-full">
-                                <Heart size={18} className="text-gray-900 group-hover:text-black transition-colors" />
-                                {wishlistItems.length > 0 && (
-                                    <span className="absolute top-1 right-1 bg-white text-black text-[8px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center border border-black">
-                                        {wishlistItems.length}
-                                    </span>
-                                )}
-                            </Link>
-                            <Link to="/cart" className="relative transition-colors group p-2 hover:bg-gray-50 rounded-full">
-                                <ShoppingCart size={18} className="text-gray-900 group-hover:text-black transition-colors" />
+                    <div className="flex items-center gap-2 justify-end">
+                        <div className="flex flex-col min-w-0 text-right mr-1" onClick={() => setIsLocationModalOpen(true)}>
+                            <span className="text-[9px] font-black leading-tight flex items-center justify-end gap-1 text-black uppercase tracking-tighter opacity-80">
+                                Location <ChevronDown size={8} className="text-[#FFC107]" />
+                            </span>
+                            <span className="text-[9px] font-bold truncate max-w-[90px] text-black/60">
+                                {activeAddress ? `${activeAddress.name}` : 'Select'}
+                            </span>
+                        </div>
+                        <Link to="/cart" className="flex items-center justify-center w-9 h-9 rounded-full bg-black shadow-lg shrink-0 active:scale-90 transition-transform">
+                            <div className="relative">
+                                <ShoppingCart size={16} className="text-white" />
                                 {getCartCount() > 0 && (
-                                    <span className="absolute top-1 right-1 bg-black text-white text-[8px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#111111] shadow-[0_0_8px_rgba(212,175,55,0.6)]">
+                                    <span className="absolute -top-2 -right-2 bg-[#FFC107] text-black text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-black shadow-sm">
                                         {getCartCount()}
                                     </span>
                                 )}
-                            </Link>
-                        </div>
-                    </div>
-
-                    {/* Toolbar Row: Search (Mobile Only) */}
-                    <div className="flex items-center gap-2 pb-4 pt-1">
-                        {/* Search Bar */}
-                        <div className="relative flex-1 group">
-                            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors" />
-                            <input
-                                type="text"
-                                placeholder={`Search in ${subCategoryFromUrl || category || 'products'}...`}
-                                className="w-full bg-gray-100 shadow-inner border border-gray-100 rounded-full py-2.5 pl-9 pr-4 text-[11px] font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-black/50 focus:ring-1 focus:ring-black/50 transition-all tracking-normal"
-                                value={headerSearchValue}
-                                onChange={(e) => setHeaderSearchValue(e.target.value)}
-                            />
-                        </div>
+                            </div>
+                        </Link>
                     </div>
                 </div>
 
-                {/* Address Details Block (Similar to Home Page) */}
-                <div
-                    onClick={() => setIsLocationModalOpen(true)}
-                    className="border-t border-gray-100 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent relative z-10 hidden"
-                >
-                    {/* Hiding the secondary block entirely since Location moved to Icons, 
-                        BUT maybe the user wants THIS block to look like Home's top label? 
-                        Let me just add the small elegant current location block to the top. Wait, user specifically said: 
-                        "adrees deteles jo home page pr aa rhi hai wo ani chahiye perfectly page ke accordign" */}
-                </div>
-                <div
-                    onClick={() => setIsLocationModalOpen(true)}
-                    className="border-t border-gray-100 bg-black/20 backdrop-blur-sm relative z-10"
-                >
-                    <div className="container mx-auto flex items-center justify-between px-4 py-2 cursor-pointer group hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                            <span className="text-[10px] font-semibold text-gray-500 uppercase  whitespace-nowrap">
-                                Delivering to:
-                            </span>
-                            <span className="text-[11px] font-bold text-black truncate max-w-[200px]">
-                                {activeAddress ? `${activeAddress.name}, ${activeAddress.city}` : 'Select Location'}
-                            </span>
-                            {activeAddress?.type && (
-                                <span className="text-[8px] font-bold bg-black text-white px-1.5 py-[1px] rounded uppercase  ml-1">
-                                    {activeAddress.type}
-                                </span>
-                            )}
-                        </div>
-                        <ChevronDown size={14} className="text-gray-400 group-hover:text-black transition-colors" />
+                {/* Toolbar Row: Search (Integrated) */}
+                <div className="px-4 pb-3 pt-1 relative z-10">
+                    <div className="relative group">
+                        <input
+                            type="text"
+                            placeholder={`Search in ${subCategoryFromUrl || category || 'all products'}...`}
+                            className="w-full bg-gray-50 border border-black/5 rounded-2xl py-2.5 pl-9 pr-4 text-[13px] font-medium text-black placeholder:text-gray-400 focus:outline-none focus:bg-white focus:shadow-md transition-all"
+                            value={headerSearchValue}
+                            onChange={(e) => setHeaderSearchValue(e.target.value)}
+                        />
+                        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     </div>
                 </div>
             </div>

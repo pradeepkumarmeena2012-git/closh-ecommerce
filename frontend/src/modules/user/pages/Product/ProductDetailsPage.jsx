@@ -258,11 +258,11 @@ const ProductDetailsPage = () => {
                             {/* Rating Badge - Compact on Mobile */}
                             <div className="absolute bottom-3 left-3 md:bottom-6 md:left-6 bg-white/90 backdrop-blur-md px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl flex items-center gap-1.5 md:gap-2 shadow-md md:shadow-xl border border-gray-200">
                                 <div className="flex items-center gap-1">
-                                    <span className="text-[12px] md:text-[15px] font-bold text-gray-900">4.5</span>
+                                    <span className="text-[12px] md:text-[15px] font-bold text-gray-900">{product.rating || '0'}</span>
                                     <Star size={11} className="fill-[#D4AF37] text-black md:w-[14px] md:h-[14px]" />
                                 </div>
                                 <div className="w-[1px] h-2.5 md:h-3 bg-gray-200" />
-                                <span className="text-[10px] md:text-[13px] font-bold text-gray-600">1.2k</span>
+                                <span className="text-[10px] md:text-[13px] font-bold text-gray-600">{product.reviewCount || '0'}</span>
                             </div>
                         </div>
 
@@ -300,25 +300,23 @@ const ProductDetailsPage = () => {
                             <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mb-3">{product.name}</h1>
 
                             <div className="flex items-center gap-4 mb-2">
-                                <span className="text-3xl font-bold text-gray-900">
-                                    ₹{product.discountedPrice !== undefined ? product.discountedPrice : product.price}
-                                </span>
-                            <div className="flex flex-col">
-                                {Number(product.originalPrice || product.mrp) > 0 && (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg text-gray-400 line-through">
+                                <div className="flex flex-row items-baseline gap-2">
+                                    <span className="text-3xl font-black text-gray-900">
+                                        ₹{product.discountedPrice !== undefined ? product.discountedPrice : product.price}
+                                    </span>
+                                    {Number(product.originalPrice || product.mrp) > 0 && (
+                                        <span className="text-lg text-gray-400 line-through font-medium">
                                             ₹{product.originalPrice || product.mrp}
                                         </span>
-                                        {Number(product.originalPrice || product.mrp) > Number(product.discountedPrice || product.price) && (
-                                            <span className="text-emerald-400 font-bold text-sm bg-emerald-500/10 px-2.5 py-1 rounded-lg">
-                                                {product.discount || `${Math.round(((Number(product.originalPrice || product.mrp) - Number(product.discountedPrice || product.price)) / Number(product.originalPrice || product.mrp)) * 100)}% OFF`}
-                                            </span>
-                                        )}
-                                    </div>
+                                    )}
+                                </div>
+                                {Number(product.originalPrice || product.mrp) > Number(product.discountedPrice || product.price) && (
+                                    <span className="text-emerald-600 font-black text-[10px] bg-emerald-50 px-2 py-1 rounded-lg uppercase tracking-tight">
+                                        {product.discount || `${Math.round(((Number(product.originalPrice || product.mrp) - Number(product.discountedPrice || product.price)) / Number(product.originalPrice || product.mrp)) * 100)}% OFF`}
+                                    </span>
                                 )}
-                                <p className="text-[11px] font-semibold text-gray-500 mt-1 uppercase italic">inclusive of all taxes</p>
                             </div>
-                            </div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase italic">inclusive of all taxes</p>
                         </div>
 
                         {/* Size Selection */}

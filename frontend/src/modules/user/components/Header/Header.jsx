@@ -102,19 +102,16 @@ const Header = ({ variant = 'default' }) => {
         const handleScroll = () => {
             const currentScrollY = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
             
-            // Logic for 'Premium Auto-Hide' - Expand only at the VERY top
-            if (currentScrollY > lastScrollY) {
-                // Scrolling down - definitively hide additional parts to maximize screen
+            // Logic for 'Premium Auto-Hide' - Expand when scrolling up, hide when scrolling down
+            if (currentScrollY > lastScrollY && currentScrollY > 100) {
+                // Scrolling down - hide additional parts to maximize screen
                 setIsHeaderVisible(false);
             } else if (currentScrollY < lastScrollY) {
-                // Scrolling UP
-                if (currentScrollY < 30) {
-                    // Only show expanded header (search/categories) when we reach the top
-                    setIsHeaderVisible(true);
-                } else {
-                    // While scrolling up in mid-page, keep header compact for better product focus
-                    setIsHeaderVisible(false);
-                }
+                // Scrolling UP - Expand header for better navigation
+                setIsHeaderVisible(true);
+            } else if (currentScrollY < 10) {
+                // Always show at the very top
+                setIsHeaderVisible(true);
             }
             
             setLastScrollY(currentScrollY);
@@ -267,47 +264,55 @@ const Header = ({ variant = 'default' }) => {
                 {/* Location Bar / Address Bar - Vibrant Edit (HIDDEN in shop variant) */}
                 {variant !== 'shop' && (
                     <>
-                        {/* Mobile Location Bar */}
-                        <div
-                            className="px-4 py-1.5 flex items-center justify-between group transition-colors lg:hidden"
+                        {/* Mobile Location Bar - Optimized for 425px */}
+                        <motion.div 
+                            initial={false}
+                            animate={{ 
+                                height: isHeaderVisible ? 'auto' : 0, 
+                                opacity: isHeaderVisible ? 1 : 0,
+                                marginBottom: isHeaderVisible ? 0 : -8
+                            }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                            className="px-4 py-1.5 flex items-center justify-between group transition-all lg:hidden overflow-hidden"
                         >
-                             <div className="flex items-center gap-3">
-                                 <Link to="/" className="flex items-center gap-0.5 no-underline group">
-                                     
-                                 </Link>
-
-                                <div className="flex items-center">
-                                    <div className="flex flex-col items-center justify-center bg-gray-50 rounded-[8px] px-1.5 py-0.5 shadow-md shrink-0 border border-black/10">
-                                        <span className="text-[11px] font-black text-black leading-none ">60</span>
-                                        <span className="text-[7px] font-black text-[#FFC107] uppercase  leading-none mt-0.5 drop-shadow-sm">MINS</span>
+                            <div className="flex items-center gap-2">
+                                <Link to="/" className="no-underline group shrink-0">
+                                    <h1 className="text-[20px] font-black text-black drop-shadow-sm transition-all duration-300 active:scale-95 leading-none">
+                                        Clouse<span className="text-[#FFC107]">.</span>
+                                    </h1>
+                                </Link>
+                                <div className="flex items-center ml-1">
+                                    <div className="flex flex-col items-center justify-center bg-white rounded-[7px] px-1.5 py-0.5 shadow-sm shrink-0 border border-black/5 min-w-[32px]">
+                                        <span className="text-[10px] font-black text-black leading-none">60</span>
+                                        <span className="text-[6px] font-black text-[#FFC107] uppercase leading-none mt-0.5">MINS</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-1 justify-end" onClick={() => setIsLocationModalOpen(true)}>
-                                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center border border-black/10 shadow-md shrink-0 mr-1">
-                                    <MapPin size={15} className="text-[#FFC107]" />
-                                </div>
-                                <div className="flex flex-col min-w-0 pr-1 pl-1 text-left">
-                                    <span className="text-[12px] font-black leading-tight flex items-center gap-1  text-black">
-                                        Location <ChevronDown size={12} className="text-[#FFC107] drop-shadow-sm" />
+                            <div className="flex items-center gap-3 justify-end min-w-0" onClick={() => setIsLocationModalOpen(true)}>
+                                <div className="flex flex-col min-w-0 text-right">
+                                    <span className="text-[10px] font-black leading-tight flex items-center justify-end gap-1 text-black uppercase tracking-tighter opacity-80">
+                                        Location <ChevronDown size={10} className="text-[#FFC107]" />
                                     </span>
-                                    <span className="text-[10px] font-bold truncate max-w-[100px] text-black/70 transition-colors flex items-center gap-1">
+                                    <span className="text-[10px] font-bold truncate max-w-[120px] text-black transition-colors block">
                                         {activeAddress ? `${activeAddress.name}` : 'Indore'}
                                     </span>
                                 </div>
-                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-black/5 ml-1">
-                                    <Link to="/cart" onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[1px]">
-                                        <ShoppingCart size={17} className="text-gray-600 group-hover/icon:text-black transition-colors" />
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-black/5 shadow-sm shrink-0">
+                                    <MapPin size={14} className="text-[#FFC107]" />
+                                </div>
+                                <Link to="/cart" className="flex items-center justify-center w-8 h-8 rounded-full bg-black shadow-lg shrink-0 active:scale-90 transition-transform">
+                                    <div className="relative">
+                                        <ShoppingCart size={15} className="text-white" />
                                         {cartCount > 0 && (
-                                            <span className="absolute -top-1 -right-1 bg-black text-white text-[7px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm">
+                                            <span className="absolute -top-2 -right-2 bg-[#FFC107] text-black text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-black shadow-sm">
                                                 {cartCount}
                                             </span>
                                         )}
-                                    </Link>
-                                </div>
+                                    </div>
+                                </Link>
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* Desktop Inline Navbar - Now shown on large screens (lg+) */}
                         <div className="hidden lg:flex items-center justify-between px-6 py-3">
@@ -460,7 +465,7 @@ const Header = ({ variant = 'default' }) => {
                                 <input
                                     type="text"
                                     placeholder='Search for "Jackets"'
-                                    className="w-full py-3.5 pl-4 pr-12 border-none rounded-2xl bg-white text-[14px] font-medium text-black outline-none placeholder:text-gray-400 shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300"
+                                    className="w-full py-3 pl-4 pr-12 border border-black/5 rounded-2xl bg-white text-[14px] font-medium text-black outline-none placeholder:text-gray-400 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 focus:border-black/20"
                                     value={searchQuery}
                                     onChange={(e) => handleSearchInput(e.target.value)}
                                     onKeyDown={handleSearch}

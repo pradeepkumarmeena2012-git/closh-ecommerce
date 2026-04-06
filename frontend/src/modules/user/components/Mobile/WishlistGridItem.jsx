@@ -66,9 +66,7 @@ const WishlistGridItem = ({ item, index, onMoveToCart, onRemove }) => {
         <Link to={`/product/${item.id}`}>
           <h3 className="font-bold text-gray-800 mb-0.5 line-clamp-2 text-xs transition-colors leading-tight">{item.name}</h3>
         </Link>
-        {item.unit && (
-          <p className="text-[10px] text-gray-500 mb-0.5 font-medium">{item.unit}</p>
-        )}
+
 
         {/* Rating */}
         {item.rating && (
