@@ -132,8 +132,8 @@ const AnimatedBanner = ({ banners = null }) => {
   }, [resolvedBanners.length]);
 
   return (
-    <div className="px-4 py-2">
-      <div className="relative w-full h-24 sm:h-28 md:h-32 rounded-xl overflow-hidden shadow-md">
+    <div className="px-3 py-1">
+      <div className="relative w-full h-20 sm:h-24 md:h-28 rounded-xl overflow-hidden shadow-md">
         <AnimatePresence mode="wait">
           {resolvedBanners.map((banner, index) => {
             if (index !== currentBanner) return null;

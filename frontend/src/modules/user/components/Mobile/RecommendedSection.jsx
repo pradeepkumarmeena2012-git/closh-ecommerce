@@ -18,14 +18,14 @@ const RecommendedSection = ({ products = null }) => {
   }
 
   return (
-    <div className="px-4 py-5 bg-gradient-to-br from-blue-50/50 via-white to-purple-50/40 rounded-2xl mx-2">
-      <div className="flex items-center justify-between mb-5">
+    <div className="px-3 py-3 bg-gradient-to-br from-blue-50/50 via-white to-purple-50/40 rounded-xl mx-2">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl shadow-md">
+          <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg shadow-md">
             <FiThumbsUp className="text-white text-lg" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-800 leading-tight">
+            <h2 className="text-base font-bold text-gray-800 leading-tight">
               Recommended for You
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">Curated just for you</p>
@@ -38,13 +38,13 @@ const RecommendedSection = ({ products = null }) => {
           <FiArrowRight className="text-sm" />
         </Link>
       </div>
-      <div className="flex overflow-x-auto pb-4 gap-3 snap-x scrollbar-hide -mx-2 px-2">
+      <div className="flex overflow-x-auto pb-2 gap-2 snap-x scrollbar-hide -mx-2 px-2">
         {recommended.map((product, index) => (
           <motion.div
             key={product.id}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="w-[140px] sm:w-[160px] md:w-[200px] flex-shrink-0 snap-center"
+            className="w-[120px] sm:w-[140px] md:w-[180px] flex-shrink-0 snap-center"
             transition={{ delay: index * 0.05 }}
           >
             <ProductCard product={product} />

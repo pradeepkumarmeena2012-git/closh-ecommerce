@@ -40,12 +40,31 @@ const MobileHeader = () => {
   );
   const { user, isAuthenticated, logout } = useAuthStore();
 
+  const [homeCategoryId, setHomeCategoryId] = useState(null);
+
   const getCurrentCategoryId = () => {
     const match = location.pathname.match(/\/(?:app\/)?category\/([^/]+)/);
     return match ? String(match[1]) : null;
   };
 
-  const currentCategoryId = getCurrentCategoryId();
+  const urlCategoryId = getCurrentCategoryId();
+  // On home page, use the event-driven category; otherwise use URL
+  const isHomePage = location.pathname === '/' || location.pathname === '/home';
+  const currentCategoryId = isHomePage ? homeCategoryId : urlCategoryId;
+
+  // Listen for category events to keep header in sync
+  useEffect(() => {
+    const handleCategorySelect = (e) => {
+      setHomeCategoryId(e.detail?.categoryId || null);
+    };
+    window.addEventListener('home-category-select', handleCategorySelect);
+    return () => window.removeEventListener('home-category-select', handleCategorySelect);
+  }, []);
+
+  // Reset selected category when navigating away from home
+  useEffect(() => {
+    if (!isHomePage) setHomeCategoryId(null);
+  }, [isHomePage]);
 
   // Measure top row height
   useEffect(() => {
@@ -146,8 +165,8 @@ const MobileHeader = () => {
     >
       <div className="flex flex-col">
         {/* Row 1: Location and User */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50/50" ref={topRowRef}>
-           <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-50/50" ref={topRowRef}>
+           <div className="flex items-center gap-3">
                <Link to="/" className="no-underline group">
                    <h1 className="text-[18px] font-bold drop-shadow-md transition-all duration-500 text-gray-900 group-hover:text-black">
                        CLOSH<span className="text-black text-[22px] leading-none group-hover:text-gray-900">.</span>
@@ -169,7 +188,7 @@ const MobileHeader = () => {
           <div className="flex items-center gap-3">
               <button 
                 onClick={toggleCart} 
-                className="w-10 h-10 flex items-center justify-center relative bg-gray-50 rounded-full"
+                className="w-9 h-9 flex items-center justify-center relative bg-gray-50 rounded-full"
                 ref={cartRef}
               >
                 <FiShoppingBag className="text-xl text-gray-700" />
@@ -179,7 +198,7 @@ const MobileHeader = () => {
                     </span>
                 )}
               </button>
-              <Link to={isAuthenticated ? "/profile" : "/login"} className="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-700">
+              <Link to={isAuthenticated ? "/profile" : "/login"} className="w-9 h-9 flex items-center justify-center bg-gray-50 rounded-full text-gray-700">
                 {user?.avatar ? (
                     <img src={user.avatar} className="w-6 h-6 rounded-full object-cover" alt="profile" />
                 ) : (
@@ -190,9 +209,9 @@ const MobileHeader = () => {
         </div>
 
         {/* Row 2: Search and Badge */}
-        <div className="px-4 py-3 flex items-center gap-3">
+        <div className="px-3 py-2 flex items-center gap-2">
             <div className="flex-1">
-                <div className="relative flex items-center bg-gray-100/50 rounded-xl px-4 py-2.5 transition-all focus-within:bg-white focus-within:ring-1 focus-within:ring-gray-200">
+                <div className="relative flex items-center bg-gray-100/50 rounded-xl px-3 py-2 transition-all focus-within:bg-white focus-within:ring-1 focus-within:ring-gray-200">
                     <FiSearch className="text-gray-300 mr-2 text-lg" />
                     <input 
                         type="text" 
@@ -211,25 +230,47 @@ const MobileHeader = () => {
         </div>
 
         {/* Row 3: Category Shortcuts */}
-        <div className="px-4 pb-3 overflow-hidden">
-            <div className="flex items-center gap-4 overflow-x-auto scrollbar-hide py-1">
+        <div className="px-3 pb-2 overflow-hidden">
+            <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide py-0.5">
+                {/* "All" pill to reset category filter */}
+                <button
+                    onClick={() => {
+                        if (location.pathname === '/' || location.pathname === '/home') {
+                            window.dispatchEvent(new CustomEvent('home-category-select', { detail: { categoryId: null } }));
+                        } else {
+                            navigate('/');
+                        }
+                    }}
+                    className="flex flex-col items-center gap-1 flex-shrink-0 group"
+                >
+                    <div className={`w-12 h-12 rounded-full overflow-hidden border-2 bg-gray-900 flex items-center justify-center ${!currentCategoryId ? 'border-primary-500 ring-2 ring-primary-200' : 'border-gray-200'}`}>
+                        <span className="text-white text-[10px] font-black">ALL</span>
+                    </div>
+                    <span className="text-[9px] font-extrabold text-gray-600">All</span>
+                </button>
                 {categories.map((category) => (
-                    <Link
+                    <button
                         key={category.id}
-                        to={`/category/${category.id}`}
-                        className="flex flex-col items-center gap-1.5 flex-shrink-0 group"
+                        onClick={() => {
+                            if (location.pathname === '/' || location.pathname === '/home') {
+                                window.dispatchEvent(new CustomEvent('home-category-select', { detail: { categoryId: String(category.id) } }));
+                            } else {
+                                navigate(`/category/${category.id}`);
+                            }
+                        }}
+                        className="flex flex-col items-center gap-1 flex-shrink-0 group"
                     >
-                        <div className="w-14 h-14 rounded-full overflow-hidden border border-gray-100 bg-white">
+                        <div className={`w-12 h-12 rounded-full overflow-hidden border bg-white ${currentCategoryId === String(category.id) ? 'border-primary-500 ring-2 ring-primary-200' : 'border-gray-100'}`}>
                             <img 
                                 src={category.image} 
                                 alt={category.name} 
                                 className="w-full h-full object-cover group-active:scale-95 transition-transform" 
                             />
                         </div>
-                        <span className="text-[10px] font-extrabold text-gray-600 group-active:text-primary-600">
+                        <span className="text-[9px] font-extrabold text-gray-600 group-active:text-primary-600">
                             {category.name}
                         </span>
-                    </Link>
+                    </button>
                 ))}
             </div>
         </div>

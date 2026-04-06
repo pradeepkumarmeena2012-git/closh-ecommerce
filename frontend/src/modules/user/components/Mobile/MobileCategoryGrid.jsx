@@ -33,11 +33,11 @@ const MobileCategoryGrid = () => {
   }, [categories, getRootCategories]);
 
   return (
-    <div className="px-4 py-4">
-      <h2 className="text-xl font-bold text-gray-800 mb-4">
+    <div className="px-3 py-2">
+      <h2 className="text-base font-bold text-gray-800 mb-2">
         Browse Categories
       </h2>
-      <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-3 px-3">
         {displayCategories.map((category, index) => (
           <motion.div
             key={category.id}
@@ -47,8 +47,8 @@ const MobileCategoryGrid = () => {
             className="flex-shrink-0">
             <Link
               to={`/category/${category.id}`}
-              className="flex flex-col items-center gap-1.5 w-16">
-              <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100 ring-1 ring-gray-200">
+              className="flex flex-col items-center gap-1 w-14">
+              <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 ring-1 ring-gray-200">
                 <LazyImage
                   src={category.image}
                   alt={category.name}

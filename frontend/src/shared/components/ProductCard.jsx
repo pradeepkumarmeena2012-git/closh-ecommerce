@@ -45,8 +45,8 @@ const ProductCard = ({ product }) => {
           </button>
         </div>
 
-        {/* INFO AREA - Matching Image 2 Typography */}
-        <div className="pt-3 pb-1 flex flex-col">
+        {/* INFO AREA - Compact */}
+        <div className="pt-2 pb-0.5 flex flex-col">
           <Link to={productLink} className="flex flex-col gap-0.5">
             <span className="text-[#1A1A1A] text-[10px] md:text-[14px] font-black uppercase tracking-tight line-clamp-1">
               {product.brandName || product.vendorName || "Premium"}
@@ -56,7 +56,7 @@ const ProductCard = ({ product }) => {
             </h3>
           </Link>
           
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
              <div className="flex items-center gap-1.5">
                 <span className="text-gray-900 text-[11px] md:text-[14px] font-bold">
                    {formatPrice(product.price)}
