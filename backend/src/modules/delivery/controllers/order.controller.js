@@ -13,20 +13,35 @@ import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import { OrderWorkflowService } from '../../../services/orderWorkflow.service.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
+import { sendDeliveryOtpSms } from '../../../services/sms.service.js';
+import * as DeliveryOtpService from '../../../services/deliveryOtp.service.js';
+import redisConnection from '../../../config/redis.js';
 
 const DELIVERY_OTP_TTL_MS = 10 * 60 * 1000;
 const DELIVERY_OTP_MAX_ATTEMPTS = 5;
 const DELIVERY_OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 const IS_PRODUCTION = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+const CACHE_TTL_SECONDS = 90; // 1.5 min cache for summary endpoints
 
-const hashDeliveryOtp = (otp) => {
-    const secret = process.env.JWT_SECRET || 'delivery-otp-secret';
-    return crypto.createHash('sha256').update(`${String(otp)}:${secret}`).digest('hex');
+/** Lightweight Redis cache helpers — silently fall back if Redis is down */
+const cacheGet = async (key) => {
+    try {
+        if (redisConnection?.status !== 'ready') return null;
+        const data = await redisConnection.get(key);
+        return data ? JSON.parse(data) : null;
+    } catch { return null; }
 };
-
-const generateDeliveryOtp = () => {
-    // Always generate a random 6-digit OTP for security and testing
-    return String(Math.floor(100000 + Math.random() * 900000));
+const cacheSet = async (key, value, ttl = CACHE_TTL_SECONDS) => {
+    try {
+        if (redisConnection?.status !== 'ready') return;
+        await redisConnection.set(key, JSON.stringify(value), 'EX', ttl);
+    } catch { /* silent */ }
+};
+const cacheInvalidate = async (...keys) => {
+    try {
+        if (redisConnection?.status !== 'ready') return;
+        await redisConnection.del(...keys);
+    } catch { /* silent */ }
 };
 
 
@@ -64,7 +79,11 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     const hasPaginationParams = page !== undefined || limit !== undefined;
 
     if (!hasPaginationParams) {
-        const orders = await Order.find(filter).sort({ createdAt: -1 });
+        const orders = await Order.find(filter)
+            .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase createdAt updatedAt')
+            .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
+            .sort({ createdAt: -1 })
+            .lean();
         return res.status(200).json(new ApiResponse(200, orders, 'Assigned orders fetched.'));
     }
 
@@ -73,8 +92,10 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     const numericLimit = Math.min(Math.max(1, requestedLimit), 100);
     const skip = (numericPage - 1) * numericLimit;
 
+    const selectFields = 'orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase createdAt updatedAt';
+
     const [orders, total] = await Promise.all([
-        Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(numericLimit),
+        Order.find(filter).select(selectFields).populate('vendorItems.vendorId', 'storeName shopAddress shopLocation').sort({ createdAt: -1 }).skip(skip).limit(numericLimit).lean(),
         Order.countDocuments(filter),
     ]);
 
@@ -123,7 +144,13 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
     }
 
     const [orders, total] = await Promise.all([
-        Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(numericLimit),
+        Order.find(filter)
+            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image orderType createdAt shippingAddress.city shippingAddress.state')
+            .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(numericLimit)
+            .lean(),
         Order.countDocuments(filter),
     ]);
 
@@ -148,7 +175,13 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
 // GET /api/delivery/orders/dashboard-summary
 export const getDashboardSummary = asyncHandler(async (req, res) => {
     const deliveryBoyId = req.user.id;
-    const rider = await DeliveryBoy.findById(deliveryBoyId);
+    const cacheKey = `dash:${deliveryBoyId}`;
+
+    // Try cache first
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.status(200).json(new ApiResponse(200, cached, 'Dashboard summary fetched (cached).'));
+
+    const rider = await DeliveryBoy.findById(deliveryBoyId).select('totalEarnings availableBalance').lean();
     if (!rider) throw new ApiError(404, 'Rider profile not found.');
 
     const todayStart = new Date();
@@ -193,7 +226,12 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             deliveryBoyId,
             isDeleted: { $ne: true },
             status: { $in: ['assigned', 'picked_up', 'out_for_delivery'] }
-        }).sort({ updatedAt: -1 }).limit(10),
+        })
+        .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase createdAt updatedAt')
+        .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
+        .sort({ updatedAt: -1 })
+        .limit(10)
+        .lean(),
     ]);
 
     const countByStatus = statusStats.reduce((acc, row) => {
@@ -207,9 +245,9 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     
     const augmentedOrders = recentOrders.map(order => {
         const d = deliveries.find(del => String(del.orderId) === String(order._id));
-        const orderObj = order.toObject();
+        const orderObj = order.toObject ? order.toObject() : order;
         if (d && d.batchId) {
-            orderObj.batchId = d.batchId.batchId; // The BATCH-xxx string
+            orderObj.batchId = d.batchId.batchId;
         }
         return orderObj;
     });
@@ -250,12 +288,18 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         recentOrders: augmentedOrders,
     };
 
+    await cacheSet(cacheKey, summary);
     return res.status(200).json(new ApiResponse(200, summary, 'Dashboard summary fetched.'));
 });
 
 // GET /api/delivery/orders/profile-summary
 export const getProfileSummary = asyncHandler(async (req, res) => {
     const deliveryBoyId = req.user.id;
+    const profileCacheKey = `profile:${deliveryBoyId}`;
+
+    const cached = await cacheGet(profileCacheKey);
+    if (cached) return res.status(200).json(new ApiResponse(200, cached, 'Profile summary fetched (cached).'));
+
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -325,6 +369,9 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
             'Profile summary fetched.'
         )
     );
+    // Cache the result
+    const profileData = { totalDeliveries: Number(row.totalDeliveries || 0), completedToday: Number(completedTodayCount || 0), earnings: Number(row.earnings || 0), totalEarnings: Number(rider.totalEarnings || 0), availableBalance: Number(rider.availableBalance || 0), cashInHand: Number(cashRow.cashInHand || 0), totalCashCollected: Number(cashRow.totalCashCollected || 0) };
+    await cacheSet(profileCacheKey, profileData);
 });
 
 // GET /api/delivery/orders/:id
@@ -444,7 +491,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             order.openBoxPhoto = req.body.openBoxPhoto;
         }
 
-        const isMatch = order.deliveryOtpHash === hashDeliveryOtp(normalizedOtp);
+        const isMatch = order.deliveryOtpHash === DeliveryOtpService.hashOtp(normalizedOtp);
         if (!isMatch) {
             order.deliveryOtpAttempts = (Number(order.deliveryOtpAttempts) || 0) + 1;
             await order.save();
@@ -580,6 +627,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         if (phaseMap[status]) order.deliveryFlow.phase = phaseMap[status];
     }
     await order.save();
+    await cacheInvalidate(`dash:${req.user.id}`, `profile:${req.user.id}`);
 
     // Unified Notification to all parties
     await OrderNotificationService.notifyOrderUpdate(order._id, status, {
@@ -603,7 +651,7 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
         query.$or.push({ _id: req.params.id });
     }
 
-    const order = await Order.findOne(query);
+    const order = await Order.findOne(query).select('+deviceToken');
     if (!order) throw new ApiError(404, 'Order not found.');
 
     const allowedStatusesForResend = ['picked_up', 'out_for_delivery'];
@@ -618,28 +666,20 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
         throw new ApiError(429, 'Please wait before requesting another OTP.');
     }
 
-    const generatedOtp = generateDeliveryOtp();
-    order.deliveryOtpHash = hashDeliveryOtp(generatedOtp);
+    const otp = DeliveryOtpService.generateOtp();
+    order.deliveryOtpHash = DeliveryOtpService.hashOtp(otp);
     order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
     order.deliveryOtpSentAt = new Date();
     order.deliveryOtpAttempts = 0;
     if (!IS_PRODUCTION) {
-        order.deliveryOtpDebug = generatedOtp;
+        order.deliveryOtpDebug = otp;
     }
     await order.save();
 
-    try {
-        const sent = await sendDeliveryOtpEmail(order, generatedOtp);
-        if (!sent) {
-            throw new ApiError(400, 'Customer email is not available for this order.');
-        }
-    } catch (err) {
-        if (err instanceof ApiError) throw err;
-        console.warn(`[Delivery OTP] Failed to resend OTP for order ${order.orderId || order._id}: ${err.message}`);
-        throw new ApiError(500, 'Failed to send OTP email. Please try again.');
-    }
+    // Properly use centralized service for multi-channel notification
+    await DeliveryOtpService.sendDeliveryOtp(order, otp);
 
-    return res.status(200).json(new ApiResponse(200, null, 'Delivery OTP resent successfully.'));
+    return res.status(200).json(new ApiResponse(200, { deliveryOtpDebug: otp }, 'Delivery OTP resent successfully.'));
 });
 
 // POST /api/delivery/orders/:id/arrived
@@ -656,7 +696,7 @@ export const markArrived = asyncHandler(async (req, res) => {
         query.$or.push({ _id: id });
     }
 
-    const order = await Order.findOne(query).select('+deliveryOtpDebug');
+    const order = await Order.findOne(query).select('+deliveryOtpDebug +deviceToken');
     if (!order) throw new ApiError(404, 'Order not found.');
 
     if (order.status === 'picked_up') {
@@ -664,41 +704,19 @@ export const markArrived = asyncHandler(async (req, res) => {
     }
 
     // Generate Delivery OTP at Arrival
-    const generatedOtp = generateDeliveryOtp();
-    order.deliveryOtpHash = hashDeliveryOtp(generatedOtp);
+    const otp = DeliveryOtpService.generateOtp();
+    order.deliveryOtpHash = DeliveryOtpService.hashOtp(otp);
     order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
     order.deliveryOtpSentAt = new Date();
     order.deliveryOtpAttempts = 0;
     if (!IS_PRODUCTION) {
-        order.deliveryOtpDebug = generatedOtp;
+        order.deliveryOtpDebug = otp;
     }
 
     await order.save();
 
-    try {
-        const sent = await sendDeliveryOtpEmail(order, generatedOtp);
-        if (!sent) {
-            console.warn(`[Delivery OTP] Missing customer email for order ${order.orderId || order._id}`);
-        }
-    } catch (err) {
-        console.warn(`[Delivery OTP] Failed to send OTP email: ${err.message}`);
-    }
-
-    // Notify Customer with OTP
-    emitEvent(`user_${order.userId}`, 'rider_arrived', {
-        orderId: order.orderId,
-        otp: generatedOtp
-    });
-
-    // Push Notification
-    createNotification({
-        recipientId: order.userId,
-        recipientType: 'user',
-        title: 'Rider Arrived!',
-        message: `Your rider has reached your location. Share OTP ${generatedOtp} to receive your order.`,
-        type: 'order',
-        data: { orderId: order.orderId, status: 'arrived' }
-    }).catch(err => console.error('Push Error:', err));
+    // Properly use centralized service for multi-channel notification
+    await DeliveryOtpService.sendDeliveryOtp(order, otp);
 
     // Notify Track Room
     OrderNotificationService.notifyOrderUpdate(order._id, 'arrived', {
@@ -772,8 +790,13 @@ export const getCompanyQR = asyncHandler(async (req, res) => {
 
 /** Helper: find an order assigned to the current rider */
 const findOrderForRider = async (id, riderId, selectOtp = false) => {
+    // Robustness: ensure we are using ObjectId for the query
+    const riderObjectId = mongoose.Types.ObjectId.isValid(riderId) 
+        ? new mongoose.Types.ObjectId(riderId) 
+        : riderId;
+
     const query = {
-        deliveryBoyId: riderId,
+        deliveryBoyId: riderObjectId,
         isDeleted: { $ne: true },
         $or: [{ orderId: id }],
     };
@@ -782,7 +805,11 @@ const findOrderForRider = async (id, riderId, selectOtp = false) => {
     let q = Order.findOne(query).populate('vendorItems.vendorId');
     if (selectOtp) q = q.select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpDebug');
     const order = await q;
-    if (!order) throw new ApiError(404, 'Order not found or not assigned to you.');
+    
+    if (!order) {
+        console.warn(`[findOrderForRider] Order ${id} not found for rider ${riderId}`);
+        throw new ApiError(404, 'Order not found or not assigned to you.');
+    }
     return order;
 };
 
@@ -920,20 +947,26 @@ export const handleArrivedAtCustomer = asyncHandler(async (req, res) => {
     flow.phase = 'arrived';
     flow.arrivedAt = new Date();
 
-    // Generate OTP
-    const generatedOtp = generateDeliveryOtp();
-    flow.otpHash = hashDeliveryOtp(generatedOtp);
-    flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
-    flow.otpSentAt = new Date();
-    flow.otpAttempts = 0;
-    if (!IS_PRODUCTION) flow.otpDebug = generatedOtp;
-
-    // Keep legacy OTP fields in sync
-    order.deliveryOtpHash = hashDeliveryOtp(generatedOtp);
-    order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
-    order.deliveryOtpSentAt = new Date();
-    order.deliveryOtpAttempts = 0;
-    if (!IS_PRODUCTION) order.deliveryOtpDebug = generatedOtp;
+    // Generate/Reuse OTP
+    let otp = '';
+    // If we're already arrived, keep existing OTP to avoid spamming the customer ("baar baar")
+    const isNewArrival = !flow.otpHash || flow.otpExpiry < new Date();
+    
+    if (isNewArrival) {
+        otp = DeliveryOtpService.generateOtp();
+        flow.otpHash = DeliveryOtpService.hashOtp(otp);
+        flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
+        flow.otpSentAt = new Date();
+        flow.otpAttempts = 0;
+        if (!IS_PRODUCTION) flow.otpDebug = otp;
+        
+        // Keep legacy OTP fields in sync for mixed-version compatibility
+        order.deliveryOtpHash = flow.otpHash;
+        order.deliveryOtpExpiry = flow.otpExpiry;
+        order.deliveryOtpSentAt = flow.otpSentAt;
+        order.deliveryOtpAttempts = 0;
+        if (!IS_PRODUCTION) order.deliveryOtpDebug = otp;
+    }
 
     // For try_and_buy orders, populate checklist from order items
     if (order.orderType === 'try_and_buy' && (!flow.tryAndBuyItems || flow.tryAndBuyItems.length === 0)) {
@@ -952,17 +985,10 @@ export const handleArrivedAtCustomer = asyncHandler(async (req, res) => {
     flow.finalAmount = order.total;
     await order.save();
 
-    try { await sendDeliveryOtpEmail(order, generatedOtp); } catch (e) {}
-
-    emitEvent(`user_${order.userId}`, 'rider_arrived', {
-        orderId: order.orderId, otp: generatedOtp,
-    });
-    createNotification({
-        recipientId: order.userId, recipientType: 'user',
-        title: 'Rider Arrived!',
-        message: `Your rider has reached your location. Share OTP ${generatedOtp} to receive your order.`,
-        type: 'order', data: { orderId: order.orderId, status: 'arrived' },
-    }).catch(() => {});
+    // Only send the delivery notification if it's the first arrival or a manual retry
+    if (isNewArrival) {
+        await DeliveryOtpService.sendDeliveryOtp(order, otp);
+    }
 
     OrderNotificationService.notifyOrderUpdate(order._id, 'arrived', {
         excludeRecipientId: req.user.id,
@@ -1022,8 +1048,8 @@ export const handlePayment = asyncHandler(async (req, res) => {
     const flow = ensureDeliveryFlow(order);
 
     const validFrom = order.orderType === 'try_and_buy'
-        ? ['try_and_buy']
-        : ['arrived'];
+        ? ['try_and_buy', 'payment_pending']
+        : ['arrived', 'payment_pending'];
     if (!validFrom.includes(flow.phase)) {
         throw new ApiError(409, `Cannot set payment from phase "${flow.phase}".`);
     }
@@ -1070,7 +1096,7 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     if (!flow.otpHash || !flow.otpExpiry) throw new ApiError(400, 'OTP was not generated.');
     if (flow.otpExpiry < new Date()) throw new ApiError(400, 'OTP has expired. Please resend.');
 
-    const isMatch = flow.otpHash === hashDeliveryOtp(normalizedOtp);
+    const isMatch = flow.otpHash === DeliveryOtpService.hashOtp(normalizedOtp);
     const isDebugMatch = !IS_PRODUCTION && flow.otpDebug === normalizedOtp;
     if (!isMatch && !isDebugMatch) {
         flow.otpAttempts = (flow.otpAttempts || 0) + 1;
@@ -1109,6 +1135,7 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     }
 
     await order.save();
+    await cacheInvalidate(`dash:${req.user.id}`, `profile:${req.user.id}`);
 
     // Credit rider earnings
     const riderEarnings = Number(order.shipping || 0);

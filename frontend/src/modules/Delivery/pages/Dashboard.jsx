@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import WithdrawalModal from '../components/WithdrawalModal';
 import socketService from '../../../shared/utils/socket';
 import { useDeliveryTracking } from '../../../shared/hooks/useDeliveryTracking';
+import { formatPrice } from '../../../shared/utils/helpers';
 import DashboardMap from '../components/DashboardMap';
 import NewOrderModal from '../components/NewOrderModal';
 
@@ -96,11 +97,10 @@ const DeliveryDashboard = () => {
        });
     });
 
-    socketService.on('newOrder', handleRefresh);
     socketService.on('order_picked_up', handleRefresh);
     socketService.on('order_delivered', handleRefresh);
 
-    const interval = setInterval(loadDashboardData, 30000); 
+    const interval = setInterval(loadDashboardData, 60000); // Polling every minute
 
     return () => {
       window.removeEventListener('delivery-dashboard-refresh', handleRefresh);
@@ -113,7 +113,7 @@ const DeliveryDashboard = () => {
       socketService.off('order_delivered');
       clearInterval(interval);
     };
-  }, [deliveryBoy?.id, newOrderRequest?.id]);
+  }, [deliveryBoy?.id]); // Removed newOrderRequest dependency
 
   const handleToggleOnline = async () => {
     if (isUpdatingStatus) return;
@@ -132,17 +132,17 @@ const DeliveryDashboard = () => {
   const getStatusColor = (status) => {
     const s = String(status).toLowerCase();
     switch (s) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'pending': return 'bg-amber-50 text-amber-700 border border-amber-200';
       case 'accepted':
-      case 'assigned': return 'bg-purple-100 text-purple-800';
+      case 'assigned': return 'bg-indigo-50 text-indigo-700 border border-indigo-200';
       case 'picked_up':
       case 'picked-up':
-      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'processing': return 'bg-sky-50 text-sky-700 border border-sky-200';
       case 'out_for_delivery':
-      case 'out-for-delivery': return 'bg-indigo-100 text-indigo-800';
+      case 'out-for-delivery': return 'bg-violet-50 text-violet-700 border border-violet-200';
       case 'delivered':
-      case 'completed': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'completed': return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+      default: return 'bg-slate-50 text-slate-600 border border-slate-200';
     }
   };
 
@@ -205,58 +205,61 @@ const DeliveryDashboard = () => {
 
         </div>
 
-        {/* BOTTOM ACTIVE TASK OVERLAY */}
+        {/* BOTTOM ACTIVE MISSION OVERLAY (Flush & Compact Layout) */}
         <div className="absolute inset-x-0 bottom-4 z-10 pointer-events-none px-4">
           <AnimatePresence>
-            {recentOrders.filter(o => ['pending', 'accepted', 'assigned', 'picked_up', 'out_for_delivery'].includes(o.status?.toLowerCase())).length > 0 ? (
+            {recentOrders.filter(o => !['delivered', 'cancelled', 'rejected'].includes(o.status?.toLowerCase())).length > 0 ? (
               <motion.div 
                 initial={{ y: 100, opacity: 0 }} 
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 100, opacity: 0 }}
-                className="bg-white/95 backdrop-blur-xl rounded-[24px] p-3 shadow-2xl border border-white/30 pointer-events-auto max-w-sm mx-auto"
+                className="bg-white rounded-[18px] p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.2)] pointer-events-auto max-w-[320px] mx-auto border border-white/80"
               >
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 bg-indigo-600 rounded-full" />
-                    <h2 className="text-[11px] font-black text-slate-900 uppercase tracking-widest leading-none">Active Task</h2>
+                {/* Slim Header */}
+                <div className="flex items-center justify-between mb-1.5 px-2 pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-0.5 h-3 bg-indigo-600 rounded-full" />
+                    <h2 className="text-[9px] font-bold text-slate-800 uppercase tracking-wider leading-none">Active Mission</h2>
                   </div>
                   <button 
                     onClick={() => navigate('/delivery/orders')}
-                    className="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center text-indigo-600 shadow-inner"
+                    className="w-5 h-5 rounded-md bg-slate-50 flex items-center justify-center text-indigo-600 border border-slate-100 shadow-sm"
                   >
                     <FiArrowRight size={12} />
                   </button>
                 </div>
 
-                {recentOrders.filter(o => ['pending', 'accepted', 'assigned', 'picked_up', 'out_for_delivery'].includes(o.status?.toLowerCase())).slice(0, 1).map((order) => (
+                {recentOrders.filter(o => !['delivered', 'cancelled', 'rejected'].includes(o.status?.toLowerCase())).slice(0, 1).map((order) => (
                   <motion.div 
                     key={order.id}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => navigate(`/delivery/orders/${order.id}`)}
-                    className="bg-slate-900 rounded-[18px] p-3 flex items-center gap-3 shadow-xl border border-white/5 cursor-pointer group"
+                    className="bg-[#0F172A] rounded-[14px] p-2 flex items-center gap-2.5 cursor-pointer group active:scale-95 transition-all"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg text-white shrink-0 transform group-hover:rotate-3 transition-transform">
-                      <FiTruck size={20} />
+                    {/* Compact Icon Hub */}
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/10">
+                      <FiTruck size={16} />
                     </div>
+
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <h3 className="font-black text-white text-xs truncate">#{String(order.id).slice(-8)}</h3>
-                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter ${getStatusColor(order.status)}`}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <h3 className="font-bold text-white text-[11px] tracking-tight truncate mr-2">#{String(order.id).slice(-6)}</h3>
+                        <div className={`px-1 py-0.5 bg-indigo-400 text-white rounded-[3px] text-[6px] font-bold uppercase tracking-tight`}>
                           {order.status.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <p className="text-[10px] text-slate-400 font-bold truncate tracking-tight">{order.address}</p>
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 pt-1 border-t border-white/10">
-                        <div className="flex items-center gap-1">
-                          <FiTrendingUp size={10} className="text-emerald-400" />
-                          <span className="text-[10px] font-black text-emerald-400 tracking-tighter">₹{order.deliveryEarnings || 0}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-indigo-300">
-                          <FiNavigation size={10} />
-                          <span className="text-[10px] font-black tracking-tighter">
-                            {order.deliveryDistance ? `${Number(order.deliveryDistance).toFixed(1)} KM` : '0 KM'}
+                      </div>
+                      
+                      <p className="text-[8px] text-slate-400 font-medium leading-none truncate mb-1 opacity-70">{order.address}</p>
+                      
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-1">
+                          <FiTrendingUp size={9} className="text-emerald-500" />
+                          <span className="text-[8px] font-bold text-emerald-400">{formatPrice(order.deliveryEarnings || 0)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-indigo-400">
+                          <FiNavigation size={9} />
+                          <span className="text-[8px] font-bold">
+                            {order.distance || 'MAP'}
                           </span>
                         </div>
                       </div>
@@ -285,7 +288,7 @@ const DeliveryDashboard = () => {
         />
 
         <NewOrderModal
-          isOpen={!!newOrderRequest}
+          isOpen={!!newOrderRequest && activeTasks.length === 0}
           order={newOrderRequest}
           onClose={() => setNewOrderRequest(null)}
           onAccept={async (id) => {

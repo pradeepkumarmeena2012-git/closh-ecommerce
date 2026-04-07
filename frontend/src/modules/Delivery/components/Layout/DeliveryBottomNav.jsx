@@ -12,7 +12,7 @@ const DeliveryBottomNav = () => {
 
   const navItems = [
     { path: "/delivery/dashboard", icon: FiHome, label: "Dashboard" },
-    { path: "/delivery/orders", icon: FiPackage, label: "Orders" },
+    { path: "/delivery/orders", icon: FiPackage, label: "History" },
     { path: "/delivery/payouts", icon: FiDollarSign, label: "Payouts" },
     { path: "/delivery/notifications", icon: FiBell, label: "Alerts" },
     { path: "/delivery/profile", icon: FiUser, label: "Profile" },

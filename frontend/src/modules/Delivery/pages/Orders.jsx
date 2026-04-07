@@ -52,8 +52,25 @@ const DeliveryOrders = () => {
   const loadOrders = async (page = currentPage, activeFilter = filter) => {
     try {
       if (activeFilter === 'available') {
-        const { fetchAvailableOrders } = useDeliveryAuthStore.getState();
-        await fetchAvailableOrders({ page, limit: PAGE_SIZE });
+        const { fetchDashboardSummary } = useDeliveryAuthStore.getState();
+        const summary = await fetchDashboardSummary();
+        
+        // Match EXACT filtering logic from Dashboard.jsx: 
+        // Show everything that is NOT delivered, cancelled, or rejected
+        const activeTasks = (summary?.recentOrders || []).filter(o => 
+          !['delivered', 'cancelled', 'rejected'].includes(o.status?.toLowerCase().replace('-', '_'))
+        );
+        
+        if (activeTasks.length > 0) {
+           useDeliveryAuthStore.setState({ orders: activeTasks });
+        } else {
+           // Fallback: try fetching explicitly for ongoing statuses if recentOrders didn't catch it
+           await fetchOrders({
+             page,
+             limit: PAGE_SIZE,
+             status: 'assigned,picked_up,out_for_delivery'
+           });
+        }
       } else {
         await fetchOrders({
           page,
@@ -132,35 +149,34 @@ const DeliveryOrders = () => {
   return (
     <PageTransition>
       <div className="min-h-screen bg-[#F8FAFC]">
-        {/* Sleek Sub-Header */}
-        <div className="bg-[#0F172A] pt-6 sm:pt-10 pb-12 sm:pb-16 px-5 sm:px-6 relative overflow-hidden transition-all duration-500">
+        {/* AI Elite Sub-Header (High-Trust) */}
+        <div className="bg-[#0F172A] pt-6 pb-12 px-5 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           
           <div className="relative z-10 flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2 sm:gap-3">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-500 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                 <FiActivity size={16} className="text-white sm:hidden" />
-                 <FiActivity size={20} className="text-white hidden sm:block" />
+            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+              <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                 <FiActivity size={18} className="text-white" />
               </div>
-              Job Board
+              Mission History
             </h1>
-            <div className="px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-full text-[9px] sm:text-[11px] font-black text-indigo-400 uppercase tracking-widest whitespace-nowrap">
-               {filter === 'available' ? 'Searching Live...' : 'Management'}
+            <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+               Platform Secure
             </div>
           </div>
 
-          <div className="relative z-10 mt-5 sm:mt-8 flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-             {['available', 'pending', 'in-transit', 'delivered'].filter(t => t !== 'available' || isOnline).map((tab) => (
+          <div className="relative z-10 mt-6 flex gap-2 overflow-x-auto scrollbar-hide">
+             {['available', 'delivered'].filter(t => t !== 'available' || isOnline).map((tab) => (
                <button
                  key={tab}
                  onClick={() => { setFilter(tab); setCurrentPage(1); }}
-                 className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-[11px] sm:text-[13px] font-black tracking-tight whitespace-nowrap transition-all duration-300 ${
+                 className={`px-5 py-2 rounded-xl text-[12px] font-bold tracking-tight transition-all duration-300 border ${
                    filter === tab 
-                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' 
-                   : 'bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:bg-slate-800'
+                   ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/30' 
+                   : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-800'
                  }`}
                >
-                 {tab === 'available' ? 'Live Requests' : tab.charAt(0).toUpperCase() + String(tab || '').slice(1).replace('-', ' ')}
+                 {tab === 'available' ? 'Active Duty' : tab.charAt(0).toUpperCase() + String(tab || '').slice(1).replace('-', ' ')}
                </button>
              ))}
           </div>
@@ -184,72 +200,40 @@ const DeliveryOrders = () => {
               orders.map((order, index) => (
                 <motion.div
                   key={order.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: index * 0.03 }}
                   onClick={() => navigate(`/delivery/orders/${order.id}`)}
-                  className="bg-white rounded-2xl sm:rounded-[32px] p-4 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer group"
+                  className="bg-white rounded-xl p-3 shadow-md shadow-slate-200/50 border border-slate-100 hover:border-slate-300 transition-all cursor-pointer group relative overflow-hidden"
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                       <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2.5 py-1 rounded-lg uppercase tracking-wider mb-2 block w-fit">#{String(order.id || order.orderId || '').slice(-6)}</span>
-                       <h3 className="font-black text-slate-900 text-lg leading-tight mb-1">{order.customer || 'Guest User'}</h3>
-                       <div className="flex gap-2 flex-wrap mt-2">
-                           {order.paymentMethod === 'cod' ? (
-                              <span className="text-[9px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">COD</span>
-                           ) : (
-                              <span className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">PAID</span>
-                           )}
-                           <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${getStatusStyle(order.status)}`}>
-                             {order.status.replace(/_/g, ' ')}
-                           </span>
-                       </div>
+                  {/* Human-Centered Line 1: ID, Customer & Earnings */}
+                  <div className="flex justify-between items-center mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="text-[7.5px] font-bold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tighter shrink-0">#{String(order.id || order.orderId || '').slice(-6)}</span>
+                      <h3 className="font-bold text-slate-800 text-[13px] tracking-tight truncate">{order.customer || 'Guest User'}</h3>
                     </div>
-                    <div className="text-right">
-                       <p className="font-black text-slate-900 text-lg">{formatPrice(order.total || 0)}</p>
-                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Order Total</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl mb-5 group-hover:bg-indigo-50/50 transition-colors">
-                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
-                       <FiMapPin size={18} />
-                    </div>
-                    <p className="text-[12px] text-slate-600 font-bold leading-snug line-clamp-2">
-                       {order.address || 'Navigation data loading...'}
+                    <p className={`font-bold text-[13px] shrink-0 ml-2 ${order.status === 'delivered' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                      {order.status === 'delivered' ? `+ ${formatPrice(order.deliveryEarnings || 0)}` : formatPrice(order.total || 0)}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-center gap-4">
-                       <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
-                          <FiPackage size={14} className="text-indigo-500" /> {Array.isArray(order.items) ? order.items.length : 1}
-                       </div>
-                       <div className="flex items-center gap-1.5 text-slate-400 text-xs font-bold">
-                          <FiNavigation size={14} className="text-emerald-500" /> {order.distance || '2.4 km'}
+                  {/* Proper Status & Metrics */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                       <span className={`text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border ${order.paymentMethod === 'cod' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-sky-50 text-sky-700 border-sky-200'}`}>
+                          {order.paymentMethod?.toUpperCase()}
+                       </span>
+                       <span className={`text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border ${getStatusStyle(order.status)}`}>
+                         {order.status.replace(/_/g, ' ')}
+                       </span>
+                       <div className="h-3 w-[1px] bg-slate-200 mx-1" />
+                       <div className="flex items-center gap-2.5 text-slate-500 text-[9px] font-bold shrink-0">
+                          <span className="flex items-center gap-1"><FiPackage size={11} className="text-slate-400" /> {Array.isArray(order.items) ? order.items.length : 1}</span>
+                          <span className="flex items-center gap-1"><FiNavigation size={11} className="text-sky-600" /> {order.distance || '2.4 km'}</span>
                        </div>
                     </div>
-
-                    <div className="flex gap-2">
-                       {(order.rawStatus === 'ready_for_delivery' && filter === 'available') && (
-                          <button 
-                             onClick={(e) => { e.stopPropagation(); setSelectedNewOrder(order); setShowNewOrderModal(true); }}
-                             className="px-6 py-2.5 bg-[#0F172A] text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 shadow-lg"
-                          >
-                             Accept Job
-                          </button>
-                       )}
-                       {order.status === 'in-transit' && (
-                          <button 
-                             onClick={(e) => { e.stopPropagation(); handleCompleteOrder(order.id); }}
-                             className="px-6 py-2.5 bg-emerald-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 shadow-lg"
-                          >
-                             Complete
-                          </button>
-                       )}
-                       <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                          <FiChevronRight size={20} />
-                       </div>
+                    <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-800 group-hover:text-white transition-all">
+                       <FiChevronRight size={14} />
                     </div>
                   </div>
                 </motion.div>

@@ -102,7 +102,7 @@ export const sendSms = async (mobile, message) => {
 };
 
 /**
- * Send an OTP SMS
+ * Send an OTP SMS for user registration/login
  * @param {string} mobile 
  * @param {string} otp 
  */
@@ -110,6 +110,18 @@ export const sendSmsOtp = async (mobile, otp) => {
     // CRITICAL: This text MUST match your DLT approved template EXACTLY.
     // Ensure the message format provided by the user is used.
     const message = `Welcome to the Closh powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+    return sendSms(mobile, message);
+};
+
+/**
+ * Send an OTP SMS for final delivery verification
+ * @param {string} mobile 
+ * @param {string} otp 
+ */
+export const sendDeliveryOtpSms = async (mobile, otp, orderId = '') => {
+    // CRITICAL: This text MUST match your DLT approved template EXACTLY.
+    // Enhanced template with Order ID context.
+    const message = `Welcome to Closh! Your delivery OTP for Order #${orderId} is ${otp}. Please share this only after receiving your items. Thank you!`;
     return sendSms(mobile, message);
 };
 

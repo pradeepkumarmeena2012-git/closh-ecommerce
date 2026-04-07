@@ -167,13 +167,17 @@ const TrackingMap = ({
   useEffect(() => {
     if (!isLoaded || !window.google) return;
     const geocoder = new window.google.maps.Geocoder();
-    if (!initialCustomerLocation && customerAddress) {
+    
+    // Improved valid address check to prevent geocoding "Address unavailable" strings
+    const isValidAddress = (addr) => addr && addr.length > 5 && !addr.includes('unavailable');
+
+    if (!initialCustomerLocation && isValidAddress(customerAddress)) {
        geocoder.geocode({ address: customerAddress }, (res, stat) => {
          if (stat === 'OK' && res[0]) setCustomerLocation({ lat: res[0].geometry.location.lat(), lng: res[0].geometry.location.lng() });
        });
     } else { setCustomerLocation(initialCustomerLocation); }
 
-    if (!initialVendorLocation && vendorAddress) {
+    if (!initialVendorLocation && isValidAddress(vendorAddress)) {
        geocoder.geocode({ address: vendorAddress }, (res, stat) => {
          if (stat === 'OK' && res[0]) setVendorLocation({ lat: res[0].geometry.location.lat(), lng: res[0].geometry.location.lng() });
        });

@@ -15,7 +15,7 @@ const PaymentSchema = new mongoose.Schema({
 }, { _id: false });
 
 const DeliverySchema = new mongoose.Schema({
-  orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
+  orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true, index: true },
   vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   batchId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBatch' },

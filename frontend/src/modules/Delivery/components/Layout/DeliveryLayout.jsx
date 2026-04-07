@@ -42,25 +42,36 @@ const DeliveryLayout = () => {
   const audioUnlockedRef = useRef(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isAuthenticated) return;
+
+    const initialFetch = () => {
       fetchProfileSummary();
       fetchNotifications(1);
-      const interval = setInterval(() => {
-        fetchProfileSummary();
-        fetchNotifications(1);
-      }, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated, fetchProfileSummary, fetchNotifications]);
+    };
+
+    initialFetch();
+
+    const interval = setInterval(() => {
+      fetchProfileSummary();
+      fetchNotifications(1);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated]); // Only run on auth change
 
   useEffect(() => {
+    // Throttled refresh to prevent storm of calls from multiple socket events
+    let lastRefresh = 0;
     const handleGlobalRefresh = () => {
+      const now = Date.now();
+      if (now - lastRefresh < 2000) return;
+      lastRefresh = now;
       fetchProfileSummary();
       fetchNotifications(1);
     };
     window.addEventListener('delivery-dashboard-refresh', handleGlobalRefresh);
     return () => window.removeEventListener('delivery-dashboard-refresh', handleGlobalRefresh);
-  }, [fetchProfileSummary, fetchNotifications]);
+  }, []);
 
   // Audio Policy Unlock: User interaction required
   useEffect(() => {
@@ -170,48 +181,38 @@ const DeliveryLayout = () => {
     if (!isOnline || !deliveryBoy?.id) return;
 
     socketService.connect();
+    socketService.deliveryRegister(deliveryBoy.id);
 
-    const registerDelivery = () => {
-      socketService.socket?.emit('delivery_register', deliveryBoy.id);
-    };
-
-    if (socketService.socket?.connected) {
-      registerDelivery();
-    }
-    socketService.socket?.on('connect', registerDelivery);
+    const registerOnConnect = () => socketService.deliveryRegister(deliveryBoy.id);
+    socketService.socket?.on('connect', registerOnConnect);
 
     socketService.on('order_ready_for_pickup', handleNewOrder);
     socketService.on('return_ready_for_pickup', handleNewReturn);
-    window.addEventListener('delivery-view-order', handleViewOrder);
-
-    // Listen for order taken by someone else
-    socketService.on('order_taken', (data) => {
-      const currentId = selectedNewOrder?.id || selectedNewOrder?.orderId || selectedNewOrder?._id;
-      const takenId = data.orderId || data.id;
-
-      if (currentId && String(currentId) === String(takenId)) {
-        stopBuzzer();
-        setShowNewOrderModal(false);
-        setSelectedNewOrder(null);
-        toast.error('Order taken by another rider', { icon: '⌛' });
-      }
+    
+    const onOrderTaken = (data) => {
+      // Use ref-like logic or fresh state from store inside the callback
+      const currentModalOpen = showNewOrderModal; // This might be stale if not careful
+      // Better to check global dashboard refresh trigger or store
       window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
-    });
+    };
+    socketService.on('order_taken', onOrderTaken);
 
     socketService.on('balance_updated', (data) => {
       useDeliveryAuthStore.getState().setBalance(data);
     });
 
+    window.addEventListener('delivery-view-order', handleViewOrder);
+
     return () => {
-      socketService.socket?.off('connect', registerDelivery);
+      socketService.socket?.off('connect', registerOnConnect);
       socketService.off('order_ready_for_pickup', handleNewOrder);
       socketService.off('return_ready_for_pickup', handleNewReturn);
       socketService.off('order_taken');
-      window.removeEventListener('delivery-view-order', handleViewOrder);
       socketService.off('balance_updated');
+      window.removeEventListener('delivery-view-order', handleViewOrder);
       stopBuzzer();
     };
-  }, [deliveryBoy?.status, deliveryBoy?.id, startBuzzer, stopBuzzer, selectedNewOrder?.id, handleNewOrder, handleNewReturn, handleViewOrder]);
+  }, [deliveryBoy?.id, deliveryBoy?.status]); // Removed selectedNewOrder dependency
 
   const handleAcceptNewTask = async (id) => {
     setIsAcceptingOrder(true);

@@ -891,7 +891,12 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
 
     // Send OTP via email to the customer
     const { sendEmail } = await import('../../../services/email.service.js');
+    const { sendDeliveryOtpSms } = await import('../../../services/sms.service.js');
+    const { createNotification } = await import('../../../services/notification.service.js');
+
     const email = String(order?.shippingAddress?.email || '').trim().toLowerCase();
+    const phone = String(order?.shippingAddress?.phone || '').replace(/\D/g, '').slice(-10);
+
     if (email) {
         await sendEmail({
             to: email,
@@ -900,6 +905,20 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
             html: `<p>Your new delivery verification OTP is <strong>${otp}</strong>.</p><p>Share it with the delivery partner only after receiving your order.</p><p>This OTP expires in 10 minutes.</p>`,
         }).catch(err => console.warn('[User Resend OTP] Email failed:', err.message));
     }
+
+    if (phone) {
+        await sendDeliveryOtpSms(phone, otp).catch(e => console.warn('[User Resend OTP] SMS failed:', e.message));
+    }
+
+    // Push Notification
+    createNotification({
+        recipientId: order.userId,
+        recipientType: 'user',
+        title: 'New Delivery OTP',
+        message: `Your new delivery OTP is ${otp}. Share it only with the delivery partner arrival.`,
+        type: 'order',
+        data: { orderId: order.orderId, otp: otp }
+    }).catch(err => console.error('[User Resend OTP] Push Error:', err));
 
     // Emit socket event so the user-side UI updates with the new OTP immediately
     const { emitEvent: emit } = await import('../../../services/socket.service.js');

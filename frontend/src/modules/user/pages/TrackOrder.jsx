@@ -356,31 +356,39 @@ const MobileTrackOrder = () => {
 
             {/* Rider Arrived + OTP Display */}
             {(riderArrived || normalizedStatus === 'out_for_delivery') && deliveryOtp && (
-              <div className="glass-card rounded-2xl p-5 bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 shadow-lg animate-pulse-slow">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-emerald-100 rounded-full mx-auto flex items-center justify-center mb-3">
-                    <FiShield className="text-emerald-600 text-2xl" />
+              <div className="bg-white rounded-3xl p-6 border border-emerald-100 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-full -mr-12 -mt-12" />
+                <div className="relative text-center">
+                  <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-emerald-100">
+                    <FiShield size={24} />
                   </div>
-                  <h3 className="font-bold text-emerald-900 text-lg mb-1">
-                    {riderArrived ? 'Rider Has Arrived!' : 'Your Delivery OTP'}
-                  </h3>
-                  <p className="text-sm text-emerald-700 mb-4">Share this OTP with the delivery partner to receive your order</p>
-                  <div className="bg-white rounded-2xl py-4 px-6 inline-block shadow-inner border border-emerald-100">
-                    <span className="text-4xl font-black tracking-[0.5em] text-emerald-600">{deliveryOtp}</span>
+                  <h3 className="font-bold text-slate-800 text-lg">Delivery Identification</h3>
+                  <p className="text-sm text-slate-500 mb-6 px-4">Provide this secure OTP to the delivery partner only after you have received your items.</p>
+                  
+                  <div className="bg-slate-50 rounded-2xl py-5 px-8 inline-block border border-slate-100 shadow-inner">
+                    <span className="text-4xl font-black tracking-[0.4em] text-emerald-600 block">{deliveryOtp}</span>
                   </div>
-                  <p className="text-xs text-emerald-500 mt-3 font-semibold">Do NOT share with anyone except the delivery partner</p>
-                  <button
-                    onClick={handleResendDeliveryOtp}
-                    disabled={isResendingOtp || resendCooldown > 0}
-                    className={`mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                      isResendingOtp || resendCooldown > 0
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 shadow-md'
-                    }`}
-                  >
-                    <FiRefreshCw className={`text-base ${isResendingOtp ? 'animate-spin' : ''}`} />
-                    {isResendingOtp ? 'Resending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
-                  </button>
+                  
+                  <div className="mt-6 space-y-3">
+                    <div className="flex items-center justify-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                       <span className="flex items-center gap-1"><FiCheckCircle className="text-emerald-500"/> SMS SENT</span>
+                       <span className="w-1 h-1 bg-slate-200 rounded-full"/>
+                       <span className="flex items-center gap-1"><FiCheckCircle className="text-emerald-500"/> PUSH SENT</span>
+                    </div>
+                    
+                    <button
+                      onClick={handleResendDeliveryOtp}
+                      disabled={isResendingOtp || resendCooldown > 0}
+                      className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold transition-all ${
+                        isResendingOtp || resendCooldown > 0
+                          ? 'bg-slate-50 text-slate-300'
+                          : 'bg-slate-900 text-white active:scale-95'
+                      }`}
+                    >
+                      <FiRefreshCw className={isResendingOtp ? 'animate-spin' : ''} />
+                      {isResendingOtp ? 'Syncing...' : resendCooldown > 0 ? `Retry in ${resendCooldown}s` : 'Request New OTP'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

@@ -111,53 +111,54 @@ const Payouts = () => {
 
   return (
     <PageTransition>
-      <div className="px-4 pt-3 pb-24 space-y-3 max-w-lg mx-auto flex flex-col h-[calc(100vh-80px)] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between shrink-0">
-          <div>
-            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none">Payouts</h1>
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">Earnings Management</p>
+      <div className="min-h-screen bg-[#F8FAFC]">
+        {/* Proper Logistics Header */}
+        <div className="bg-[#1E293B] pt-6 pb-12 px-5 relative overflow-hidden shrink-0">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          
+          <div className="relative z-10 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tight">Financial Hub</h1>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Earnings & Transfers</p>
+            </div>
+            <button
+              onClick={() => { loadWithdrawalHistory(); fetchProfile(); }}
+              className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-white active:rotate-180 transition-all duration-500 shadow-sm"
+            >
+              <FiRefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+            </button>
           </div>
-          <button
-            onClick={() => { loadWithdrawalHistory(); fetchProfile(); }}
-            className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 active:rotate-180 transition-all duration-500 shadow-sm"
-          >
-            <FiRefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-          </button>
         </div>
 
-        {/* Balance Card - Premium Gradient */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-[#4f46e5] via-[#4338ca] to-[#3730a3] rounded-[32px] p-5 text-white shadow-2xl relative overflow-hidden shrink-0 border border-white/10"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-12 -mt-12 blur-3xl opacity-60" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-400/20 rounded-full -ml-8 -mb-8 blur-2xl" />
-          
-          <div className="flex items-center justify-between mb-5 relative z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/20 shadow-inner">
-                <FiDollarSign className="text-white" size={20} />
+        {/* Content Area */}
+        <div className="px-4 -mt-8 relative z-20 space-y-3 pb-24 max-w-lg mx-auto">
+          {/* Balance Card - Solid Professionalism */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-[24px] p-5 shadow-xl shadow-slate-200/50 relative overflow-hidden border border-slate-100"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 shadow-sm">
+                  <FiDollarSign className="text-indigo-600" size={20} />
+                </div>
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Available Funds</p>
               </div>
-              <p className="text-indigo-100 text-[9px] font-black uppercase tracking-[0.2em] opacity-80">Available Funds</p>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-black tracking-tighter leading-none">{formatPrice(deliveryBoy?.availableBalance || 0)}</p>
-              <div className="flex items-center justify-end gap-1 mt-1">
-                <div className={`w-1.5 h-1.5 rounded-full ${deliveryBoy?.kycStatus === 'verified' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-amber-400'}`} />
-                <p className="text-[7px] font-black uppercase tracking-widest opacity-60">{deliveryBoy?.kycStatus === 'verified' ? 'Verified' : 'Pending KYC'}</p>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-slate-900 tracking-tighter tabular-nums">{formatPrice(deliveryBoy?.availableBalance || 0)}</p>
+                <div className="flex items-center justify-end gap-1.5 mt-1">
+                  <div className={`w-1.5 h-1.5 rounded-full ${deliveryBoy?.kycStatus === 'verified' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <p className="text-[8px] font-bold uppercase text-slate-400 tracking-widest">{deliveryBoy?.kycStatus === 'verified' ? 'Verified Partner' : 'Pending KYC'}</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-4 relative z-10">
-            {/* Action Area */}
-            <div>
+            <div className="space-y-4">
               {!canRequestPayout ? (
-                <div className="bg-black/10 backdrop-blur-md rounded-2xl p-3 text-center border border-white/10">
-                  <p className="text-primary-100 text-[7px] font-black uppercase tracking-[0.2em] mb-0.5">Next Eligibility</p>
-                  <p className="text-sm font-black tracking-tight font-mono">
+                <div className="bg-slate-50 rounded-2xl p-3 text-center border border-slate-100">
+                  <p className="text-slate-400 text-[8px] font-bold uppercase tracking-widest mb-1">Next Eligibility</p>
+                  <p className="text-[13px] font-bold text-slate-700 tracking-tight">
                     {nextAvailableDate?.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                 </div>
@@ -165,51 +166,33 @@ const Payouts = () => {
                 <button
                   onClick={() => setShowWithdrawalModal(true)}
                   disabled={!deliveryBoy?.availableBalance || deliveryBoy?.availableBalance <= 0 || deliveryBoy?.kycStatus !== 'verified'}
-                  className="w-full py-4 bg-white text-indigo-700 rounded-[22px] font-black text-[11px] uppercase tracking-[0.15em] shadow-xl active:scale-[0.98] transition-all disabled:opacity-30 disabled:bg-indigo-300/20 disabled:text-white/50 disabled:shadow-none"
+                  className="w-full py-4 bg-[#1E293B] text-white rounded-[18px] font-bold text-[12px] uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all disabled:opacity-20"
                 >
-                  {deliveryBoy?.kycStatus !== 'verified' ? 'KYC Verification Required' : 'Request Withdrawal'}
+                   Request Withdrawal
                 </button>
               )}
-            </div>
 
-            {/* Secondary Stats Strip */}
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-white/10 backdrop-blur-md rounded-[20px] p-2.5 border border-white/10 flex flex-col items-center justify-center">
-                <p className="text-[7px] font-black text-indigo-100 uppercase tracking-widest opacity-60 mb-0.5">Total Earned</p>
-                <p className="text-xs font-black tracking-tight">{formatPrice(deliveryBoy?.totalEarnings || 0)}</p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-[20px] p-2.5 border border-white/10 flex flex-col items-center justify-center">
-                <p className="text-[7px] font-black text-indigo-100 uppercase tracking-widest opacity-60 mb-0.5">Cash in Hand</p>
-                <p className="text-xs font-black tracking-tight">{formatPrice(deliveryBoy?.cashInHand || 0)}</p>
-              </div>
-            </div>
-
-            {deliveryBoy?.kycStatus !== 'verified' && (
-              <div 
-                onClick={() => navigate('/delivery/profile')}
-                className="bg-white/5 backdrop-blur-md border border-white/10 rounded-[20px] p-3 flex items-center justify-between cursor-pointer group hover:bg-white/10 transition-all shadow-inner"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 bg-white/10 rounded-lg flex items-center justify-center">
-                    <FiAlertCircle size={14} className="text-indigo-200 shrink-0" />
-                  </div>
-                  <p className="text-[8px] font-black text-indigo-100 leading-tight uppercase tracking-widest italic opacity-80">Setup KYC to enable payouts</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center">
+                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Earned</p>
+                  <p className="text-sm font-bold text-slate-800">{formatPrice(deliveryBoy?.totalEarnings || 0)}</p>
                 </div>
-                <FiChevronRight size={14} className="text-white/40 group-hover:text-white transition-all group-hover:translate-x-1" />
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center">
+                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">In Hand</p>
+                  <p className="text-sm font-bold text-slate-800">{formatPrice(deliveryBoy?.cashInHand || 0)}</p>
+                </div>
               </div>
-            )}
-          </div>
-        </motion.div>
+            </div>
+          </motion.div>
 
-        {/* Mini Payout Policy */}
-        <div className="shrink-0">
-          <button 
+          {/* Policy Toggle */}
+           <button 
             onClick={() => setShowPolicy(!showPolicy)}
-            className="w-full flex items-center justify-between px-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl group active:bg-slate-100 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-2 bg-white border border-slate-100 rounded-xl group active:bg-slate-50 transition-colors shadow-sm"
           >
             <div className="flex items-center gap-2">
-              <FiInfo className="text-slate-400 group-hover:text-primary-500 transition-colors" size={14} />
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Payout Policy</span>
+              <FiInfo className="text-slate-400 group-hover:text-indigo-600 transition-colors" size={14} />
+              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Payout Policy</span>
             </div>
             <FiChevronRight className={`text-slate-400 transition-transform ${showPolicy ? 'rotate-90' : ''}`} size={14} />
           </button>
@@ -222,86 +205,84 @@ const Payouts = () => {
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <div className="p-3 mt-1 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
+                <div className="p-4 bg-white rounded-2xl border border-slate-100 space-y-2 shadow-inner">
                   {[
                     'Processed within 24-48 hours',
                     'One request every 7 days',
                     'Minimum amount: ₹1',
                     'Transferred to bank account'
                   ].map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                       <div className="w-1 h-1 bg-primary-400 rounded-full" />
-                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-tight">{item}</p>
+                    <div key={idx} className="flex items-center gap-2.5">
+                       <div className="w-1 h-1 bg-indigo-400 rounded-full" />
+                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">{item}</p>
                     </div>
                   ))}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
 
-        {/* Tab Filters */}
-        <div className="flex gap-2 p-1.5 bg-slate-100 rounded-[24px] shrink-0 overflow-x-auto no-scrollbar border border-slate-200/50">
-          {['all', 'pending', 'approved', 'completed', 'rejected'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`px-5 py-2.5 rounded-[18px] text-[9px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap ${filter === s ? 'bg-white text-indigo-600 shadow-lg shadow-indigo-100/50 scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        {/* Payout History */}
-        <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-1 h-3 bg-primary-600 rounded-full" />
-            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Transfer History</h2>
+          {/* Filter Bar */}
+          <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl overflow-x-auto no-scrollbar border border-slate-200/50">
+            {['all', 'pending', 'completed', 'approved', 'rejected'].map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilter(s)}
+                className={`px-5 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${filter === s ? 'bg-[#1E293B] text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {s}
+              </button>
+            ))}
           </div>
 
-          {isLoading ? (
-            <div className="py-12 flex flex-col items-center justify-center gap-3">
-              <FiRefreshCw className="text-primary-600 animate-spin" size={24} />
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Fetching Transfers...</p>
+          {/* Transaction Feed */}
+          <div className="space-y-2 pb-4">
+            <div className="flex items-center gap-2 px-1 mb-3">
+              <div className="w-0.5 h-3 bg-indigo-600 rounded-full" />
+              <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Transfer History</h2>
             </div>
-          ) : filteredHistory.length === 0 ? (
-            <div className="py-12 bg-white rounded-[28px] border border-slate-100 text-center space-y-2 shadow-sm">
-              <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto">
-                <FiDollarSign className="text-slate-300" size={24} />
+
+            {isLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3">
+                <FiRefreshCw className="text-indigo-600 animate-spin" size={20} />
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Verifying Ledger...</p>
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Transfers Found</p>
-            </div>
-          ) : (
-            filteredHistory.map((item, idx) => (
-              <motion.div
-                key={item._id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="bg-white rounded-[26px] p-4 border border-slate-200/50 shadow-sm flex items-center justify-between group active:scale-[0.98] transition-all hover:border-indigo-100 hover:shadow-md"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border-2 ${getStatusColor(item.status).replace('bg-', 'border-').split(' ')[0]} shrink-0 shadow-xl bg-slate-50`}>
-                    {getStatusIcon(item.status)}
+            ) : filteredHistory.length === 0 ? (
+              <div className="py-12 bg-white rounded-2xl border border-slate-100 text-center space-y-2 shadow-sm">
+                <FiDollarSign className="text-slate-200 mx-auto" size={32} />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No Activity Recorded</p>
+              </div>
+            ) : (
+              filteredHistory.map((item, idx) => (
+                <motion.div
+                  key={item._id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.04 }}
+                  className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between group active:scale-[0.98] transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${getStatusColor(item.status).replace('bg-', 'border-').split(' ')[0]} bg-slate-50 shrink-0`}>
+                      {getStatusIcon(item.status)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[16px] font-bold text-slate-800 tracking-tight leading-none mb-1.5">{formatPrice(item.amount)}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight tabular-nums opacity-80">
+                        {formatDate(item.createdAt)} • {new Date(item.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-lg font-black text-slate-800 tracking-tighter leading-none mb-1">{formatPrice(item.amount)}</p>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none opacity-80 italic">
-                      {formatDate(item.createdAt)} • {new Date(item.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                    </p>
+                  
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className={`px-2.5 py-1 rounded-lg text-[7px] font-bold uppercase tracking-widest border ${getStatusColor(item.status)}`}>
+                      {item.status}
+                    </span>
+                    {item.transactionId && <p className="text-[8px] font-mono text-slate-400 tracking-tighter opacity-60">#{item.transactionId.slice(-6).toUpperCase()}</p>}
                   </div>
-                </div>
-                
-                <div className="flex flex-col items-end gap-1.5">
-                  <span className={`px-2.5 py-1 rounded-xl text-[8px] font-black uppercase tracking-widest shadow-sm ${getStatusColor(item.status)}`}>
-                    {item.status}
-                  </span>
-                  {item.transactionId && <p className="text-[8px] font-mono text-slate-300 leading-none tracking-tighter">#{item.transactionId.slice(-6).toUpperCase()}</p>}
-                </div>
-              </motion.div>
-            ))
-          )}
+                </motion.div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 

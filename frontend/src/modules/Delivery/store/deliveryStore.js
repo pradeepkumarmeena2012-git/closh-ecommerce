@@ -246,9 +246,14 @@ export const useDeliveryAuthStore = create(
           return true;
         } catch (e) { set({ deliveryBoy: current, isUpdatingStatus: false }); throw e; }
       },
+      _lastLocationUpdate: 0,
       updateLocation: async (latitude, longitude) => {
         const current = get().deliveryBoy;
         if (!current || current.status === 'offline') return;
+        // Throttle: max once per 10 seconds
+        const now = Date.now();
+        if (now - get()._lastLocationUpdate < 10000) return;
+        set({ _lastLocationUpdate: now });
         try {
           const res = await api.put('/delivery/auth/profile', { currentLocation: { type: 'Point', coordinates: [longitude, latitude] } });
           set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...(res.data || res) }) });
@@ -320,9 +325,36 @@ export const useDeliveryAuthStore = create(
       markArrivedAtCustomer: async (id, opt = {}) => {
         set({ isUpdatingOrderStatus: true });
         try {
-          const res = await api.post(`/delivery/orders/${id}/arrived`, opt);
-          const order = normalizeOrder(res.data || res);
-          set({ isUpdatingOrderStatus: false }); return order;
+          const res = await api.patch(`/delivery/orders/${id}/arrived`, opt);
+          const order = normalizeOrder(res.data?.data || res.data || res);
+          set({ isUpdatingOrderStatus: false, selectedOrder: order }); return order;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
+      },
+      submitTryAndBuy: async (id, items) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const res = await api.patch(`/delivery/orders/${id}/try-buy`, { items });
+          const order = normalizeOrder(res.data?.data || res.data || res);
+          set({ isUpdatingOrderStatus: false, selectedOrder: order }); return order;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
+      },
+      setPaymentMethod: async (id, method) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const res = await api.patch(`/delivery/orders/${id}/payment`, { method });
+          const data = res.data?.data || res.data || res;
+          const order = normalizeOrder(data.order || data);
+          set({ isUpdatingOrderStatus: false, selectedOrder: order }); return data;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
+      },
+      completeDeliveryFlow: async (id, { otp, openBoxPhoto, deliveryProofPhoto }) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const res = await api.patch(`/delivery/orders/${id}/complete`, { otp, openBoxPhoto, deliveryProofPhoto });
+          const data = res.data?.data || res.data || res;
+          const order = normalizeOrder(data.order || data);
+          if (data.rider) set({ deliveryBoy: normalizeDeliveryBoy({ ...get().deliveryBoy, ...data.rider }) });
+          set({ isUpdatingOrderStatus: false, selectedOrder: order }); return order;
         } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
       resendDeliveryOtp: async (id) => {

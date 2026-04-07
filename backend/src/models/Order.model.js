@@ -204,7 +204,11 @@ const orderSchema = new mongoose.Schema(
 
 // Index for spatial queries
 orderSchema.index({ pickupLocation: '2dsphere' });
+orderSchema.index({ status: 1, pickupLocation: '2dsphere' }); // Optimization for available orders
 orderSchema.index({ dropoffLocation: '2dsphere' });
+
+// Compound Index for Delivery Dashboard & active task tracking
+orderSchema.index({ deliveryBoyId: 1, isDeleted: 1, status: 1, updatedAt: -1 });
 
 // Prevent duplicate order creation for the same retry key per actor (user/guest).
 orderSchema.index(
