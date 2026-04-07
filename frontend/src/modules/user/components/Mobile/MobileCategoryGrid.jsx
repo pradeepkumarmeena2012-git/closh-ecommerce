@@ -33,33 +33,33 @@ const MobileCategoryGrid = () => {
   }, [categories, getRootCategories]);
 
   return (
-    <div className="px-3 py-2">
-      <h2 className="text-base font-bold text-gray-800 mb-2">
+    <div className="px-5 py-4 bg-white shadow-sm border-b border-gray-100">
+      <h2 className="text-[14px] font-black text-gray-900 uppercase tracking-tight mb-4 ml-1">
         Browse Categories
       </h2>
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-3 px-3">
+      <div className="grid grid-cols-4 gap-x-2 gap-y-6 justify-items-center">
         {displayCategories.map((category, index) => (
           <motion.div
             key={category.id}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
-            className="flex-shrink-0">
+            transition={{ delay: index * 0.03 }}
+            className="w-full">
             <Link
               to={`/category/${category.id}`}
-              className="flex flex-col items-center gap-1 w-14">
-              <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 ring-1 ring-gray-200">
+              className="flex flex-col items-center gap-2 group">
+              <div className="w-[60px] h-[60px] rounded-full overflow-hidden bg-[#F8F9FA] ring-1 ring-black/5 shadow-sm group-hover:ring-black/20 transition-all duration-300">
                 <LazyImage
                   src={category.image}
                   alt={category.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   onError={(e) => {
                     e.target.src =
-                      "https://via.placeholder.com/64x64?text=Category";
+                      "https://via.placeholder.com/100x100?text=Category";
                   }}
                 />
               </div>
-              <span className="text-xs font-semibold text-gray-700 text-center line-clamp-2">
+              <span className="text-[10px] font-bold text-gray-700 text-center leading-tight line-clamp-2 px-1 group-hover:text-black transition-colors">
                 {category.name}
               </span>
             </Link>

@@ -142,7 +142,15 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                 state: '',
                 type: 'Home'
             });
-            setView('form');
+
+            // Set default position if null
+            const defaultPos = { lat: 22.7196, lng: 75.8577 };
+            if (!position) {
+                setPosition(defaultPos);
+                getAddressFromCoords(defaultPos.lat, defaultPos.lng).then(setFetchedAddress);
+            }
+            
+            setView('map');
         }
     };
 
@@ -169,13 +177,15 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
         } else {
             setLoadingLocation(false);
         }
-        handleClose();
-        navigate('/addresses');
     };
 
     const handleConfirm = async () => {
-        if (view === 'map' && fetchedAddress) {
-            // Transition from Map to Form if user was pinning
+        if (view === 'map') {
+            if (!fetchedAddress) {
+                toast.error('Please wait, pin location is resolving...');
+                return;
+            }
+            // Transition from Map to Form
             setFormData(prev => ({
                 ...prev,
                 pincode: fetchedAddress.pincode || '',
@@ -187,8 +197,8 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
             setView('form');
         } else if (view === 'form') {
             // Final Submit
-            if (!formData.address || !formData.name || !formData.mobile) {
-                toast.error('Please fill in required fields');
+            if (!formData.address || !formData.name || !formData.mobile || !formData.city || !formData.state || !formData.pincode) {
+                toast.error('Please fill in all required fields');
                 return;
             }
             if (formData.address.trim().length < 5) {
@@ -197,6 +207,10 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
             }
             if (formData.mobile.length !== 10) {
                 toast.error('Invalid mobile number');
+                return;
+            }
+            if (formData.pincode.length !== 6) {
+                toast.error('Invalid pincode');
                 return;
             }
 
@@ -355,11 +369,11 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
-                                    <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[13px] " placeholder="Full Name" />
+                                    <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[16px] " placeholder="Full Name" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Mobile No</label>
-                                    <input type="text" value={formData.mobile} onChange={e => setFormData({ ...formData, mobile: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[13px] " placeholder="10-digit number" />
+                                    <input type="text" value={formData.mobile} onChange={e => setFormData({ ...formData, mobile: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[16px] " placeholder="10-digit number" />
                                 </div>
                             </div>
 
@@ -369,7 +383,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                     rows="3"
                                     value={formData.address}
                                     onChange={e => setFormData({ ...formData, address: e.target.value })}
-                                    className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:border-black font-bold text-[13px]  resize-none"
+                                    className="w-full px-4 py-3 bg-white border border-gray-100 rounded-2xl outline-none focus:border-black font-bold text-[16px]  resize-none"
                                     placeholder="Enter complete address details..."
                                 />
                             </div>
@@ -377,12 +391,17 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">City</label>
-                                    <input type="text" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[13px] " placeholder="City" />
+                                    <input type="text" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[16px] " placeholder="City" />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Pincode</label>
-                                    <input type="text" value={formData.pincode} onChange={e => setFormData({ ...formData, pincode: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[13px] " placeholder="Pincode" />
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">State</label>
+                                    <input type="text" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[16px] " placeholder="State" />
                                 </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Pincode</label>
+                                <input type="text" value={formData.pincode} onChange={e => setFormData({ ...formData, pincode: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[16px] " placeholder="6-digit pincode" />
                             </div>
 
                             <div className="flex gap-4 pt-2">

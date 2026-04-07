@@ -59,7 +59,7 @@ const DailyDealsSection = ({ products = null }) => {
       </div>
 
       {/* Content */}
-      <div className="relative px-3 py-3">
+      <div className="relative px-5 py-3">
         {/* Header with Badge */}
         <div className="mb-2">
           <div className="flex items-center justify-between mb-2">

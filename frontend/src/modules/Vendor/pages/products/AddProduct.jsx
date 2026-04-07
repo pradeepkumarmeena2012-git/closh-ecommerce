@@ -54,6 +54,7 @@ const AddProduct = () => {
     cancelable: true,
     taxIncluded: false,
     description: "",
+    discount: 0,
     tags: [],
     variants: {
       sizes: [],
@@ -403,6 +404,7 @@ const AddProduct = () => {
       ...formData,
       price: parsedPrice,
       originalPrice: parsedOriginalPrice,
+      discount: parseFloat(formData.discount || 0),
       stockQuantity: parsedStockQuantity,
       totalAllowedQuantity: parsedTotalAllowedQuantity,
       minimumOrderQuantity: parsedMinimumOrderQuantity,
@@ -528,7 +530,7 @@ const AddProduct = () => {
         {/* Pricing */}
         <div>
           <h2 className="text-base font-bold text-gray-800 mb-2">Pricing</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">
                 Your Selling Price (Cost to Admin/Store) <span className="text-red-500">*</span>
@@ -548,7 +550,7 @@ const AddProduct = () => {
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Original Price (for discount)
+                Original Price (MRP)
               </label>
               <input
                 type="number"
@@ -559,6 +561,22 @@ const AddProduct = () => {
                 step="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Discount Percentage (%)
+              </label>
+              <input
+                type="number"
+                name="discount"
+                value={formData.discount}
+                onChange={handleChange}
+                min="0"
+                max="100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="0"
               />
             </div>
           </div>

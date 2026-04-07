@@ -57,6 +57,7 @@ const ProductForm = () => {
     cancelable: true,
     taxIncluded: false,
     description: "",
+    discount: 0,
     tags: [],
     variants: {
       sizes: [],
@@ -170,6 +171,7 @@ const ProductForm = () => {
       cancelable: product.cancelable !== undefined ? product.cancelable : true,
       taxIncluded: product.taxIncluded || false,
       description: product.description || "",
+      discount: product.discount || 0,
       tags: product.tags || [],
       variants: normalizedVariants,
       seoTitle: product.seoTitle || "",
@@ -469,6 +471,7 @@ const ProductForm = () => {
       ...formData,
       price: parsedPrice,
       originalPrice: parsedOriginalPrice,
+      discount: parseFloat(formData.discount || 0),
       stockQuantity: parsedStockQuantity,
       totalAllowedQuantity: parsedTotalAllowedQuantity,
       minimumOrderQuantity: parsedMinimumOrderQuantity,
@@ -597,7 +600,7 @@ const ProductForm = () => {
         {/* Pricing */}
         <div>
           <h2 className="text-base font-bold text-gray-800 mb-2">Pricing</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Your Price (Requested Payment) <span className="text-red-500">*</span>
@@ -629,7 +632,22 @@ const ProductForm = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 placeholder="0.00"
               />
-              <p className="text-[10px] text-gray-400 mt-1 italic">This will be shown as a strikethrough price.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Discount Percentage (%)
+              </label>
+              <input
+                type="number"
+                name="discount"
+                value={formData.discount}
+                onChange={handleChange}
+                min="0"
+                max="100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="0"
+              />
             </div>
           </div>
         </div>

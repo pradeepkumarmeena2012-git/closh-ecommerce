@@ -168,9 +168,7 @@ const MobileHeader = () => {
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-50/50" ref={topRowRef}>
            <div className="flex items-center gap-3">
                <Link to="/" className="no-underline group">
-                   <h1 className="text-[18px] font-bold drop-shadow-md transition-all duration-500 text-gray-900 group-hover:text-black">
-                       CLOSH<span className="text-black text-[22px] leading-none group-hover:text-gray-900">.</span>
-                   </h1>
+                   
                </Link>
                
                <div className="flex items-center gap-2" onClick={() => navigate('/addresses')}>
@@ -178,7 +176,7 @@ const MobileHeader = () => {
                        <span className="text-[12px] font-black leading-none tracking-tighter">60</span>
                    </div>
                    <div className="flex flex-col min-w-0">
-                       <span className="text-[11px] font-black text-gray-900 leading-none">Mins</span>
+                       <span className="text-[11px] font-black text-gray-900 leading-none">delivery in 60 min</span>
                        <div className="flex items-center gap-0.5 text-[9px] text-gray-400 font-bold whitespace-nowrap">
                            Current <FiChevronRight size={10} className="text-gray-400 mt-0.5" />
                        </div>

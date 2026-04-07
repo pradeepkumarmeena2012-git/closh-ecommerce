@@ -29,8 +29,6 @@ const ProfileSidebar = () => {
         { id: 'orders', label: 'My Orders', path: '/orders', icon: <ShoppingBag size={18} /> },
         { id: 'support', label: 'Live Support', path: '/support', icon: <MessageSquare size={18} /> },
         { id: 'offers', label: 'My Offers', path: '/offers', icon: <Tag size={18} /> },
-        { id: 'events', label: 'Events', path: '/events', icon: <Calendar size={18} /> },
-        { id: 'refer', label: 'Refer and Earn', path: '/refer', icon: <Users size={18} /> },
         { id: 'contact', label: 'Contact Us', path: '/legal/contact', type: 'link' },
         { id: 'about', label: 'About Us', path: '/legal/about', type: 'link' },
         { id: 'terms', label: 'Terms And Conditions', path: '/legal/terms', type: 'link' },

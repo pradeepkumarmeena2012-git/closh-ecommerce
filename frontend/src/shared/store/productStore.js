@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 
-const normalizeProduct = (p) => {
+export const normalizeProduct = (p) => {
     const originalPrice = p.originalPrice || p.mrp || null;
     const discountedPrice = p.price || 0;
     const discountValue = p.discount || (originalPrice > discountedPrice ? `${Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)}% OFF` : null);

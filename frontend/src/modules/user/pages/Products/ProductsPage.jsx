@@ -199,21 +199,21 @@ const ProductsPage = () => {
     };
 
     const FilterSection = ({ title, id, children }) => (
-        <div className="border-b border-gray-200 py-4">
+        <div className="border-b border-gray-100 py-1.5 md:py-3">
             <button
                 onClick={() => toggleSection(id)}
-                className="w-full flex items-center justify-between text-[14px] font-bold uppercase  text-gray-900 mb-2 group"
+                className="w-full flex items-center justify-between text-[11px] md:text-[13px] font-bold uppercase text-gray-900 group"
             >
-                <div className="flex items-center gap-2 group-hover:text-black transition-colors">
-                    <span className="text-xl font-medium">{openSections[id] ? '-' : '+'}</span>
+                <div className="flex items-center gap-1.5 group-hover:text-black transition-colors">
+                    <span className="text-base font-medium min-w-[12px]">{openSections[id] ? '-' : '+'}</span>
                     {title}
                 </div>
                 {selectedBrands.length > 0 && id === 'brand' && (
-                    <div className="w-1.5 h-1.5 bg-black rounded-full shadow-sm" />
+                    <div className="w-1 h-1 bg-black rounded-full" />
                 )}
             </button>
             {openSections[id] && (
-                <div className="mt-3 space-y-2.5 animate-fadeIn">
+                <div className="mt-1 space-y-1.5 animate-fadeIn">
                     {children}
                 </div>
             )}
@@ -238,58 +238,82 @@ const ProductsPage = () => {
                 <div className="absolute inset-0 bg-white/95 backdrop-blur-2xl z-0" />
                 <div className={`absolute inset-0 bg-gradient-to-b ${headerTheme} z-0 opacity-10 pointer-events-none`} />
 
-                <div className="container mx-auto px-4 py-2 relative z-10 flex items-center justify-between">
+                <div className="container mx-auto px-4 pt-1.5 pb-1 relative z-10">
                     {/* Top Row: Back, Title, Actions */}
-                    <div className="flex items-center gap-3">
-                        <button className="w-8 h-8 rounded-full border border-black/5 bg-white flex items-center justify-center shadow-sm shrink-0 active:scale-90 transition-transform" onClick={() => window.history.back()}>
-                            <ArrowLeft size={16} className="text-black" />
-                        </button>
-                        <div className="flex flex-col min-w-0">
-                            <h1 className="text-[15px] font-black truncate uppercase text-black leading-none mb-1">
-                                {selectedBrands[0] || subCategoryFromUrl || category || "Products"}
-                            </h1>
-                            <div className="flex items-center gap-1">
-                                <div className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
-                                <span className="text-[9px] font-bold text-black/50 uppercase whitespace-nowrap">
+                    <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2.5">
+                            <button className="w-7 h-7 rounded-full bg-white/20 border border-black/5 flex items-center justify-center hover:bg-gray-100 transition-colors shrink-0" onClick={() => window.history.back()}>
+                                <ArrowLeft size={14} className="text-gray-900" />
+                            </button>
+                            <div className="flex flex-col">
+                                <h1 className="text-[14px] font-bold truncate uppercase text-gray-900 leading-none mb-0.5 tracking-tight">
+                                    {selectedBrands[0] || subCategoryFromUrl || category || "Products"}
+                                </h1>
+                                <span className="text-[8px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                                     {filteredProducts.length} Items
                                 </span>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="flex items-center gap-2 justify-end">
-                        <div className="flex flex-col min-w-0 text-right mr-1" onClick={() => setIsLocationModalOpen(true)}>
-                            <span className="text-[9px] font-black leading-tight flex items-center justify-end gap-1 text-black uppercase tracking-tighter opacity-80">
-                                Location <ChevronDown size={8} className="text-[#FFC107]" />
-                            </span>
-                            <span className="text-[9px] font-bold truncate max-w-[90px] text-black/60">
-                                {activeAddress ? `${activeAddress.name}` : 'Select'}
-                            </span>
-                        </div>
-                        <Link to="/cart" className="flex items-center justify-center w-9 h-9 rounded-full bg-black shadow-lg shrink-0 active:scale-90 transition-transform">
-                            <div className="relative">
-                                <ShoppingCart size={16} className="text-white" />
+                        <div className="flex items-center gap-0.5 shrink-0">
+                            <button onClick={() => setIsLocationModalOpen(true)} className="relative transition-colors group p-2 hover:bg-gray-50 rounded-full">
+                                <MapPin size={16} className="text-gray-900 group-hover:text-black transition-colors" />
+                            </button>
+                            <Link to="/wishlist" className="relative transition-colors group p-2 hover:bg-gray-50 rounded-full">
+                                <Heart size={16} className="text-gray-900 group-hover:text-black transition-colors" />
+                                {wishlistItems.length > 0 && (
+                                    <span className="absolute top-1 right-1 bg-black text-white text-[7px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center border border-white">
+                                        {wishlistItems.length}
+                                    </span>
+                                )}
+                            </Link>
+                            <Link to="/cart" className="relative transition-colors group p-2 hover:bg-gray-50 rounded-full">
+                                <ShoppingCart size={16} className="text-gray-900 group-hover:text-black transition-colors" />
                                 {getCartCount() > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-[#FFC107] text-black text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-black shadow-sm">
+                                    <span className="absolute top-1 right-1 bg-black text-white text-[7px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center border border-white">
                                         {getCartCount()}
                                     </span>
                                 )}
-                            </div>
-                        </Link>
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Toolbar Row: Search (Mobile Only) */}
+                    <div className="flex items-center gap-2 pb-2">
+                        {/* Search Bar */}
+                        <div className="relative flex-1 group">
+                            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors" />
+                            <input
+                                type="text"
+                                placeholder={`Search in ${subCategoryFromUrl || category || 'products'}...`}
+                                className="w-full bg-white/50 backdrop-blur-md border border-black/5 rounded-full py-1.5 pl-8 pr-4 text-[10px] font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-black/20 transition-all"
+                                value={headerSearchValue}
+                                onChange={(e) => setHeaderSearchValue(e.target.value)}
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* Toolbar Row: Search (Integrated) */}
-                <div className="px-4 pb-3 pt-1 relative z-10">
-                    <div className="relative group">
-                        <input
-                            type="text"
-                            placeholder={`Search in ${subCategoryFromUrl || category || 'all products'}...`}
-                            className="w-full bg-gray-50 border border-black/5 rounded-2xl py-2.5 pl-9 pr-4 text-[13px] font-medium text-black placeholder:text-gray-400 focus:outline-none focus:bg-white focus:shadow-md transition-all"
-                            value={headerSearchValue}
-                            onChange={(e) => setHeaderSearchValue(e.target.value)}
-                        />
-                        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                {/* Address Details Block */}
+                <div
+                    onClick={() => setIsLocationModalOpen(true)}
+                    className="border-t border-black/5 bg-gray-50/50 relative z-10"
+                >
+                    <div className="container mx-auto flex items-center justify-between px-4 py-1.5 cursor-pointer group hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-1.5 overflow-hidden">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight whitespace-nowrap">
+                                Delivering to:
+                            </span>
+                            <span className="text-[10px] font-bold text-black truncate max-w-[180px]">
+                                {activeAddress ? `${activeAddress.name}, ${activeAddress.city}` : 'Select Location'}
+                            </span>
+                            {activeAddress?.type && (
+                                <span className="text-[7px] font-black bg-black text-white px-1 py-[0.5px] rounded-[3px] uppercase ml-1">
+                                    {activeAddress.type}
+                                </span>
+                            )}
+                        </div>
+                        <ChevronDown size={12} className="text-gray-400 group-hover:text-black transition-colors" />
                     </div>
                 </div>
             </div>
@@ -434,14 +458,14 @@ const ProductsPage = () => {
             {isGenderOpen && (
                 <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md animate-fadeIn flex items-end md:items-center justify-center">
                     <div className="absolute inset-0" onClick={() => setIsGenderOpen(false)} />
-                    <div className="relative w-full md:w-[400px] bg-white rounded-t-[32px] md:rounded-[32px] overflow-hidden animate-slideUp border border-gray-200 md:shadow-[0_20px_50px_rgba(0,0,0,0.8)] shadow-[0_-20px_50px_rgba(0,0,0,0.8)] z-10">
-                        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                            <h3 className="text-[14px] font-bold uppercase  text-gray-900">Select Gender</h3>
-                            <button onClick={() => setIsGenderOpen(false)} className="p-2.5 bg-gray-50 border border-gray-200 rounded-full hover:bg-gray-100 transition-colors">
-                                <X size={20} className="text-gray-900" />
+                    <div className="relative w-full md:w-[360px] bg-white rounded-t-[28px] md:rounded-[28px] overflow-hidden animate-slideUp border border-gray-100 md:shadow-[0_20px_50px_rgba(0,0,0,0.4)] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] z-10">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                            <h3 className="text-[11px] font-bold uppercase text-gray-900 tracking-wide">Select Gender</h3>
+                            <button onClick={() => setIsGenderOpen(false)} className="p-1.5 bg-gray-50 border border-gray-100 rounded-full hover:bg-gray-100 transition-colors">
+                                <X size={14} className="text-gray-900" />
                             </button>
                         </div>
-                        <div className="p-6 space-y-3">
+                        <div className="p-3 space-y-1">
                             {['All', 'Men', 'Women', 'Boys', 'Girls'].map(gender => (
                                 <button
                                     key={gender}
@@ -449,10 +473,10 @@ const ProductsPage = () => {
                                         setSelectedGender(gender);
                                         setIsGenderOpen(false);
                                     }}
-                                    className={`w-full flex items-center justify-between p-5 rounded-[20px] text-[12px] font-bold uppercase transition-all border ${selectedGender === gender ? 'bg-black border-black text-white' : 'border-gray-200 bg-gray-50 text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+                                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-[12px] text-[10px] font-bold uppercase transition-all border ${selectedGender === gender ? 'bg-black border-black text-white' : 'border-gray-50 bg-gray-50/50 text-gray-500 hover:text-gray-900'}`}
                                 >
                                     {gender}
-                                    {selectedGender === gender && <Check size={18} />}
+                                    {selectedGender === gender && <Check size={14} />}
                                 </button>
                             ))}
                         </div>
@@ -464,14 +488,14 @@ const ProductsPage = () => {
             {isSortOpen && (
                 <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md animate-fadeIn flex items-end justify-center md:hidden">
                     <div className="absolute inset-0" onClick={() => setIsSortOpen(false)} />
-                    <div className="relative w-full bg-white rounded-t-[32px] overflow-hidden animate-slideUp border-t border-gray-200 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] z-10">
-                        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                            <h3 className="text-[14px] font-bold uppercase  text-gray-900">Sort By</h3>
-                            <button onClick={() => setIsSortOpen(false)} className="p-2.5 bg-gray-50 border border-gray-200 rounded-full hover:bg-gray-100 transition-colors">
-                                <X size={20} className="text-gray-900" />
+                    <div className="relative w-full bg-white rounded-t-[28px] overflow-hidden animate-slideUp border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] z-10">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                            <h3 className="text-[11px] font-bold uppercase text-gray-900 tracking-wide">Sort By</h3>
+                            <button onClick={() => setIsSortOpen(false)} className="p-1.5 bg-gray-50 border border-gray-200 rounded-full hover:bg-gray-100 transition-colors">
+                                <X size={14} className="text-gray-900" />
                             </button>
                         </div>
-                        <div className="p-6 space-y-3">
+                        <div className="p-3 space-y-1">
                             {['Price: Low to High', 'Price: High to Low', 'Discount', 'Popularity', 'New Arrivals'].map(option => (
                                 <button
                                     key={option}
@@ -479,10 +503,10 @@ const ProductsPage = () => {
                                         setSelectedSort(option);
                                         setIsSortOpen(false);
                                     }}
-                                    className={`w-full flex items-center justify-between p-5 rounded-[20px] text-[12px] font-bold uppercase transition-all border ${selectedSort === option ? 'bg-black border-black text-white' : 'border-gray-200 bg-gray-50 text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+                                    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-[12px] text-[10px] font-bold uppercase transition-all border ${selectedSort === option ? 'bg-black border-black text-white' : 'border-gray-50 bg-gray-50/50 text-gray-500 hover:text-gray-900'}`}
                                 >
                                     {option}
-                                    {selectedSort === option && <Check size={18} />}
+                                    {selectedSort === option && <Check size={14} />}
                                 </button>
                             ))}
                         </div>
@@ -495,32 +519,32 @@ const ProductsPage = () => {
                 <div className="fixed inset-0 z-[100] flex justify-end">
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-fadeIn" onClick={() => setIsFilterOpen(false)} />
                     <div className="relative w-full md:w-[420px] h-full bg-white animate-slideLeft flex flex-col pt-safe border-l border-gray-200 shadow-[-20px_0_50px_rgba(0,0,0,0.8)]">
-                        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 shrink-0 bg-white">
-                            <h3 className="text-[14px] font-bold uppercase  text-gray-900 flex items-center gap-3">
-                                <Filter size={18} className="text-black" /> Filters
+                        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 shrink-0 bg-white">
+                            <h3 className="text-[11px] font-bold uppercase text-gray-900 flex items-center gap-2">
+                                <Filter size={14} className="text-black" /> Filters
                             </h3>
-                            <button onClick={() => setIsFilterOpen(false)} className="p-2.5 bg-gray-50 border border-gray-200 rounded-full hover:bg-gray-100 transition-colors">
-                                <X size={20} className="text-gray-900" />
+                            <button onClick={() => setIsFilterOpen(false)} className="p-1.5 bg-gray-50 border border-gray-100 rounded-full hover:bg-gray-100 transition-colors">
+                                <X size={16} className="text-gray-900" />
                             </button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto px-6 py-4 pb-32">
                             <div className="space-y-4">
                                 <FilterSection title="Brand" id="brand">
-                                    <div className="space-y-4 pt-2">
+                                    <div className="space-y-3 pt-1">
                                         {brands.map(brand => (
-                                            <label key={brand} className="flex items-center gap-4 cursor-pointer group">
+                                            <label key={brand} className="flex items-center gap-3 cursor-pointer group">
                                                 <input
                                                     type="checkbox"
                                                     className="hidden"
                                                     checked={selectedBrands.includes(brand)}
                                                     onChange={() => handleSelectBrand(brand)}
                                                 />
-                                                <div className={`w-5 h-5 border rounded flex items-center justify-center transition-all ${selectedBrands.includes(brand) ? 'bg-black border-black shadow-sm scale-110' : 'border-gray-300 bg-white group-hover:border-black/50'
+                                                <div className={`w-4 h-4 border rounded flex items-center justify-center transition-all ${selectedBrands.includes(brand) ? 'bg-black border-black shadow-sm scale-110' : 'border-gray-200 bg-white'
                                                     }`}>
-                                                    {selectedBrands.includes(brand) && <Check size={12} className="text-white" strokeWidth={4} />}
+                                                    {selectedBrands.includes(brand) && <Check size={10} className="text-white" strokeWidth={4} />}
                                                 </div>
-                                                <span className={`text-[13px] font-semibold uppercase transition-colors ${selectedBrands.includes(brand) ? 'text-gray-900' : 'text-gray-500 group-hover:text-gray-900'
+                                                <span className={`text-[12px] font-semibold uppercase transition-colors ${selectedBrands.includes(brand) ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-900'
                                                     }`}>{brand}</span>
                                             </label>
                                         ))}
@@ -542,9 +566,9 @@ const ProductsPage = () => {
                                 </FilterSection>
 
                                 <FilterSection title="Size" id="size">
-                                    <div className="grid grid-cols-4 gap-3">
+                                    <div className="grid grid-cols-4 gap-2">
                                         {sizes.map(size => (
-                                            <button key={size} className="border border-gray-300 bg-white py-4 text-[12px] font-bold rounded-xl hover:border-black hover:bg-gray-100 text-gray-700 hover:text-black transition-all">
+                                            <button key={size} className="border border-gray-200 bg-white py-3 text-[11px] font-bold rounded-lg hover:border-black text-gray-500 hover:text-black transition-all">
                                                 {size}
                                             </button>
                                         ))}
@@ -559,16 +583,16 @@ const ProductsPage = () => {
                                 <FilterSection title="Pattern" id="pattern" />
                             </div>
                         </div>
-                        <div className="border-t border-gray-200 p-5 pl-safe pr-safe pb-safe flex gap-4 bg-white/95 backdrop-blur-xl absolute bottom-0 left-0 w-full shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-10">
+                        <div className="border-t border-gray-100 p-3 pl-safe pr-safe pb-safe flex gap-3 bg-white/95 backdrop-blur-xl absolute bottom-0 left-0 w-full shadow-[0_-5px_30px_rgba(0,0,0,0.1)] z-10">
                             <button
                                 onClick={clearFilters}
-                                className="flex-1 py-4 bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors rounded-[20px] text-[11px] font-bold uppercase  text-gray-900"
+                                className="flex-1 py-3 bg-gray-50 border border-gray-100 hover:bg-gray-100 transition-colors rounded-[12px] text-[10px] font-bold uppercase text-gray-900"
                             >
                                 Reset
                             </button>
                             <button
                                 onClick={() => setIsFilterOpen(false)}
-                                className="flex-[2] py-4 bg-black shadow-md text-white rounded-[20px] text-[11px] font-bold uppercase hover:bg-gray-800 transition-colors"
+                                className="flex-[2] py-3 bg-black shadow-md text-white rounded-[12px] text-[10px] font-bold uppercase hover:bg-gray-800 transition-colors"
                             >
                                 Apply Filters
                             </button>

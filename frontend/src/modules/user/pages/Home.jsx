@@ -582,7 +582,7 @@ const MobileHome = () => {
             transition: isPulling ? "none" : "transform 0.3s ease-out",
           }}>
           {/* Hero Banner - Compact */}
-          <div className="px-3 pt-2 pb-1">
+          <div className="px-5 pt-2 pb-1">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div
                 className="relative w-full aspect-[2.2/1] md:aspect-[21/9] lg:h-[320px] xl:h-[360px] rounded-xl overflow-hidden lg:col-span-2"
@@ -682,7 +682,7 @@ const MobileHome = () => {
 
           {/* ─── Category-Filtered Product Results (shown when a category is selected) ─── */}
           {selectedCategoryId && (
-            <div className="px-3 pt-2 pb-1">
+            <div className="px-5 pt-2 pb-1">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-base font-black text-gray-900 uppercase tracking-tight">
                   {selectedCategoryName}'s COLLECTION
@@ -695,7 +695,7 @@ const MobileHome = () => {
                 </Link>
               </div>
               {categoryFilteredProducts.length > 0 ? (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                <div className="premium-product-grid">
                   {categoryFilteredProducts.slice(0, 9).map((product, index) => (
                     <motion.div
                       key={product.id}
@@ -757,7 +757,7 @@ const MobileHome = () => {
 
 
           {/* Trending Now - Compact */}
-          <div className="px-3 py-2">
+          <div className="px-5 py-2">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-base font-bold text-gray-800">Trending Now</h2>
               <Link
@@ -766,7 +766,7 @@ const MobileHome = () => {
                 See All
               </Link>
             </div>
-            <div className="flex overflow-x-auto pb-2 -mx-3 px-3 gap-2 snap-x scrollbar-hide">
+            <div className="flex overflow-x-auto pb-2 -mx-5 px-5 gap-2 snap-x scrollbar-hide">
               {computedTrending.map((product, index) => (
                 <motion.div
                   key={product.id}
@@ -787,7 +787,7 @@ const MobileHome = () => {
 
           {/* Flash Sale - Compact */}
           {computedFlashSale.length > 0 && (
-            <div className="px-3 py-2 bg-gradient-to-br from-red-50 to-orange-50">
+            <div className="px-5 py-2 bg-gradient-to-br from-red-50 to-orange-50">
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <h2 className="text-base font-bold text-gray-800">
@@ -801,7 +801,7 @@ const MobileHome = () => {
                   See All
                 </Link>
               </div>
-              <div className="flex overflow-x-auto pb-2 -mx-3 px-3 gap-2 snap-x scrollbar-hide">
+              <div className="flex overflow-x-auto pb-2 -mx-5 px-5 gap-2 snap-x scrollbar-hide">
                 {computedFlashSale.map((product, index) => (
                   <motion.div
                     key={product.id}

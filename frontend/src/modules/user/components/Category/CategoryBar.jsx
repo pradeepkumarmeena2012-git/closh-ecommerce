@@ -25,6 +25,11 @@ const CategoryBar = () => {
     const handleCategoryClick = (cat) => {
         setActiveCategory(cat.name);
         
+        if (cat.name === 'All') {
+            navigate('/');
+            return;
+        }
+
         // If on Home page, only navigate to categories if product-grid is not in DOM (e.g. mobile layout).
         // Otherwise, do not scroll so the user's view isn't abruptly disrupted.
         if (location.pathname === '/' || location.pathname === '/home') {
@@ -46,7 +51,7 @@ const CategoryBar = () => {
             initial={false}
             animate={{ background: currentGradient }}
             transition={{ duration: 0.8, ease: "easeInOut" }}
-            className="w-full pb-1.5 pt-1 border-b border-gray-100"
+            className="w-full pb-0.5 pt-0 border-b border-gray-100"
         >
             <div 
                 ref={scrollRef}

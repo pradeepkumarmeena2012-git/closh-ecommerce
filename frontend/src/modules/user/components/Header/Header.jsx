@@ -264,55 +264,56 @@ const Header = ({ variant = 'default' }) => {
                 {/* Location Bar / Address Bar - Vibrant Edit (HIDDEN in shop variant) */}
                 {variant !== 'shop' && (
                     <>
+                        {/* Mobile Location Bar */}
                         {/* Mobile Location Bar - Optimized for 425px */}
-                        <motion.div 
-                            initial={false}
-                            animate={{ 
-                                height: isHeaderVisible ? 'auto' : 0, 
-                                opacity: isHeaderVisible ? 1 : 0,
-                                marginBottom: isHeaderVisible ? 0 : -8
-                            }}
-                            transition={{ duration: 0.3, ease: "easeInOut" }}
-                            className="px-4 py-1.5 flex items-center justify-between group transition-all lg:hidden overflow-hidden"
-                        >
-                            <div className="flex items-center gap-2">
-                                <Link to="/" className="no-underline group shrink-0">
-                                    <h1 className="text-[20px] font-black text-black drop-shadow-sm transition-all duration-300 active:scale-95 leading-none">
-                                        Clouse<span className="text-[#FFC107]">.</span>
-                                    </h1>
-                                </Link>
-                                <div className="flex items-center ml-1">
-                                    <div className="flex flex-col items-center justify-center bg-white rounded-[7px] px-1.5 py-0.5 shadow-sm shrink-0 border border-black/5 min-w-[32px]">
-                                        <span className="text-[10px] font-black text-black leading-none">60</span>
-                                        <span className="text-[6px] font-black text-[#FFC107] uppercase leading-none mt-0.5">MINS</span>
+                        <div className="lg:hidden">
+                            <motion.div 
+                                initial={false}
+                                animate={{ 
+                                    height: isHeaderVisible ? 'auto' : 0, 
+                                    opacity: isHeaderVisible ? 1 : 0,
+                                    marginBottom: isHeaderVisible ? 0 : -8
+                                }}
+                                transition={{ duration: 0.3, ease: "easeInOut" }}
+                                className="px-4 py-1.5 flex items-center justify-between group transition-all overflow-hidden"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center ml-1">
+                                        <div className="flex flex-col items-center justify-center bg-white rounded-[7px] px-1.5 py-0.5 shadow-sm shrink-0 border border-black/5 min-w-[32px]">
+                                            <span className="text-[10px] font-black text-black leading-none uppercase">delivery in</span>
+                                            <span className="text-[10px] font-black text-[#FFC107] uppercase leading-none mt-0.5 whitespace-nowrap">60 min</span>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-3 justify-end min-w-0" onClick={() => setIsLocationModalOpen(true)}>
-                                <div className="flex flex-col min-w-0 text-right">
-                                    <span className="text-[10px] font-black leading-tight flex items-center justify-end gap-1 text-black uppercase tracking-tighter opacity-80">
-                                        Location <ChevronDown size={10} className="text-[#FFC107]" />
-                                    </span>
-                                    <span className="text-[10px] font-bold truncate max-w-[120px] text-black transition-colors block">
-                                        {activeAddress ? `${activeAddress.name}` : 'Indore'}
-                                    </span>
-                                </div>
-                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-black/5 shadow-sm shrink-0">
-                                    <MapPin size={14} className="text-[#FFC107]" />
-                                </div>
-                                <Link to="/cart" className="flex items-center justify-center w-8 h-8 rounded-full bg-black shadow-lg shrink-0 active:scale-90 transition-transform">
-                                    <div className="relative">
-                                        <ShoppingCart size={15} className="text-white" />
-                                        {cartCount > 0 && (
-                                            <span className="absolute -top-2 -right-2 bg-[#FFC107] text-black text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-black shadow-sm">
-                                                {cartCount}
+                                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => setIsLocationModalOpen(true)}>
+                                        <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-md border border-black/5 shrink-0">
+                                            <MapPin size={14} className="text-[#FFC107]" />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <div className="flex items-center gap-1 leading-tight">
+                                                <span className="text-[10px] font-black text-black uppercase tracking-tighter opacity-80">Location</span>
+                                                <ChevronDown size={10} className="text-[#FFC107]" />
+                                            </div>
+                                            <span className="text-[10px] font-bold text-gray-500 truncate max-w-[100px] block">
+                                                {activeAddress ? activeAddress.address : 'Home'}
                                             </span>
-                                        )}
+                                        </div>
                                     </div>
-                                </Link>
-                            </div>
-                        </motion.div>
+                                </div>
+                                
+                                <div className="flex items-center gap-3 justify-end">
+                                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-black/5">
+                                        <Link to="/cart" onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[1px]">
+                                            <ShoppingCart size={17} className="text-gray-600 group-hover/icon:text-black transition-colors" />
+                                            {cartCount > 0 && (
+                                                <span className="absolute -top-1 -right-1 bg-[#FFC107] text-black text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-black shadow-sm">
+                                                    {cartCount}
+                                                </span>
+                                            )}
+                                        </Link>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
 
                         {/* Desktop Inline Navbar - Now shown on large screens (lg+) */}
                         <div className="hidden lg:flex items-center justify-between px-6 py-3">
@@ -329,9 +330,9 @@ const Header = ({ variant = 'default' }) => {
                                     <span className="text-white text-[16px] font-black leading-none">60</span>
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[12px] font-bold text-black leading-none">Mins</span>
-                                    <span className="text-[12px] font-semibold text-black/70 leading-none mt-1">
-                                        Current: {activeAddress ? `${activeAddress.name}` : 'Add Address'}
+                                    <span className="text-[12px] font-bold text-black leading-none">Delivery in 60 Mins</span>
+                                    <span className="text-[12px] font-semibold text-black/70 leading-none mt-1 truncate max-w-[250px]">
+                                        Current: {activeAddress ? `${activeAddress.address}` : 'Add Address'}
                                     </span>
                                 </div>
                                 <ChevronRight size={16} className="text-black/60 group-hover:translate-x-1 transition-transform" />
@@ -343,7 +344,7 @@ const Header = ({ variant = 'default' }) => {
                                     <input
                                         type="text"
                                         placeholder="Search for products, brands or more"
-                                        className="w-full py-3 pl-12 pr-4 border border-black/10 rounded-xl bg-white text-[14px] font-medium text-black outline-none placeholder:text-gray-400 shadow-sm focus:border-black/30 transition-all"
+                                        className="w-full py-3 pl-12 pr-4 border border-black/10 rounded-xl bg-white text-[16px] font-medium text-black outline-none placeholder:text-gray-400 shadow-sm focus:border-black/30 transition-all"
                                         value={searchQuery}
                                         onChange={(e) => handleSearchInput(e.target.value)}
                                         onKeyDown={handleSearch}
@@ -465,7 +466,7 @@ const Header = ({ variant = 'default' }) => {
                                 <input
                                     type="text"
                                     placeholder='Search for "Jackets"'
-                                    className="w-full py-3 pl-4 pr-12 border border-black/5 rounded-2xl bg-white text-[14px] font-medium text-black outline-none placeholder:text-gray-400 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 focus:border-black/20"
+                                    className="w-full py-3 pl-4 pr-12 border border-black/5 rounded-2xl bg-white text-[16px] font-medium text-black outline-none placeholder:text-gray-400 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 focus:border-black/20"
                                     value={searchQuery}
                                     onChange={(e) => handleSearchInput(e.target.value)}
                                     onKeyDown={handleSearch}

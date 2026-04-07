@@ -40,15 +40,15 @@ const ProductGrid = () => {
 
     return (
         <section id="product-grid" className="py-4 md:py-8 bg-[#FAFAFA] transition-colors duration-500">
-            <div className="container px-4 md:px-8">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+            <div className="max-w-7xl mx-auto px-5 md:px-8">
+                <div className="flex flex-row justify-between items-end mb-5 gap-2 px-0.5">
                     <div className="flex flex-col">
-                        <h2 className="text-[24px] md:text-[32px] font-black uppercase tracking-tight text-gray-900 leading-none">
+                        <h2 className="text-[18px] md:text-[32px] font-black uppercase tracking-tight text-gray-900 leading-none">
                             {dynamicTitle}
                         </h2>
-                        <div className="w-12 h-1 bg-black mt-2 md:mt-3" />
+                        <div className="w-10 h-1 bg-black mt-1.5 md:mt-3" />
                     </div>
-                    <button className="text-gray-400 font-bold text-[11px] uppercase tracking-widest hover:text-black transition-colors flex items-center gap-2 group" onClick={() => navigate('/shop')}>
+                    <button className="text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-black transition-colors flex items-center gap-1.5 group mb-1" onClick={() => navigate('/shop')}>
                         View All <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
                     </button>
                 </div>
@@ -56,10 +56,10 @@ const ProductGrid = () => {
                 {isLoading && displayProducts.length === 0 ? (
                     <div className="premium-product-grid">
                         {[...Array(8)].map((_, i) => (
-                            <div key={i} className="flex flex-col gap-4">
-                                <div className="aspect-[3/4] bg-gray-100 animate-pulse rounded-2xl" />
-                                <div className="h-4 w-2/3 bg-gray-100 animate-pulse" />
-                                <div className="h-4 w-1/3 bg-gray-100 animate-pulse" />
+                            <div key={i} className="flex flex-col gap-2">
+                                <div className="aspect-[3/4] bg-gray-100 animate-pulse rounded-xl" />
+                                <div className="h-3 w-2/3 bg-gray-100 animate-pulse" />
+                                <div className="h-3 w-1/3 bg-gray-100 animate-pulse" />
                             </div>
                         ))}
                     </div>

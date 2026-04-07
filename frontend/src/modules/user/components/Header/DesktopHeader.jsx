@@ -75,9 +75,7 @@ const NavItem = ({ to, icon: Icon, label, badgeCount, onClick }) => {
                 {/* Left Section: Delivery Info (Matching Image 1 Exactly) */}
                 <div className="flex items-center gap-4 flex-shrink-0">
                     <Link to="/home" className="flex-shrink-0 mr-4 group no-underline">
-                        <h1 className="text-2xl font-bold drop-shadow-md transition-all duration-500 text-gray-900 group-hover:text-black">
-                            CLOSH<span className="text-black text-3xl leading-none group-hover:text-gray-900">.</span>
-                        </h1>
+                        
                     </Link>
 
                     <div className="flex items-center gap-3">
@@ -87,7 +85,7 @@ const NavItem = ({ to, icon: Icon, label, badgeCount, onClick }) => {
                         </div>
                         {/* Text info */}
                         <div className="flex flex-col justify-center">
-                            <span className="text-[15px] font-black text-gray-900 leading-tight">Mins</span>
+                            <span className="text-[15px] font-black text-gray-900 leading-tight">delivery in 60 min</span>
                             <div className="flex items-center gap-0.5 text-[11px] text-gray-400 font-bold whitespace-nowrap cursor-pointer hover:text-black transition-colors group/addr">
                                 Current: <span className="text-black ml-1">Add Address</span>
                                 <FiChevronRight className="text-gray-400 mt-0.5 group-hover/addr:text-black transition-colors" />

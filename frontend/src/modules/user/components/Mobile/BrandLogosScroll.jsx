@@ -76,9 +76,9 @@ const BrandLogosScroll = ({ brands = null }) => {
                                 transition={{ delay: index * 0.05, duration: 0.3 }}
                                 className="flex-shrink-0 flex flex-col items-center brand-card-desktop"
                                 style={{
-                                    width: 'calc((100vw - 2rem - 0.75rem * 3) / 4)',
-                                    minWidth: 'calc((100vw - 2rem - 0.75rem * 3) / 4)',
-                                    maxWidth: 'calc((100vw - 2rem - 0.75rem * 3) / 4)',
+                                    width: 'calc((100% - 1rem - 0.75rem * 3) / 4)',
+                                    minWidth: 'calc((100% - 1rem - 0.75rem * 3) / 4)',
+                                    maxWidth: 'calc((100% - 1rem - 0.75rem * 3) / 4)',
                                 }}
                             >
                                 <div

@@ -24,6 +24,8 @@ import {
 import toast from 'react-hot-toast';
 import LocationModal from '../../components/Header/LocationModal';
 import CouponsModal from '../../components/Checkout/CouponsModal';
+import { normalizeProduct } from '../../../../shared/store/productStore';
+
 
 const CheckoutPage = () => {
     const navigate = useNavigate();
@@ -43,6 +45,32 @@ const CheckoutPage = () => {
     const [promoError, setPromoError] = useState('');
     const [isApplyingPromo, setIsApplyingPromo] = useState(false);
     const [isCouponsModalOpen, setIsCouponsModalOpen] = useState(false);
+    const [upsellProducts, setUpsellProducts] = useState([]);
+    const [isUpsellLoading, setIsUpsellLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchUpsells = async () => {
+            try {
+                // Try fetching accessories category specifically
+                const response = await api.get('/products', { params: { limit: 10, category: 'Accessories' } });
+                let productsList = response.data?.products || [];
+                
+                // If accessories are empty, fall back to any available products
+                if (productsList.length === 0) {
+                    const fallback = await api.get('/products', { params: { limit: 10 } });
+                    productsList = fallback.data?.products || [];
+                }
+                
+                setUpsellProducts(productsList.map(p => normalizeProduct(p)));
+            } catch (error) {
+                console.error("Upsell fetch failed", error);
+            } finally {
+                setIsUpsellLoading(false);
+            }
+        };
+
+        fetchUpsells();
+    }, []);
 
     useEffect(() => {
         // Scroll to top on mount
@@ -368,7 +396,7 @@ const CheckoutPage = () => {
                         <div className="flex items-center gap-4">
                             <div className="bg-white px-4 py-2 rounded-xl text-center">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase">Instant</p>
-                                <p className="text-xs font-bold">60 Mins</p>
+                                <p className="text-xs font-bold">Delivery in 60 Mins</p>
                             </div>
                             <p className="text-xs font-bold text-gray-500 flex-1">
                                 Delivery within <span className="text-black">{getDeliveryDateInfo()}</span>
@@ -388,30 +416,46 @@ const CheckoutPage = () => {
                         </div>
 
                         <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4">
-                            {[
-                                { id: 'u1', name: 'Gold Earrings', price: 499, brand: 'LUXE', image: 'https://images.unsplash.com/photo-1611923134239-b9be5816e23c?w=300' },
-                                { id: 'u2', name: 'Silk Scarf', price: 899, brand: 'NOVA', image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=300' },
-                                { id: 'u3', name: 'Silver Cuff', price: 1299, brand: 'ZETO', image: 'https://images.unsplash.com/photo-1611085583191-a3b1a20a534c?w=300' }
-                            ].map((item) => (
-                                <div key={item.id} className="min-w-[160px] bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100/50">
-                                    <div className="aspect-[4/5] bg-gray-100 relative">
-                                        <img src={item.image} alt="" className="w-full h-full object-cover" />
-                                        <div className="absolute bottom-2 right-2">
-                                            <button
-                                                onClick={() => handleAddUpsell(item)}
-                                                className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg text-black hover:bg-black hover:text-white transition-all active:scale-90"
-                                            >
-                                                <Plus size={18} />
-                                            </button>
+                        <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 min-h-[180px]">
+                            {isUpsellLoading ? (
+                                [...Array(4)].map((_, i) => (
+                                    <div key={i} className="min-w-[160px] h-[220px] bg-gray-50 rounded-2xl animate-pulse" />
+                                ))
+                            ) : upsellProducts.length > 0 ? (
+                                upsellProducts.map((item) => (
+                                    <div key={item.id} className="min-w-[170px] bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col group hover:shadow-md transition-shadow">
+                                        <div className="aspect-[4/5] bg-gray-100 relative overflow-hidden">
+                                            <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                            <div className="absolute bottom-2 right-2">
+                                                <button
+                                                    onClick={() => {
+                                                        addToCart({ ...item, quantity: 1 });
+                                                        toast.success('Added to Bag');
+                                                    }}
+                                                    className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg text-black hover:bg-black hover:text-white transition-all active:scale-90"
+                                                >
+                                                    <Plus size={20} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="p-3">
+                                            <p className="text-[9px] font-bold uppercase text-gray-400 mb-0.5 truncate">{item.brand}</p>
+                                            <p className="text-[12px] font-bold text-gray-900 line-clamp-1 h-4">{item.name}</p>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <span className="text-sm font-black text-[#9F1239]">₹{item.price}</span>
+                                                {item.originalPrice && (
+                                                    <span className="text-[10px] text-gray-400 line-through">₹{item.originalPrice}</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="p-2.5">
-                                        <p className="text-[10px] font-bold uppercase text-gray-400 mb-0.5">{item.brand}</p>
-                                        <p className="text-[11px] font-bold text-gray-800 line-clamp-1">{item.name}</p>
-                                        <p className="text-xs font-bold mt-1">₹{item.price}</p>
-                                    </div>
+                                ))
+                            ) : (
+                                <div className="py-8 text-center w-full">
+                                    <p className="text-gray-300 text-[10px] font-bold uppercase">No matching accessories found</p>
                                 </div>
-                            ))}
+                            )}
+                        </div>
                         </div>
                     </div>
 

@@ -96,26 +96,39 @@ const OrderDetailsPage = () => {
             return;
         }
 
+        // Format the date for the invoice
+        const invoiceDate = new Date(order.date).toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
         const invoiceContent = `
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
                 <title>Invoice #${order.id}</title>
                 <style>
-                    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; max-width: 800px; mx-auto; }
-                    .header { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
-                    .company-name { font-size: 24px; font-weight: bold; }
-                    .invoice-title { font-size: 32px; font-weight: bold; color: #333; }
-                    .section-title { font-size: 14px; font-weight: bold; uppercase; margin-bottom: 10px; color: #666; letter-spacing: 1px; }
-                    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+                    * { box-sizing: border-box; }
+                    body { font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.5; }
+                    .header { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #f0f0f0; padding-bottom: 25px; }
+                    .company-name { font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
+                    .company-name span { color: #ffcc00; }
+                    .invoice-title { font-size: 36px; font-weight: 800; color: #000; letter-spacing: -1px; }
+                    .section-title { font-size: 11px; font-weight: 900; text-transform: uppercase; margin-bottom: 15px; color: #999; letter-spacing: 1.5px; }
+                    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 50px; }
                     .table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-                    .table th { text-align: left; border-bottom: 2px solid #eee; padding: 10px; font-size: 12px; uppercase; }
-                    .table td { border-bottom: 1px solid #eee; padding: 10px; font-size: 14px; }
-                    .total-section { text-align: right; }
-                    .total-row { font-size: 18px; font-weight: bold; margin-top: 10px; }
-                    .footer { margin-top: 60px; text-align: center; color: #999; font-size: 12px; }
+                    .table th { text-align: left; border-bottom: 2px solid #000; padding: 12px 10px; font-size: 11px; text-transform: uppercase; font-weight: 900; color: #666; }
+                    .table td { border-bottom: 1px solid #f5f5f5; padding: 15px 10px; font-size: 14px; vertical-align: top; }
+                    .total-section { display: flex; justify-content: flex-end; }
+                    .total-box { width: 250px; }
+                    .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+                    .total-row.final { font-size: 20px; font-weight: 900; border-top: 2px solid #000; padding-top: 15px; margin-top: 10px; }
+                    .footer { margin-top: 80px; text-align: center; border-top: 1px solid #eee; padding-top: 30px; color: #999; font-size: 12px; }
+                    .badge { display: inline-block; padding: 4px 12px; border-radius: 50px; background: #000; color: #fff; font-size: 10px; font-weight: 900; text-transform: uppercase; }
                     @media print {
-                        body { padding: 0; }
+                        body { padding: 20px; }
                         button { display: none; }
                     }
                 </style>
@@ -123,13 +136,13 @@ const OrderDetailsPage = () => {
             <body>
                 <div class="header">
                     <div>
-                        <div class="company-name">Clothify</div>
-                        <div style="color: #666; font-size: 12px; margin-top: 5px;">Your Fashion Store</div>
+                        <div class="company-name">CLOUSE<span>.</span></div>
+                        <div style="color: #666; font-size: 12px; margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Premium Fashion Collection</div>
                     </div>
                     <div style="text-align: right;">
                         <div class="invoice-title">INVOICE</div>
-                        <div style="color: #666; margin-top: 5px;">#${order.id}</div>
-                        <div style="color: #666;">Date: ${order.date}</div>
+                        <div style="color: #111; margin-top: 4px; font-weight: 800;">Order #${order.id}</div>
+                        <div style="color: #666; font-size: 13px; margin-top: 2px;">Date: ${invoiceDate}</div>
                     </div>
                 </div>
 
@@ -137,19 +150,19 @@ const OrderDetailsPage = () => {
                     <div>
                         <div class="section-title">BILLED TO</div>
                         ${order.address ? `
-                            <div style="font-weight: bold;">${order.address.name}</div>
-                            <div>${order.address.address}</div>
-                            <div>${order.address.locality}</div>
-                            <div>${order.address.city}, ${order.address.state} - ${order.address.pincode}</div>
-                            <div style="margin-top: 5px;">Phone: ${order.address.mobile || order.address.phone || 'N/A'}</div>
-                        ` : 'Address not available'}
+                            <div style="font-weight: 800; font-size: 16px; margin-bottom: 5px;">${order.address.name}</div>
+                            <div style="color: #444;">${order.address.address}</div>
+                            <div style="color: #444;">${order.address.locality}</div>
+                            <div style="color: #444;">${order.address.city}, ${order.address.state} - ${order.address.pincode}</div>
+                            <div style="margin-top: 8px; font-weight: 700; color: #222;">Phone: ${order.address.mobile || order.address.phone || 'N/A'}</div>
+                        ` : '<div style="color: #ff0000; font-weight: 700;">Address details missing</div>'}
                     </div>
-                    <div>
-                        <div class="section-title">PAYMENT METHOD</div>
-                        <div style="font-weight: bold; text-transform: uppercase;">${order.paymentMethod || 'Pay on Delivery'}</div>
-                        <div style="margin-top: 20px;">
+                    <div style="text-align: right;">
+                        <div class="section-title">PAYMENT & STATUS</div>
+                        <div style="font-weight: 800; text-transform: uppercase; color: #000;">${order.paymentMethod || 'Pay on Delivery'}</div>
+                        <div style="margin-top: 25px;">
                             <div class="section-title">ORDER STATUS</div>
-                            <div style="font-weight: bold; text-transform: uppercase;">${order.status}</div>
+                            <div class="badge">${order.status}</div>
                         </div>
                     </div>
                 </div>
@@ -157,58 +170,69 @@ const OrderDetailsPage = () => {
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Item</th>
+                            <th>Item Description</th>
                             <th>Size</th>
-                            <th>Qty</th>
+                            <th style="text-align: center;">Qty</th>
                             <th style="text-align: right;">Price</th>
                             <th style="text-align: right;">Total</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${order.items.map(item => `
-                            <tr>
-                                <td>
-                                    <div style="font-weight: bold;">${item.name}</div>
-                                    <div style="color: #666; font-size: 12px;">${item.brand}</div>
-                                </td>
-                                <td>${item.selectedSize}</td>
-                                <td>${item.quantity}</td>
-                                <td style="text-align: right;">₹${item.discountedPrice}</td>
-                                <td style="text-align: right;">₹${item.discountedPrice * item.quantity}</td>
-                            </tr>
-                        `).join('')}
+                        ${order.items.map(item => {
+                            const price = item.discountedPrice || item.price || 0;
+                            const qty = item.quantity || 1;
+                            const total = price * qty;
+                            return `
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 800; font-size: 15px;">${item.name}</div>
+                                        <div style="color: #888; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 2px;">${item.brand || 'Premium Collection'}</div>
+                                    </td>
+                                    <td style="font-weight: 700;">${item.selectedSize || 'N/A'}</td>
+                                    <td style="text-align: center; font-weight: 700;">${qty}</td>
+                                    <td style="text-align: right; font-weight: 700;">₹${price}</td>
+                                    <td style="text-align: right; font-weight: 800;">₹${total}</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
 
                 <div class="total-section">
-                    <div style="display: inline-block; text-align: right; min-width: 200px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span style="color: #666;">Subtotal:</span>
-                            <span>₹${order.total}</span>
+                    <div class="total-box">
+                        <div class="total-row">
+                            <span style="color: #888; font-weight: 700;">Subtotal:</span>
+                            <span style="font-weight: 800;">₹${order.total}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span style="color: #666;">Shipping:</span>
-                            <span style="color: green;">FREE</span>
+                        <div class="total-row">
+                            <span style="color: #888; font-weight: 700;">Shipping:</span>
+                            <span style="color: #008000; font-weight: 900;">FREE</span>
                         </div>
-                        <div class="total-row" style="display: flex; justify-content: space-between; border-top: 2px solid #eee; padding-top: 10px;">
-                            <span>Total:</span>
+                        <div class="total-row final">
+                            <span>TOTAL:</span>
                             <span>₹${order.total}</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="footer">
-                    <p>Thank you for shopping with Clothify!</p>
-                    <p>For any queries, please contact support@clothify.com</p>
+                    <p style="font-weight: 800; color: #000; margin-bottom: 5px;">Thank you for shopping with Clouse Fashion!</p>
+                    <p>For any queries or returns, please visit your account dashboard or contact support@clouse.com</p>
+                    <p style="margin-top: 20px; font-size: 10px;">This is a computer-generated invoice and doesn't require a signature.</p>
                 </div>
 
                 <script>
-                    window.onload = function() { window.print(); }
+                    window.onload = function() { 
+                        setTimeout(function() {
+                            window.print();
+                        }, 500); 
+                    }
                 </script>
             </body>
             </html>
         `;
 
+        invoiceWindow.document.open();
         invoiceWindow.document.write(invoiceContent);
         invoiceWindow.document.close();
     };
@@ -273,9 +297,9 @@ const OrderDetailsPage = () => {
 
     return (
         <AccountLayout hideHeader={true}>
-            <div className="max-w-4xl mx-auto px-4 md:px-0 pb-10">
+            <div className="max-w-4xl mx-auto px-5 md:px-0 pb-10">
                 {/* Responsive Header */}
-                <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-6 pt-2">
+                <div className="flex flex-wrap items-center gap-2 md:gap-4 mb-4 pt-1">
                     <button
                         onClick={() => navigate('/orders')}
                         className="p-2 hover:bg-white hover:text-black rounded-full transition-colors order-1"
@@ -300,32 +324,32 @@ const OrderDetailsPage = () => {
                     </div>
                 </div>
 
-                <div className="space-y-4 md:space-y-6">
+                <div className="space-y-3 md:space-y-6">
                     {/* Items Section */}
-                    <div className="bg-white rounded-2xl md:rounded-3xl border border-gray-100 p-4 md:p-6 shadow-sm font-bold">
-                        <h3 className="text-[11px] md:text-sm font-bold uppercase  mb-4 flex items-center gap-2 text-gray-400">
-                            <Package size={16} /> Items in Order
+                    <div className="bg-white rounded-2xl border border-gray-100 p-3 md:p-6 shadow-sm font-bold">
+                        <h3 className="text-[10px] md:text-sm font-bold uppercase mb-3 flex items-center gap-2 text-gray-400">
+                            <Package size={14} /> Items in Order
                         </h3>
-                        <div className="space-y-4 md:space-y-6">
+                        <div className="space-y-3">
                             {order.items.map((item, idx) => (
-                                <div key={idx} className="flex gap-3 md:gap-4 border-b border-gray-50 last:border-0 pb-4 last:pb-0">
-                                    <div className="w-16 h-20 md:w-20 md:h-24 bg-white rounded-xl overflow-hidden shrink-0 border border-gray-100">
+                                <div key={idx} className="flex gap-3 border-b border-gray-50 last:border-0 pb-3 last:pb-0">
+                                    <div className="w-14 h-18 md:w-20 md:h-24 bg-white rounded-lg overflow-hidden shrink-0 border border-gray-100">
                                         <img src={item.image} alt="" className="w-full h-full object-cover" />
                                     </div>
-                                    <div className="flex-1 min-w-0 py-0.5 md:py-1">
-                                        <h4 className="text-[13px] md:text-sm font-bold text-gray-900 line-clamp-1">{item.name}</h4>
-                                        <p className="text-[9px] md:text-[11px] font-bold text-gray-400 uppercase mt-0.5 md:mt-1">
+                                    <div className="flex-1 min-w-0 py-0">
+                                        <h4 className="text-[12px] md:text-sm font-bold text-gray-900 line-clamp-1">{item.name}</h4>
+                                        <p className="text-[8px] md:text-[11px] font-bold text-gray-400 uppercase">
                                             {item.brand || 'Premium Piece'}
                                         </p>
-                                        <div className="flex flex-wrap gap-2 md:gap-4 mt-1.5 md:mt-2">
-                                            <div className="bg-gray-50 px-2.5 py-1 rounded-lg text-[9px] md:text-[10px] font-bold text-gray-600 uppercase border border-gray-100">
-                                                Size: {item.selectedSize || item.variant?.size || item.variant?.Size || 'N/A'}
-                                            </div>
-                                            <div className="bg-gray-50 px-2.5 py-1 rounded-lg text-[9px] md:text-[10px] font-bold text-gray-600 uppercase border border-gray-100">
+                                        <div className="flex gap-2 mt-1">
+                                            <span className="bg-gray-50 px-2 py-0.5 rounded text-[8px] md:text-[10px] font-bold text-gray-600 border border-gray-100 uppercase">
+                                                Size: {item.selectedSize || item.variant?.size || 'N/A'}
+                                            </span>
+                                            <span className="bg-gray-50 px-2 py-0.5 rounded text-[8px] md:text-[10px] font-bold text-gray-600 border border-gray-100 uppercase">
                                                 Qty: {item.quantity}
-                                            </div>
+                                            </span>
                                         </div>
-                                        <p className="text-[14px] md:text-base font-bold text-black mt-2 md:mt-3">₹{item.discountedPrice || item.price}</p>
+                                        <p className="text-[12px] md:text-base font-bold text-black mt-1">₹{item.discountedPrice || item.price}</p>
                                     </div>
                                 </div>
                             ))}
@@ -333,64 +357,50 @@ const OrderDetailsPage = () => {
                     </div>
 
                     {/* Delivery & Payment Info Grid */}
-                    <div className="grid md:grid-cols-2 gap-4 md:gap-6 font-bold">
+                    <div className="grid md:grid-cols-2 gap-3 md:gap-6 font-bold">
                         {/* Delivery Address */}
-                        <div className="bg-white rounded-2xl md:rounded-3xl border border-gray-100 p-4 md:p-6 shadow-sm">
-                            <h3 className="text-[11px] md:text-sm font-bold uppercase  mb-4 flex items-center gap-2 text-gray-400">
-                                <MapPin size={16} /> Delivery Address
+                        <div className="bg-white rounded-2xl border border-gray-100 p-3 md:p-6 shadow-sm">
+                            <h3 className="text-[10px] md:text-sm font-bold uppercase mb-3 flex items-center gap-2 text-gray-400">
+                                <MapPin size={14} /> Delivery
                             </h3>
                             {order.address ? (
-                                <div className="space-y-1.5 md:space-y-2">
-                                    <p className="text-sm font-bold text-gray-900">{order.address.name}</p>
-                                    <p className="text-[11px] md:text-xs text-gray-500 font-medium leading-relaxed">
+                                <div className="space-y-1">
+                                    <p className="text-[13px] font-bold text-gray-900">{order.address.name}</p>
+                                    <p className="text-[10px] md:text-xs text-gray-500 font-medium leading-tight">
                                         {order.address.address}, {order.address.locality} <br />
-                                        {order.address.city}, {order.address.state} - {order.address.pincode || order.address.zipCode || 'N/A'}
+                                        {order.address.city} - {order.address.pincode || 'N/A'}
                                     </p>
-                                    <p className="text-[11px] md:text-xs font-bold text-gray-900 flex items-center gap-2 mt-2">
-                                        <Phone size={12} className="text-gray-400" /> {
-                                            (order.address.mobile === "0000000000" || order.address.phone === "0000000000")
-                                                ? 'N/A'
-                                                : (order.address.mobile || order.address.phone || 'N/A')
-                                        }
+                                    <p className="text-[10px] font-bold text-gray-900 flex items-center gap-2 mt-1">
+                                        <Phone size={10} className="text-gray-400" /> {order.address.mobile || 'N/A'}
                                     </p>
                                 </div>
                             ) : (
-                                <p className="text-sm text-gray-400">Address details not available</p>
+                                <p className="text-[10px] text-gray-400">N/A</p>
                             )}
                         </div>
 
                         {/* Payment Info */}
-                        <div className="bg-white rounded-2xl md:rounded-3xl border border-gray-100 p-4 md:p-6 shadow-sm">
-                            <h3 className="text-[11px] md:text-sm font-bold uppercase  mb-4 flex items-center gap-2 text-gray-400">
-                                <CreditCard size={16} /> Payment Summary
+                        <div className="bg-white rounded-2xl border border-gray-100 p-3 md:p-6 shadow-sm">
+                            <h3 className="text-[10px] md:text-sm font-bold uppercase mb-3 flex items-center gap-2 text-gray-400">
+                                <CreditCard size={14} /> Summary
                             </h3>
-                            <div className="space-y-2.5 md:space-y-3">
-                                <div className="flex justify-between text-[11px] md:text-xs font-bold text-gray-500">
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between text-[10px] font-bold text-gray-500">
                                     <span>Subtotal</span>
                                     <span>₹{order.total}</span>
                                 </div>
-                                <div className="flex justify-between text-[11px] md:text-xs font-bold text-gray-500">
-                                    <span>Shipping</span>
-                                    <span className="text-green-600">FREE</span>
-                                </div>
-                                <div className="flex justify-between text-[13px] md:text-sm font-bold text-black pt-2 md:pt-3 border-t border-gray-50">
-                                    <span>Total Amount</span>
+                                <div className="flex justify-between text-[10px] font-black text-black pt-1.5 border-t border-gray-50">
+                                    <span>Paid via {order.paymentMethod || 'COD'}</span>
                                     <span>₹{order.total}</span>
-                                </div>
-                                <div className="mt-3 md:mt-4 bg-white p-2.5 md:p-3 rounded-xl flex items-center justify-between">
-                                    <span className="text-[9px] md:text-[10px] font-bold uppercase  text-gray-400">Payment Method</span>
-                                    <span className="text-[11px] md:text-xs font-bold text-gray-900 uppercase">
-                                        {order.paymentMethod || 'Pay on Delivery'}
-                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Order Timeline */}
-                    <div className="bg-white rounded-2xl md:rounded-3xl border border-gray-100 p-4 md:p-6 shadow-sm font-bold">
-                        <h3 className="text-[11px] md:text-sm font-bold uppercase  mb-6 flex items-center gap-2 text-gray-400">
-                            <Clock size={16} /> Order Status
+                    <div className="bg-white rounded-2xl border border-gray-100 p-3 md:p-6 shadow-sm font-bold">
+                        <h3 className="text-[10px] md:text-sm font-bold uppercase mb-4 flex items-center gap-2 text-gray-400">
+                            <Clock size={14} /> Tracking
                         </h3>
 
                         {(() => {
@@ -403,49 +413,49 @@ const OrderDetailsPage = () => {
                             if (isCancelled) step = 0; // Special case
 
                             return (
-                                <div className="px-2">
+                                <div className="px-1">
                                     {isCancelled ? (
-                                        <div className="text-center py-4">
-                                            <p className="text-red-500 font-bold uppercase ">Order Cancelled</p>
+                                        <div className="text-center py-2">
+                                            <p className="text-red-500 text-[10px] font-bold uppercase">Order Cancelled</p>
                                         </div>
                                     ) : (
                                         <>
                                             <div className="flex items-center relative">
                                                 {/* Progress Line Background */}
-                                                <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 z-0 rounded-full"></div>
+                                                <div className="absolute top-1/2 left-0 w-full h-[3px] bg-gray-100 -translate-y-1/2 z-0 rounded-full"></div>
 
                                                 {/* Active Progress Line */}
                                                 <div
-                                                    className="absolute top-1/2 left-0 h-1 bg-green-500 -translate-y-1/2 z-0 rounded-full transition-all duration-500"
+                                                    className="absolute top-1/2 left-0 h-[3px] bg-green-500 -translate-y-1/2 z-0 rounded-full transition-all duration-500"
                                                     style={{ width: step === 3 ? '100%' : step === 2 ? '50%' : '0%' }}
                                                 ></div>
 
                                                 {/* Step 1: Ordered */}
-                                                <div className={`relative z-10 w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300 ${step >= 1 ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <Package size={14} />
+                                                <div className={`relative z-10 w-7 h-7 flex items-center justify-center rounded-lg transition-colors duration-300 ${step >= 1 ? 'bg-green-500 text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <Package size={12} />
                                                 </div>
 
                                                 {/* Spacer */}
                                                 <div className="flex-1"></div>
 
                                                 {/* Step 2: Shipped */}
-                                                <div className={`relative z-10 w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300 ${step >= 2 ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <CreditCard size={14} />
+                                                <div className={`relative z-10 w-7 h-7 flex items-center justify-center rounded-lg transition-colors duration-300 ${step >= 2 ? 'bg-green-500 text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <CreditCard size={12} />
                                                 </div>
 
                                                 {/* Spacer */}
                                                 <div className="flex-1"></div>
 
                                                 {/* Step 3: Delivered */}
-                                                <div className={`relative z-10 w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300 ${step >= 3 ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <Package size={14} />
+                                                <div className={`relative z-10 w-7 h-7 flex items-center justify-center rounded-lg transition-colors duration-300 ${step >= 3 ? 'bg-green-500 text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <Package size={12} />
                                                 </div>
                                             </div>
 
-                                            <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase  mt-2 overflow-hidden">
-                                                <span className={step >= 1 ? 'text-green-600' : ''}>Ordered</span>
+                                            <div className="flex justify-between text-[8px] font-bold text-gray-400 uppercase mt-2">
+                                                <span className={step >= 1 ? 'text-green-600' : ''}>Placed</span>
                                                 <span className={step >= 2 ? 'text-green-600 text-center' : 'text-center'}>Shipped</span>
-                                                <span className={step >= 3 ? 'text-green-600 text-right' : 'text-right'}>Delivered</span>
+                                                <span className={step >= 3 ? 'text-green-600 text-right' : 'text-right'}>Received</span>
                                             </div>
                                         </>
                                     )}
@@ -462,8 +472,8 @@ const OrderDetailsPage = () => {
                             </div>
                         )}
 
-                        <p className="text-[11px] md:text-xs font-bold text-gray-500 mt-6 text-center">
-                            Fast Delivery: <span className="text-emerald-600 font-bold">Instant Delivery (60 Mins)</span>
+                        <p className="text-[10px] md:text-xs font-bold text-gray-500 mt-4 text-center">
+                            Instant Delivery (60 Mins)
                         </p>
 
                         {order.deliveryOtpDebug && user && (
@@ -485,12 +495,12 @@ const OrderDetailsPage = () => {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-4">
                         <button
                             onClick={() => navigate(`/track-order/${orderId}`)}
-                            className="flex-1 py-3 bg-black text-white rounded-xl font-bold text-[11px] uppercase hover:bg-gray-800 transition-all active:scale-95 shadow-md shadow-gray-200"
+                            className="flex-1 py-3 bg-black text-white rounded-xl font-bold text-[10px] uppercase hover:bg-gray-800 transition-all active:scale-95"
                         >
-                            Track Order
+                            Track Live Order
                         </button>
 
                         {(order.status?.toLowerCase() === 'delivered') && (

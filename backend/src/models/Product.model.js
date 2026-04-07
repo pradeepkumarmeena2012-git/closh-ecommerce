@@ -7,6 +7,7 @@ const productSchema = new mongoose.Schema(
         description: { type: String },
         price: { type: Number, required: true, min: 0 },
         originalPrice: { type: Number }, // This will be used as MRP (strikethrough price)
+        discount: { type: Number, default: 0 }, // This will store percentage off (e.g. 10 for 10%)
         vendorPrice: { type: Number, default: 0 }, // This is the amount the vendor wants
         unit: { type: String, default: 'Piece' },
         images: [{ type: String }],
