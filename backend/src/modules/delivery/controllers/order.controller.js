@@ -401,7 +401,7 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
     };
 
     const order = await Order.findOne(query)
-        .populate('vendorItems.vendorId')
+        .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation phone')
         .populate('deliveryBoyId', 'name phone currentLocation')
         .select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug');
     if (!order) throw new ApiError(404, 'Order not found.');

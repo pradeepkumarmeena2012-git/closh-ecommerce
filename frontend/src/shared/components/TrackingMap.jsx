@@ -4,8 +4,7 @@ import { FiNavigation, FiActivity } from 'react-icons/fi';
 
 const containerStyle = {
   width: '100%',
-  height: '100%',
-  borderRadius: '24px'
+  height: '100%'
 };
 
 const mapOptions = {
@@ -234,7 +233,7 @@ const TrackingMap = ({
   if (!isLoaded) return <div className="h-full w-full bg-slate-100 flex items-center justify-center animate-pulse" />;
 
   return (
-    <div className="relative w-full h-full rounded-[24px] overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden">
       {/* ETA HUD */}
       {eta.duration && (
         <div className="absolute top-4 left-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl z-30 border border-slate-100 flex items-center justify-between">

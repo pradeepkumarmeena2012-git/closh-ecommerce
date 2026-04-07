@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMapPin, FiNavigation, FiZap, FiRefreshCw, FiShare2, FiCheckCircle } from 'react-icons/fi';
+import { FiMapPin, FiNavigation, FiZap, FiRefreshCw, FiShare2, FiCheckCircle, FiActivity } from 'react-icons/fi';
 import TrackingMap from '../../../shared/components/TrackingMap';
 import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';

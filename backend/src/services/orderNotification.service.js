@@ -15,7 +15,10 @@ export const OrderNotificationService = {
      */
     notifyOrderUpdate: async (orderId, status, options = {}) => {
         try {
-            const order = await Order.findById(orderId).populate('vendorItems.vendorId');
+            const order = await Order.findById(orderId)
+                .populate('vendorItems.vendorId')
+                .populate('deliveryBoyId', 'name');
+
             if (!order) {
                 console.error(`❌ [NOTIFICATION ERROR] Order NOT found: ${orderId}. If inside transaction, this is a visibility bug.`);
                 return;
@@ -56,11 +59,16 @@ export const OrderNotificationService = {
             console.log(`🏪 [NOTIFY VENDORS] Found ${vendorIds.length} vendors: ${vendorIds.join(', ')}`);
             
             vendorIds.forEach(vId => {
+                let vendorMsg = `Status update for order ${order.orderId}: ${status.replace(/_/g, ' ')}`;
+                if (status === 'assigned' && order.deliveryBoyId?.name) {
+                    vendorMsg = `Delivery Partner ${order.deliveryBoyId.name} has been assigned for order ${order.orderId}`;
+                }
+
                 recipients.push({
                     id: vId,
                     type: 'vendor',
                     title: notificationTitle,
-                    message: `Status update for order ${order.orderId}: ${status.replace(/_/g, ' ')}`,
+                    message: vendorMsg,
                     sound: status === 'pending' ? 'buzzer.mp3' : 'default' // Buzzer sound only for new orders
                 });
 

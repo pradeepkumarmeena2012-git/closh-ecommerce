@@ -237,49 +237,49 @@ const DeliveryOrderDetail = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-[#FDFDFD] pb-32">
-        {/* HEADER */}
-        <header className="bg-white border-b border-slate-100 sticky top-0 z-40 px-3 py-3 flex items-center gap-3 shadow-sm">
-          <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-50 rounded-lg shrink-0"><FiArrowLeft size={18}/></button>
+      <div className="min-h-screen bg-slate-50 pb-32 relative">
+        {/* HEADER - FLOATING ON TOP */}
+        <header className="absolute top-0 left-0 right-0 z-50 px-3 py-3 flex items-center gap-3 bg-white/60 backdrop-blur-md border-b border-white/20">
+          <button onClick={() => navigate(-1)} className="p-2 bg-white/80 shadow-sm rounded-lg shrink-0 border border-white/50"><FiArrowLeft size={18}/></button>
           <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold text-slate-800 truncate leading-none mb-1">#{String(order.id).slice(-8).toUpperCase()}</h2>
-            <div className="flex items-center gap-1.5 overflow-hidden">
+            <h2 className="text-[11px] font-black text-slate-900 truncate leading-none mb-1">
+               #{String(order.orderId || order.id).slice(-8).toUpperCase()} • {currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.storeName || order.vendorName) : (order.customer || 'Customer')}
+            </h2>
+            <div className="flex items-center gap-1 overflow-hidden">
                {getOrderTypeBadge()}
-               <span className="text-[8px] font-bold text-slate-400 shrink-0 uppercase tracking-tight">• {String(order.status).toUpperCase()}</span>
+               <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">• {String(order.status).toUpperCase()}</span>
             </div>
           </div>
-          <a href={`tel:${order.phone}`} className="w-10 h-10 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 shrink-0"><FiPhone size={18}/></a>
+          <a href={`tel:${currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.phone || order.vendorPhone) : (order.phone || order.shippingAddress?.phone)}`} className="w-9 h-9 bg-indigo-600/90 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50 shrink-0"><FiPhone size={18}/></a>
         </header>
 
-        <div className="max-w-md mx-auto p-3 space-y-3">
-          
-          {/* MAP / ARRIVAL SECTION */}
-          {(!hasArrived && currentPhase === 'delivery') || (currentPhase === 'pickup' && !pickupPhoto) ? (
-            <div className="space-y-3">
-               <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm relative aspect-video">
-                  <TrackingMap 
-                    deliveryLocation={currentLocation} 
-                    vendorLocation={order.vendorLatitude ? { lat: Number(order.vendorLatitude), lng: Number(order.vendorLongitude) } : null} 
-                    customerLocation={order.latitude ? { lat: Number(order.latitude), lng: Number(order.longitude) } : null} 
-                    status={order.rawStatus || order.status} 
-                    customerAddress={order.address}
-                    vendorAddress={order.vendorAddress}
-                    followMode={true} 
-                    isLoaded={isLoaded}
-                  />
-                  <div className="absolute inset-x-2 bottom-2">
-                    <div className="bg-white/95 backdrop-blur-sm p-2 rounded-xl shadow-lg border border-slate-100 flex items-center gap-3">
-                        <div className="flex-1 min-w-0 px-1">
-                           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Destination</p>
-                           <h4 className="text-[11px] font-bold text-slate-800 truncate">{currentPhase === 'pickup' ? order.vendorName : (order.customer || 'Customer Address')}</h4>
-                        </div>
-                        <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentPhase === 'pickup' ? order.vendorLatitude : order.latitude},${currentPhase === 'pickup' ? order.vendorLongitude : order.longitude}`, '_blank')} className="px-3 h-9 bg-slate-900 text-white rounded-xl text-[10px] font-bold flex items-center gap-1.5 shrink-0 uppercase tracking-widest">
-                           <FiNavigation size={12}/> NAV
-                        </button>
-                    </div>
-                  </div>
-               </div>
+        <div className="max-w-md mx-auto">
+          {/* HERO MAP SECTION - AT TRUE TOP */}
+          {(!hasArrived && currentPhase) && (
+             <div className="w-full h-[540px] bg-white relative">
+                <TrackingMap 
+                  deliveryLocation={currentLocation} 
+                  vendorLocation={order.vendorLatitude ? { lat: Number(order.vendorLatitude), lng: Number(order.vendorLongitude) } : (order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates ? { lat: order.vendorItems[0].vendorId.shopLocation.coordinates[1], lng: order.vendorItems[0].vendorId.shopLocation.coordinates[0] } : null)} 
+                  customerLocation={order.latitude ? { lat: Number(order.latitude), lng: Number(order.longitude) } : (order.dropoffLocation?.coordinates ? { lat: order.dropoffLocation.coordinates[1], lng: order.dropoffLocation.coordinates[0] } : null)} 
+                  status={order.rawStatus || order.status} 
+                  customerAddress={order.address || order.shippingAddress?.address}
+                  vendorAddress={order.vendorAddress || order.vendorItems?.[0]?.vendorId?.shopAddress}
+                  followMode={true} 
+                  isLoaded={isLoaded}
+                />
+                <button 
+                  onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentPhase === 'pickup' ? (order.vendorLatitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[1]) : (order.latitude || order.dropoffLocation?.coordinates?.[1])},${currentPhase === 'pickup' ? (order.vendorLongitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[0]) : (order.longitude || order.dropoffLocation?.coordinates?.[0])}`, '_blank')}
+                  className="absolute bottom-6 right-4 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest active:scale-95 transition-all z-10"
+                >
+                  <FiNavigation size={18}/> Navigation
+                </button>
+             </div>
+          )}
 
+          <div className="p-4 space-y-4">
+            {/* ACTIONS SECTION */}
+            {(!hasArrived && currentPhase === 'delivery') || (currentPhase === 'pickup' && !pickupPhoto) ? (
+              <div className="space-y-3">
                {currentPhase === 'pickup' ? (
                   <div className="flex gap-2">
                     <div className="flex-1 flex flex-col gap-2">
@@ -475,6 +475,7 @@ const DeliveryOrderDetail = () => {
             </>
           )}
         </div>
+      </div>
 
         {/* BOTTOM ACTION BUTTON */}
         {((currentPhase === 'pickup' && pickupPhoto) || (currentPhase === 'delivery' && hasArrived)) && (
