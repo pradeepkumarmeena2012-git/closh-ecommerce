@@ -51,33 +51,15 @@ const DeliveryOrders = () => {
 
   const loadOrders = async (page = currentPage, activeFilter = filter) => {
     try {
-      if (activeFilter === 'available') {
-        const { fetchDashboardSummary } = useDeliveryAuthStore.getState();
-        const summary = await fetchDashboardSummary();
-        
-        // Match EXACT filtering logic from Dashboard.jsx: 
-        // Show everything that is NOT delivered, cancelled, or rejected
-        const activeTasks = (summary?.recentOrders || []).filter(o => 
-          !['delivered', 'cancelled', 'rejected'].includes(o.status?.toLowerCase().replace('-', '_'))
-        );
-        
-        if (activeTasks.length > 0) {
-           useDeliveryAuthStore.setState({ orders: activeTasks });
-        } else {
-           // Fallback: try fetching explicitly for ongoing statuses if recentOrders didn't catch it
-           await fetchOrders({
-             page,
-             limit: PAGE_SIZE,
-             status: 'assigned,picked_up,out_for_delivery'
-           });
-        }
-      } else {
-        await fetchOrders({
-          page,
-          limit: PAGE_SIZE,
-          status: getBackendStatusFilter(activeFilter),
-        });
-      }
+      // Use unified fetchOrders for both tabs to prevent data mixing
+      // 'open' now covers ALL running statuses assigned to the rider in the backend
+      const statusParam = activeFilter === 'available' ? 'open' : 'delivered';
+
+      await fetchOrders({
+        page,
+        limit: PAGE_SIZE,
+        status: statusParam
+      });
     } catch (err) {
       console.error("Order Load Error:", err);
     }
@@ -109,9 +91,18 @@ const DeliveryOrders = () => {
       }
     });
 
+    socketService.on('order_taken', (data) => {
+      // Remove the order from local state immediately if another rider took it
+      if (filter === 'available') {
+        const { orders } = useDeliveryAuthStore.getState();
+        const updated = orders.filter(o => o.id !== data.id && o.orderId !== data.orderId);
+        useDeliveryAuthStore.setState({ orders: updated });
+      }
+    });
+
     return () => {
-      if (interval) clearInterval(interval);
       socketService.off('order_ready_for_pickup');
+      socketService.off('order_taken');
     };
   }, [currentPage, filter]);
 

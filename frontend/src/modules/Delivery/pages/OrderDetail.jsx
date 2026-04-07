@@ -70,14 +70,31 @@ const DeliveryOrderDetail = () => {
 
   const getPhase = () => {
     if (!order) return null;
-    const s = order.status;
-    if (s === 'assigned' || s === 'accepted') return 'pickup';
-    if (['picked-up', 'picked_up', 'out-for-delivery', 'out_for_delivery'].includes(s)) return 'delivery';
+    const s = String(order.status || '').toLowerCase();
+    const rawS = String(order.rawStatus || order.status || '').toLowerCase();
+    
+    // Pickup phase includes newly available, assigned, or accepted orders
+    if (['pending', 'ready_for_pickup', 'assigned', 'accepted'].includes(s) || 
+        ['ready_for_pickup', 'assigned', 'accepted'].includes(rawS)) return 'pickup';
+        
+    // Delivery phase includes anything picked up or out for delivery
+    if (['picked-up', 'picked_up', 'out-for-delivery', 'out_for_delivery', 'shipped'].includes(s) ||
+        ['picked_up', 'out_for_delivery'].includes(rawS)) return 'delivery';
+        
     return null;
   };
 
   const currentPhase = getPhase();
   const liveLocation = useDeliveryTracking(deliveryBoy?.id, order ? [order] : []);
+
+  // Check if this order is actually assigned to the current rider
+  const isAssignedToMe = order && (
+    (typeof order.deliveryBoyId === 'string' && order.deliveryBoyId === deliveryBoy?.id) ||
+    (order.deliveryBoyId?._id === deliveryBoy?.id) ||
+    (order.deliveryBoyId === deliveryBoy?._id)
+  );
+
+  const isAvailableTask = order && !order.deliveryBoyId && (order.rawStatus === 'ready_for_pickup' || order.status === 'pending');
   
   useEffect(() => {
     if (liveLocation) setCurrentLocation(liveLocation);
@@ -106,34 +123,61 @@ const DeliveryOrderDetail = () => {
     loadOrder();
     const handleUpdate = () => loadOrder();
     socketService.on('order_status_updated', handleUpdate);
+    socketService.on('order_taken', (data) => {
+      if (data.id === id || data.orderId === id) {
+        toast.error('Mission taken by another partner');
+        navigate('/delivery/dashboard');
+      }
+    });
+
     if (id) socketService.joinRoom(`order_${id}`);
-    return () => socketService.off('order_status_updated');
-  }, [id, loadOrder]);
+    return () => {
+       socketService.off('order_status_updated');
+       socketService.off('order_taken');
+    };
+  }, [id, loadOrder, navigate]);
+
+  const handleAcceptMission = async () => {
+    try {
+      // Use stable id from useParams
+      const updated = await useDeliveryAuthStore.getState().acceptOrder(id);
+      setOrder(updated);
+      toast.success('MISSION ACCEPTED! GO TO PICKUP');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to accept mission');
+      navigate('/delivery/dashboard');
+    }
+  };
 
   const handleUpdateStatus = async (status, msg, options = {}) => {
     try {
-      const updated = await updateOrderStatus(order.id, status, options);
+      // Use stable id from useParams
+      const updated = await updateOrderStatus(id, status, options);
       setOrder(updated);
       toast.success(msg);
-    } catch {}
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Update failed');
+    }
   };
 
   const handleArrival = async () => {
+    if (!id) return;
     try {
-      const updated = await markArrivedAtCustomer(order.id);
+      // Use stable id from useParams
+      const updated = await markArrivedAtCustomer(id);
       setOrder(updated);
       setHasArrived(true);
       toast.success('Arrival marked. OTP sent.');
-    } catch {
-      toast.error('Failed to mark arrival');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to mark arrival');
     }
   };
 
   const handleOtpResend = async () => {
-    if (isResending) return;
+    if (isResending || !id) return;
     try {
       setIsResending(true);
-      await resendDeliveryOtp(order.id);
+      await resendDeliveryOtp(id);
       toast.success('OTP sent to customer');
     } catch {
       toast.error('Failed to resend OTP');
@@ -160,7 +204,8 @@ const DeliveryOrderDetail = () => {
         productId: it.productId || it._id,
         decision: selectedItemIds.has(it.productId || it._id) ? 'accepted' : 'rejected'
       }));
-      const updated = await submitTryAndBuy(order.id, items);
+      // Use stable id from useParams
+      const updated = await submitTryAndBuy(id, items);
       setOrder(updated);
       toast.success('Items selection confirmed');
     } catch {
@@ -170,7 +215,8 @@ const DeliveryOrderDetail = () => {
 
   const handlePaymentMethod = async (method) => {
     try {
-      const res = await setPaymentMethod(order.id, method);
+      // Use stable id from useParams
+      const res = await setPaymentMethod(id, method);
       setOrder(res.order || res);
       setPaymentSelection(method);
       if (method === 'qr') setShowQRModal(true);
@@ -191,7 +237,8 @@ const DeliveryOrderDetail = () => {
     if (isCod && !openBoxPhoto) return toast.error('Open box photo required');
 
     try {
-      const updated = await completeDeliveryFlow(order.id, { 
+      // Use stable id from useParams
+      const updated = await completeDeliveryFlow(id, { 
         otp: otpValue.trim(), 
         openBoxPhoto, 
         deliveryProofPhoto: deliveryPhoto 
@@ -243,7 +290,8 @@ const DeliveryOrderDetail = () => {
           <button onClick={() => navigate(-1)} className="p-2 bg-white/80 shadow-sm rounded-lg shrink-0 border border-white/50"><FiArrowLeft size={18}/></button>
           <div className="flex-1 min-w-0">
             <h2 className="text-[11px] font-black text-slate-900 truncate leading-none mb-1">
-               #{String(order.orderId || order.id).slice(-8).toUpperCase()} • {currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.storeName || order.vendorName) : (order.customer || 'Customer')}
+               {/* Use id from params as final fallback, and hunt for names in all possible places */}
+               #{String(order.orderId || order.id || id).slice(-8).toUpperCase()} • {currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.storeName || order.vendorName || 'Pickup Location') : (order.customer || order.shippingAddress?.name || order.guestInfo?.name || 'Customer')}
             </h2>
             <div className="flex items-center gap-1 overflow-hidden">
                {getOrderTypeBadge()}
@@ -478,17 +526,37 @@ const DeliveryOrderDetail = () => {
       </div>
 
         {/* BOTTOM ACTION BUTTON */}
-        {((currentPhase === 'pickup' && pickupPhoto) || (currentPhase === 'delivery' && hasArrived)) && (
-          <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-100 z-50">
+        <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-100 z-50">
+          {isAvailableTask ? (
             <button 
-                onClick={currentPhase === 'pickup' ? () => handleUpdateStatus('picked_up', 'Items picked up!', { pickupPhoto }) : handleFinalize}
-                disabled={isUpdatingOrderStatus || (currentPhase === 'delivery' && (otpValue.length < 6 || !deliveryPhoto || (isCod && (!paymentSelection))))}
-                className="w-full h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 disabled:opacity-20 active:scale-95 transition-all"
+                onClick={handleAcceptMission}
+                disabled={isUpdatingOrderStatus}
+                className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-200 active:scale-95 transition-all"
             >
-                {isUpdatingOrderStatus ? 'WAITING...' : (currentPhase === 'pickup' ? 'MARk AS PICKED UP' : 'DELIVERED SUCCESSFULLY')}
+                {isUpdatingOrderStatus ? 'ACCEPTING MISSION...' : 'ACCEPT TASK TO START'}
             </button>
-          </div>
-        )}
+          ) : isAssignedToMe ? (
+            ((currentPhase === 'pickup' && pickupPhoto) || (currentPhase === 'delivery' && hasArrived)) ? (
+              <button 
+                  onClick={currentPhase === 'pickup' ? () => handleUpdateStatus('picked_up', 'Items picked up!', { pickupPhoto }) : handleFinalize}
+                  disabled={isUpdatingOrderStatus || (currentPhase === 'delivery' && (otpValue.length < 6 || !deliveryPhoto || (isCod && (!paymentSelection))))}
+                  className="w-full h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 disabled:opacity-20 active:scale-95 transition-all"
+              >
+                  {isUpdatingOrderStatus ? 'WAITING...' : (currentPhase === 'pickup' ? 'MARk AS PICKED UP' : 'DELIVERED SUCCESSFULLY')}
+              </button>
+            ) : (
+              <div className="text-center py-2">
+                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Mission Active</p>
+                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Complete {currentPhase === 'pickup' ? 'Pickup Verification' : 'Arrival & OTP'} to Finish</p>
+              </div>
+            )
+          ) : (
+            <div className="text-center py-2 px-4 bg-rose-50 rounded-xl border border-rose-100">
+               <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">UNAUTHORIZED ACCESS</p>
+               <p className="text-[8px] font-bold text-rose-400 uppercase leading-none">This task is assigned to another partner.</p>
+            </div>
+          )}
+        </div>
 
         {/* QR MODAL */}
         <AnimatePresence>

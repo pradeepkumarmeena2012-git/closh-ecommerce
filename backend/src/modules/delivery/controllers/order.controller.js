@@ -70,19 +70,26 @@ const sendDeliveryOtpEmail = async (order, otp) => {
 export const getAssignedOrders = asyncHandler(async (req, res) => {
     const { status, page, limit } = req.query;
     const filter = { deliveryBoyId: req.user.id, isDeleted: { $ne: true } };
+    
     if (status === 'open') {
-        filter.status = { $in: ['ready_for_pickup', 'picked_up', 'out_for_delivery'] };
+        filter.status = { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] };
     } else if (status) {
-        filter.status = status;
+        // Support comma-separated statuses (e.g. "delivered,cancelled")
+        if (typeof status === 'string' && status.includes(',')) {
+            filter.status = { $in: status.split(',').map(s => s.trim()) };
+        } else {
+            filter.status = status;
+        }
     }
 
     const hasPaginationParams = page !== undefined || limit !== undefined;
+    const selectFields = 'orderId status total deliveryEarnings deliveryDistance orderType paymentMethod customer phone address shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.vendorName createdAt updatedAt';
 
     if (!hasPaginationParams) {
         const orders = await Order.find(filter)
-            .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase createdAt updatedAt')
-            .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
-            .sort({ createdAt: -1 })
+            .select(selectFields)
+            .populate('vendorItems.vendorId', 'storeName')
+            .sort({ updatedAt: -1 })
             .lean();
         return res.status(200).json(new ApiResponse(200, orders, 'Assigned orders fetched.'));
     }
@@ -92,10 +99,14 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     const numericLimit = Math.min(Math.max(1, requestedLimit), 100);
     const skip = (numericPage - 1) * numericLimit;
 
-    const selectFields = 'orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase createdAt updatedAt';
-
     const [orders, total] = await Promise.all([
-        Order.find(filter).select(selectFields).populate('vendorItems.vendorId', 'storeName shopAddress shopLocation').sort({ createdAt: -1 }).skip(skip).limit(numericLimit).lean(),
+        Order.find(filter)
+            .select(selectFields)
+            .populate('vendorItems.vendorId', 'storeName')
+            .sort({ updatedAt: -1 })
+            .skip(skip)
+            .limit(numericLimit)
+            .lean(),
         Order.countDocuments(filter),
     ]);
 
@@ -667,19 +678,27 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
     }
 
     const otp = DeliveryOtpService.generateOtp();
-    order.deliveryOtpHash = DeliveryOtpService.hashOtp(otp);
-    order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
-    order.deliveryOtpSentAt = new Date();
-    order.deliveryOtpAttempts = 0;
+    const flow = ensureDeliveryFlow(order);
+    
+    flow.otpHash = DeliveryOtpService.hashOtp(otp);
+    flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
+    flow.otpSentAt = new Date();
+    flow.otpAttempts = 0;
     if (!IS_PRODUCTION) {
-        order.deliveryOtpDebug = otp;
+        flow.otpDebug = otp;
     }
+    
+    // Sync legacy fields for backward compatibility if needed, but primary is flow
+    order.deliveryOtpHash = flow.otpHash;
+    order.deliveryOtpExpiry = flow.otpExpiry;
+    if (!IS_PRODUCTION) order.deliveryOtpDebug = otp;
+
     await order.save();
 
     // Properly use centralized service for multi-channel notification
     await DeliveryOtpService.sendDeliveryOtp(order, otp);
 
-    return res.status(200).json(new ApiResponse(200, { deliveryOtpDebug: otp }, 'Delivery OTP resent successfully.'));
+    return res.status(200).json(new ApiResponse(200, { deliveryOtpDebug: otp, order: order }, 'Delivery OTP resent successfully.'));
 });
 
 // POST /api/delivery/orders/:id/arrived
@@ -705,13 +724,20 @@ export const markArrived = asyncHandler(async (req, res) => {
 
     // Generate Delivery OTP at Arrival
     const otp = DeliveryOtpService.generateOtp();
-    order.deliveryOtpHash = DeliveryOtpService.hashOtp(otp);
-    order.deliveryOtpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
-    order.deliveryOtpSentAt = new Date();
-    order.deliveryOtpAttempts = 0;
+    const flow = ensureDeliveryFlow(order);
+    
+    flow.otpHash = DeliveryOtpService.hashOtp(otp);
+    flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
+    flow.otpSentAt = new Date();
+    flow.otpAttempts = 0;
     if (!IS_PRODUCTION) {
-        order.deliveryOtpDebug = otp;
+        flow.otpDebug = otp;
     }
+
+    // Sync legacy fields
+    order.deliveryOtpHash = flow.otpHash;
+    order.deliveryOtpExpiry = flow.otpExpiry;
+    if (!IS_PRODUCTION) order.deliveryOtpDebug = otp;
 
     await order.save();
 
@@ -791,6 +817,8 @@ export const getCompanyQR = asyncHandler(async (req, res) => {
 /** Helper: find an order assigned to the current rider */
 const findOrderForRider = async (id, riderId, selectOtp = false) => {
     // Robustness: ensure we are using ObjectId for the query
+    console.log(`[findOrderForRider] START - ID: ${id}, Rider: ${riderId}`);
+    
     const riderObjectId = mongoose.Types.ObjectId.isValid(riderId) 
         ? new mongoose.Types.ObjectId(riderId) 
         : riderId;
@@ -800,15 +828,24 @@ const findOrderForRider = async (id, riderId, selectOtp = false) => {
         isDeleted: { $ne: true },
         $or: [{ orderId: id }],
     };
-    if (mongoose.isValidObjectId(id)) query.$or.push({ _id: id });
+    if (mongoose.isValidObjectId(id)) {
+        query.$or.push({ _id: new mongoose.Types.ObjectId(id) });
+    }
 
     let q = Order.findOne(query).populate('vendorItems.vendorId');
-    if (selectOtp) q = q.select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpDebug');
+    if (selectOtp) q = q.select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpDebug +deliveryFlow.otpHash +deliveryFlow.otpDebug');
+    
     const order = await q;
     
     if (!order) {
-        console.warn(`[findOrderForRider] Order ${id} not found for rider ${riderId}`);
-        throw new ApiError(404, 'Order not found or not assigned to you.');
+        console.error(`[findOrderForRider] FAIL - Query:`, JSON.stringify(query));
+        // Fallback: check if the order exists at all without rider filter for better error msgs
+        const existsAtAll = await Order.findOne({ $or: [{ orderId: id }, { _id: mongoose.isValidObjectId(id) ? new mongoose.Types.ObjectId(id) : null }] });
+        if (existsAtAll) {
+            console.error(`[findOrderForRider] Order FOUND but assigned to: ${existsAtAll.deliveryBoyId}`);
+            throw new ApiError(403, `Order is assigned to another rider (${existsAtAll.deliveryBoyId}). You are ${riderId}.`);
+        }
+        throw new ApiError(404, 'Order not found.');
     }
     return order;
 };
@@ -1081,7 +1118,8 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     if (!/^\d{6}$/.test(String(otp || '').trim())) {
         throw new ApiError(400, 'Valid 6-digit OTP is required.');
     }
-    const order = await findOrderForRider(req.params.id, req.user.id);
+    // Pass true for selectOtp to ensure we have hashes/expiry
+    const order = await findOrderForRider(req.params.id, req.user.id, true);
     const flow = ensureDeliveryFlow(order);
 
     const isCodOrder = order.paymentMethod === 'cod' || order.paymentMethod === 'cash';
@@ -1091,13 +1129,17 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
         throw new ApiError(409, `Cannot complete from phase "${flow.phase}". Expected: payment_pending.`);
     }
 
-    // Verify OTP
+    // Verify OTP (Check both flow and top-level legacy fields as fallback)
     const normalizedOtp = String(otp).trim();
-    if (!flow.otpHash || !flow.otpExpiry) throw new ApiError(400, 'OTP was not generated.');
-    if (flow.otpExpiry < new Date()) throw new ApiError(400, 'OTP has expired. Please resend.');
+    const otpHash = flow.otpHash || order.deliveryOtpHash;
+    const otpExpiry = flow.otpExpiry || order.deliveryOtpExpiry;
 
-    const isMatch = flow.otpHash === DeliveryOtpService.hashOtp(normalizedOtp);
-    const isDebugMatch = !IS_PRODUCTION && flow.otpDebug === normalizedOtp;
+    if (!otpHash || !otpExpiry) throw new ApiError(400, 'OTP was not generated.');
+    if (new Date(otpExpiry) < new Date()) throw new ApiError(400, 'OTP has expired. Please resend.');
+
+    const isMatch = otpHash === DeliveryOtpService.hashOtp(normalizedOtp);
+    const isDebugMatch = !IS_PRODUCTION && (flow.otpDebug === normalizedOtp || order.deliveryOtpDebug === normalizedOtp);
+    
     if (!isMatch && !isDebugMatch) {
         flow.otpAttempts = (flow.otpAttempts || 0) + 1;
         await order.save();

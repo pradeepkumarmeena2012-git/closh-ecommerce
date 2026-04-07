@@ -277,11 +277,14 @@ export const useDeliveryAuthStore = create(
         } catch (e) { set({ isLoadingOrders: false }); throw e; }
       },
       fetchOrders: async (opt = {}) => {
-        set({ isLoadingOrders: true });
+        set({ orders: [], isLoadingOrders: true });
         try {
           const res = await api.get('/delivery/orders', { params: opt });
           const p = res.data || res;
-          const orders = (p?.orders || (Array.isArray(p) ? p : [])).map(normalizeOrder);
+          // Sort by latest update to ensure status changes are seen first
+          const orders = (p?.orders || (Array.isArray(p) ? p : []))
+            .map(normalizeOrder)
+            .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
           set({ orders, isLoadingOrders: false }); return orders;
         } catch (e) { set({ isLoadingOrders: false }); throw e; }
       },
