@@ -14,63 +14,22 @@ import OrderNotificationService from '../../../services/orderNotification.servic
  */
 export const findNearbyDeliveryBoys = async (order, radiusMeters = 8000) => {
     const pickupLocation = order.pickupLocation;
-    console.log(`[Radius Search] Searching within ${radiusMeters}m of ${pickupLocation?.coordinates?.join(', ')}`);
     
     if (!pickupLocation || !pickupLocation.coordinates || (pickupLocation.coordinates[0] === 0 && pickupLocation.coordinates[1] === 0)) {
-        console.warn(`[Radius Search] ⚠️ Invalid pickup coordinates:`, pickupLocation?.coordinates);
         return [];
     }
 
-    // DEBUG: Count how many boys are available in the entire DB before spatial filtering
-    const totalAvailable = await DeliveryBoy.countDocuments({ status: 'available', isAvailable: true });
-    console.log(`[Radius Search] Total 'available' boys in DB (anywhere): ${totalAvailable}`);
-
-    const nearbyBoys = await DeliveryBoy.aggregate([
-        {
-            $geoNear: {
-                near: {
-                    type: 'Point',
-                    coordinates: pickupLocation.coordinates,
-                },
-                distanceField: 'distance',
-                maxDistance: radiusMeters,
-                query: { 
-                    status: 'available', 
-                    isAvailable: true
-                },
-                spherical: true,
+    // High-performance direct indexed query (Faster than aggregation for simple radius)
+    return await DeliveryBoy.find({
+        status: 'available',
+        isAvailable: true,
+        currentLocation: {
+            $near: {
+                $geometry: { type: 'Point', coordinates: pickupLocation.coordinates },
+                $maxDistance: radiusMeters,
             },
         },
-        { $limit: 10 },
-    ]);
-
-    if (nearbyBoys.length > 0) {
-        console.log(`\n✅ [RADIUS MATCH] Found ${nearbyBoys.length} available delivery partners:`);
-        nearbyBoys.forEach((boy, i) => {
-            console.log(`   ${i+1}. ${boy.name.padEnd(20)} | ID: ${boy._id} | Dist: ${Math.round(boy.distance)}m`);
-        });
-    } else {
-        console.log(`\n❌ [RADIUS MATCH] No available delivery partners found within ${radiusMeters}m.`);
-        // Optional: Log distance to the single closest available boy if any exist
-        if (totalAvailable > 0) {
-            const closest = await DeliveryBoy.aggregate([
-                {
-                    $geoNear: {
-                        near: { type: 'Point', coordinates: pickupLocation.coordinates },
-                        distanceField: 'distance',
-                        query: { status: 'available', isAvailable: true },
-                        spherical: true,
-                    },
-                },
-                { $limit: 1 }
-            ]);
-            if (closest[0]) {
-                console.log(`[Radius Search] FYI: The closest available boy (${closest[0].name}) is ${Math.round(closest[0].distance)}m away.`);
-            }
-        }
-    }
-
-    return nearbyBoys;
+    }).limit(10).lean();
 };
 
 /**

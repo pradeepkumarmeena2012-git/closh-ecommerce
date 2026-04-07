@@ -99,6 +99,8 @@ const DeliveryDashboard = () => {
 
     socketService.on('order_picked_up', handleRefresh);
     socketService.on('order_delivered', handleRefresh);
+    socketService.on('order_updated', handleRefresh);
+    socketService.on('payment_collected', handleRefresh);
 
     const interval = setInterval(loadDashboardData, 60000); // Polling every minute
 
@@ -108,9 +110,10 @@ const DeliveryDashboard = () => {
       socketService.off('return_ready_for_pickup');
       socketService.off('order_assigned');
       socketService.off('order_taken');
-      socketService.off('newOrder');
       socketService.off('order_picked_up');
       socketService.off('order_delivered');
+      socketService.off('order_updated');
+      socketService.off('payment_collected');
       clearInterval(interval);
     };
   }, [deliveryBoy?.id]); // Removed newOrderRequest dependency

@@ -118,7 +118,8 @@ const DeliveryOrders = () => {
     try {
       await acceptOrder(orderId);
       toast.success('Order assigned! Head to pickup.');
-      setFilter('pending');
+      // Switch to Active Duty tab to see the new mission
+      setFilter('available');
       setCurrentPage(1);
     } catch(err) {}
   };

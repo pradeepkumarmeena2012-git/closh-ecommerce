@@ -39,7 +39,13 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         ? { vendorItems: { $elemMatch: { vendorId: req.user.id, status } } }
         : { 'vendorItems.vendorId': req.user.id };
 
-    const orders = await Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(numericLimit);
+    const orders = await Order.find(filter)
+        .select('orderId status total items.name items.quantity shippingAddress.name guestInfo.name vendorItems.status createdAt updatedAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(numericLimit)
+        .lean();
+        
     const total = await Order.countDocuments(filter);
     res.status(200).json(new ApiResponse(200, { orders, total, page: numericPage, pages: Math.ceil(total / numericLimit) }, 'Orders fetched.'));
 });
@@ -157,25 +163,47 @@ export const getEarnings = asyncHandler(async (req, res) => {
     const numericSettlementsLimit = Math.max(1, Number(settlementsLimit) || 50);
     const settlementSkip = (numericSettlementsPage - 1) * numericSettlementsLimit;
 
-    const [commissionDocs, totalCommissions, settlements, totalSettlements] = await Promise.all([
+    const [commissionDocs, totalCommissions, settlements, totalSettlements, aggregationResult] = await Promise.all([
         Commission.find({ vendorId: req.user.id })
+            .select('orderId amount vendorEarnings commission status createdAt')
             .populate('orderId', 'orderId status')
             .sort({ createdAt: -1 })
             .skip(commissionSkip)
-            .limit(numericLimit),
+            .limit(numericLimit)
+            .lean(),
         Commission.countDocuments({ vendorId: req.user.id }),
         Settlement.find({ vendorId: req.user.id })
             .sort({ createdAt: -1 })
             .skip(settlementSkip)
-            .limit(numericSettlementsLimit),
+            .limit(numericSettlementsLimit)
+            .lean(),
         Settlement.countDocuments({ vendorId: req.user.id }),
+        Commission.aggregate([
+            { $match: { vendorId: new mongoose.Types.ObjectId(req.user.id) } },
+            {
+                $group: {
+                    _id: null,
+                    totalEarnings: { $sum: { $cond: [{ $ne: ["$status", "cancelled"] }, "$vendorEarnings", 0] } },
+                    totalCommission: { $sum: { $cond: [{ $ne: ["$status", "cancelled"] }, "$commission", 0] } },
+                    pendingEarnings: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, "$vendorEarnings", 0] } },
+                    paidEarnings: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$vendorEarnings", 0] } },
+                    cancelledEarnings: { $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, "$vendorEarnings", 0] } },
+                    totalOrders: { $sum: { $cond: [{ $ne: ["$status", "cancelled"] }, 1, 0] } }
+                }
+            }
+        ])
     ]);
-    const allCommissionsForSummary = await Commission.find({ vendorId: req.user.id })
-        .populate('orderId', 'orderId status')
-        .sort({ createdAt: -1 });
+
+    const currentVendor = await mongoose.model('Vendor').findById(req.user.id).select('availableBalance').lean();
+    const stats = aggregationResult[0] || { totalEarnings: 0, pendingEarnings: 0, paidEarnings: 0, cancelledEarnings: 0, totalCommission: 0, totalOrders: 0 };
+    
+    const summary = {
+        ...stats,
+        availableBalance: currentVendor?.availableBalance || 0
+    };
 
     const commissions = commissionDocs.map((doc) => {
-        const commission = doc.toObject();
+        const commission = doc;
         const orderRef = commission.orderId?._id || commission.orderId;
         const orderDisplayId = commission.orderId?.orderId || String(orderRef || '');
         const orderStatus = String(commission.orderId?.status || '').toLowerCase();
@@ -186,36 +214,6 @@ export const getEarnings = asyncHandler(async (req, res) => {
             orderDisplayId,
             effectiveStatus,
         };
-    });
-
-    const currentVendor = await mongoose.model('Vendor').findById(req.user.id);
-    const summary = allCommissionsForSummary.reduce((acc, doc) => {
-        const c = doc.toObject();
-        const status = String(c.status || 'pending');
-        const orderStatus = String(c.orderId?.status || '').toLowerCase();
-        const effectiveStatus = orderStatus === 'cancelled' ? 'cancelled' : status;
-        const earnings = Number(c.vendorEarnings || 0);
-        const commissionAmount = Number(c.commission || 0);
-
-        // Cancelled commissions should not contribute to active earnings totals.
-        if (effectiveStatus !== 'cancelled') {
-            acc.totalEarnings += earnings;
-            acc.totalCommission += commissionAmount;
-            acc.totalOrders += 1;
-        }
-
-        if (effectiveStatus === 'pending') acc.pendingEarnings += earnings;
-        if (effectiveStatus === 'paid') acc.paidEarnings += earnings;
-        if (effectiveStatus === 'cancelled') acc.cancelledEarnings += earnings;
-        return acc;
-    }, {
-        totalEarnings: 0,
-        pendingEarnings: 0,
-        paidEarnings: 0,
-        cancelledEarnings: 0,
-        totalCommission: 0,
-        totalOrders: 0,
-        availableBalance: currentVendor?.availableBalance || 0
     });
 
     res.status(200).json(

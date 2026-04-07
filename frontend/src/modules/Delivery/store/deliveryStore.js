@@ -301,7 +301,13 @@ export const useDeliveryAuthStore = create(
         try {
           const res = await api.post(`/delivery/orders/${id}/accept`);
           const order = normalizeOrder(res.data || res);
-          set({ isUpdatingOrderStatus: false }); return order;
+          // Instant Logic: Prepend to active orders list immediately
+          const currentOrders = get().orders || [];
+          set({ 
+            orders: [order, ...currentOrders.filter(o => o.id !== id)],
+            isUpdatingOrderStatus: false 
+          }); 
+          return order;
         } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
       updateOrderStatus: async (id, status, opt = {}) => {
