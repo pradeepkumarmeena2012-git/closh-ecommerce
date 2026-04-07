@@ -44,28 +44,28 @@ const ProductCard = ({ product }) => {
 
                     {/* Content Area - Matching Image 2 Minimalist Style */}
                     <div className="pt-2.5 pb-1.5 flex flex-col flex-1 items-start text-left">
-                        <h3 className="text-[12px] md:text-[13px] font-black text-gray-900 uppercase tracking-tight mb-0.5 truncate w-full">
+                        <h3 className="text-[11px] md:text-[13px] font-black text-gray-900 uppercase tracking-tight mb-0.5 truncate w-full">
                             {product.brand || 'Premium'}
                         </h3>
 
-                        <p className="text-[11px] md:text-[12px] font-medium text-gray-500 line-clamp-1 mb-1 w-full">
+                        <p className="text-[10px] md:text-[12px] font-medium text-gray-500 line-clamp-1 mb-1 w-full">
                             {product.name}
                         </p>
 
-                        <div className="mt-auto flex flex-wrap items-center gap-2 w-full">
+                        <div className="mt-auto flex flex-wrap items-center gap-1.5 md:gap-2 w-full">
                             <div className="flex items-center gap-1">
-                                <span className="text-[12px] md:text-[13px] font-bold text-gray-900">
+                                <span className="text-[11px] md:text-[13px] font-bold text-gray-900">
                                     ₹{product.discountedPrice || product.price}
                                 </span>
                                 {product.originalPrice && product.originalPrice > (product.discountedPrice || product.price) && (
-                                    <span className="text-[11px] text-gray-400 line-through font-medium">
+                                    <span className="text-[9px] md:text-[11px] text-gray-400 line-through font-medium">
                                         ₹{product.originalPrice}
                                     </span>
                                 )}
                             </div>
                             
                             {product.originalPrice && product.originalPrice > (product.discountedPrice || product.price) && (
-                                <div className="bg-[#D8FFBD] text-[#388E3C] text-[11px] font-bold px-1.5 py-0.5 rounded-sm">
+                                <div className="bg-[#D8FFBD] text-[#388E3C] text-[9px] md:text-[11px] font-bold px-1 py-0.5 rounded-sm">
                                     {Math.round(((product.originalPrice - (product.discountedPrice || product.price)) / product.originalPrice) * 100)}% OFF
                                 </div>
                             )}

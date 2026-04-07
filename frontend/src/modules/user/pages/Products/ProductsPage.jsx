@@ -429,7 +429,7 @@ const ProductsPage = () => {
 
                 {/* Main Content Grid - Full Width without Sidebar */}
                 <div className="w-full">
-                    <div className="grid grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-x-2 md:gap-x-6 gap-y-6 md:gap-y-10">
+                    <div className="premium-product-grid">
                         {isLoading ? (
                             Array.from({ length: 10 }).map((_, idx) => (
                                 <div key={`skeleton-${idx}`}>

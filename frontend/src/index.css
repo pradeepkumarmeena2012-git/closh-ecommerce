@@ -341,3 +341,68 @@ body::-webkit-scrollbar {
     transform: translateZ(0);
   }
 }
+
+/* Premium Product Grid System with precise media-query-based control */
+.premium-product-grid {
+  display: grid !important;
+  width: 100% !important;
+  grid-template-columns: repeat(3, 1fr) !important; /* Default mobile 3 columns */
+  column-gap: 8px !important;
+  row-gap: 16px !important;
+}
+
+/* Very Small Mobile (below 320px) */
+@media screen and (max-width: 320px) {
+  .premium-product-grid {
+    column-gap: 6px !important;
+    row-gap: 12px !important;
+  }
+}
+
+/* Medium Mobile (iPhone/Pixel size 375px - 425px) */
+@media screen and (min-width: 375px) {
+  .premium-product-grid {
+    column-gap: 10px !important;
+    row-gap: 20px !important;
+  }
+}
+
+/* Large Mobile / Small Tablet (480px+) */
+@media screen and (min-width: 480px) {
+  .premium-product-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    column-gap: 12px !important;
+  }
+}
+
+/* Tablet (768px+) */
+@media screen and (min-width: 768px) {
+  .premium-product-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    column-gap: 20px !important;
+    row-gap: 32px !important;
+  }
+}
+
+/* Desktop (1024px+) */
+@media screen and (min-width: 1024px) {
+  .premium-product-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+    column-gap: 24px !important;
+  }
+}
+
+/* HD Desktop (1280px+) */
+@media screen and (min-width: 1280px) {
+  .premium-product-grid {
+    grid-template-columns: repeat(6, 1fr) !important;
+    column-gap: 24px !important;
+  }
+}
+
+/* Full HD Desktop (1536px+) */
+@media screen and (min-width: 1536px) {
+  .premium-product-grid {
+    grid-template-columns: repeat(7, 1fr) !important;
+  }
+}
