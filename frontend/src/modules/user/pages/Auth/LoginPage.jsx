@@ -179,7 +179,7 @@ const LoginPage = () => {
                             ? 'Enter your mobile number to get started'
                             : step === 2
                             ? 'Please provide basic details to proceed'
-                            : `OTP sent to ${email || '+91 ' + mobileNumber}`}
+                            : `OTP sent to mobile number that enter in login page`}
                     </p>
                 </div>
 
