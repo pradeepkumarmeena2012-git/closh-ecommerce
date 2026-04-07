@@ -17,7 +17,8 @@ import {
   FiX,
   FiMaximize,
   FiImage,
-  FiPlus
+  FiPlus,
+  FiZap
 } from 'react-icons/fi';
 import TrackingMap from '../../../shared/components/TrackingMap';
 import PageTransition from '../../../shared/components/PageTransition';
