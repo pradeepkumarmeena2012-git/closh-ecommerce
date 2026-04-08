@@ -24,13 +24,16 @@ const MobileTrackOrder = () => {
   const [isResolving, setIsResolving] = useState(true);
   const [riderLiveLocation, setRiderLiveLocation] = useState(null);
   const [riderArrived, setRiderArrived] = useState(false);
-  const [deliveryOtp, setDeliveryOtp] = useState(null);
   const [riderInfo, setRiderInfo] = useState(null);
   const arrivedAudioRef = useRef(null);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef(null);
   const order = getOrder(orderId);
+  
+  // High-Trust OTP Sync
+  const [deliveryOtp, setDeliveryOtp] = useState(order?.deliveryFlow?.otp || order?.deliveryOtpDebug || null);
+
   const shippingAddress = order?.shippingAddress || {};
   const orderItems = Array.isArray(order?.items) ? order.items : [];
   const normalizedStatus = String(order?.status || 'pending').toLowerCase();
@@ -79,7 +82,11 @@ const MobileTrackOrder = () => {
     const fetchOrder = async () => {
       if (orderId) {
         const privateOrder = await fetchOrderById(orderId);
-        if (!privateOrder) {
+        if (privateOrder && mounted) {
+           // Ensure local OTP state matches the DB
+           if (privateOrder.deliveryFlow?.otp) setDeliveryOtp(privateOrder.deliveryFlow.otp);
+           else if (privateOrder.deliveryOtpDebug) setDeliveryOtp(privateOrder.deliveryOtpDebug);
+        } else if (!privateOrder && mounted) {
           await fetchPublicTrackingOrder(orderId);
         }
       }
@@ -150,7 +157,11 @@ const MobileTrackOrder = () => {
     socketService.on('rider_arrived', handleRiderArrived);
 
     // Listen for live location updates from rider
-    socketService.on('location_updated', handleLocationUpdate);
+    socketService.on('location_updated', (data) => {
+        if (data.lat && data.lng) {
+          setRiderLiveLocation({ lat: data.lat, lng: data.lng });
+        }
+    });
 
     const handleOtpResent = (data) => {
       if (data?.deliveryOtpDebug) {
@@ -159,12 +170,12 @@ const MobileTrackOrder = () => {
     };
     socketService.on('delivery_otp_resent', handleOtpResent);
 
-    // Polling as fallback
+    // Polling as fallback (Slowed for performance with live sockets)
     const pollingInterval = setInterval(() => {
-      if (['accepted', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'assigned'].includes(normalizedStatus)) {
+      if (['picked_up', 'out_for_delivery', 'assigned', 'arrived'].includes(normalizedStatus)) {
         fetchOrder();
       }
-    }, 30000); // 30 seconds fallback
+    }, 60000); 
 
     return () => {
       mounted = false;
@@ -176,7 +187,7 @@ const MobileTrackOrder = () => {
       socketService.off('order_delivered', handleStatusUpdate);
       socketService.off('order_updated', handleStatusUpdate);
       socketService.off('order_assigned', handleStatusUpdate);
-      socketService.off('location_updated', handleLocationUpdate);
+      socketService.off('location_updated');
       socketService.off('rider_arrived', handleRiderArrived);
       socketService.off('delivery_otp_resent', handleOtpResent);
       if (arrivedAudioRef.current) {

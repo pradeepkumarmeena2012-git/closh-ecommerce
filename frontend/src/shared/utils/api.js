@@ -289,21 +289,25 @@ api.interceptors.response.use(
 
     // 401 — session expired / token invalid
     if (error.response?.status === 401) {
-      const activeScope = pathScope;
-      clearScopeAuth(scope);
-      dispatchAuthFailure(scope);
+      // Check if we should even handle this (is it a legitimate auth failure for the current scope?)
+      const isAuthPage = currentPath.includes('/login') || currentPath.includes('/register');
+      if (isAuthPage) return Promise.reject(error);
 
-      if (scope !== activeScope) {
-        return Promise.reject(error);
-      }
+      // Only logout IF it's a 401 AND a refresh isn't possible (or failed)
+      const canRefresh = shouldAttemptRefresh(error, scope);
+      if (!canRefresh) {
+        const activeScope = pathScope;
+        clearScopeAuth(scope);
+        dispatchAuthFailure(scope);
 
-      const routeConfig = AUTH_SCOPES[scope];
-      if (scope === 'user') {
-        if (!isAuthPage && !isPublicPage) {
-          redirectTo(routeConfig.loginPath);
+        if (scope === activeScope) {
+           const routeConfig = AUTH_SCOPES[scope];
+           if (scope === 'user') {
+             if (!isPublicPage) redirectTo(routeConfig.loginPath);
+           } else if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {
+             redirectTo(routeConfig.loginPath);
+           }
         }
-      } else if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {
-        redirectTo(routeConfig.loginPath);
       }
     }
 

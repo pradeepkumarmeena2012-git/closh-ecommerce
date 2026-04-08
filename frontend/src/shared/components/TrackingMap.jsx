@@ -114,83 +114,110 @@ const TrackingMap = ({
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulatedRider, setSimulatedRider] = useState(null);
   const [heading, setHeading] = useState(0);
+  
+  // Smooth Interpolation State
+  const [smoothLocation, setSmoothLocation] = useState(deliveryLocation);
   const animFrameRef = useRef();
+  const lastTargetRef = useRef(deliveryLocation);
 
   // --- Utility: Calculate Heading ---
   const calculateHeading = (from, to) => {
-    if (!window.google) return 0;
+    if (!window.google || !from || !to) return 0;
     return window.google.maps.geometry.spherical.computeHeading(
       new window.google.maps.LatLng(from.lat, from.lng),
       new window.google.maps.LatLng(to.lat, to.lng)
     );
   };
 
-  // --- Animation loop for polyline ---
+  // --- Smooth Gliding Engine (Lerp) ---
   useEffect(() => {
-    let count = 0;
-    const animate = () => {
-      count = (count + 1) % 200;
-      setLineOffset(count / 10);
-      animFrameRef.current = requestAnimationFrame(animate);
+    if (!deliveryLocation) return;
+    
+    // If it's a fresh update, calculate heading before moving
+    if (lastTargetRef.current && (lastTargetRef.current.lat !== deliveryLocation.lat)) {
+       setHeading(calculateHeading(lastTargetRef.current, deliveryLocation));
+    }
+    lastTargetRef.current = deliveryLocation;
+
+    if (!smoothLocation) {
+      setSmoothLocation(deliveryLocation);
+      return;
+    }
+
+    let start = Date.now();
+    const duration = 2000; // 2 sec glide for smoothness
+    const startLoc = { ...smoothLocation };
+
+    const animateGlide = () => {
+      const elapsed = Date.now() - start;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      const easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+      setSmoothLocation({
+        lat: startLoc.lat + (deliveryLocation.lat - startLoc.lat) * easedProgress,
+        lng: startLoc.lng + (deliveryLocation.lng - startLoc.lng) * easedProgress
+      });
+
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(animateGlide);
+      }
     };
-    animate();
+
+    animateGlide();
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, []);
+  }, [deliveryLocation]);
 
-  // --- Simulation Logic ---
-  useEffect(() => {
-    if (!isSimulating || !directions || !isLoaded) return;
-    const steps = directions.routes[0].overview_path;
-    let stepIdx = 0;
-    const interval = setInterval(() => {
-      if (stepIdx >= steps.length) {
-        setIsSimulating(false);
-        return;
-      }
-      const cur = { lat: steps[stepIdx].lat(), lng: steps[stepIdx].lng() };
-      setSimulatedRider(cur);
-      if (stepIdx < steps.length - 1) {
-         const nxt = { lat: steps[stepIdx+1].lat(), lng: steps[stepIdx+1].lng() };
-         setHeading(calculateHeading(cur, nxt));
-      }
-      stepIdx++;
-    }, 450);
-    return () => clearInterval(interval);
-  }, [isSimulating, directions, isLoaded]);
-
-  const effectiveRider = isSimulating ? simulatedRider : deliveryLocation;
+  const effectiveRider = isSimulating ? simulatedRider : smoothLocation;
   const isPickedUp = ['picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery', 'arrived'].includes(status?.toLowerCase());
   const destination = isPickedUp ? customerLocation : (vendorLocation || customerLocation);
 
-  // --- Geocoder ---
+  // --- Routing & Polyline ---
   useEffect(() => {
-    if (!isLoaded || !window.google) return;
-    const geocoder = new window.google.maps.Geocoder();
+    if (!isLoaded || !window.google || !effectiveRider || !destination) return;
     
-    // Improved valid address check to prevent geocoding "Address unavailable" strings
-    const isValidAddress = (addr) => addr && addr.length > 5 && !addr.includes('unavailable');
+    const routeKey = `${effectiveRider.lat},${effectiveRider.lng}-${destination.lat},${destination.lng}`;
+    if (lastRouteParams === routeKey) return;
 
-    if (!initialCustomerLocation && isValidAddress(customerAddress)) {
-       geocoder.geocode({ address: customerAddress }, (res, stat) => {
-         if (stat === 'OK' && res[0]) setCustomerLocation({ lat: res[0].geometry.location.lat(), lng: res[0].geometry.location.lng() });
-       });
-    } else { setCustomerLocation(initialCustomerLocation); }
+    const directionsService = new window.google.maps.DirectionsService();
+    directionsService.route(
+      {
+        origin: effectiveRider,
+        destination: destination,
+        travelMode: window.google.maps.TravelMode.DRIVING,
+      },
+      (result, stat) => {
+        if (stat === 'OK') {
+          setDirections(result);
+          setLastRouteParams(routeKey);
+          
+          // Auto-Adjust Bounds to see both points
+          if (map) {
+             const bounds = new window.google.maps.LatLngBounds();
+             bounds.extend(effectiveRider);
+             bounds.extend(destination);
+             map.fitBounds(bounds, { top: 50, bottom: 50, left: 50, right: 50 });
+          }
+        }
+      }
+    );
+  }, [isLoaded, effectiveRider, destination, map, lastRouteParams]);
 
-    if (!initialVendorLocation && isValidAddress(vendorAddress)) {
-       geocoder.geocode({ address: vendorAddress }, (res, stat) => {
-         if (stat === 'OK' && res[0]) setVendorLocation({ lat: res[0].geometry.location.lat(), lng: res[0].geometry.location.lng() });
-       });
-    } else { setVendorLocation(initialVendorLocation); }
-  }, [isLoaded, initialCustomerLocation, initialVendorLocation, customerAddress, vendorAddress]);
+  // --- Animation loop for active line pulse ---
+  useEffect(() => {
+    let count = 0;
+    const animateLine = () => {
+      count = (count + 1) % 200;
+      setLineOffset(count / 10);
+      animFrameRef.current = requestAnimationFrame(animateLine);
+    };
+    animateLine();
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, []);
 
-  // --- Map Center / Follow ---
   const onLoad = useCallback((map) => {
     setMap(map);
-    if (effectiveRider) {
-      map.setCenter(effectiveRider);
-      map.setZoom(17);
-    }
-  }, [effectiveRider]);
+  }, []);
 
   useEffect(() => {
     if (map && effectiveRider && followMode) {
@@ -276,12 +303,13 @@ const TrackingMap = ({
           <Marker 
             position={effectiveRider}
             icon={{
-              path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-              fillColor: '#3b82f6',
+              path: 'M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z', // Sleek Navigation Arrow Path
+              fillColor: '#4f46e5',
               fillOpacity: 1,
-              strokeWeight: 4,
+              strokeWeight: 2,
               strokeColor: '#ffffff',
-              scale: 7,
+              scale: 2,
+              anchor: new window.google.maps.Point(12, 12),
               rotation: heading
             }}
             zIndex={2000}

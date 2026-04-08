@@ -2,12 +2,12 @@ import jwt from 'jsonwebtoken';
 
 export const signAccessToken = (payload) =>
     jwt.sign(payload, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+        expiresIn: process.env.JWT_EXPIRES_IN || '24h',
     });
 
 export const signRefreshToken = (payload) =>
     jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+        expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
     });
 
 export const verifyAccessToken = (token) =>
