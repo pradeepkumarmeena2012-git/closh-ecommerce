@@ -1,15 +1,14 @@
 import Order from '../models/Order.model.js';
 import ApiError from '../utils/ApiError.js';
 import { emitEvent } from './socket.service.js';
-import { createNotification } from './notification.service.js';
 import mongoose from 'mongoose';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
+import { OrderNotificationService } from './orderNotification.service.js';
 
 /**
  * Helper to notify eligible riders within 8km
  */
 async function notifyEligibleRiders(order) {
-    // 1. Populate vendor info if not already there to show shop address
     if (typeof order.populate === 'function' && !order.populated('vendorItems.vendorId')) {
         await order.populate({
             path: 'vendorItems.vendorId',
@@ -45,15 +44,12 @@ async function notifyEligibleRiders(order) {
 
     if (!order.pickupLocation || !order.pickupLocation.coordinates || 
         (order.pickupLocation.coordinates[0] === 0 && order.pickupLocation.coordinates[1] === 0)) {
-        // Fallback: Broadcast to all if no pickup location (safeguard)
         emitEvent('delivery_partners', 'order_ready_for_pickup', payload);
         return;
     }
 
-    const pickupCoords = order.pickupLocation.coordinates; // [lng, lat]
+    const pickupCoords = order.pickupLocation.coordinates;
     
-    // Find delivery boys within 8km (8km = 8 / 6378.1 in radians)
-    // Relaxed: Just check if they are available (they could be pending application)
     const eligibleRiders = await DeliveryBoy.find({
         status: 'available',
         currentLocation: {
@@ -63,30 +59,18 @@ async function notifyEligibleRiders(order) {
         }
     }).select('_id');
 
-    // 3. Fallback: If no targeted riders found, broadcast to everyone as a last resort
     if (eligibleRiders.length === 0) {
-        console.log(`[GeoSearch] 0 riders found within 8km. Broadcasting to all delivery_partners room.`);
         emitEvent('delivery_partners', 'order_ready_for_pickup', payload);
     } else {
-        // Emit targeted event to each eligible rider
         eligibleRiders.forEach(rider => {
             emitEvent(`delivery_${rider._id}`, 'order_ready_for_pickup', payload);
         });
     }
 }
 
-/**
- * Atomic Order Workflow Service
- * Manages all state transitions from Pending -> Delivered.
- */
 export const OrderWorkflowService = {
 
-    /**
-     * Vendor Accepts Order
-     * Status: pending -> accepted
-     */
     async vendorAccept(orderId, vendorId) {
-        // Transition directly to 'searching' (Ready for Pickup)
         const order = await Order.findOneAndUpdate(
             {
                 $and: [
@@ -112,44 +96,19 @@ export const OrderWorkflowService = {
             }
         ).populate('userId', 'name fcmTokens phone');
 
-        if (!order) {
-            throw new ApiError(409, 'Order is no longer available or already accepted.');
-        }
+        if (!order) throw new ApiError(409, 'Order is no longer available or already accepted.');
 
-        // Trigger Queue Service for Rider Search
         const { QueueService } = await import('./queue.service.js');
         await QueueService.scheduleRiderSearch(order._id);
-        // Start 15-minute auto-cancel timer if no rider accepts
         await QueueService.scheduleRiderAcceptTimeout(order._id);
 
-        // Notify order tracking room
-        emitEvent(`order_${order.orderId}`, 'order_status_updated', { 
-            orderId: order.orderId, 
-            status: 'searching' 
-        });
-
-        // Notify targeted delivery partners (within 8km)
+        await OrderNotificationService.notifyOrderUpdate(order._id, 'searching', { excludeRecipientId: vendorId });
         await notifyEligibleRiders(order);
-
-        // Push Notification to User
-        createNotification({
-            recipientId: order.userId,
-            recipientType: 'user',
-            title: 'Order Prepared!',
-            message: `Your order #${order.orderId} is being prepared. We are looking for a delivery partner.`,
-            type: 'order',
-            data: { orderId: order.orderId, status: 'searching' }
-        }).catch(err => console.error('Push Fix Error:', err));
         
         return order;
     },
 
-    /**
-     * Vendor Marks Ready + Proof Upload
-     * Status: accepted -> ready_for_pickup
-     */
     async markReady(orderId, vendorId, readyPhoto) {
-
         const order = await Order.findOneAndUpdate(
             {
                 $and: [
@@ -174,42 +133,18 @@ export const OrderWorkflowService = {
             }
         ).populate('userId', 'name fcmTokens');
 
-        if (!order) {
-            throw new ApiError(409, 'Order status must be "accepted" to mark it ready.');
-        }
+        if (!order) throw new ApiError(409, 'Order status must be "accepted" to mark it ready.');
 
-        // Trigger Queue Service for Rider Search
         const { QueueService } = await import('./queue.service.js');
         await QueueService.scheduleRiderSearch(order._id);
-        // Start 15-minute auto-cancel timer if no rider accepts
         await QueueService.scheduleRiderAcceptTimeout(order._id);
         
-        // Notify order tracking room
-        emitEvent(`order_${order.orderId}`, 'order_status_updated', { 
-            orderId: order.orderId, 
-            status: 'searching' 
-        });
-
-        // Notify targeted delivery partners (within 8km)
+        await OrderNotificationService.notifyOrderUpdate(order._id, 'searching', { excludeRecipientId: vendorId });
         await notifyEligibleRiders(order);
-
-        // Push Notification to User
-        createNotification({
-            recipientId: order.userId,
-            recipientType: 'user',
-            title: 'Order Prepared!',
-            message: `Your order #${order.orderId} is ready. We are looking for a delivery partner.`,
-            type: 'order',
-            data: { orderId: order.orderId, status: 'searching' }
-        }).catch(err => console.error('Push Fix Error:', err));
 
         return order;
     },
 
-    /**
-     * Rider Claims Order (Atomic)
-     * Status: searching/ready_for_pickup -> assigned
-     */
     async riderClaim(orderId, riderId) {
         const order = await Order.findOneAndUpdate(
             {
@@ -229,48 +164,17 @@ export const OrderWorkflowService = {
             { new: true }
         );
 
-        if (!order) {
-            throw new ApiError(409, 'Too slow! This job has already been claimed by another rider.');
-        }
+        if (!order) throw new ApiError(409, 'Too slow! This job has already been claimed.');
 
         const otp = order.generateDeliveryOtp();
         await order.save();
-        await order.populate('deliveryBoyId', 'name phone');
-
-        // Notify parties
-        emitEvent(`user_${order.userId}`, 'rider_assigned', { 
-            orderId: order.orderId, 
-            riderName: order.deliveryBoyId.name,
-            riderPhone: order.deliveryBoyId.phone
-        });
-
-        // Notify other riders to clear the popup
+        
         emitEvent('delivery_partners', 'order_taken', { orderId: order.orderId || order._id });
-
-        // Notify order tracking room
-        emitEvent(`order_${order.orderId}`, 'order_status_updated', { 
-            orderId: order.orderId, 
-            status: 'assigned',
-            riderName: order.deliveryBoyId.name,
-            riderPhone: order.deliveryBoyId.phone
-        });
-
-        // Push Notification to User
-        createNotification({
-            recipientId: order.userId,
-            recipientType: 'user',
-            title: 'Rider Assigned!',
-            message: `${order.deliveryBoyId.name} is arriving to pick up your order. Your OTP is ${otp}.`,
-            type: 'order',
-            data: { orderId: order.orderId, status: 'assigned' }
-        }).catch(err => console.error('Push Fix Error:', err));
+        await OrderNotificationService.notifyOrderUpdate(order._id, 'assigned');
         
         return order;
     },
 
-    /**
-     * Rider Reaches Customer Location
-     */
     async markArrived(orderId, riderId) {
         const order = await Order.findOne({
             $or: [{ _id: mongoose.isValidObjectId(orderId) ? orderId : null }, { orderId: orderId }],
@@ -278,43 +182,23 @@ export const OrderWorkflowService = {
             status: { $in: ['picked_up', 'out_for_delivery'] }
         }).select('+deliveryOtpDebug');
 
-        if (!order) throw new ApiError(404, 'Order not found or not in correct state.');
+        if (!order) throw new ApiError(404, 'Order not found.');
 
-        // Update status to out_for_delivery if not already (effectively 'arrived' or 'at_location')
         if (order.status === 'picked_up') {
             order.status = 'out_for_delivery';
             await order.save();
         }
 
-        // Notify Customer with OTP
+        // Specialized arrived event for OTP display on user side
         emitEvent(`user_${order.userId}`, 'rider_arrived', {
             orderId: order.orderId,
             otp: order.deliveryOtpDebug
         });
 
-        // Push Notification
-        createNotification({
-            recipientId: order.userId,
-            recipientType: 'user',
-            title: 'Rider Arrived!',
-            message: `Your rider has reached your location. Share OTP ${order.deliveryOtpDebug} to receive your order.`,
-            type: 'order',
-            data: { orderId: order.orderId, status: 'arrived' }
-        }).catch(err => console.error('Push Error:', err));
-
-        // Notify Track Room
-        emitEvent(`order_${order.orderId}`, 'order_status_updated', {
-            orderId: order.orderId,
-            status: 'arrived'
-        });
-
+        await OrderNotificationService.notifyOrderUpdate(order._id, 'out_for_delivery');
         return order;
     },
 
-    /**
-     * Pickup Completion + OTP Verification
-     * Status: assigned -> picked_up
-     */
     async completePickup(orderId, riderId, otp) {
         const order = await Order.findOneAndUpdate(
             {
@@ -335,33 +219,13 @@ export const OrderWorkflowService = {
             { new: true }
         );
 
-        if (!order) throw new ApiError(404, 'Order not assigned to you or already picked up.');
+        if (!order) throw new ApiError(404, 'Order not found.');
 
-        // Notify tracking room
-        emitEvent(`order_${order.orderId}`, 'order_status_updated', { 
-            orderId: order.orderId, 
-            status: 'picked_up' 
-        });
-
-        // Push Notification to User
-        createNotification({
-            recipientId: order.userId,
-            recipientType: 'user',
-            title: 'Order Picked Up!',
-            message: `Your order #${order.orderId} is on its way to you.`,
-            type: 'order',
-            data: { orderId: order.orderId, status: 'picked_up' }
-        }).catch(err => console.error('Push Fix Error:', err));
-
+        await OrderNotificationService.notifyOrderUpdate(order._id, 'picked_up');
         return order;
     },
 
-    /**
-     * Delivery Completion + OTP Verification
-     */
     async riderComplete(orderId, riderId, otp, deliveryPhoto) {
-        const { default: mongoose } = await import('mongoose');
-        
         const orderCheck = await Order.findOne({
             $and: [
                 { $or: [{ _id: mongoose.isValidObjectId(orderId) ? orderId : null }, { orderId: orderId }] },
@@ -370,10 +234,10 @@ export const OrderWorkflowService = {
             ]
         }).select('+deliveryOtpHash +deliveryOtpDebug +deliveryOtpExpiry');
 
-        if (!orderCheck) throw new ApiError(404, 'Order not assigned to you or already delivered.');
+        if (!orderCheck) throw new ApiError(404, 'Order mismatch.');
 
         const isMatch = await orderCheck.compareDeliveryOtp(otp);
-        if (!isMatch) throw new ApiError(401, 'Invalid OTP. Please verify with customer.');
+        if (!isMatch) throw new ApiError(401, 'Invalid OTP.');
 
         const order = await Order.findOneAndUpdate(
             { _id: orderCheck._id },
@@ -389,38 +253,7 @@ export const OrderWorkflowService = {
             { new: true }
         );
 
-        emitEvent(`user_${order.userId}`, 'order_delivered', { orderId: order.orderId });
-        
-        // Notify tracking room
-        emitEvent(`order_${order.orderId}`, 'order_status_updated', { 
-            orderId: order.orderId, 
-            status: 'delivered' 
-        });
-
-        // Push Notification to User
-        createNotification({
-            recipientId: order.userId,
-            recipientType: 'user',
-            title: 'Order Delivered!',
-            message: `Enjoy your order #${order.orderId}! Don't forget to rate your experience.`,
-            type: 'order',
-            data: { orderId: order.orderId, status: 'delivered' }
-        }).catch(err => console.error('Push Fix Error:', err));
-
-        order.vendorItems.forEach(vi => {
-            emitEvent(`vendor_${vi.vendorId}`, 'order_delivered', { orderId: order.orderId });
-            
-            // Push Notification to Vendor
-            createNotification({
-                recipientId: vi.vendorId,
-                recipientType: 'vendor',
-                title: 'Order Completed!',
-                message: `Order #${order.orderId} has been successfully delivered and payment is processed.`,
-                type: 'order',
-                data: { orderId: order.orderId, status: 'delivered' }
-            }).catch(err => console.error('Push Fix Error:', err));
-        });
-
+        await OrderNotificationService.notifyOrderUpdate(order._id, 'delivered');
         return order;
     }
 };

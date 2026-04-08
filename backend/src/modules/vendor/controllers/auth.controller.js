@@ -202,6 +202,23 @@ export const login = asyncHandler(async (req, res) => {
 
     const { accessToken, refreshToken } = generateTokens({ id: vendor._id, role: 'vendor', email: vendor.email });
     await persistRefreshSession(vendor, refreshToken);
+
+    // FCM Token Registration
+    const fcmToken = req.body.fcmToken || req.body.deviceToken;
+    if (fcmToken) {
+        await Vendor.findByIdAndUpdate(vendor._id, {
+            $pull: { fcmTokens: { token: fcmToken } }
+        });
+        await Vendor.findByIdAndUpdate(vendor._id, {
+            $push: { 
+                fcmTokens: { 
+                    $each: [{ token: fcmToken, platform: 'web', lastUsed: new Date() }],
+                    $slice: -10 // Keep last 10 devices
+                } 
+            }
+        });
+    }
+
     res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, vendor: { id: vendor._id, name: vendor.name, storeName: vendor.storeName, email: vendor.email, storeLogo: vendor.storeLogo } }, 'Login successful.'));
 });
 

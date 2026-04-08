@@ -75,7 +75,6 @@ import HomeSliders from "./modules/Admin/pages/offers/HomeSliders";
 import FestivalOffers from "./modules/Admin/pages/offers/FestivalOffers";
 // Notifications child pages
 import PushNotifications from "./modules/Admin/pages/notifications/PushNotifications";
-import CustomMessages from "./modules/Admin/pages/notifications/CustomMessages";
 import AllNotifications from "./modules/Admin/pages/notifications/AllNotifications";
 // Support Desk child pages
 import LiveChat from "./modules/Admin/pages/support/LiveChat";
@@ -280,10 +279,6 @@ const AppRoutes = () => {
         <Route
           path="notifications/push-notifications"
           element={<PushNotifications />}
-        />
-        <Route
-          path="notifications/custom-messages"
-          element={<CustomMessages />}
         />
         
         <Route path="reports">

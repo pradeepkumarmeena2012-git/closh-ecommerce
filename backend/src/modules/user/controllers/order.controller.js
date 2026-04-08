@@ -756,48 +756,30 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
     order.status = 'return requested';
     await order.save();
 
-    const admins = await Admin.find({ isActive: true }).select('_id').lean();
-    await Promise.all(
-        admins.map((admin) =>
+    // 10. Unified Notifications for Return Request
+    const adminNotificationTask = Admin.find({ isActive: true }).then(admins => 
+        Promise.all(admins.map(admin => 
             createNotification({
                 recipientId: admin._id,
                 recipientType: 'admin',
                 title: 'New Return Request',
-                message: `Order ${order.orderId} has a new return request awaiting review.`,
+                message: `Order #${order.orderId} has a new return request.`,
                 type: 'order',
-                data: {
-                    returnRequestId: String(request._id),
-                    orderId: String(order.orderId),
-                    vendorId: String(vendorId),
-                },
+                data: { returnRequestId: String(request._id), orderId: String(order.orderId) }
             })
-        )
+        ))
     );
 
-    await createNotification({
+    const vendorNotificationTask = createNotification({
         recipientId: vendorId,
         recipientType: 'vendor',
-        title: 'New Return Request',
-        message: `Order ${order.orderId} has a return request from customer.`,
+        title: 'New Return Request Received',
+        message: `Customer requested a return for Order #${order.orderId}.`,
         type: 'order',
-        data: {
-            returnRequestId: String(request._id),
-            orderId: String(order.orderId),
-        },
+        data: { returnRequestId: String(request._id), orderId: String(order.orderId) }
     });
 
-    // Real-time socket updates
-    emitEvent('admin', 'new_return_request', {
-        returnRequestId: String(request._id),
-        orderId: String(order.orderId),
-        message: `New return request for Order ${order.orderId}`
-    });
-
-    emitEvent(`vendor_${vendorId}`, 'new_return_request', {
-        returnRequestId: String(request._id),
-        orderId: String(order.orderId),
-        message: `New return request for Order ${order.orderId}`
-    });
+    await Promise.all([adminNotificationTask, vendorNotificationTask]);
 
     const populated = await ReturnRequest.findById(request._id)
         .populate('orderId', 'orderId total createdAt')
