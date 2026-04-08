@@ -132,7 +132,7 @@ const LoginPage = () => {
             const userEmail = email || useAuthStore.getState().pendingEmail || mobileNumber;
             const res = await verifyOTP(userEmail, otp);
             if (res.success) {
-                const from = location.state?.from?.pathname || '/profile';
+                const from = location.state?.from?.pathname || '/';
                 navigate(from, { replace: true });
             } else {
                 setError('Invalid OTP. Please try again.');
