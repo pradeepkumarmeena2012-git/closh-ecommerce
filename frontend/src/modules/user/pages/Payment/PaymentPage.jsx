@@ -190,12 +190,19 @@ const PaymentPage = () => {
             else if (lowerPm.includes('amazon_pay')) normalizedPaymentMethod = 'upi';
 
             const orderPayload = {
-                items: cart.map(item => ({
-                    id: item.id || item._id,
-                    quantity: item.quantity,
-                    price: item.discountedPrice || item.price,
-                    variant: item.selectedSize ? { size: item.selectedSize } : item.variant
-                })),
+                items: cart.map(item => {
+                    let variantObj = item.variant || {};
+                    if (item.selectedSize) variantObj.size = item.selectedSize;
+                    if (item.selectedColor) variantObj.color = item.selectedColor;
+                    
+                    return {
+                        id: item.id || item._id,
+                        quantity: item.quantity,
+                        price: item.discountedPrice || item.price,
+                        variant: Object.keys(variantObj).length > 0 ? variantObj : undefined,
+                        variantKey: item.variantKey || undefined
+                    };
+                }),
                 shippingAddress: {
                     name: currentAddress.fullName || currentAddress.name || user?.name || "Customer",
                     email: user?.email || "user@test.com",
@@ -268,7 +275,7 @@ const PaymentPage = () => {
                     </button>
                     <div>
                         <h1 className="text-lg font-bold uppercase leading-tight">Review Order</h1>
-                        {totalDiscount > 0 && <p className="text-[11px] font-bold text-emerald-600">You're saving ₹{totalDiscount}</p>}
+                        {totalDiscount > 0 && <p className="text-[11px] font-bold text-emerald-600">You're saving ₹{Number(totalDiscount.toFixed(2))}</p>}
                     </div>
                 </div>
             </header>
@@ -402,18 +409,18 @@ const PaymentPage = () => {
                     <div className="space-y-3 mb-4">
                         <div className="flex justify-between text-[13px]">
                             <span className="text-gray-500 font-medium">Total MRP</span>
-                            <span className="text-gray-900 font-bold">₹{totalMRP}</span>
+                            <span className="text-gray-900 font-bold">₹{Number(totalMRP.toFixed(2))}</span>
                         </div>
                         <div className="flex justify-between text-[13px]">
                             <span className="text-gray-500 font-medium">Discount on MRP</span>
-                            <span className="text-emerald-600 font-bold">-₹{totalDiscount}</span>
+                            <span className="text-emerald-600 font-bold">-₹{Number(totalDiscount.toFixed(2))}</span>
                         </div>
                         {appliedPromo && (
                             <div className="flex justify-between text-[13px] animate-fadeInUp">
                                 <span className="text-gray-500 font-medium flex items-center gap-1.5">
                                     Coupon <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ">{appliedPromo.code}</span>
                                 </span>
-                                <span className="text-emerald-600 font-bold">-₹{promoDiscount.toFixed(0)}</span>
+                                <span className="text-emerald-600 font-bold">-₹{Number(promoDiscount.toFixed(2))}</span>
                             </div>
                         ) }
                         <div className="flex justify-between text-[13px]">
@@ -427,7 +434,7 @@ const PaymentPage = () => {
                     </div>
                     <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
                         <span className="text-[14px] font-bold text-gray-900 uppercase ">Total Amount</span>
-                        <span className="text-[17px] font-bold text-gray-900">₹{finalTotal}</span>
+                        <span className="text-[17px] font-bold text-gray-900">₹{Number(finalTotal.toFixed(2))}</span>
                     </div>
                 </div>
 
@@ -436,10 +443,10 @@ const PaymentPage = () => {
                      <div className="flex items-center justify-between container mx-auto max-w-2xl px-4 md:px-0">
                          <div className="flex flex-col">
                              <div className="flex items-center gap-2">
-                                 <span className="text-[11px] font-bold text-gray-400 line-through">₹{totalMRP + platformFee + shipping}</span>
-                                 <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Save ₹{(totalMRP + platformFee + shipping - finalTotal).toFixed(0)}</span>
+                                 <span className="text-[11px] font-bold text-gray-400 line-through">₹{Number((totalMRP + platformFee + shipping).toFixed(2))}</span>
+                                 <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Save ₹{Number((totalMRP + platformFee + shipping - finalTotal).toFixed(2))}</span>
                              </div>
-                             <span className="text-[20px] font-black text-gray-900 leading-none">₹{finalTotal}</span>
+                             <span className="text-[20px] font-black text-gray-900 leading-none">₹{Number(finalTotal.toFixed(2))}</span>
                          </div>
                          <button
                              onClick={handlePlaceOrder}

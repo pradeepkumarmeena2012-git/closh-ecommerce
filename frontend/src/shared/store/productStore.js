@@ -64,15 +64,14 @@ export const useProductStore = create((set, get) => ({
             return null;
         }
 
-        // First check locally
-        const existing = get().products.find(p => String(p.id) === String(id));
-        if (existing) return existing;
-
         try {
             const response = await api.get(`/products/${id}`);
             const payload = response?.data || response;
             return normalizeProduct(payload);
         } catch (error) {
+            // Fallback to local cache if network fails
+            const existing = get().products.find(p => String(p.id) === String(id));
+            if (existing) return existing;
             return null;
         }
     }

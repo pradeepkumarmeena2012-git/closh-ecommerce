@@ -54,8 +54,15 @@ const ProductDetailsPage = () => {
     const [copiedCode, setCopiedCode] = useState(null);
 
     // Dynamic Options from API
-    const sizes = useMemo(() => product?.variants?.sizes || [], [product]);
-    const colors = useMemo(() => product?.variants?.colors || [], [product]);
+    const sizes = useMemo(() => {
+        const s = product?.variants?.sizes || [];
+        return s.filter(val => val && val.trim?.() !== '');
+    }, [product]);
+
+    const colors = useMemo(() => {
+        const c = product?.variants?.colors || [];
+        return c.filter(val => val && val.trim?.() !== '');
+    }, [product]);
 
     useEffect(() => {
         const savedCodes = localStorage.getItem('admin-promocodes');
@@ -76,17 +83,17 @@ const ProductDetailsPage = () => {
             const data = await fetchProductById(id);
             if (data) {
                 setProduct(data);
-                // Set default selections
+                // Set default selections ONLY if explicitly provided by vendor
                 if (data.variants?.defaultVariant?.size) {
                     setSelectedSize(data.variants.defaultVariant.size);
-                } else if (data.variants?.sizes?.length > 0) {
-                    setSelectedSize(data.variants.sizes[0]);
+                } else {
+                    setSelectedSize(null);
                 }
 
                 if (data.variants?.defaultVariant?.color) {
                     setSelectedColor(data.variants.defaultVariant.color);
-                } else if (data.variants?.colors?.length > 0) {
-                    setSelectedColor(data.variants.colors[0]);
+                } else {
+                    setSelectedColor(null);
                 }
             }
             setLoading(false);
@@ -346,43 +353,45 @@ const ProductDetailsPage = () => {
                         </div>
 
                         {/* Size Selection */}
-                        <div className="mb-4 md:mb-8">
-                            <div className="flex justify-between items-end mb-3 md:mb-4">
-                                <h3 className="text-[11px] md:text-[12px] font-bold text-gray-900 flex items-center gap-1.5 uppercase tracking-wide">
-                                    Select Size <Info size={12} className="text-gray-400" />
-                                </h3>
-                                <button
-                                    onClick={() => setIsSizeChartOpen(true)}
-                                    className="text-[10px] md:text-[11px] font-semibold text-black border-b border-black pb-0.5 hover:text-gray-600 transition-colors"
-                                >
-                                    Size Chart
-                                </button>
-                            </div>
-                            <div className="flex flex-wrap gap-2 md:gap-2.5">
-                                {sizes.map((size) => (
+                        {sizes.length > 0 && (
+                            <div className="mb-4 md:mb-8">
+                                <div className="flex justify-between items-end mb-3 md:mb-4">
+                                    <h3 className="text-[11px] md:text-[12px] font-bold text-gray-900 flex items-center gap-1.5 uppercase tracking-wide">
+                                        Select Size <Info size={12} className="text-gray-400" />
+                                    </h3>
                                     <button
-                                        key={size}
-                                        onClick={() => setSelectedSize(size)}
-                                        className={`min-w-[42px] h-11 md:min-w-[64px] md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center font-bold text-[12px] md:text-[14px] transition-all relative ${selectedSize === size
-                                            ? 'bg-black text-white shadow-[0_0_15px_rgba(0,0,0,0.15)] scale-105'
-                                            : 'bg-gray-50 border border-gray-200 text-gray-900 hover:border-black'
-                                            }`}
+                                        onClick={() => setIsSizeChartOpen(true)}
+                                        className="text-[10px] md:text-[11px] font-semibold text-black border-b border-black pb-0.5 hover:text-gray-600 transition-colors"
                                     >
-                                        {size}
-                                        {selectedSize === size && (
-                                            <div className="absolute -top-1 -right-1 bg-white text-black rounded-full p-0.5 border-2 border-[#111111]">
-                                                <Check size={8} md:size={10} strokeWidth={4} />
-                                            </div>
-                                        )}
+                                        Size Chart
                                     </button>
-                                ))}
+                                </div>
+                                <div className="flex flex-wrap gap-2 md:gap-2.5">
+                                    {sizes.map((size) => (
+                                        <button
+                                            key={size}
+                                            onClick={() => setSelectedSize(size)}
+                                            className={`min-w-[42px] h-11 md:min-w-[64px] md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center font-bold text-[12px] md:text-[14px] transition-all relative ${selectedSize === size
+                                                ? 'bg-black text-white shadow-[0_0_15px_rgba(0,0,0,0.15)] scale-105'
+                                                : 'bg-gray-50 border border-gray-200 text-gray-900 hover:border-black'
+                                                }`}
+                                        >
+                                            {size}
+                                            {selectedSize === size && (
+                                                <div className="absolute -top-1 -right-1 bg-white text-black rounded-full p-0.5 border-2 border-[#111111]">
+                                                    <Check size={8} md:size={10} strokeWidth={4} />
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                                {selectedSize && (
+                                    <p className="mt-3 text-[11px] md:text-[13px] font-bold text-emerald-600 flex items-center gap-1.5 animate-fadeIn">
+                                        <ShieldCheck size={14} /> Fast shipping for size {selectedSize}
+                                    </p>
+                                )}
                             </div>
-                            {selectedSize && (
-                                <p className="mt-3 text-[11px] md:text-[13px] font-bold text-emerald-600 flex items-center gap-1.5 animate-fadeIn">
-                                    <ShieldCheck size={14} /> Fast shipping for size {selectedSize}
-                                </p>
-                            )}
-                        </div>
+                        )}
 
                         {/* Color Selection */}
                         {colors.length > 0 && (
