@@ -103,7 +103,6 @@ const getChildRoute = (parentRoute, childName) => {
     "/admin/notifications": {
       "All Notifications": "/admin/notifications",
       "Push Notifications": "/admin/notifications/push-notifications",
-      "Custom Messages": "/admin/notifications/custom-messages",
     },
     "/admin/customer-support": {
       "Live Chat": "/admin/customer-support/live-chat",

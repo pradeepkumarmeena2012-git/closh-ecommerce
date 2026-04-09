@@ -14,13 +14,12 @@ import NewOrderModal from '../components/NewOrderModal';
 
 const DeliveryDashboard = () => {
   const { isLoaded } = useOutletContext();
+  const navigate = useNavigate();
   const {
     deliveryBoy, updateStatus, fetchProfile, fetchDashboardSummary,
-    isUpdatingStatus
+    isUpdatingStatus, orders
   } = useDeliveryAuthStore();
 
-  const navigate = useNavigate();
-  const [recentOrders, setRecentOrders] = useState([]);
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const isOnline = deliveryBoy?.status === 'available';
 
@@ -29,12 +28,12 @@ const DeliveryDashboard = () => {
   const [isAccepting, setIsAccepting] = useState(false);
 
   // --- Real-time Delivery Tracking ---
-  const activeTasks = recentOrders.filter(o => 
-    ['assigned', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase())
+  const activeTasks = (orders || []).filter(o => 
+    ['assigned', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery', 'arrived'].includes(o.status?.toLowerCase())
   );
   
   // Prioritize "on-going" tasks for the map focus
-  const primaryOrder = activeTasks.find(o => ['picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase())) || activeTasks[0];
+  const primaryOrder = activeTasks.find(o => ['picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery', 'arrived'].includes(o.status?.toLowerCase())) || activeTasks[0];
 
   // Capture current location and sync with backend
   const currentLocation = useDeliveryTracking(deliveryBoy?.id, activeTasks);
@@ -43,8 +42,7 @@ const DeliveryDashboard = () => {
     try {
       setIsDashboardLoading(true);
       await fetchProfile();
-      const summary = await fetchDashboardSummary();
-      setRecentOrders(summary.recentOrders || []);
+      await fetchDashboardSummary(); // This now updates useDeliveryAuthStore.orders
     } catch (err) {
       console.error('Dashboard load error:', err);
     } finally {
@@ -211,7 +209,7 @@ const DeliveryDashboard = () => {
         {/* BOTTOM ACTIVE MISSION OVERLAY (Flush & Compact Layout) */}
         <div className="absolute inset-x-0 bottom-4 z-10 pointer-events-none px-4">
           <AnimatePresence>
-            {recentOrders.filter(o => !['delivered', 'cancelled', 'rejected'].includes(o.status?.toLowerCase())).length > 0 ? (
+            {activeTasks.length > 0 ? (
               <motion.div 
                 initial={{ y: 100, opacity: 0 }} 
                 animate={{ y: 0, opacity: 1 }}
@@ -232,7 +230,7 @@ const DeliveryDashboard = () => {
                   </button>
                 </div>
 
-                {recentOrders.filter(o => !['delivered', 'cancelled', 'rejected'].includes(o.status?.toLowerCase())).slice(0, 1).map((order) => (
+                {activeTasks.slice(0, 1).map((order) => (
                   <motion.div 
                     key={order.id}
                     whileTap={{ scale: 0.98 }}

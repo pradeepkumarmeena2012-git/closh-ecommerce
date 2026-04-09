@@ -8,6 +8,7 @@ import Commission from '../../../models/Commission.model.js';
 import Product from '../../../models/Product.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
+import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 
 // GET /api/admin/orders
 export const getAllOrders = asyncHandler(async (req, res) => {
@@ -194,74 +195,8 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         );
     }
 
-    const notificationTasks = [];
-
-    if (order.userId) {
-        notificationTasks.push(
-            createNotification({
-                recipientId: order.userId,
-                recipientType: 'user',
-                title: 'Order status updated',
-                message: `Your order ${order.orderId} is now ${status}.`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId),
-                    status: String(nextStatus),
-                },
-            })
-        );
-    }
-
-    const vendorIds = [
-        ...new Set(
-            (order.vendorItems || [])
-                .map((item) => String(item?.vendorId || '').trim())
-                .filter(Boolean)
-        ),
-    ];
-
-    vendorIds.forEach((vendorId) => {
-        notificationTasks.push(
-            createNotification({
-                recipientId: vendorId,
-                recipientType: 'vendor',
-                title: 'Order status updated by admin',
-                message: `Order ${order.orderId} was updated to ${status} by admin.`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId),
-                    status: String(nextStatus),
-                },
-            })
-        );
-    });
-
-    if (order.deliveryBoyId) {
-        notificationTasks.push(
-            createNotification({
-                recipientId: order.deliveryBoyId,
-                recipientType: 'delivery',
-                title: 'Assigned order updated',
-                message: `Order ${order.orderId} is now ${status}.`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId),
-                    status: String(nextStatus),
-                },
-            })
-        );
-    }
-
-    if (notificationTasks.length > 0) {
-        await Promise.allSettled(notificationTasks);
-    }
-
-    // Real-time broadcast to tracking room
-    emitEvent(`order_${order.orderId}`, 'order_status_updated', {
-        orderId: order.orderId,
-        status: nextStatus,
-        message: `Your order status has been updated to ${nextStatus}.`
-    });
+    // Unified role-aware notifications
+    await OrderNotificationService.notifyOrderUpdate(order._id, nextStatus);
 
     res.status(200).json(new ApiResponse(200, order, 'Order status updated.'));
 });
@@ -303,72 +238,9 @@ export const assignDeliveryBoy = asyncHandler(async (req, res) => {
         });
     }
     await order.save();
-
-    await createNotification({
-        recipientId: deliveryBoy._id,
-        recipientType: 'delivery',
-        title: isReassigned ? 'Order reassigned' : 'New order assigned',
-        message: `${order.orderId} has been ${isReassigned ? 'reassigned to you' : 'assigned to you'}.`,
-        type: 'order',
-        data: {
-            orderId: String(order.orderId),
-            reassigned: isReassigned ? 'true' : 'false',
-            assignedAt: new Date().toISOString(),
-            sound: 'new_assignment'
-        },
-    });
-
-    const assignmentTasks = [];
-    if (order.userId) {
-        assignmentTasks.push(
-            createNotification({
-                recipientId: order.userId,
-                recipientType: 'user',
-                title: isReassigned ? 'Delivery partner updated' : 'Delivery assigned',
-                message: `Order ${order.orderId} has a delivery partner assigned.`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId),
-                    deliveryBoyId: String(deliveryBoy._id),
-                },
-            })
-        );
-    }
-
-    const vendorIds = [
-        ...new Set(
-            (order.vendorItems || [])
-                .map((item) => String(item?.vendorId || '').trim())
-                .filter(Boolean)
-        ),
-    ];
-    vendorIds.forEach((vendorId) => {
-        assignmentTasks.push(
-            createNotification({
-                recipientId: vendorId,
-                recipientType: 'vendor',
-                title: isReassigned ? 'Delivery reassigned' : 'Delivery assigned',
-                message: `Order ${order.orderId} has been assigned to a delivery partner.`,
-                type: 'order',
-                data: {
-                    orderId: String(order.orderId),
-                    deliveryBoyId: String(deliveryBoy._id),
-                },
-            })
-        );
-    });
-
-    if (assignmentTasks.length > 0) {
-        await Promise.allSettled(assignmentTasks);
-    }
-
-    // Real-time broadcast to tracking room
-    emitEvent(`order_${order.orderId}`, 'order_assigned', {
-        orderId: order.orderId,
-        deliveryBoyId: deliveryBoyId,
-        deliveryBoyName: deliveryBoy.name,
-        status: order.status
-    });
+    
+    // Unified role-aware notifications for assignment
+    await OrderNotificationService.notifyOrderUpdate(order._id, 'assigned');
 
     res.status(200).json(new ApiResponse(200, order, 'Delivery boy assigned.'));
 });

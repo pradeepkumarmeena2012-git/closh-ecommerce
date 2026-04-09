@@ -125,8 +125,7 @@
     "permission": ["notifications_manage", "support_manage"],
     "children": [
       "All Notifications",
-      "Push Notifications",
-      "Custom Messages"
+      "Push Notifications"
     ]
   },
   {
