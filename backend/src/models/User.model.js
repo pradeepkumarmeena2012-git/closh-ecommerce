@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema(
         lastName: { type: String, trim: true },
         email: { type: String, sparse: true, unique: true, lowercase: true, index: true },
         phone: { type: String, trim: true, sparse: true, unique: true },
-        password: { type: String, required: true, select: false },
+        password: { type: String, required: false, select: false },
         dob: { type: String, trim: true },
         gender: { type: String, enum: ['Male', 'Female', 'Other', ''], default: '' },
         ageRange: { type: String, trim: true },
@@ -65,7 +65,7 @@ userSchema.pre('save', function (next) {
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
+    if (!this.password || !this.isModified('password')) return next();
     this.password = await bcrypt.hash(this.password, 12);
     next();
 });

@@ -208,7 +208,7 @@ const ManageVendors = () => {
             title="View Details">
             <FiEye />
           </button>
-          {row.status === "pending" && (
+          {(row.status === "pending" || row.status === "suspended" || row.status === "rejected") && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -217,10 +217,11 @@ const ManageVendors = () => {
                   type: "approve",
                   vendorId: row.id,
                   vendorName: row.storeName || row.name,
+                  vendorStatus: row.status,
                 });
               }}
               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-              title="Approve Vendor">
+              title={row.status === "suspended" ? "Activate Vendor" : "Approve Vendor"}>
               <FiCheckCircle />
             </button>
           )}
@@ -322,10 +323,13 @@ const ManageVendors = () => {
   const getModalContent = () => {
     switch (actionModal.type) {
       case "approve":
+        const isSuspended = actionModal.vendorStatus === "suspended";
         return {
-          title: "Approve Vendor?",
-          message: `Are you sure you want to approve "${actionModal.vendorName}"? They will be able to start selling on the platform.`,
-          confirmText: "Approve",
+          title: isSuspended ? "Activate Vendor?" : "Approve Vendor?",
+          message: isSuspended
+            ? `Are you sure you want to reactivate "${actionModal.vendorName}"? they will regain access to their dashboard.`
+            : `Are you sure you want to approve "${actionModal.vendorName}"? They will be able to start selling on the platform.`,
+          confirmText: isSuspended ? "Activate" : "Approve",
           onConfirm: handleApprove,
           type: "success",
         };

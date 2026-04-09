@@ -294,12 +294,12 @@ const VendorDetail = () => {
             }>
             {vendor.status?.toUpperCase()}
           </Badge>
-          {vendor.status === "pending" && (
+          {(vendor.status === "pending" || vendor.status === "suspended" || vendor.status === "rejected") && (
             <button
               onClick={() => handleStatusUpdate("approved")}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm">
               <FiCheckCircle />
-              Approve
+              {vendor.status === "suspended" ? "Activate" : "Approve"}
             </button>
           )}
           {vendor.status === "approved" && (
