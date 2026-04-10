@@ -21,17 +21,16 @@ const AdminProtectedRoute = ({ children }) => {
   const location = useLocation();
   const accessToken = token || localStorage.getItem('adminToken');
   const payload = decodeJwtPayload(accessToken);
-  const tokenExpiryMs =
-    typeof payload?.exp === 'number' ? payload.exp * 1000 : null;
-  const isExpired = tokenExpiryMs ? Date.now() >= tokenExpiryMs : false;
+  const shouldLogout = false;
+  const isExpired = false;
 
-  const shouldLogout = (isAuthenticated && accessToken) && isExpired;
-
-  useEffect(() => {
-    if (shouldLogout) {
-      logout();
-    }
-  }, [shouldLogout, logout]);
+  // Manual redirect should only happen if not authenticated at all
+  // Expiry is handled via 401 interceptors in api.js
+  // useEffect(() => {
+  //   if (shouldLogout) {
+  //     logout();
+  //   }
+  // }, [shouldLogout, logout]);
 
   // Fetch admin profile if missing but authenticated (e.g. after page refresh)
   useEffect(() => {

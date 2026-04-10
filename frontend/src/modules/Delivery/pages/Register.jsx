@@ -54,13 +54,19 @@ const DeliveryRegister = () => {
       }
       return;
     }
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    
-    // If phone number changes, reset verification
-    if (name === 'phone') {
-      setIsPhoneVerified(false);
-      setShowOtpField(false);
+    if (['aadharNumber', 'phone', 'emergencyContact'].includes(name)) {
+      const numericValue = value.replace(/\D/g, '');
+      setFormData((prev) => ({ ...prev, [name]: numericValue }));
+      
+      // If phone number changes, reset verification
+      if (name === 'phone') {
+        setIsPhoneVerified(false);
+        setShowOtpField(false);
+      }
+      return;
     }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSendOtp = async () => {
@@ -113,6 +119,8 @@ const DeliveryRegister = () => {
         if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) { toast.error('Enter a valid 10-digit mobile number'); return false; }
         if (!isPhoneVerified) { toast.error('Please verify your mobile number first'); return false; }
         if (formData.emergencyContact && !/^\d{10}$/.test(formData.emergencyContact.replace(/\D/g, ''))) { toast.error('Enter a valid emergency contact number'); return false; }
+        if (!formData.aadharNumber.trim()) { toast.error('Aadhaar number is required'); return false; }
+        if (formData.aadharNumber.length !== 12) { toast.error('Aadhaar number must be exactly 12 digits'); return false; }
         return true;
       case 2:
         if (!formData.drivingLicense) { toast.error('Driving License (Front) is required'); return false; }
@@ -121,6 +129,8 @@ const DeliveryRegister = () => {
         if (!formData.aadharCardBack) { toast.error('Aadhaar Card (Back) is required'); return false; }
         return true;
       case 3:
+        if (!formData.vehicleNumber.trim()) { toast.error('Vehicle number is required'); return false; }
+        if (!formData.address.trim()) { toast.error('Full address is required'); return false; }
         return true;
       default:
         return true;
@@ -135,6 +145,7 @@ const DeliveryRegister = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (currentStep !== 3) return;
     if (!validateStep(3)) return;
     try {
       const result = await register({
@@ -193,6 +204,15 @@ const DeliveryRegister = () => {
       <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider text-center mt-2">{label}</p>
     </div>
   );
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+      e.preventDefault();
+      if (currentStep < 3) {
+        nextStep();
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0f172a] flex flex-col md:flex-row overflow-hidden">
@@ -270,7 +290,7 @@ const DeliveryRegister = () => {
             <p className="text-gray-500 text-sm font-medium mt-1">Step {currentStep} of 3</p>
           </div>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
             <AnimatePresence mode="wait">
               {/* STEP 1: Personal Info */}
               {currentStep === 1 && (
