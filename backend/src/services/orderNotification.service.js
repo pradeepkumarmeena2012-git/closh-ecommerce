@@ -84,6 +84,16 @@ export const OrderNotificationService = {
             const vendorIds = [...new Set(order.vendorItems.map(vi => String(vi.vendorId?._id || vi.vendorId)))];
             vendorIds.forEach(vId => {
                 const msg = getMessageForRole('vendor', status, order.orderId, order.deliveryBoyId?.name);
+                
+                // Privacy & Clarity: Only send items belonging to this specific vendor
+                const vendorGroup = order.vendorItems.find(vi => String(vi.vendorId?._id || vi.vendorId) === vId);
+                const vendorSpecificData = {
+                    ...order.toObject(),
+                    items: vendorGroup?.items || [],
+                    total: vendorGroup?.subtotal || 0, // Show the vendor their specific subtotal
+                    vendorEarnings: vendorGroup?.vendorEarnings || 0
+                };
+
                 recipients.push({ 
                     id: vId, 
                     type: 'vendor', 
@@ -94,7 +104,7 @@ export const OrderNotificationService = {
 
                 // Socket event for dashboard refresh / buzzer
                 if (status === 'pending') {
-                    emitEvent(`vendor_${vId}`, 'order_created', { ...order.toObject(), message: msg });
+                    emitEvent(`vendor_${vId}`, 'order_created', { ...vendorSpecificData, message: msg });
                 }
             });
 

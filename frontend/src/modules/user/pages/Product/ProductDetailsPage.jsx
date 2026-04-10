@@ -113,6 +113,28 @@ const ProductDetailsPage = () => {
         return product.discountedPrice !== undefined ? product.discountedPrice : product.price;
     }, [product, selectedSize, selectedColor]);
 
+    const currentStock = useMemo(() => {
+        if (!product) return 0;
+        // Check variant-specific stock if size and color are selected
+        if (selectedSize && selectedColor && product.variants?.stockMap) {
+            const variantKey = `${selectedSize}|${selectedColor}`;
+            const variantStock = product.variants.stockMap[variantKey];
+            if (variantStock !== undefined) return Number(variantStock);
+        }
+        // Fallback to overall stock quantity
+        return Number(product.stockQuantity || 0);
+    }, [product, selectedSize, selectedColor]);
+
+    const isOutOfStock = useMemo(() => {
+        if (!product) return true;
+        if (product.stock === 'out_of_stock') return true;
+        // If variants exist but none selected, we don't know yet, so check total
+        if ((sizes.length > 0 || colors.length > 0) && (!selectedSize && !selectedColor)) {
+            return Number(product.stockQuantity || 0) <= 0;
+        }
+        return currentStock <= 0;
+    }, [product, currentStock, sizes.length, colors.length, selectedSize, selectedColor]);
+
     const handleAddToCart = () => {
         if (!user) {
             setIsLoginModalOpen(true);
@@ -126,6 +148,11 @@ const ProductDetailsPage = () => {
 
         if (colors.length > 0 && !selectedColor) {
             toast.error('Please select a color first');
+            return;
+        }
+
+        if (currentStock <= 0) {
+            toast.error(`Only 0 units available for selected variant of ${product.name}`);
             return;
         }
 
@@ -262,7 +289,12 @@ const ProductDetailsPage = () => {
                             <img src={productImages[activeImg]} alt={product.name} className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105" />
 
                             {/* Tags/Badges - Smaller on Mobile */}
-                            <div className="absolute top-3 left-3 md:top-6 md:left-6 flex flex-col gap-1.5 md:gap-2">
+                            <div className="absolute top-3 left-3 md:top-6 md:left-6 flex flex-col gap-1.5 md:gap-2 z-20">
+                                {isOutOfStock && (
+                                    <div className="bg-red-600 text-white text-[10px] md:text-[12px] font-black px-4 py-2 rounded-full shadow-lg border-2 border-white uppercase tracking-widest animate-pulse">
+                                        Sold Out
+                                    </div>
+                                )}
                                 <div className="bg-white text-gray-900 text-[8px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-md border border-gray-200">
                                     New Arrival
                                 </div>
@@ -423,7 +455,7 @@ const ProductDetailsPage = () => {
 
                         {/* Actions - Inline */}
                         <div className="flex gap-2.5 md:gap-4 mb-4 md:mb-8">
-                            {product.stock === 'out_of_stock' || product.stockQuantity <= 0 ? (
+                            {isOutOfStock ? (
                                 <button
                                     disabled
                                     className="flex-[3] h-12 md:h-14 bg-gray-200 text-gray-500 rounded-xl md:rounded-[18px] font-bold text-[12px] md:text-[14px] flex items-center justify-center shadow-inner cursor-not-allowed uppercase"

@@ -1,6 +1,11 @@
-import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPackage, FiClock, FiX, FiNavigation, FiZap, FiTarget, FiImage, FiShoppingBag } from 'react-icons/fi';
+import { 
+    FiPackage, 
+    FiX, 
+    FiNavigation, 
+    FiShoppingBag,
+    FiCheck
+} from 'react-icons/fi';
 import { formatPrice } from '../../../shared/utils/helpers';
 import { createPortal } from 'react-dom';
 
@@ -11,113 +16,123 @@ const getFullImageUrl = (image) => {
     return `${baseUrl}${image.startsWith('/') ? '' : '/'}${image}`;
 };
 
-const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting }) => {
-    const buzzerRef = useRef(null);
-
-    // Play buzzer sound when modal opens, stop when it closes
-    useEffect(() => {
-        // Note: Buzzer is now centrally managed by Dashboard for better control
-        return () => {
-            if (buzzerRef.current) {
-                try {
-                    buzzerRef.current.pause();
-                    buzzerRef.current.currentTime = 0;
-                } catch (e) {}
-                buzzerRef.current = null;
-            }
-        };
-    }, [isOpen, order]);
-
+const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzerActive, onStopBuzzer }) => {
     if (!order && isOpen) return null;
 
-    const firstItem = order?.items?.[0] || order?.vendorItems?.[0]?.items?.[0];
+    const items = order?.vendorItems?.[0]?.items || order?.items || [];
+    const firstItem = items[0];
     const itemImage = getFullImageUrl(firstItem?.image || firstItem?.productId?.image);
 
     return createPortal(
         <AnimatePresence>
             {isOpen && order && (
-                <div className="fixed inset-0 z-[9999] flex flex-col justify-end">
+                <div className="fixed inset-0 z-[9000] flex items-center justify-center p-4">
+                    {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-slate-900/60 backdrop-blur-md"
+                        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
                         onClick={onClose}
                     />
 
+                    {/* Modal Card */}
                     <motion.div
-                        initial={{ y: '100%' }}
-                        animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 0.8 }}
-                        className="relative bg-white rounded-t-[40px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col z-[10000]"
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="relative w-full max-w-[440px] bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col z-[9001]"
                     >
-                        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-4 mb-2 shrink-0" />
-
-                        <div className="px-8 pt-4 pb-6 border-b border-slate-50 relative flex-shrink-0">
+                        {/* Header */}
+                        <div className="px-8 pt-8 pb-6 flex items-start justify-between">
+                            <div className="flex gap-4">
+                                <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 shrink-0 border border-slate-100">
+                                    {itemImage ? (
+                                        <img src={itemImage} className="w-full h-full object-cover rounded-2xl" alt="" />
+                                    ) : (
+                                        <FiShoppingBag size={20} />
+                                    )}
+                                </div>
+                                <div className="min-w-0">
+                                    <h2 className="text-xl font-bold text-slate-900 leading-tight">New Order</h2>
+                                    <p className="text-[13px] font-medium text-slate-400">Order #{order.orderId || order.id?.slice(-8)}</p>
+                                </div>
+                            </div>
                             <button
                                 onClick={onClose}
-                                className="absolute top-4 right-6 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors z-10"
+                                className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-all"
                             >
                                 <FiX size={20} />
                             </button>
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className="w-14 h-14 bg-indigo-600 shadow-indigo-200 rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
-                                    {itemImage ? (
-                                        <img src={itemImage} className="w-full h-full object-cover rounded-2xl" alt="Order" />
-                                    ) : (
-                                        <FiShoppingBag size={28} />
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.2em]">New Order Received</p>
-                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Order #{order.orderId || order.id?.slice(-8)}</h2>
-                                </div>
+                        </div>
+
+                        {/* Order Summary Snapshot */}
+                        <div className="px-8 py-2">
+                            <div className="p-6 bg-slate-900 rounded-2xl text-white">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Total Amount</p>
+                                <p className="text-3xl font-bold">{formatPrice(order.total || 0)}</p>
                             </div>
                         </div>
 
-                        <div className="px-8 py-6 overflow-y-auto">
-                            <div className="bg-indigo-50 rounded-3xl p-6 mb-8 text-center border border-indigo-100">
-                                <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest block mb-2">Order Value</span>
-                                <span className="text-indigo-900 font-black text-4xl">{formatPrice(order.total || 0)}</span>
-                            </div>
-
-                            <div className="space-y-4 mb-8">
-                                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Order Summary</h3>
-                                <div className="space-y-3">
-                                    {order.items?.map((it, idx) => (
-                                        <div key={idx} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm">
-                                                    <FiPackage size={18} />
-                                                </div>
-                                                <div>
-                                                    <p className="font-black text-slate-800 text-sm">{it.name}</p>
-                                                    <p className="text-[10px] text-slate-400 font-bold uppercase">Qty: {it.quantity}</p>
-                                                </div>
+                        {/* Content Area */}
+                        <div className="px-8 py-6 space-y-6">
+                            {/* Items List */}
+                            <div className="space-y-3">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Order Items</p>
+                                <div className="space-y-2">
+                                    {items.map((it, idx) => (
+                                        <div key={idx} className="flex justify-between items-center text-[14px]">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className="w-5 h-5 flex items-center justify-center bg-slate-50 rounded text-slate-400 text-[10px] font-bold shrink-0">{it.quantity}x</span>
+                                                <span className="font-semibold text-slate-700 truncate">{it.name}</span>
                                             </div>
-                                            <span className="font-black text-slate-900 text-sm">{formatPrice(it.price * (it.quantity || 1))}</span>
+                                            <span className="text-slate-400 font-medium ml-4">{formatPrice(it.price * (it.quantity || 1))}</span>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="pt-4 pb-12">
+                            {/* Divider */}
+                            <div className="h-px bg-slate-100 w-full" />
+
+                            {/* Delivery Info */}
+                            <div className="space-y-2">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Delivery Detail</p>
+                                <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 text-slate-400"><FiNavigation size={14} /></div>
+                                    <div className="text-[13px] font-medium text-slate-600 leading-relaxed">
+                                        <p className="text-slate-900 font-bold">{order.shippingAddress?.name || 'Customer'}</p>
+                                        <p className="line-clamp-1">{[order.shippingAddress?.address, order.shippingAddress?.city].filter(Boolean).join(', ')}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="p-8 pt-2">
+                            <div className="space-y-3">
                                 <button
                                     onClick={() => onAccept(order.orderId || order.id)}
                                     disabled={isAccepting}
-                                    className="w-full bg-emerald-600 text-white py-5 rounded-3xl font-black text-sm uppercase tracking-widest shadow-2xl shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-3"
+                                    className="w-full h-14 bg-slate-900 text-white rounded-2xl font-bold text-[15px] flex items-center justify-center gap-2 hover:bg-black active:scale-[0.98] transition-all disabled:opacity-50"
                                 >
                                     {isAccepting ? (
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                                     ) : (
-                                        <><FiZap /> Accept & Start Preparing</>
+                                        <><FiCheck strokeWidth={3} /> Accept Order</>
                                     )}
                                 </button>
                                 
-                                <p className="text-center text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mt-8">
-                                    Swipe down to ignore
-                                </p>
+                                {isBuzzerActive && (
+                                    <button
+                                        onClick={onStopBuzzer}
+                                        className="w-full h-10 text-[12px] font-bold text-slate-400 hover:text-red-500 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <div className="w-1 h-1 bg-red-400 rounded-full animate-pulse" />
+                                        Mute Buzzer
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </motion.div>

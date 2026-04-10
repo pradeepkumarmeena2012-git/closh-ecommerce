@@ -19,11 +19,41 @@ const VendorLayout = () => {
   const audioUnlockedRef = useRef(false);
 
   // Audio Policy Unlock: User interaction required
+  
+  // Audio Notification State
+  const [isBuzzerActive, setIsBuzzerActive] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
+  const buzzerRef = useRef(null);
+
+  // Initialize Buzzer on first interaction to bypass browser policies
+  const initBuzzer = useCallback(() => {
+    if (buzzerRef.current) return;
+    try {
+        const audio = new Audio('/sounds/buzzer.mp3');
+        audio.loop = true;
+        audio.volume = 0.8;
+        // Pre-load but don't play yet
+        audio.load();
+        buzzerRef.current = audio;
+        console.log('🔊 Buzzer audio initialized and ready.');
+    } catch (err) {
+        console.error('Failed to init buzzer:', err);
+    }
+  }, []);
+
   useEffect(() => {
     const unlock = () => {
         if (audioUnlockedRef.current) return;
-        const dummy = new Audio();
-        dummy.play().catch(() => {});
+        initBuzzer();
+        // Play and immediately pause to "unlock" the audio stream
+        if (buzzerRef.current) {
+            buzzerRef.current.play().then(() => {
+                buzzerRef.current.pause();
+                buzzerRef.current.currentTime = 0;
+            }).catch(() => {});
+        }
         audioUnlockedRef.current = true;
         window.removeEventListener('click', unlock);
         window.removeEventListener('touchstart', unlock);
@@ -34,39 +64,26 @@ const VendorLayout = () => {
         window.removeEventListener('click', unlock);
         window.removeEventListener('touchstart', unlock);
     };
-  }, []);
-  
-  // Real-time Notification State
-  const [isBuzzerActive, setIsBuzzerActive] = useState(false);
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
-  const buzzerRef = useRef(null);
+  }, [initBuzzer]);
 
   const startBuzzer = useCallback(() => {
-    if (buzzerRef.current) return;
-    try {
-      const audio = new Audio('/sounds/buzzer.mp3');
-      audio.loop = true;
-      audio.volume = 0.6;
-      audio.play().catch(err => {
-        console.warn('Buzzer playback blocked:', err);
-        // toast.error('New Order! Tap anywhere to enable sound alert.');
-      });
-      buzzerRef.current = audio;
-      setIsBuzzerActive(true);
-    } catch (err) {
-      console.error('Buzzer init failed:', err);
+    if (!buzzerRef.current) {
+        initBuzzer();
     }
-  }, []);
+    
+    if (buzzerRef.current) {
+        buzzerRef.current.play().catch(err => {
+            console.warn('Buzzer playback blocked:', err);
+            toast.error('New Order! Please tap the screen to hear the alert.', { id: 'buzzer-block' });
+        });
+        setIsBuzzerActive(true);
+    }
+  }, [initBuzzer]);
 
   const stopBuzzer = useCallback(() => {
     if (buzzerRef.current) {
-      try {
         buzzerRef.current.pause();
         buzzerRef.current.currentTime = 0;
-      } catch (e) { }
-      buzzerRef.current = null;
     }
     setIsBuzzerActive(false);
   }, []);
@@ -192,6 +209,8 @@ const VendorLayout = () => {
         isAccepting={isAcceptingOrder}
         onAccept={handleAcceptNewOrder}
         onClose={() => { stopBuzzer(); setShowOrderModal(false); }}
+        isBuzzerActive={isBuzzerActive}
+        onStopBuzzer={stopBuzzer}
       />
     </div>
   );

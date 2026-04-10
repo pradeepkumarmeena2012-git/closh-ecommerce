@@ -18,6 +18,13 @@ import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 import socketService from '../../../../shared/utils/socket';
 
+const getFullImageUrl = (image) => {
+    if (!image) return null;
+    if (image.startsWith('http')) return image;
+    const baseUrl = import.meta.env.VITE_IMAGE_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    return `${baseUrl}${image.startsWith('/') ? '' : '/'}${image}`;
+};
+
 const OrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -267,7 +274,7 @@ const OrderDetail = () => {
                                     <div key={index} className="p-4 flex gap-4">
                                         <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
                                             <img
-                                                src={item.image}
+                                                src={getFullImageUrl(item.image)}
                                                 alt={item.name}
                                                 className="w-full h-full object-cover"
                                                 onError={(e) => {
@@ -328,7 +335,7 @@ const OrderDetail = () => {
                                         <p className="text-[10px] font-bold text-gray-400 uppercase ">Pickup Proof (from Your Store)</p>
                                         <div className="relative aspect-video bg-white rounded-lg overflow-hidden border border-gray-100 group">
                                             <img
-                                                src={order.pickupPhoto}
+                                                src={getFullImageUrl(order.pickupPhoto)}
                                                 alt="Pickup Proof"
                                                 className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
                                                 onClick={() => window.open(order.pickupPhoto, '_blank')}
@@ -344,7 +351,7 @@ const OrderDetail = () => {
                                         <p className="text-[10px] font-bold text-gray-400 uppercase ">Delivery Proof (to Customer)</p>
                                         <div className="relative aspect-video bg-white rounded-lg overflow-hidden border border-gray-100 group">
                                             <img
-                                                src={order.deliveryPhoto}
+                                                src={getFullImageUrl(order.deliveryPhoto)}
                                                 alt="Delivery Proof"
                                                 className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
                                                 onClick={() => window.open(order.deliveryPhoto, '_blank')}
@@ -395,7 +402,7 @@ const OrderDetail = () => {
                                 <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0 border border-indigo-100 overflow-hidden">
                                     {order.deliveryBoyId.profileImage ? (
                                         <img 
-                                            src={order.deliveryBoyId.profileImage} 
+                                            src={getFullImageUrl(order.deliveryBoyId.profileImage)} 
                                             alt="Rider" 
                                             className="w-full h-full object-cover" 
                                         />
