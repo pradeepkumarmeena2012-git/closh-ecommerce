@@ -468,6 +468,37 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
             order = createdOrder;
             console.log("STEP 4 - Saved order.customerLocation:", order.dropoffLocation);
+
+            // Step 4.5: Decrement stock and update stock status
+            for (const item of enrichedItems) {
+                const quantity = Number(item.quantity || 0);
+                const variantKey = item.variantKey;
+
+                const incUpdate = { stockQuantity: -quantity };
+                if (variantKey) {
+                    // Note: This works for Map-based stockMap as well in modern Mongoose/MongoDB
+                    incUpdate[`variants.stockMap.${variantKey}`] = -quantity;
+                }
+
+                const updatedProduct = await Product.findByIdAndUpdate(
+                    item.productId,
+                    { $inc: incUpdate },
+                    { new: true, session }
+                );
+
+                if (updatedProduct) {
+                    const nextStockState =
+                        updatedProduct.stockQuantity <= 0
+                            ? 'out_of_stock'
+                            : (updatedProduct.stockQuantity <= (updatedProduct.lowStockThreshold || 10) ? 'low_stock' : 'in_stock');
+
+                    await Product.updateOne(
+                        { _id: updatedProduct._id },
+                        { $set: { stock: nextStockState } },
+                        { session }
+                    );
+                }
+            }
         });
 
         // 10. Unified Notification to all parties (CALLED OUTSIDE TRANSACTION)

@@ -21,8 +21,17 @@ const ProductCard = ({ product }) => {
                         <img
                             src={product.image}
                             alt={product.name}
-                            className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                            className={`w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110 ${product.stock === 'out_of_stock' ? 'grayscale opacity-70' : ''}`}
                         />
+
+                        {/* Out of Stock Overlay */}
+                        {product.stock === 'out_of_stock' && (
+                            <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-20 flex items-center justify-center p-2 pointer-events-none">
+                                <span className="bg-red-500 text-white text-[10px] md:text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-xl transform -rotate-12 border-2 border-white scale-110">
+                                    Sold Out
+                                </span>
+                            </div>
+                        )}
 
                         {/* Top Right Actions (Wishlist) - Glassmorphism */}
                         <div className="absolute top-2 right-2 z-10 transition-all duration-500">

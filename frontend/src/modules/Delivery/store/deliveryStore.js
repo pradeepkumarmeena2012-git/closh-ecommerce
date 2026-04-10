@@ -169,10 +169,10 @@ export const useDeliveryAuthStore = create(
           return { success: true, deliveryBoy: user };
         } catch (e) { set({ isLoading: false }); throw e; }
       },
-      sendRegistrationOtp: async (phone) => {
+      sendRegistrationOtp: async (phone, email) => {
         set({ isLoading: true });
         try {
-          const res = await api.post('/delivery/auth/send-registration-otp', { phone });
+          const res = await api.post('/delivery/auth/send-registration-otp', { phone, email });
           set({ isLoading: false });
           return res.data || res;
         } catch (e) { set({ isLoading: false }); throw e; }

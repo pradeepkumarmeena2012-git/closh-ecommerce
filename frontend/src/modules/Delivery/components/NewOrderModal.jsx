@@ -159,8 +159,17 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLoc
                                     isLoading={isAccepting}
                                     color={isReturn ? '#f97316' : '#16a34a'}
                                 />
+                                
+                                <button
+                                    onClick={onClose}
+                                    disabled={isAccepting}
+                                    className="w-full mt-4 py-4 rounded-3xl bg-slate-50 border border-slate-200 text-slate-500 font-black text-xs uppercase tracking-[0.2em] shadow-sm active:scale-95 transition-all hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 disabled:opacity-50"
+                                >
+                                    Decline Request
+                                </button>
+
                                 <p className="text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-6">
-                                    Scroll down to reject or wait for timer
+                                    Action required to proceed
                                 </p>
                             </div>
 

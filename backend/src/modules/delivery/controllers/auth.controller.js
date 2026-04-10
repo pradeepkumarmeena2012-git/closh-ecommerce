@@ -44,10 +44,18 @@ export const register = asyncHandler(async (req, res) => {
     let deliveryBoy = null;
 
     try {
-        const existing = await DeliveryBoy.findOne({ 
-            $or: [{ email: normalizedEmail }, { phone: normalizedPhone }] 
-        });
-        if (existing) throw new ApiError(409, 'Email or phone already registered.');
+        const normalizedVehicle = (vehicleNumber || '').trim().toUpperCase();
+
+        const existingEmail = await DeliveryBoy.findOne({ email: normalizedEmail });
+        if (existingEmail) throw new ApiError(409, 'This email address is already registered.');
+
+        const existingPhone = await DeliveryBoy.findOne({ phone: normalizedPhone });
+        if (existingPhone) throw new ApiError(409, 'This mobile number is already registered.');
+
+        if (normalizedVehicle) {
+            const existingVehicle = await DeliveryBoy.findOne({ vehicleNumber: normalizedVehicle });
+            if (existingVehicle) throw new ApiError(409, 'This vehicle number is already registered.');
+        }
 
         if (!isRegistrationPhoneVerified(phone)) {
             throw new ApiError(400, 'Please verify your mobile number via OTP first.');
@@ -65,7 +73,7 @@ export const register = asyncHandler(async (req, res) => {
             uploadLocalFileToCloudinaryAndCleanup(aadharCardBackFile.path, 'delivery/documents/aadhar'),
         ]);
 
-        const deliveryBoy = await DeliveryBoy.create({
+        deliveryBoy = await DeliveryBoy.create({
             name: String(name || '').trim(),
             email: normalizedEmail,
             password: password || String(Math.random().toString(36).slice(-10)),
@@ -74,7 +82,7 @@ export const register = asyncHandler(async (req, res) => {
             aadharNumber: String(aadharNumber || '').trim(),
             address: String(address || '').trim(),
             vehicleType: String(vehicleType || '').trim(),
-            vehicleNumber: String(vehicleNumber || '').trim(),
+            vehicleNumber: normalizedVehicle,
             documents: {
                 drivingLicense: drivingLicenseResult.url,
                 drivingLicenseBack: drivingLicenseBackResult.url,
@@ -134,17 +142,26 @@ export const register = asyncHandler(async (req, res) => {
 
 // POST /api/delivery/auth/send-registration-otp
 export const sendRegistrationOTP = asyncHandler(async (req, res) => {
-    const { phone } = req.body;
+    const { phone, email } = req.body;
     const normalizedPhone = String(phone || '').trim().replace(/\D/g, '').slice(-10);
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
     if (normalizedPhone.length !== 10) {
         throw new ApiError(400, 'Please enter a valid 10-digit mobile number');
     }
 
     // Check if phone is already registered
-    const existing = await DeliveryBoy.findOne({ phone: normalizedPhone });
-    if (existing) {
+    const existingPhone = await DeliveryBoy.findOne({ phone: normalizedPhone });
+    if (existingPhone) {
         throw new ApiError(409, 'This mobile number is already registered. Please login instead.');
+    }
+
+    // If email is provided, check if it's already registered
+    if (normalizedEmail) {
+        const existingEmail = await DeliveryBoy.findOne({ email: normalizedEmail });
+        if (existingEmail) {
+            throw new ApiError(409, 'This email address is already registered. Please login instead.');
+        }
     }
 
     // Generate 6-digit OTP
@@ -152,26 +169,47 @@ export const sendRegistrationOTP = asyncHandler(async (req, res) => {
     const expiry = Date.now() + 5 * 60 * 1000; // 5 minutes
 
     // Default OTP for test number
-    const finalOtp = normalizedPhone === '7894561230' ? '123456' : otp;
+    const finalOtp = (normalizedPhone === '7894561230' || normalizedPhone === '1234567890') ? '123456' : otp;
 
     registrationOtpStore.set(normalizedPhone, { otp: finalOtp, expiry, verified: false });
 
-    // Send OTP via SMS
+    // Send OTP via SMS and Email
+    const results = { sms: false, email: false };
+
     try {
-        if (normalizedPhone !== '7894561230') {
+        if (normalizedPhone !== '7894561230' && normalizedPhone !== '1234567890') {
             const { sendSmsOtp } = await import('../../../services/sms.service.js');
             await sendSmsOtp(normalizedPhone, finalOtp);
+            results.sms = true;
         }
         console.log(`✅ Registration OTP sent to ${normalizedPhone}: ${finalOtp}`);
     } catch (smsError) {
         console.warn(`⚠️ SMS failed for ${normalizedPhone}:`, smsError.message);
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`🔐 Registration OTP for ${normalizedPhone}: ${finalOtp}`);
+    }
+
+    if (normalizedEmail) {
+        try {
+            await sendEmail({
+                to: normalizedEmail,
+                subject: 'Delivery Partner Registration OTP',
+                text: `Your registration OTP for CLOSH is ${finalOtp}. It expires in 5 minutes.`,
+                html: `<div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                        <h2 style="color: #4F46E5;">CLOSH</h2>
+                        <p>Welcome to the CLOSH delivery network!</p>
+                        <p>Your registration verification code is:</p>
+                        <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #1e293b; margin: 20px 0;">${finalOtp}</div>
+                        <p style="color: #64748b; font-size: 12px;">This code will expire in 5 minutes. If you did not request this, please ignore this email.</p>
+                       </div>`,
+            });
+            results.email = true;
+            console.log(`✅ Registration OTP sent to email ${normalizedEmail}: ${finalOtp}`);
+        } catch (emailError) {
+            console.warn(`⚠️ Email failed for ${normalizedEmail}:`, emailError.message);
         }
     }
 
     res.status(200).json(
-        new ApiResponse(200, { phone: normalizedPhone }, 'OTP sent successfully. Valid for 5 minutes.')
+        new ApiResponse(200, { phone: normalizedPhone, email: normalizedEmail, status: results }, 'OTP sent successfully. Valid for 5 minutes.')
     );
 });
 
