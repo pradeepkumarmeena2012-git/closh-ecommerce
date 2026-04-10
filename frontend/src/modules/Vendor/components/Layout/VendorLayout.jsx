@@ -107,13 +107,31 @@ const VendorLayout = () => {
     socketService.socket?.on('connect', registerVendor);
 
     // Listen for new orders globally
-    const handleNewOrder = (newOrder) => {
-      console.log('🍕 New order received via socket:', newOrder);
+    const handleNewOrder = async (orderData) => {
+      console.log('🍕 New order event received:', orderData);
+      
+      let fullOrder = orderData;
+      
+      // If we only have a summary (e.g. from a general notification), fetch the full details
+      const orderId = orderData.orderId || orderData.id || (orderData.data?.orderId);
+      const hasItems = (orderData.items && orderData.items.length > 0) || (orderData.vendorItems);
+      
+      if (orderId && !hasItems) {
+        console.log(`🔍 [VENDOR] Fetching full details for Order: ${orderId}`);
+        try {
+            const { getVendorOrderById } = await import("../../services/vendorService");
+            const res = await getVendorOrderById(orderId);
+            fullOrder = res?.data ?? res;
+        } catch (err) {
+            console.error('Failed to fetch full order details:', err);
+        }
+      }
+
       startBuzzer();
-      setSelectedOrder(newOrder);
+      setSelectedOrder(fullOrder);
       setShowOrderModal(true);
       
-      const orderIdForRoom = newOrder.orderId || newOrder.id;
+      const orderIdForRoom = fullOrder.orderId || fullOrder.id;
       if (orderIdForRoom) {
           socketService.joinRoom(`order_${orderIdForRoom}`);
       }
@@ -123,11 +141,17 @@ const VendorLayout = () => {
         icon: '🔔',
       });
       
-      // Dispatch event so sub-pages (like Dashboard) can refresh
-      window.dispatchEvent(new CustomEvent('vendor-new-order', { detail: newOrder }));
+      window.dispatchEvent(new CustomEvent('vendor-new-order', { detail: fullOrder }));
     };
 
     socketService.on("order_created", handleNewOrder);
+    socketService.on("new_notification", (notif) => {
+        console.log('🔔 [VENDOR] Received general notification:', notif);
+        if (notif?.type === 'order' && !showOrderModal) {
+            handleNewOrder(notif.data || { orderId: notif.data?.orderId });
+        }
+    });
+
     socketService.on("order_status_updated", (data) => {
         window.dispatchEvent(new CustomEvent('vendor-order-updated', { detail: data }));
     });

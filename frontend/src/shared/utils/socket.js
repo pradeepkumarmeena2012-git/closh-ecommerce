@@ -8,12 +8,8 @@ const getSocketUrl = () => {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('closh.in') || hostname.includes('vercel.app');
     
-    // If we are on production or vercel, force the production API
-    if (isProduction) {
-        return 'https://api.closh.in';
-    }
-    
-    return envUrl || 'https://api.closh.in';
+    if (isProduction) return 'https://api.closh.in';
+    return envUrl || 'http://localhost:5000';
 };
 
 const SOCKET_URL = getSocketUrl();

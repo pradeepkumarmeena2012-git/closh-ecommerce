@@ -5,11 +5,7 @@ const getApiBaseUrl = () => {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('closh.in') || hostname.includes('vercel.app');
     
-    // If we are on production or vercel, force the production API
-    if (isProduction) {
-        return 'https://api.closh.in/api';
-    }
-    
+    if (isProduction) return 'https://api.closh.in/api';
     return envUrl || 'http://localhost:5000/api';
 };
 
@@ -18,10 +14,7 @@ const getImageUrlBase = () => {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('closh.in') || hostname.includes('vercel.app');
     
-    if (isProduction) {
-        return 'https://api.closh.in';
-    }
-    
+    if (isProduction) return 'https://api.closh.in';
     return envUrl || 'http://localhost:5000';
 };
 

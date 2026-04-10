@@ -119,7 +119,15 @@ export const OrderNotificationService = {
                     sound: (status === 'ready_for_pickup' || status === 'searching') ? 'buzzer.mp3' : 'default'
                 });
             }
-
+            
+            // Collect metadata for the notifications
+            const notificationData = { 
+                orderId: order.orderId, 
+                status,
+                total: order.total,
+                customerName: order.shippingAddress?.name
+            };
+            
             // Execute notifications (DB persistence + Push via createNotification)
             const tasks = recipients
                 .filter(r => String(r.id) !== String(options.excludeRecipientId))
@@ -129,7 +137,7 @@ export const OrderNotificationService = {
                     title: r.title,
                     message: r.message,
                     type: 'order',
-                    data: { ...data, orderId: order.orderId, status },
+                    data: { ...notificationData, ...data },
                     sound: r.sound || 'default'
                 }));
 
