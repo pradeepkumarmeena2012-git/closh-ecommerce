@@ -9,11 +9,13 @@ import {
 import { formatPrice } from '../../../shared/utils/helpers';
 import { createPortal } from 'react-dom';
 
+import { IMAGE_BASE_URL } from '../../../shared/utils/constants';
+
 const getFullImageUrl = (image) => {
     if (!image) return null;
     if (image.startsWith('http')) return image;
-    const baseUrl = import.meta.env.VITE_IMAGE_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    return `${baseUrl}${image.startsWith('/') ? '' : '/'}${image}`;
+    const cleanImage = image.startsWith('/') ? image : `/${image}`;
+    return `${IMAGE_BASE_URL}${cleanImage}`;
 };
 
 const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzerActive, onStopBuzzer }) => {

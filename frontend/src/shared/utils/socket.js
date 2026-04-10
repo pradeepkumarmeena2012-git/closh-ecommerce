@@ -2,7 +2,20 @@ import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
 // In production, force the API URL to our production domain if env is missing
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'https://api.closh.in';
+// Intelligent URL detection for Production vs Development
+const getSocketUrl = () => {
+    const envUrl = import.meta.env.VITE_API_URL;
+    const hostname = window.location.hostname;
+    
+    // If we are on the production domain, force the production API
+    if (hostname.includes('closh.in')) {
+        return 'https://api.closh.in';
+    }
+    
+    return envUrl || 'https://api.closh.in';
+};
+
+const SOCKET_URL = getSocketUrl();
 
 class SocketService {
     constructor() {
@@ -38,11 +51,18 @@ class SocketService {
             // Re-join all general rooms
             this.rooms.forEach(room => this.socket.emit('join_room', room));
             
-            // Critical: If we have a stored delivery ID, re-register it automatically on every connect
-            const storedId = localStorage.getItem('delivery_boy_id');
-            if (storedId) {
-                 console.log(`🚴 [SOCKET] Auto-restoring registration for: ${storedId}`);
-                 this.socket.emit('delivery_register', storedId);
+            // Critical: Re-register Delivery Partners
+            const storedDeliveryId = localStorage.getItem('delivery_boy_id');
+            if (storedDeliveryId) {
+                 console.log(`🚴 [SOCKET] Auto-restoring Delivery registration for: ${storedDeliveryId}`);
+                 this.socket.emit('delivery_register', storedDeliveryId);
+            }
+
+            // Critical: Re-register Vendors
+            const storedVendorId = localStorage.getItem('vendor_id');
+            if (storedVendorId) {
+                 console.log(`🏪 [SOCKET] Auto-restoring Vendor registration for: ${storedVendorId}`);
+                 this.socket.emit('vendor_register', storedVendorId);
             }
         });
 

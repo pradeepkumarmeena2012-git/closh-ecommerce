@@ -97,6 +97,7 @@ const VendorLayout = () => {
 
     const registerVendor = () => {
       console.log(`🔌 Registering Vendor Socket for ID: ${vendorId}`);
+      localStorage.setItem('vendor_id', vendorId);
       socketService.socket?.emit('vendor_register', vendorId);
     };
 

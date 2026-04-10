@@ -1,3 +1,5 @@
+import { IMAGE_BASE_URL } from './constants';
+
 /**
  * Format price with currency symbol
  */
@@ -58,7 +60,8 @@ export const isValidPhone = (phone) => {
 export const getImageUrl = (image, fallback = "/placeholder.jpg") => {
   if (!image) return fallback;
   if (image.startsWith("http")) return image;
-  return `${import.meta.env.VITE_IMAGE_BASE_URL || ""}${image}`;
+  const cleanImage = image.startsWith('/') ? image : `/${image}`;
+  return `${IMAGE_BASE_URL}${cleanImage}`;
 };
 
 /**

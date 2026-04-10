@@ -18,11 +18,13 @@ import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 import socketService from '../../../../shared/utils/socket';
 
+import { IMAGE_BASE_URL } from '../../../../shared/utils/constants';
+
 const getFullImageUrl = (image) => {
     if (!image) return null;
     if (image.startsWith('http')) return image;
-    const baseUrl = import.meta.env.VITE_IMAGE_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    return `${baseUrl}${image.startsWith('/') ? '' : '/'}${image}`;
+    const cleanImage = image.startsWith('/') ? image : `/${image}`;
+    return `${IMAGE_BASE_URL}${cleanImage}`;
 };
 
 const OrderDetail = () => {
