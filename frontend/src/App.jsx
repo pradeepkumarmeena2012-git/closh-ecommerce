@@ -135,6 +135,7 @@ import UserWishlistPage from "./modules/user/pages/Wishlist/WishlistPage";
 import UserOffersPage from "./modules/user/pages/Offers/OffersPage";
 import UserEventsPage from "./modules/user/pages/Events/EventsPage";
 import UserReferPage from "./modules/user/pages/Refer/ReferPage";
+import CampaignSale from "./modules/user/pages/CampaignSale";
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
 import DeliveryRegister from "./modules/Delivery/pages/Register";
@@ -527,6 +528,14 @@ const AppRoutes = () => {
             <ProtectedRoute>
               <UserLayout><UserReferPage /></UserLayout>
             </ProtectedRoute>
+          </RouteWrapper>
+        }
+      />
+      <Route
+        path="/sale/:slug"
+        element={
+          <RouteWrapper>
+            <UserLayout showCategoryBar={false}><CampaignSale /></UserLayout>
           </RouteWrapper>
         }
       />

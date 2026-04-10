@@ -38,12 +38,12 @@ export const CartProvider = ({ children }) => {
         }
     }, [storeAddItem]);
 
-    const removeFromCart = useCallback((productId) => {
-        storeRemoveItem(productId);
+    const removeFromCart = useCallback((productId, variant = null) => {
+        storeRemoveItem(productId, variant);
     }, [storeRemoveItem]);
 
-    const updateQuantity = useCallback((productId, quantity) => {
-        storeUpdateQuantity(productId, quantity);
+    const updateQuantity = useCallback((productId, quantity, variant = null) => {
+        storeUpdateQuantity(productId, quantity, variant);
     }, [storeUpdateQuantity]);
 
     const clearCart = useCallback(() => {

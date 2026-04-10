@@ -90,7 +90,7 @@ const pricingRuleSchema = Joi.object({
     type: Joi.string().valid('discount', 'markup').required(),
     value: Joi.number().min(0).required(),
     minQuantity: Joi.number().integer().min(1).allow(null).optional(),
-    applicableTo: Joi.string().allow('').optional(),
+    applicableTo: Joi.string().trim().allow(null, '').optional(),
     status: ruleStatus,
 });
 

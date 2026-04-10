@@ -5,6 +5,7 @@ import { useAuthStore } from "../store/authStore";
 import { useAdminAuthStore } from "../../modules/Admin/store/adminStore";
 import { useVendorAuthStore } from "../../modules/Vendor/store/vendorAuthStore";
 import { useDeliveryAuthStore } from "../../modules/Delivery/store/deliveryStore";
+import { useSettingsStore } from "../store/settingsStore";
 import toast from "react-hot-toast";
 
 const PRODUCTS_CACHE_KEY = "user-catalog-products-cache";
@@ -48,6 +49,14 @@ const AppBootstrap = () => {
     let cancelled = false;
 
     const syncCatalog = async () => {
+      // Initialize Settings
+      const isAdmin = useAdminAuthStore.getState().isAuthenticated;
+      if (isAdmin) {
+        useSettingsStore.getState().initialize();
+      } else {
+        useSettingsStore.getState().initializePublic();
+      }
+
       // Small delay to let initial mounting stabilize
       await new Promise(r => setTimeout(r, 100));
       if (cancelled) return;

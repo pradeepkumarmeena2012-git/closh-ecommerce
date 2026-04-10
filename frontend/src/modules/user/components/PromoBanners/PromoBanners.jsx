@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useDealsStore } from '../../../../shared/store/dealsStore';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 const PromoBanners = () => {
+    const navigate = useNavigate();
     const deals = useDealsStore(state => state.deals);
     const initialize = useDealsStore(state => state.initialize);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -75,7 +77,7 @@ const PromoBanners = () => {
 
     return (
         <div className="w-full bg-[#FAFAFA] py-8 md:py-12 overflow-hidden">
-            <div className="container mx-auto px-4 md:px-8 relative">
+            <div className="max-w-[1600px] mx-auto px-4 md:px-8 relative">
                 {/* Navigation Arrows */}
                 <button
                     onClick={prevSlide}
@@ -101,6 +103,7 @@ const PromoBanners = () => {
                         {activeDeals.map((deal, i) => (
                             <div
                                 key={deal.id || i}
+                                onClick={() => deal.link && navigate(deal.link)}
                                 className={`flex-shrink-0 h-[240px] md:h-[280px] rounded-2xl md:rounded-[32px] overflow-hidden relative cursor-pointer shadow-md group/card ${deal.bg || 'bg-gray-100'}`}
                                 style={{ width: `calc(${100 / visibleCards}% - ${visibleCards === 1 ? 0 : 20 - (20 / visibleCards)}px)` }}
                             >
@@ -130,7 +133,13 @@ const PromoBanners = () => {
 
                                     {/* Action Button */}
                                     <div className="flex flex-col items-center">
-                                        <button className="bg-white text-black font-black text-[11px] md:text-[13px] px-8 py-3 rounded-xl shadow-xl hover:bg-black hover:text-white transition-all transform hover:-translate-y-1">
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                deal.link && navigate(deal.link);
+                                            }}
+                                            className="bg-white text-black font-black text-[11px] md:text-[13px] px-8 py-3 rounded-xl shadow-xl hover:bg-black hover:text-white transition-all transform hover:-translate-y-1"
+                                        >
                                             SHOP NOW
                                         </button>
                                         {deal.badge && (

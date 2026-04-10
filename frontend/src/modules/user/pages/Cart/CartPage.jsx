@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Heart, ShieldCheck, ChevronRight, MapPin, ChevronDown } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
@@ -12,6 +12,12 @@ const CartPage = () => {
     const { activeAddress } = useUserLocation();
     const navigate = useNavigate();
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (cart.length === 0) {
+            navigate('/products');
+        }
+    }, [cart.length, navigate]);
 
     const totalMRP = cart.reduce((acc, item) => {
         const itemSellingPrice = item.discountedPrice !== undefined ? item.discountedPrice : (item.price || item.originalPrice || 0);
@@ -96,7 +102,7 @@ const CartPage = () => {
                     {/* Cart Items List */}
                     <div className="flex-[1.5] space-y-4">
                         {cart.map((item) => (
-                            <div key={`${item.id}-${item.selectedSize}`} className="bg-white rounded-[24px] overflow-hidden border border-gray-100 shadow-sm flex flex-row p-3 sm:p-4 relative group transition-all duration-300 hover:shadow-md hover:border-black/10">
+                            <div key={item.cartLineKey || `${item.id}-${item.variant?.size || item.selectedSize || 'default'}`} className="bg-white rounded-[24px] overflow-hidden border border-gray-100 shadow-sm flex flex-row p-3 sm:p-4 relative group transition-all duration-300 hover:shadow-md hover:border-black/10">
                                 {/* Compact Image Section */}
                                 <Link to={`/product/${item.id}`} className="w-24 sm:w-28 aspect-square rounded-2xl overflow-hidden shrink-0 bg-[#F8F8F8] border border-gray-50">
                                     <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -112,7 +118,7 @@ const CartPage = () => {
                                         </div>
                                         <button
                                             className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
-                                            onClick={() => removeFromCart(item.id)}
+                                            onClick={() => removeFromCart(item.id, item.variant)}
                                         >
                                             <Trash2 size={18} />
                                         </button>
@@ -122,21 +128,20 @@ const CartPage = () => {
                                     <div className="flex flex-wrap items-center gap-2 mt-2.5">
                                         <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
                                             <span className="text-[9px] font-bold text-gray-400 uppercase">Size</span>
-                                            <span className="text-[11px] font-extrabold text-gray-900 uppercase">{item.selectedSize || 'M'}</span>
+                                            <span className="text-[11px] font-extrabold text-gray-900 uppercase">{item.variant?.size || item.selectedSize || 'M'}</span>
                                         </div>
                                         <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
                                             <span className="text-[9px] font-bold text-gray-400 uppercase">Qty</span>
                                             <div className="flex items-center gap-2 border-l border-gray-200 ml-1 pl-2">
                                                 <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                                    className="text-gray-400 hover:text-black disabled:opacity-30 p-0.5"
-                                                    disabled={item.quantity <= 1}
+                                                    onClick={() => updateQuantity(item.id, item.quantity - 1, item.variant)}
+                                                    className="text-gray-400 hover:text-black p-0.5"
                                                 >
                                                     <Minus size={12} strokeWidth={3} />
                                                 </button>
                                                 <span className="text-[11px] font-black min-w-[12px] text-center text-gray-900">{item.quantity}</span>
                                                 <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                    onClick={() => updateQuantity(item.id, item.quantity + 1, item.variant)}
                                                     className="text-gray-400 hover:text-black p-0.5"
                                                 >
                                                     <Plus size={12} strokeWidth={3} />

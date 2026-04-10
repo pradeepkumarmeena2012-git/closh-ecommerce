@@ -35,8 +35,6 @@ const uniqueAxisValues = (values = []) => {
     return out;
 };
 
-const createVariantKey = (size = '', color = '') =>
-    `${normalizeVariantPart(size)}|${normalizeVariantPart(color)}`;
 const normalizeAxisName = (value) =>
     String(value || '')
         .trim()
@@ -128,9 +126,7 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
     combinations.forEach(({ selection }) => {
         const size = String(selection?.size || '');
         const color = String(selection?.color || '');
-        const key = hasDynamicAxes
-            ? createDynamicVariantKey(selection)
-            : createVariantKey(size, color);
+        const key = createDynamicVariantKey(selection);
         const parsedPrice = toNonNegativeNumber(pricesSource[key]);
         if (parsedPrice !== null) {
             prices[key] = parsedPrice;

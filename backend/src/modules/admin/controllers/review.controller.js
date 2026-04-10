@@ -1,4 +1,6 @@
 import Review from '../../../models/Review.model.js';
+import User from '../../../models/User.model.js';
+import Product from '../../../models/Product.model.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
@@ -24,10 +26,10 @@ export const getAllReviews = asyncHandler(async (req, res) => {
         const isObjectId = /^[0-9a-fA-F]{24}$/.test(String(search || ''));
 
         const [matchedUsers, matchedProducts] = await Promise.all([
-            Review.db.model('User').find({
+            User.find({
                 $or: [{ name: regex }, { email: regex }],
             }).select('_id').limit(200).lean(),
-            Review.db.model('Product').find({
+            Product.find({
                 $or: [{ name: regex }, { description: regex }],
             }).select('_id').limit(200).lean(),
         ]);

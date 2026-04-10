@@ -16,7 +16,8 @@ import { useCategory } from '../../context/CategoryContext';
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../Modals/LoginModal';
 import { categories as localCategories } from '../../data/index';
-import logo from '../../../../assets/animations/lottie/logo-removebg.png';
+import { useSettingsStore } from '../../../../shared/store/settingsStore';
+import logoFallback from '../../../../assets/animations/lottie/logo-removebg.png';
 
 // Utility for highlighting search query in suggestions
 const HighlightText = ({ text, query }) => {
@@ -34,9 +35,10 @@ const HighlightText = ({ text, query }) => {
 };
 
 
-const Header = ({ variant = 'default' }) => {
+const Header = ({ variant = 'default', showCategoryBar = true }) => {
     const headerRef = useRef(null);
     const { user } = useAuth();
+    const { settings } = useSettingsStore();
     const { wishlistItems } = useWishlist();
     const { activeCategory, setActiveCategory, activeSubCategory, setActiveSubCategory, getCategoryColor } = useCategory();
     const { activeAddress } = useUserLocation();
@@ -224,7 +226,7 @@ const Header = ({ variant = 'default' }) => {
     }, [activeAddress, location.pathname]);
 
     // Show categories on Home and Shop pages
-    const showCategories = (location.pathname === '/' || location.pathname === '/home' || location.pathname === '/shop' || location.pathname === '/categories');
+    const showCategories = showCategoryBar && (location.pathname === '/' || location.pathname === '/home' || location.pathname === '/shop' || location.pathname === '/categories');
 
     const getHeaderTheme = (categoryName) => {
         return 'bg-white';
@@ -318,8 +320,15 @@ const Header = ({ variant = 'default' }) => {
                         {/* Desktop Inline Navbar - Now shown on large screens (lg+) */}
                         <div className="hidden lg:flex items-center justify-between px-6 py-3">
                         <div className="flex items-center gap-8">
-                            <Link to="/" className="flex items-center gap-1 no-underline group">
-                                
+                            <Link to="/" className="flex items-center gap-3 no-underline group mr-2">
+                                <img 
+                                    src={settings?.general?.storeLogo || logoFallback} 
+                                    alt={settings?.general?.storeName} 
+                                    className="h-10 w-auto object-contain transition-transform group-hover:scale-105"
+                                />
+                                <span className="text-[20px] font-black text-black tracking-tight hidden xl:block uppercase">
+                                    {settings?.general?.storeName || 'Appzeto'}
+                                </span>
                             </Link>
 
                                 <button
@@ -547,8 +556,8 @@ const Header = ({ variant = 'default' }) => {
                 <div className="hidden">
                     <div className="flex items-center justify-between px-8 py-3">
                         <Link to="/" className="no-underline group">
-                            <h1 className="text-[32px] font-bold  drop-shadow-md transition-all duration-500 text-black group-hover:text-black/80">
-                                Clothify<span className="text-black text-[40px] leading-none">.</span>
+                            <h1 className="text-[32px] font-bold drop-shadow-md transition-all duration-500 text-black group-hover:text-black/80">
+                                {settings?.general?.storeName}<span className="text-black text-[40px] leading-none">.</span>
                             </h1>
                         </Link>
 

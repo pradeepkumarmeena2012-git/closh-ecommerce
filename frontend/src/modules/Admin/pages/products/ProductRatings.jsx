@@ -40,6 +40,7 @@ const ProductRatings = () => {
       }));
       setRatings(normalizedRows);
     } catch (error) {
+      console.error("Error loading ratings:", error);
       setRatings([]);
     } finally {
       setIsLoading(false);

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import MobileHeader from './MobileHeader';
-import DesktopHeader from './DesktopHeader';
+import MobileHeader from '../Header/MobileHeader';
+import DesktopHeader from '../Header/DesktopHeader';
 import MobileBottomNav from './MobileBottomNav';
 import MobileCartBar from './MobileCartBar';
 import CartDrawer from '../../../../shared/components/Cart/CartDrawer';
@@ -17,18 +17,20 @@ const MobileLayout = ({ children, showBottomNav = true, showCartBar = true }) =>
 
   const isCheckoutPage = location.pathname === '/checkout';
   const isAddressPage = location.pathname.includes('/addresses');
+  const isSalePage = location.pathname.startsWith('/sale/');
 
   // Respect the showBottomNav prop and hide on auth / checkout / address pages
   const shouldShowBottomNav = showBottomNav && !isAuthPage && !isCheckoutPage && !isAddressPage;
   
-  // Hide header on categories, search, wishlist, profile, and auth pages
+  // Hide header on categories, search, wishlist, profile, auth, and sale pages
   const shouldShowHeader = !isAuthPage &&
     location.pathname !== '/search' &&
     location.pathname !== '/wishlist' &&
     location.pathname !== '/profile' &&
     location.pathname !== '/orders' &&
     !isCheckoutPage &&
-    !isAddressPage;
+    !isAddressPage &&
+    !isSalePage;
 
   // Ensure body scroll is restored when component mounts
   useEffect(() => {

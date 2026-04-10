@@ -4,7 +4,7 @@ import Footer from '../../components/Footer/Footer';
 import BottomNav from '../../components/Navigation/BottomNav';
 
 
-const UserLayout = ({ children, variant = 'default', showHeader = true }) => {
+const UserLayout = ({ children, variant = 'default', showHeader = true, showCategoryBar = true }) => {
     const location = useLocation();
     const isAddressPage = location.pathname.includes('/addresses');
     
@@ -13,7 +13,7 @@ const UserLayout = ({ children, variant = 'default', showHeader = true }) => {
 
     return (
         <div id="user-layout-root" className="flex flex-col h-screen overflow-hidden bg-white">
-            {displayHeader && <Header variant={variant} />}
+            {displayHeader && <Header variant={variant} showCategoryBar={showCategoryBar} />}
             <div id="user-scroll-container" className="flex-1 overflow-y-auto scroll-smooth scrollbar-responsive">
                 <main className="flex-1">{children}</main>
                 <div className={['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) || isAddressPage ? "hidden lg:block" : (variant !== 'shop' ? "" : "hidden")}>

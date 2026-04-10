@@ -72,7 +72,11 @@ const productSchema = new mongoose.Schema(
             index: true
         },
     },
-    { timestamps: true }
+    { 
+        timestamps: true,
+        toJSON: { flattenMaps: true },
+        toObject: { flattenMaps: true }
+    }
 );
 
 productSchema.index({ vendorId: 1, isActive: 1 });

@@ -27,9 +27,9 @@ import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import LocationModal from '../../components/Header/LocationModal';
 import { useUserLocation } from '../../context/LocationContext';
-
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/Modals/LoginModal';
+import { getVariantSignature } from '../../../../shared/utils/variant';
 
 const ProductDetailsPage = () => {
     const { id } = useParams();
@@ -105,12 +105,40 @@ const ProductDetailsPage = () => {
     // Calculate Dynamic Price based on Variant
     const currentPrice = useMemo(() => {
         if (!product) return 0;
-        if (selectedSize && selectedColor && product.variants?.prices) {
-            const variantKey = `${selectedSize}|${selectedColor}`;
-            const variantPrice = product.variants.prices[variantKey];
-            if (variantPrice) return variantPrice;
+        
+        let finalPrice = product.discountedPrice !== undefined ? product.discountedPrice : product.price;
+
+        if (product.variants?.prices) {
+            const signature = getVariantSignature({ size: selectedSize, color: selectedColor });
+            const entries = Object.entries(product.variants.prices || {});
+            
+            // 1. Exact match with standardized signature
+            let match = entries.find(([k]) => String(k).trim() === signature);
+            
+            // 2. Case-insensitive match 
+            if (!match && signature) {
+                match = entries.find(([k]) => String(k).trim().toLowerCase() === signature.toLowerCase());
+            }
+
+            // 3. Legacy legacy format (size|color)
+            if (!match) {
+                const s = String(selectedSize || "").trim().toLowerCase();
+                const c = String(selectedColor || "").trim().toLowerCase();
+                const candidates = [`${s}|${c}`, `${s}-${c}`, s && !c ? s : null, c && !s ? c : null].filter(Boolean);
+                for (const cand of candidates) {
+                    match = entries.find(([k]) => String(k).trim().toLowerCase() === cand);
+                    if (match) break;
+                }
+            }
+
+            if (match) {
+                const parsed = Number(match[1]);
+                if (Number.isFinite(parsed) && parsed >= 0) {
+                    finalPrice = parsed;
+                }
+            }
         }
-        return product.discountedPrice !== undefined ? product.discountedPrice : product.price;
+        return finalPrice;
     }, [product, selectedSize, selectedColor]);
 
     const handleAddToCart = () => {
@@ -144,6 +172,47 @@ const ProductDetailsPage = () => {
         setOpenAccordion(openAccordion === id ? null : id);
     };
 
+    // Use actual images from product
+    const productImages = useMemo(() => {
+        if (!product) return [];
+
+        let variantImage = null;
+        if (product.variants?.imageMap) {
+            const signature = getVariantSignature({ size: selectedSize, color: selectedColor });
+            const entries = Object.entries(product.variants.imageMap || {});
+            
+            // 1. Exact match
+            let match = entries.find(([k]) => String(k).trim() === signature);
+            
+            // 2. Case-insensitive
+            if (!match && signature) {
+                match = entries.find(([k]) => String(k).trim().toLowerCase() === signature.toLowerCase());
+            }
+
+            // 3. Legacy Candidates
+            if (!match) {
+                const s = String(selectedSize || "").trim().toLowerCase();
+                const c = String(selectedColor || "").trim().toLowerCase();
+                const candidates = [`${s}|${c}`, `${s}-${c}`, s && !c ? s : null, c && !s ? c : null].filter(Boolean);
+                for (const cand of candidates) {
+                    match = entries.find(([k]) => String(k).trim().toLowerCase() === cand);
+                    if (match) break;
+                }
+            }
+
+            if (match) variantImage = match[1];
+        }
+
+        const baseImages = Array.isArray(product.images) && product.images.length > 0
+            ? product.images
+            : [product.image || 'https://via.placeholder.com/800x1000?text=Premium+Piece'];
+
+        if (variantImage) {
+            return [variantImage, ...baseImages.filter(img => img !== variantImage)];
+        }
+        return baseImages;
+    }, [product, selectedSize, selectedColor]);
+
     if (loading) return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-white">
             <div className="w-16 h-16 border-4 border-gray-200 border-t-[#D4AF37] rounded-full animate-spin transition-all" />
@@ -161,11 +230,6 @@ const ProductDetailsPage = () => {
             <button onClick={() => navigate('/shop')} className="px-8 py-4 bg-black text-white text-[11px] font-bold uppercase  rounded-2xl shadow-xl active:scale-95 transition-all">Go to Shop</button>
         </div>
     );
-
-    // Use actual images from product
-    const productImages = Array.isArray(product.images) && product.images.length > 0
-        ? product.images
-        : [product.image || 'https://via.placeholder.com/800x1000?text=Premium+Piece'];
 
     // Cart count logic
     const cartCount = getCartCount();
@@ -329,6 +393,13 @@ const ProductDetailsPage = () => {
                                 </div>
                             </div>
                             <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mb-2 md:mb-3">{product.name}</h1>
+
+                            {product.campaignType === 'festival' && (
+                                <div className="mb-3 flex items-center gap-2 bg-rose-50 border border-rose-100 px-3 py-2 rounded-xl w-fit animate-pulse">
+                                    <Tag size={14} className="text-rose-600 fill-rose-600/10" />
+                                    <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Festival Offer Applied</span>
+                                </div>
+                            )}
 
                             <div className="flex items-center gap-4 mb-2">
                                 <div className="flex flex-row items-baseline gap-2">
@@ -588,10 +659,6 @@ const ProductDetailsPage = () => {
                                                     <p className="text-[13px] font-bold text-gray-900">{product.warrantyPeriod}</p>
                                                 </div>
                                             )}
-                                            <div>
-                                                <h5 className="text-[10px] font-bold text-black/40 uppercase mb-1">Unit</h5>
-                                                <p className="text-[13px] font-bold text-gray-900">{product.unit || 'Piece'}</p>
-                                            </div>
                                         </div>
                                     )
                                 },

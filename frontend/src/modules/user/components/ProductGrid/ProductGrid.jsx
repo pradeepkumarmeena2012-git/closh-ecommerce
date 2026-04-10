@@ -40,7 +40,7 @@ const ProductGrid = () => {
 
     return (
         <section id="product-grid" className="py-4 md:py-8 bg-[#FAFAFA] transition-colors duration-500">
-            <div className="max-w-7xl mx-auto px-5 md:px-8">
+            <div className="max-w-[1600px] mx-auto px-5 md:px-8">
                 <div className="flex flex-row justify-between items-end mb-5 gap-2 px-0.5">
                     <div className="flex flex-col">
                         <h2 className="text-[18px] md:text-[32px] font-black uppercase tracking-tight text-gray-900 leading-none">
