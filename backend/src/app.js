@@ -63,7 +63,8 @@ const allowedOrigins = [
 // CORS MUST come before Helmet so preflight OPTIONS get proper headers
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        const isVercel = origin && /\.vercel\.app$/.test(origin);
+        if (!origin || allowedOrigins.includes(origin) || isVercel) {
             callback(null, true);
         } else {
             console.error(`CORS BLOCKED for origin: ${origin}`);

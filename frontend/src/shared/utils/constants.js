@@ -3,9 +3,10 @@
 const getApiBaseUrl = () => {
     const envUrl = import.meta.env.VITE_API_BASE_URL;
     const hostname = window.location.hostname;
+    const isProduction = hostname.includes('closh.in') || hostname.includes('vercel.app');
     
-    // If we are on the production domain, force the production API
-    if (hostname.includes('closh.in')) {
+    // If we are on production or vercel, force the production API
+    if (isProduction) {
         return 'https://api.closh.in/api';
     }
     
@@ -15,8 +16,9 @@ const getApiBaseUrl = () => {
 const getImageUrlBase = () => {
     const envUrl = import.meta.env.VITE_IMAGE_BASE_URL;
     const hostname = window.location.hostname;
+    const isProduction = hostname.includes('closh.in') || hostname.includes('vercel.app');
     
-    if (hostname.includes('closh.in')) {
+    if (isProduction) {
         return 'https://api.closh.in';
     }
     
