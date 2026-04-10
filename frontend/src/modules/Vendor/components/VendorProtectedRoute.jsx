@@ -9,17 +9,17 @@ const VendorProtectedRoute = ({ children }) => {
   const accessToken = token || localStorage.getItem('vendor-token');
   const payload = decodeJwtPayload(accessToken);
   const role = String(payload?.role || '').toLowerCase();
-  const tokenExpiryMs =
-    typeof payload?.exp === 'number' ? payload.exp * 1000 : null;
-  const isExpired = tokenExpiryMs ? Date.now() >= tokenExpiryMs : false;
+  const isExpired = false;
 
   const hasHydrated = useVendorAuthStore(state => state._hasHydrated);
 
-  useEffect(() => {
-    if (isExpired && isAuthenticated && hasHydrated) {
-      logout();
-    }
-  }, [isExpired, isAuthenticated, logout, hasHydrated]);
+  // Manual redirect should only happen if not authenticated at all
+  // Expiry is handled via 401 interceptors in api.js
+  // useEffect(() => {
+  //   if (isExpired && isAuthenticated && hasHydrated) {
+  //     logout();
+  //   }
+  // }, [isExpired, isAuthenticated, logout, hasHydrated]);
 
   if (!hasHydrated) {
     return (

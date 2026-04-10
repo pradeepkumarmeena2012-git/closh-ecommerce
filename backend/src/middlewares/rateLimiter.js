@@ -50,7 +50,7 @@ const createStore = (prefix) => {
 // General API rate limiter
 export const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: IS_DEV ? 10000 : 100,
+    max: IS_DEV ? 10000 : 1000, // Increased from 100 to 1000
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many requests, please try again later.' },
@@ -60,7 +60,7 @@ export const apiLimiter = rateLimit({
 // Strict limiter for auth endpoints
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: IS_DEV ? 10000 : 5,
+    max: IS_DEV ? 10000 : 50, // Increased from 5 to 50
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many login attempts, please try again in 15 minutes.' },

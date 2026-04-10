@@ -1,5 +1,25 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+// Intelligent URL detection for Production vs Development
+const getApiBaseUrl = () => {
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    const hostname = window.location.hostname;
+    const isProduction = hostname.includes('closh.in') || hostname.includes('vercel.app');
+    
+    if (isProduction) return 'https://api.closh.in/api';
+    return envUrl || 'http://localhost:5000/api';
+};
+
+const getImageUrlBase = () => {
+    const envUrl = import.meta.env.VITE_IMAGE_BASE_URL;
+    const hostname = window.location.hostname;
+    const isProduction = hostname.includes('closh.in') || hostname.includes('vercel.app');
+    
+    if (isProduction) return 'https://api.closh.in';
+    return envUrl || 'http://localhost:5000';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+export const IMAGE_BASE_URL = getImageUrlBase();
 
 // App Constants
 export const APP_NAME = 'Appzeto multi vendor E-commerce';

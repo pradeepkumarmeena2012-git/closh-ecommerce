@@ -31,10 +31,19 @@ const ProductCard = ({ product }) => {
             <LazyImage
               src={product.image}
               alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${(product.stock === 'out_of_stock' || product.stockQuantity <= 0) ? 'grayscale opacity-70' : ''}`}
               onError={(e) => { e.target.src = getPlaceholderImage(400, 533, "Product"); }}
             />
           </Link>
+
+          {/* Out of Stock Overlay */}
+          {(product.stock === 'out_of_stock' || product.stockQuantity <= 0) && (
+            <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-20 flex items-center justify-center p-2 pointer-events-none">
+              <span className="bg-red-500 text-white text-[10px] md:text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-xl transform -rotate-12 border-2 border-white scale-110">
+                Sold Out
+              </span>
+            </div>
+          )}
 
           {/* Wishlist Icon */}
           <button

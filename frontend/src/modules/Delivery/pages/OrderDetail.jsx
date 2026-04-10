@@ -528,13 +528,21 @@ const DeliveryOrderDetail = () => {
         {/* BOTTOM ACTION BUTTON */}
         <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-100 z-50">
           {isAvailableTask ? (
-            <button 
-                onClick={handleAcceptMission}
-                disabled={isUpdatingOrderStatus}
-                className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-200 active:scale-95 transition-all"
-            >
-                {isUpdatingOrderStatus ? 'ACCEPTING MISSION...' : 'ACCEPT TASK TO START'}
-            </button>
+            <div className="flex gap-3">
+              <button 
+                  onClick={() => navigate(-1)}
+                  className="flex-1 h-12 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] border border-slate-200 active:scale-95 transition-all"
+              >
+                  Decline
+              </button>
+              <button 
+                  onClick={handleAcceptMission}
+                  disabled={isUpdatingOrderStatus}
+                  className="flex-[2] h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-200 active:scale-95 transition-all"
+              >
+                  {isUpdatingOrderStatus ? 'ACCEPTING MISSION...' : 'ACCEPT TASK TO START'}
+              </button>
+            </div>
           ) : isAssignedToMe ? (
             ((currentPhase === 'pickup' && pickupPhoto) || (currentPhase === 'delivery' && hasArrived)) ? (
               <button 

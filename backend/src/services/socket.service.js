@@ -14,7 +14,8 @@ export const initSocket = (server) => {
                 'https://www.closh.in',
                 'https://closh.in',
                 'http://localhost:3000',
-                'http://localhost:5173'
+                'http://localhost:5173',
+                /\.vercel\.app$/ // Allow all Vercel deployments
             ].filter(Boolean),
             methods: ['GET', 'POST'],
             credentials: true,

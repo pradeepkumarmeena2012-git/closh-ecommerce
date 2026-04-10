@@ -84,6 +84,16 @@ export const OrderNotificationService = {
             const vendorIds = [...new Set(order.vendorItems.map(vi => String(vi.vendorId?._id || vi.vendorId)))];
             vendorIds.forEach(vId => {
                 const msg = getMessageForRole('vendor', status, order.orderId, order.deliveryBoyId?.name);
+                
+                // Privacy & Clarity: Only send items belonging to this specific vendor
+                const vendorGroup = order.vendorItems.find(vi => String(vi.vendorId?._id || vi.vendorId) === vId);
+                const vendorSpecificData = {
+                    ...order.toObject(),
+                    items: vendorGroup?.items || [],
+                    total: vendorGroup?.subtotal || 0, // Show the vendor their specific subtotal
+                    vendorEarnings: vendorGroup?.vendorEarnings || 0
+                };
+
                 recipients.push({ 
                     id: vId, 
                     type: 'vendor', 
@@ -94,7 +104,7 @@ export const OrderNotificationService = {
 
                 // Socket event for dashboard refresh / buzzer
                 if (status === 'pending') {
-                    emitEvent(`vendor_${vId}`, 'order_created', { ...order.toObject(), message: msg });
+                    emitEvent(`vendor_${vId}`, 'order_created', { ...vendorSpecificData, message: msg });
                 }
             });
 
@@ -109,7 +119,15 @@ export const OrderNotificationService = {
                     sound: (status === 'ready_for_pickup' || status === 'searching') ? 'buzzer.mp3' : 'default'
                 });
             }
-
+            
+            // Collect metadata for the notifications
+            const notificationData = { 
+                orderId: order.orderId, 
+                status,
+                total: order.total,
+                customerName: order.shippingAddress?.name
+            };
+            
             // Execute notifications (DB persistence + Push via createNotification)
             const tasks = recipients
                 .filter(r => String(r.id) !== String(options.excludeRecipientId))
@@ -119,7 +137,7 @@ export const OrderNotificationService = {
                     title: r.title,
                     message: r.message,
                     type: 'order',
-                    data: { ...data, orderId: order.orderId, status },
+                    data: { ...notificationData, ...data },
                     sound: r.sound || 'default'
                 }));
 

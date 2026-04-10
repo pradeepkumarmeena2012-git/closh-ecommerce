@@ -30,9 +30,14 @@ const sendPushToTokens = async (tokens, { title, body, data = {}, sound = 'defau
         return;
     }
 
+    const stringifiedData = {};
+    Object.entries(data).forEach(([key, value]) => {
+        stringifiedData[key] = String(value);
+    });
+
     const message = {
         notification: { title, body },
-        data: { ...data, click_action: 'FLUTTER_NOTIFICATION_CLICK' }, // Standard for some frameworks
+        data: { ...stringifiedData, click_action: 'FLUTTER_NOTIFICATION_CLICK' }, // Standard for some frameworks
         tokens,
         android: {
             priority: 'high',

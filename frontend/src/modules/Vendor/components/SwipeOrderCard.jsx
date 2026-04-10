@@ -1,11 +1,22 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
-import { FiPackage, FiArrowRight, FiCheckCircle } from 'react-icons/fi';
+import { FiPackage, FiArrowRight, FiCheckCircle, FiEye } from 'react-icons/fi';
 import { formatPrice } from '../../../shared/utils/helpers';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
 import toast from 'react-hot-toast';
 
+import { IMAGE_BASE_URL } from '../../../shared/utils/constants';
+
+const getFullImageUrl = (image) => {
+    if (!image) return null;
+    if (image.startsWith('http')) return image;
+    const cleanImage = image.startsWith('/') ? image : `/${image}`;
+    return `${IMAGE_BASE_URL}${cleanImage}`;
+};
+
 const SwipeOrderCard = ({ order, onStatusUpdate }) => {
+    const navigate = useNavigate();
     const { updateOrderStatus, vendor } = useVendorAuthStore();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -82,8 +93,11 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
         <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
             <div className="p-4 pb-14">
                 <div className="flex justify-between items-start mb-2">
-                    <div>
-                        <p className="font-bold text-gray-800">{orderId}</p>
+                    <div className="flex-1 cursor-pointer" onClick={() => navigate(`/vendor/orders/${orderId}`)}>
+                        <div className="flex items-center gap-2">
+                            <p className="font-bold text-gray-800">{orderId}</p>
+                            <FiEye className="text-blue-500 hover:text-blue-700 transition-colors" />
+                        </div>
                         <p className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="text-right">
@@ -92,6 +106,25 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
                             <FiPackage className="text-xs" />
                             <span className="text-[10px] uppercase font-bold ">{currentStatus.replace(/_/g, ' ')}</span>
                         </div>
+                    </div>
+                </div>
+
+                {/* Product Detail Snippet */}
+                <div 
+                    className="flex items-center gap-3 mt-3 p-2 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => navigate(`/vendor/orders/${orderId}`)}
+                >
+                    <div className="w-12 h-12 rounded-lg bg-white border border-gray-100 overflow-hidden flex-shrink-0">
+                        <img 
+                            src={getFullImageUrl(vendorItem?.items?.[0]?.image || order.items?.[0]?.image)} 
+                            alt={vendorItem?.items?.[0]?.name || 'Product'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { e.target.src = 'https://via.placeholder.com/48?text=P' }}
+                        />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-gray-800 truncate">{vendorItem?.items?.[0]?.name || order.items?.[0]?.name || 'Multiple Products'}</p>
+                        <p className="text-[10px] text-gray-500 font-medium">Qty: {vendorItem?.items?.[0]?.quantity || order.items?.[0]?.quantity || 1}</p>
                     </div>
                 </div>
             </div>
