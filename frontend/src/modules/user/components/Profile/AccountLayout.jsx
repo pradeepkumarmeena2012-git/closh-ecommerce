@@ -30,10 +30,10 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
 
     return (
         <div className="bg-white text-gray-900 min-h-screen pb-12">
-            <div className="container mx-auto px-4 md:px-8 lg:px-12 py-4 md:py-8">
+            <div className="max-w-7xl mx-auto px-1 md:px-8 lg:px-12 py-4 md:py-8">
                 {/* Mobile Back Header */}
                 {isMobile && !hideHeader && (
-                    <div className="flex items-center gap-3 mb-2 bg-gray-50 p-2 md:p-3 rounded-[20px] md:rounded-2xl shadow-sm border border-gray-200 mx-1">
+                    <div className="flex items-center gap-3 mb-2 bg-gray-50 p-2 md:p-3 rounded-[20px] md:rounded-2xl shadow-sm border border-gray-200 mx-0">
                         <button
                             onClick={() => {
                                 if (isMenuPage) {
@@ -61,7 +61,7 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
                     {/* Hide detail content on mobile account menu */}
                     {(!isMobile || !isMenuPage) && (
                         <main className="flex-1 px-1 lg:px-0">
-                            <div className="bg-gray-50 rounded-[24px] md:rounded-3xl shadow-2xl border border-gray-200 p-3 md:p-8 min-h-[400px] md:min-h-[500px]">
+                            <div className="bg-gray-50 rounded-[24px] md:rounded-3xl shadow-2xl border border-gray-200 p-2 md:p-8 min-h-[400px] md:min-h-[500px]">
                                 {children}
                             </div>
                         </main>

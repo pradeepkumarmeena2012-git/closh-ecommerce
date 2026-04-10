@@ -391,7 +391,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                                             <HighlightText text={item.name} query={searchQuery} />
                                                         </h4>
                                                         <p className="text-[10px] font-bold uppercase text-black/30">
-                                                            {item.categoryId?.name || 'Category'} <span className="text-[8px] mx-1 opacity-50">•</span> <span className="text-black/60 font-semibold">₹{item.price}</span>
+                                                            {item.categoryId?.name || 'Category'}
                                                         </p>
                                                     </div>
                                                     <ChevronRight size={14} className="text-gray-300 group-hover/item:text-black group-hover/item:translate-x-1 transition-all" />
@@ -513,7 +513,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                                             <HighlightText text={item.name} query={searchQuery} />
                                                         </h4>
                                                         <p className="text-[10px] font-bold text-black/30 uppercase mt-0.5">
-                                                            {item.categoryId?.name} <span className="text-black/60 mx-1">₹{item.price}</span>
+                                                            {item.categoryId?.name}
                                                         </p>
                                                     </div>
                                                     <ChevronRight size={14} className="text-gray-300" />

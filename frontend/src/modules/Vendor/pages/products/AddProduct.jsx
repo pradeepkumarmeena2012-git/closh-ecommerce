@@ -300,9 +300,23 @@ const AddProduct = () => {
 
   const addVariantAxisValues = (axis, rawInput) => {
     const parsed = parseVariantAxis(rawInput);
-    if (!parsed.length) return;
+    if (!parsed.length) {
+      if (rawInput.trim()) toast.error(`No valid ${axis === "sizes" ? "size" : "color"} values found`);
+      return;
+    }
     const current = Array.isArray(formData?.variants?.[axis]) ? formData.variants[axis] : [];
-    const merged = parseVariantAxis([...current, ...parsed].join(", "));
+    
+    // Check for duplicates
+    const duplicates = parsed.filter(val => 
+      current.some(c => String(c).trim().toLowerCase() === String(val).trim().toLowerCase())
+    );
+    
+    if (duplicates.length > 0) {
+      toast.error(`${axis === "sizes" ? "Size" : "Color"} "${duplicates[0]}" already exists`);
+      return;
+    }
+
+    const merged = [...current, ...parsed];
     updateVariantAxes(axis, merged.join(", "));
     setVariantAxisInput((prev) => ({ ...prev, [axis]: "" }));
   };
@@ -364,26 +378,37 @@ const AddProduct = () => {
     }
 
     if (!formData.name || !formData.price || !formData.stockQuantity || !formData.categoryId) {
-      toast.error("Please fill in all required fields");
+      toast.error("Please fill in all required fields (Name, Price, Stock, Category)");
       return;
     }
+
+    // Optional but helpful: If they started adding variants, ensure at least one is valid
+    const hasAnyVariants = (formData.variants?.sizes?.length > 0 || 
+                            formData.variants?.colors?.length > 0 || 
+                            formData.variants?.attributes?.length > 0);
+    
+    // If they have no variants, ensure stock quantity is not 0 (optional business rule)
+    // if (!hasAnyVariants && parsedStockQuantity <= 0) {
+    //   toast.error("Stock quantity must be greater than 0 for simple products");
+    //   return;
+    // }
 
     // Determine final categoryId
     const finalCategoryId = formData.subcategoryId
       ? formData.subcategoryId
       : formData.categoryId ?? null;
 
-    const parsedPrice = parseFloat(formData.price);
-    const parsedOriginalPrice = formData.originalPrice
-      ? parseFloat(formData.originalPrice)
-      : null;
-    const parsedStockQuantity = parseInt(formData.stockQuantity, 10);
-    const parsedTotalAllowedQuantity = formData.totalAllowedQuantity
-      ? parseInt(formData.totalAllowedQuantity, 10)
-      : null;
-    const parsedMinimumOrderQuantity = formData.minimumOrderQuantity
-      ? parseInt(formData.minimumOrderQuantity, 10)
-      : null;
+    const parsedPrice = parseFloat(formData.price || 0);
+    const parsedOriginalPrice = (formData.originalPrice === "" || formData.originalPrice === null)
+      ? null
+      : parseFloat(formData.originalPrice);
+    const parsedStockQuantity = parseInt(formData.stockQuantity || 0, 10);
+    const parsedTotalAllowedQuantity = (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
+      ? null
+      : parseInt(formData.totalAllowedQuantity, 10);
+    const parsedMinimumOrderQuantity = (formData.minimumOrderQuantity === "" || formData.minimumOrderQuantity === null || isNaN(parseInt(formData.minimumOrderQuantity)))
+      ? null
+      : parseInt(formData.minimumOrderQuantity, 10);
 
     if (!Number.isFinite(parsedPrice) || !Number.isFinite(parsedStockQuantity)) {
       toast.error("Please enter valid numeric values");
