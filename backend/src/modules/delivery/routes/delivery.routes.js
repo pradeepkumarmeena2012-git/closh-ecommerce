@@ -61,6 +61,7 @@ if (!IS_PRODUCTION) {
 router.patch('/orders/:id/status', ...deliveryAuth, orderController.updateDeliveryStatus);
 router.post('/orders/:id/accept', ...deliveryAuth, assignmentController.acceptOrderAssignment);
 router.post('/orders/:id/arrived', ...deliveryAuth, orderController.markArrived);
+router.post('/orders/:id/cancel', ...deliveryAuth, orderController.cancelOrder);
 router.post('/orders/:id/resend-delivery-otp', ...deliveryAuth, orderController.resendDeliveryOtp);
 router.get('/orders/:id/company-qr', ...deliveryAuth, orderController.getCompanyQR);
 

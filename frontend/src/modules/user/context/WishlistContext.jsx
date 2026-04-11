@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
+import { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
 import { useWishlistStore } from '../../../shared/store/wishlistStore';
 
 const WishlistContext = createContext();

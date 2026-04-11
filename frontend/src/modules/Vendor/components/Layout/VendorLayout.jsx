@@ -147,7 +147,10 @@ const VendorLayout = () => {
     socketService.on("order_created", handleNewOrder);
     socketService.on("new_notification", (notif) => {
         console.log('🔔 [VENDOR] Received general notification:', notif);
-        if (notif?.type === 'order' && !showOrderModal) {
+        const status = notif.data?.status?.toLowerCase();
+        const isNewOrderRequest = notif?.type === 'order' && (status === 'pending' || status === 'ready_for_pickup' || !status);
+        
+        if (isNewOrderRequest && !showOrderModal) {
             handleNewOrder(notif.data || { orderId: notif.data?.orderId });
         }
     });

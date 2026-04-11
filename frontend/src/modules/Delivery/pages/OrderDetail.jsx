@@ -18,8 +18,10 @@ import {
   FiMaximize,
   FiImage,
   FiPlus,
-  FiZap
+  FiZap,
+  FiAlertTriangle
 } from 'react-icons/fi';
+import CancellationModal from '../components/CancellationModal';
 import TrackingMap from '../../../shared/components/TrackingMap';
 import PageTransition from '../../../shared/components/PageTransition';
 import { formatPrice } from '../../../shared/utils/helpers';
@@ -42,6 +44,7 @@ const DeliveryOrderDetail = () => {
     submitTryAndBuy,
     setPaymentMethod,
     completeDeliveryFlow,
+    cancelOrder,
     deliveryBoy,
   } = useDeliveryAuthStore();
   
@@ -57,6 +60,8 @@ const DeliveryOrderDetail = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [isCancellationModalOpen, setIsCancellationModalOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const pickupInputRef = useRef(null);
   const pickupGalleryRef = useRef(null);
@@ -230,6 +235,25 @@ const DeliveryOrderDetail = () => {
     ? order.items.reduce((sum, item) => selectedItemIds.has(item.productId || item._id) ? sum + (item.price * item.quantity) : sum, 0)
     : order?.total;
 
+  const handleCancelOrder = () => {
+    setIsCancellationModalOpen(true);
+  };
+
+  const confirmCancellation = async (reason) => {
+    setIsCancelling(true);
+    try {
+      const updated = await cancelOrder(id, reason);
+      setOrder(updated);
+      toast.success('Order cancelled successfully');
+      setIsCancellationModalOpen(false);
+      navigate('/delivery/dashboard');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Cancellation failed');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const handleFinalize = async () => {
     if (!/^\d{6}$/.test(otpValue.trim())) return toast.error('Enter 6-digit OTP');
     if (isCod && !paymentSelection) return toast.error('Select payment method');
@@ -337,11 +361,19 @@ const DeliveryOrderDetail = () => {
                     <input type="file" accept="image/*" capture="environment" ref={pickupInputRef} onChange={(e) => handleImage(e.target.files[0], setPickupPhoto)} className="hidden" />
                     <input type="file" accept="image/*" ref={pickupGalleryRef} onChange={(e) => handleImage(e.target.files[0], setPickupPhoto)} className="hidden" />
                   </div>
-               ) : (
-                  <button onClick={handleArrival} className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-50 active:scale-95 transition-transform">
-                    <FiZap size={16} className="animate-pulse" /> GENERATE OTP (I HAVE ARRIVED)
-                  </button>
-               )}
+                ) : (
+                  <div className="flex flex-col gap-2 w-full">
+                    <button onClick={handleArrival} className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-50 active:scale-95 transition-transform">
+                      <FiZap size={16} className="animate-pulse" /> GENERATE OTP (I HAVE ARRIVED)
+                    </button>
+                    <button 
+                      onClick={handleCancelOrder}
+                      className="w-full h-11 border-2 border-rose-200 text-rose-500 bg-rose-50/30 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 active:bg-rose-100 transition-colors"
+                    >
+                      <FiX size={16}/> Cancel Order (Customer Refused)
+                    </button>
+                  </div>
+                )}
             </div>
           ) : (
             <>
@@ -404,7 +436,7 @@ const DeliveryOrderDetail = () => {
                  <div>
                     <div className="flex items-center justify-between mb-3">
                        <p className="text-[9px] font-bold text-slate-800 uppercase tracking-widest">Verification Proof</p>
-                       <span className="text-[8px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded leading-none uppercase">{currentPhase.toUpperCase()}</span>
+                       <span className="text-[8px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded leading-none uppercase">{(currentPhase || 'Phase').toUpperCase()}</span>
                     </div>
                     
                     <div className="grid grid-cols-1 gap-4">
@@ -485,6 +517,13 @@ const DeliveryOrderDetail = () => {
                            {isResending ? 'GENERATING NEW OTP...' : <><FiSend size={12}/> RE-GENERATE & RESEND OTP</>}
                         </button>
                         <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-none px-2 mt-2 opacity-60">OTP is sent only during active arrival session.</p>
+                        
+                        <button 
+                          onClick={handleCancelOrder}
+                          className="w-full mt-4 py-2 flex items-center justify-center gap-2 text-[8px] font-black text-rose-500 bg-rose-50/50 rounded-xl active:bg-rose-100 transition-all uppercase tracking-[0.1em]"
+                        >
+                           <FiAlertTriangle size={10} /> CUSTOMER REFUSED / CANCEL MISSION
+                        </button>
                       </div>
 
                       {/* PAYMENT OPTIONS */}
@@ -599,6 +638,12 @@ const DeliveryOrderDetail = () => {
           )}
         </AnimatePresence>
 
+        <CancellationModal
+          isOpen={isCancellationModalOpen}
+          onClose={() => setIsCancellationModalOpen(false)}
+          onConfirm={confirmCancellation}
+          isSubmitting={isCancelling}
+        />
       </div>
     </PageTransition>
   );

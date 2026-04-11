@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import { useAuthStore } from '../../../shared/store/authStore';
 
 const AuthContext = createContext({

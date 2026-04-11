@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -5,6 +6,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import MobileModuleSkeleton from "./shared/components/Skeletons/MobileModuleSkeleton";
 
 import CartDrawer from "./shared/components/Cart/CartDrawer";
 import ProtectedRoute from "./shared/components/Auth/ProtectedRoute";
@@ -138,521 +140,528 @@ import UserReferPage from "./modules/user/pages/Refer/ReferPage";
 import CampaignSale from "./modules/user/pages/CampaignSale";
 // Delivery Routes
 import DeliveryLogin from "./modules/Delivery/pages/Login";
-import DeliveryRegister from "./modules/Delivery/pages/Register";
-import DeliveryForgotPassword from "./modules/Delivery/pages/ForgotPassword";
-import DeliveryResetPassword from "./modules/Delivery/pages/ResetPassword";
-import DeliveryProtectedRoute from "./modules/Delivery/components/DeliveryProtectedRoute";
-import DeliveryLayout from "./modules/Delivery/components/Layout/DeliveryLayout";
-import DeliveryDashboard from "./modules/Delivery/pages/Dashboard";
-import DeliveryOrders from "./modules/Delivery/pages/Orders";
-import DeliveryOrderDetail from "./modules/Delivery/pages/OrderDetail";
-import DeliveryProfile from "./modules/Delivery/pages/Profile";
-import DeliveryNotifications from "./modules/Delivery/pages/Notifications";
-import DeliveryLiveTracking from "./modules/Delivery/pages/LiveTracking";
-import DeliveryPayouts from "./modules/Delivery/pages/Payouts";
 // Vendor Routes
 import VendorLogin from "./modules/Vendor/pages/Login";
-import VendorRegister from "./modules/Vendor/pages/Register";
-import VendorVerification from "./modules/Vendor/pages/Verification";
-import VendorForgotPassword from "./modules/Vendor/pages/ForgotPassword";
-import VendorResetPassword from "./modules/Vendor/pages/ResetPassword";
-import VendorProtectedRoute from "./modules/Vendor/components/VendorProtectedRoute";
-import VendorLayout from "./modules/Vendor/components/Layout/VendorLayout";
-import VendorDashboard from "./modules/Vendor/pages/Dashboard";
-import VendorProducts from "./modules/Vendor/pages/Products";
-import VendorManageProducts from "./modules/Vendor/pages/products/ManageProducts";
-import VendorAddProduct from "./modules/Vendor/pages/products/AddProduct";
-import VendorProductForm from "./modules/Vendor/pages/products/ProductForm";
-import VendorOrders from "./modules/Vendor/pages/Orders";
-import VendorAllOrders from "./modules/Vendor/pages/orders/AllOrders";
-import VendorOrderTracking from "./modules/Vendor/pages/orders/OrderTracking";
-import VendorOrderDetail from "./modules/Vendor/pages/orders/OrderDetail";
-import VendorAnalytics from "./modules/Vendor/pages/Analytics";
-import VendorEarnings from "./modules/Vendor/pages/Earnings";
-import VendorSettings from "./modules/Vendor/pages/Settings";
-import VendorStockManagement from "./modules/Vendor/pages/StockManagement";
-import VendorWalletHistory from "./modules/Vendor/pages/WalletHistory";
-import VendorReturnRequests from "./modules/Vendor/pages/ReturnRequests";
-import VendorReturnRequestDetail from "./modules/Vendor/pages/returns/ReturnRequestDetail";
-import VendorProductReviews from "./modules/Vendor/pages/ProductReviews";
-import VendorHelp from "./modules/Vendor/pages/VendorHelp";
-import VendorInventoryReports from "./modules/Vendor/pages/InventoryReports";
-import VendorPerformanceMetrics from "./modules/Vendor/pages/PerformanceMetrics";
-import VendorDocuments from "./modules/Vendor/pages/Documents";
-import VendorNotifications from "./modules/Vendor/pages/Notifications";
-import VendorSupportTickets from "./modules/Vendor/pages/SupportTickets";
-import VendorPickupLocations from "./modules/Vendor/pages/PickupLocations";
-import VendorReports from "./modules/Vendor/pages/Reports";
-import VendorLanguageSettings from "./modules/Vendor/pages/LanguageSettings";
+
+// Routes handled via lazy loading below
+
+// Delivery Routes (Lazy Loaded)
+const DeliveryRegister = lazy(() => import("./modules/Delivery/pages/Register"));
+const DeliveryForgotPassword = lazy(() => import("./modules/Delivery/pages/ForgotPassword"));
+const DeliveryResetPassword = lazy(() => import("./modules/Delivery/pages/ResetPassword"));
+const DeliveryProtectedRoute = lazy(() => import("./modules/Delivery/components/DeliveryProtectedRoute"));
+const DeliveryLayout = lazy(() => import("./modules/Delivery/components/Layout/DeliveryLayout"));
+const DeliveryDashboard = lazy(() => import("./modules/Delivery/pages/Dashboard"));
+const DeliveryOrders = lazy(() => import("./modules/Delivery/pages/Orders"));
+const DeliveryOrderDetail = lazy(() => import("./modules/Delivery/pages/OrderDetail"));
+const DeliveryProfile = lazy(() => import("./modules/Delivery/pages/Profile"));
+const DeliveryNotifications = lazy(() => import("./modules/Delivery/pages/Notifications"));
+const DeliveryLiveTracking = lazy(() => import("./modules/Delivery/pages/LiveTracking"));
+const DeliveryPayouts = lazy(() => import("./modules/Delivery/pages/Payouts"));
+
+// Vendor Routes (Lazy Loaded)
+const VendorRegister = lazy(() => import("./modules/Vendor/pages/Register"));
+const VendorVerification = lazy(() => import("./modules/Vendor/pages/Verification"));
+const VendorForgotPassword = lazy(() => import("./modules/Vendor/pages/ForgotPassword"));
+const VendorResetPassword = lazy(() => import("./modules/Vendor/pages/ResetPassword"));
+const VendorProtectedRoute = lazy(() => import("./modules/Vendor/components/VendorProtectedRoute"));
+const VendorLayout = lazy(() => import("./modules/Vendor/components/Layout/VendorLayout"));
+const VendorDashboard = lazy(() => import("./modules/Vendor/pages/Dashboard"));
+const VendorProducts = lazy(() => import("./modules/Vendor/pages/Products"));
+const VendorManageProducts = lazy(() => import("./modules/Vendor/pages/products/ManageProducts"));
+const VendorAddProduct = lazy(() => import("./modules/Vendor/pages/products/AddProduct"));
+const VendorProductForm = lazy(() => import("./modules/Vendor/pages/products/ProductForm"));
+const VendorOrders = lazy(() => import("./modules/Vendor/pages/Orders"));
+const VendorAllOrders = lazy(() => import("./modules/Vendor/pages/orders/AllOrders"));
+const VendorOrderTracking = lazy(() => import("./modules/Vendor/pages/orders/OrderTracking"));
+const VendorOrderDetail = lazy(() => import("./modules/Vendor/pages/orders/OrderDetail"));
+const VendorAnalytics = lazy(() => import("./modules/Vendor/pages/Analytics"));
+const VendorEarnings = lazy(() => import("./modules/Vendor/pages/Earnings"));
+const VendorSettings = lazy(() => import("./modules/Vendor/pages/Settings"));
+const VendorStockManagement = lazy(() => import("./modules/Vendor/pages/StockManagement"));
+const VendorWalletHistory = lazy(() => import("./modules/Vendor/pages/WalletHistory"));
+const VendorReturnRequests = lazy(() => import("./modules/Vendor/pages/ReturnRequests"));
+const VendorReturnRequestDetail = lazy(() => import("./modules/Vendor/pages/returns/ReturnRequestDetail"));
+const VendorProductReviews = lazy(() => import("./modules/Vendor/pages/ProductReviews"));
+const VendorHelp = lazy(() => import("./modules/Vendor/pages/VendorHelp"));
+const VendorInventoryReports = lazy(() => import("./modules/Vendor/pages/InventoryReports"));
+const VendorPerformanceMetrics = lazy(() => import("./modules/Vendor/pages/PerformanceMetrics"));
+const VendorDocuments = lazy(() => import("./modules/Vendor/pages/Documents"));
+const VendorNotifications = lazy(() => import("./modules/Vendor/pages/Notifications"));
+const VendorSupportTickets = lazy(() => import("./modules/Vendor/pages/SupportTickets"));
+const VendorPickupLocations = lazy(() => import("./modules/Vendor/pages/PickupLocations"));
+const VendorReports = lazy(() => import("./modules/Vendor/pages/Reports"));
+const VendorLanguageSettings = lazy(() => import("./modules/Vendor/pages/LanguageSettings"));
 
 // Inner component that has access to useLocation
 const AppRoutes = () => {
   return (
-    <Routes>
-      {/* Admin Routes (Prioritized) */}
-      <Route path="/admin/login" element={<AdminLogin />} />
-      <Route
-        path="/admin"
-        element={
-          <AdminProtectedRoute>
-            <AdminLayout />
-          </AdminProtectedRoute>
-        }>
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="staff" element={<StaffManagement />} />
-        <Route path="products" element={<Products />} />
-        <Route path="products/:id" element={<ProductForm />} />
-        <Route path="products/manage-products" element={<ManageProducts />} />
-        <Route path="products/pending" element={<PendingProducts />} />
-        <Route path="products/tax-pricing" element={<TaxPricing />} />
-        <Route path="products/product-ratings" element={<ProductRatings />} />
-        <Route path="more" element={<More />} />
-        <Route path="categories" element={<Categories />} />
+    <Suspense fallback={<MobileModuleSkeleton />}>
+      <Routes>
+        {/* Admin Routes (Prioritized) */}
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route
-          path="categories/manage-categories"
-          element={<ManageCategories />}
-        />
-        <Route path="categories/category-order" element={<CategoryOrder />} />
-        <Route path="brands" element={<Brands />} />
-        <Route path="brands/manage-brands" element={<ManageBrands />} />
-        <Route path="orders" element={<AdminOrders />} />
-        <Route path="orders/:id" element={<OrderDetail />} />
-        <Route path="orders/:id/invoice" element={<Invoice />} />
-        <Route path="orders/all-orders" element={<AllOrders />} />
-        <Route path="orders/order-tracking" element={<OrderTracking />} />
-        <Route path="return-requests" element={<ReturnRequests />} />
-        <Route path="return-requests/:id" element={<ReturnRequestDetail />} />
-        <Route path="customers" element={<Customers />} />
-        <Route path="customers/view-customers" element={<ViewCustomers />} />
-        <Route path="customers/addresses" element={<CustomerAddresses />} />
-        <Route path="customers/transactions" element={<Transactions />} />
-        <Route path="customers/:id" element={<CustomerDetailPage />} />
+          path="/admin"
+          element={
+            <AdminProtectedRoute>
+              <AdminLayout />
+            </AdminProtectedRoute>
+          }>
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="staff" element={<StaffManagement />} />
+          <Route path="products" element={<Products />} />
+          <Route path="products/:id" element={<ProductForm />} />
+          <Route path="products/manage-products" element={<ManageProducts />} />
+          <Route path="products/pending" element={<PendingProducts />} />
+          <Route path="products/tax-pricing" element={<TaxPricing />} />
+          <Route path="products/product-ratings" element={<ProductRatings />} />
+          <Route path="more" element={<More />} />
+          <Route path="categories" element={<Categories />} />
+          <Route
+            path="categories/manage-categories"
+            element={<ManageCategories />}
+          />
+          <Route path="categories/category-order" element={<CategoryOrder />} />
+          <Route path="brands" element={<Brands />} />
+          <Route path="brands/manage-brands" element={<ManageBrands />} />
+          <Route path="orders" element={<AdminOrders />} />
+          <Route path="orders/:id" element={<OrderDetail />} />
+          <Route path="orders/:id/invoice" element={<Invoice />} />
+          <Route path="orders/all-orders" element={<AllOrders />} />
+          <Route path="orders/order-tracking" element={<OrderTracking />} />
+          <Route path="return-requests" element={<ReturnRequests />} />
+          <Route path="return-requests/:id" element={<ReturnRequestDetail />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="customers/view-customers" element={<ViewCustomers />} />
+          <Route path="customers/addresses" element={<CustomerAddresses />} />
+          <Route path="customers/transactions" element={<Transactions />} />
+          <Route path="customers/:id" element={<CustomerDetailPage />} />
 
-        <Route path="delivery" element={<DeliveryBoys />} />
-        <Route path="delivery/delivery-boys" element={<DeliveryBoys />} />
-        <Route path="delivery/cash-collection" element={<CashCollection />} />
-        <Route path="delivery/assign-delivery" element={<AssignDelivery />} />
-        <Route path="delivery/withdrawals" element={<Withdrawals />} />
-        <Route path="vendors" element={<Vendors />} />
-        <Route path="vendors/manage-vendors" element={<ManageVendors />} />
-        <Route
-          path="vendors/pending-approvals"
-          element={<PendingApprovals />}
-        />
-        <Route path="vendors/commission-rates" element={<CommissionRates />} />
-        <Route
-          path="vendors/vendor-analytics"
-          element={<AdminVendorAnalytics />}
-        />
-        <Route path="vendors/explorer" element={<VendorExplorer />} />
-        <Route path="vendors/register" element={<RegisterVendor />} />
-        <Route path="vendors/:id" element={<VendorDetail />} />
+          <Route path="delivery" element={<DeliveryBoys />} />
+          <Route path="delivery/delivery-boys" element={<DeliveryBoys />} />
+          <Route path="delivery/cash-collection" element={<CashCollection />} />
+          <Route path="delivery/assign-delivery" element={<AssignDelivery />} />
+          <Route path="delivery/withdrawals" element={<Withdrawals />} />
+          <Route path="vendors" element={<Vendors />} />
+          <Route path="vendors/manage-vendors" element={<ManageVendors />} />
+          <Route
+            path="vendors/pending-approvals"
+            element={<PendingApprovals />}
+          />
+          <Route path="vendors/commission-rates" element={<CommissionRates />} />
+          <Route
+            path="vendors/vendor-analytics"
+            element={<AdminVendorAnalytics />}
+          />
+          <Route path="vendors/explorer" element={<VendorExplorer />} />
+          <Route path="vendors/register" element={<RegisterVendor />} />
+          <Route path="vendors/:id" element={<VendorDetail />} />
 
-        <Route path="attributes" element={<Attributes />} />
-        <Route path="attributes/list" element={<Attributes />} />
-        <Route path="attributes/sets" element={<Attributes />} />
-        <Route path="attributes/values" element={<Attributes />} />
+          <Route path="attributes" element={<Attributes />} />
+          <Route path="attributes/list" element={<Attributes />} />
+          <Route path="attributes/sets" element={<Attributes />} />
+          <Route path="attributes/values" element={<Attributes />} />
 
-        <Route path="offers" element={<HomeSliders />} />
-        <Route path="offers/home-sliders" element={<HomeSliders />} />
-        <Route path="offers/festival-offers" element={<FestivalOffers />} />
-        <Route path="promo-codes" element={<PromoCodes />} />
-        <Route path="promocodes" element={<PromoCodes />} />
+          <Route path="offers" element={<HomeSliders />} />
+          <Route path="offers/home-sliders" element={<HomeSliders />} />
+          <Route path="offers/festival-offers" element={<FestivalOffers />} />
+          <Route path="promo-codes" element={<PromoCodes />} />
+          <Route path="promocodes" element={<PromoCodes />} />
 
-        {/* Support Routes */}
-        <Route path="chat-support" element={<LiveChat />} />
-        <Route path="support" element={<Navigate to="/admin/customer-support/live-chat" replace />} />
-        
-        <Route path="customer-support">
-          <Route index element={<Navigate to="/admin/customer-support/live-chat" replace />} />
-          <Route path="live-chat" element={<LiveChat type="customer" />} />
-          <Route path="tickets" element={<Tickets type="customer" />} />
+          {/* Support Routes */}
+          <Route path="chat-support" element={<LiveChat />} />
+          <Route path="support" element={<Navigate to="/admin/customer-support/live-chat" replace />} />
+
+          <Route path="customer-support">
+            <Route index element={<Navigate to="/admin/customer-support/live-chat" replace />} />
+            <Route path="live-chat" element={<LiveChat type="customer" />} />
+            <Route path="tickets" element={<Tickets type="customer" />} />
+          </Route>
+
+          <Route path="vendor-support">
+            <Route index element={<Navigate to="/admin/vendor-support/live-chat" replace />} />
+            <Route path="live-chat" element={<LiveChat type="vendor" />} />
+            <Route path="tickets" element={<Tickets type="vendor" />} />
+          </Route>
+
+          <Route path="notifications" element={<AllNotifications />} />
+          <Route
+            path="notifications/push-notifications"
+            element={<PushNotifications />}
+          />
+
+          <Route path="reports">
+            <Route index element={<Navigate to="/admin/reports/sales-report" replace />} />
+            <Route path="sales-report" element={<SalesReport />} />
+            <Route path="inventory-report" element={<InventoryReport />} />
+            <Route path="earnings-report" element={<EarningsReport />} />
+          </Route>
+          <Route path="finance" element={<RevenueOverview />} />
+          <Route path="finance/revenue-overview" element={<RevenueOverview />} />
+          <Route path="finance/profit-loss" element={<ProfitLoss />} />
+          <Route path="finance/order-trends" element={<OrderTrends />} />
+          <Route
+            path="finance/payment-breakdown"
+            element={<PaymentBreakdown />}
+          />
+          <Route path="finance/tax-reports" element={<TaxReports />} />
+          <Route path="finance/refund-reports" element={<RefundReports />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route
+            path="settings"
+            element={<Navigate to="/admin/settings/general" replace />}
+          />
+          <Route path="settings/general" element={<Settings />} />
+          <Route path="settings/payment-shipping" element={<Settings />} />
+          <Route path="settings/orders-customers" element={<Settings />} />
+          <Route path="settings/products-inventory" element={<Settings />} />
+          <Route path="settings/content-features" element={<Settings />} />
+          <Route path="settings/notifications-seo" element={<Settings />} />
+          <Route path="policies" element={<PrivacyPolicy />} />
+          <Route path="policies/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="policies/refund-policy" element={<RefundPolicy />} />
+          <Route path="policies/terms-conditions" element={<TermsConditions />} />
+          <Route path="firebase" element={<PushConfig />} />
+          <Route path="firebase/push-config" element={<PushConfig />} />
+          <Route path="firebase/authentication" element={<Authentication />} />
+          <Route path="campaigns" element={<Campaigns />} />
+          <Route path="banners" element={<Banners />} />
+          <Route path="reviews" element={<Reviews />} />
+          <Route path="content" element={<Content />} />
+          <Route path="service-areas" element={<ServiceAreas />} />
+          {/* Catch-all for unmatched admin routes — stay in admin area */}
+          <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
         </Route>
 
-        <Route path="vendor-support">
-          <Route index element={<Navigate to="/admin/vendor-support/live-chat" replace />} />
-          <Route path="live-chat" element={<LiveChat type="vendor" />} />
-          <Route path="tickets" element={<Tickets type="vendor" />} />
+        {/* Delivery Routes */}
+        <Route path="/delivery/login" element={<DeliveryLogin />} />
+        <Route path="/delivery/register" element={<DeliveryRegister />} />
+        <Route path="/delivery/forgot-password" element={<DeliveryForgotPassword />} />
+        <Route path="/delivery/reset-password" element={<DeliveryResetPassword />} />
+        <Route
+          path="/delivery"
+          element={
+            <DeliveryProtectedRoute>
+              <DeliveryLayout />
+            </DeliveryProtectedRoute>
+          }>
+          <Route index element={<Navigate to="/delivery/dashboard" replace />} />
+          <Route path="dashboard" element={<DeliveryDashboard />} />
+          <Route path="orders" element={<DeliveryOrders />} />
+          <Route path="orders/:id" element={<DeliveryOrderDetail />} />
+          <Route path="live-tracking/:orderId" element={<DeliveryLiveTracking />} />
+          <Route path="notifications" element={<DeliveryNotifications />} />
+          <Route path="payouts" element={<DeliveryPayouts />} />
+          <Route path="profile" element={<DeliveryProfile />} />
         </Route>
 
-        <Route path="notifications" element={<AllNotifications />} />
+        {/* Vendor Routes */}
+        <Route path="/vendor/login" element={<VendorLogin />} />
+        <Route path="/vendor/register" element={<VendorRegister />} />
+        <Route path="/vendor/verification" element={<VendorVerification />} />
+        <Route path="/vendor/forgot-password" element={<VendorForgotPassword />} />
+        <Route path="/vendor/reset-password" element={<VendorResetPassword />} />
         <Route
-          path="notifications/push-notifications"
-          element={<PushNotifications />}
-        />
-        
-        <Route path="reports">
-          <Route index element={<Navigate to="/admin/reports/sales-report" replace />} />
-          <Route path="sales-report" element={<SalesReport />} />
-          <Route path="inventory-report" element={<InventoryReport />} />
-          <Route path="earnings-report" element={<EarningsReport />} />
+          path="/vendor"
+          element={
+            <VendorProtectedRoute>
+              <VendorLayout />
+            </VendorProtectedRoute>
+          }>
+          <Route index element={<Navigate to="/vendor/dashboard" replace />} />
+          <Route path="dashboard" element={<VendorDashboard />} />
+          <Route path="products" element={<VendorProducts />} />
+          <Route
+            path="products/manage-products"
+            element={<VendorManageProducts />}
+          />
+          <Route path="products/add-product" element={<VendorAddProduct />} />
+          <Route path="products/:id" element={<VendorProductForm />} />
+          <Route path="orders" element={<VendorOrders />} />
+          <Route path="orders/all-orders" element={<VendorAllOrders />} />
+          <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
+          <Route path="orders/:id" element={<VendorOrderDetail />} />
+          <Route path="analytics" element={<VendorAnalytics />} />
+          <Route path="reports" element={<VendorReports />} />
+          <Route path="earnings" element={<VendorEarnings />} />
+          <Route path="earnings/overview" element={<VendorEarnings />} />
+          <Route
+            path="earnings/commission-history"
+            element={<VendorEarnings />}
+          />
+          <Route
+            path="earnings/settlement-history"
+            element={<VendorEarnings />}
+          />
+          <Route path="stock-management" element={<VendorStockManagement />} />
+          <Route path="wallet-history" element={<VendorWalletHistory />} />
+          <Route path="help" element={<VendorHelp />} />
+          <Route path="notifications" element={<VendorNotifications />} />
+          <Route path="return-requests" element={<VendorReturnRequests />} />
+          <Route
+            path="return-requests/:id"
+            element={<VendorReturnRequestDetail />}
+          />
+          <Route path="product-reviews" element={<VendorProductReviews />} />
+          <Route path="pickup-locations" element={<VendorPickupLocations />} />
+          <Route path="support-tickets" element={<VendorSupportTickets />} />
+          <Route path="inventory-reports" element={<VendorInventoryReports />} />
+          <Route
+            path="performance-metrics"
+            element={<VendorPerformanceMetrics />}
+          />
+          <Route path="documents" element={<VendorDocuments />} />
+          <Route path="language-settings" element={<VendorLanguageSettings />} />
+          <Route path="settings" element={<VendorSettings />} />
+          <Route path="settings/store" element={<VendorSettings />} />
+          <Route path="settings/payment" element={<VendorSettings />} />
+          <Route path="settings/payment-settings" element={<VendorSettings />} />
+          <Route path="settings/shipping" element={<VendorSettings />} />
+          <Route path="settings/shipping-settings" element={<VendorSettings />} />
+          <Route path="settings/location" element={<VendorSettings />} />
+          <Route path="profile" element={<VendorSettings />} />
         </Route>
-        <Route path="finance" element={<RevenueOverview />} />
-        <Route path="finance/revenue-overview" element={<RevenueOverview />} />
-        <Route path="finance/profit-loss" element={<ProfitLoss />} />
-        <Route path="finance/order-trends" element={<OrderTrends />} />
-        <Route
-          path="finance/payment-breakdown"
-          element={<PaymentBreakdown />}
-        />
-        <Route path="finance/tax-reports" element={<TaxReports />} />
-        <Route path="finance/refund-reports" element={<RefundReports />} />
-        <Route path="analytics" element={<Analytics />} />
-        <Route
-          path="settings"
-          element={<Navigate to="/admin/settings/general" replace />}
-        />
-        <Route path="settings/general" element={<Settings />} />
-        <Route path="settings/payment-shipping" element={<Settings />} />
-        <Route path="settings/orders-customers" element={<Settings />} />
-        <Route path="settings/products-inventory" element={<Settings />} />
-        <Route path="settings/content-features" element={<Settings />} />
-        <Route path="settings/notifications-seo" element={<Settings />} />
-        <Route path="policies" element={<PrivacyPolicy />} />
-        <Route path="policies/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="policies/refund-policy" element={<RefundPolicy />} />
-        <Route path="policies/terms-conditions" element={<TermsConditions />} />
-        <Route path="firebase" element={<PushConfig />} />
-        <Route path="firebase/push-config" element={<PushConfig />} />
-        <Route path="firebase/authentication" element={<Authentication />} />
-        <Route path="campaigns" element={<Campaigns />} />
-        <Route path="banners" element={<Banners />} />
-        <Route path="reviews" element={<Reviews />} />
-        <Route path="content" element={<Content />} />
-        <Route path="service-areas" element={<ServiceAreas />} />
-        {/* Catch-all for unmatched admin routes — stay in admin area */}
-        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-      </Route>
 
-      {/* Delivery Routes */}
-      <Route path="/delivery/login" element={<DeliveryLogin />} />
-      <Route path="/delivery/register" element={<DeliveryRegister />} />
-      <Route path="/delivery/forgot-password" element={<DeliveryForgotPassword />} />
-      <Route path="/delivery/reset-password" element={<DeliveryResetPassword />} />
-      <Route
-        path="/delivery"
-        element={
-          <DeliveryProtectedRoute>
-            <DeliveryLayout />
-          </DeliveryProtectedRoute>
-        }>
-        <Route index element={<Navigate to="/delivery/dashboard" replace />} />
-        <Route path="dashboard" element={<DeliveryDashboard />} />
-        <Route path="orders" element={<DeliveryOrders />} />
-        <Route path="orders/:id" element={<DeliveryOrderDetail />} />
-        <Route path="live-tracking/:orderId" element={<DeliveryLiveTracking />} />
-        <Route path="notifications" element={<DeliveryNotifications />} />
-        <Route path="payouts" element={<DeliveryPayouts />} />
-        <Route path="profile" element={<DeliveryProfile />} />
-      </Route>
-
-      {/* Vendor Routes */}
-      <Route path="/vendor/login" element={<VendorLogin />} />
-      <Route path="/vendor/register" element={<VendorRegister />} />
-      <Route path="/vendor/verification" element={<VendorVerification />} />
-      <Route path="/vendor/forgot-password" element={<VendorForgotPassword />} />
-      <Route path="/vendor/reset-password" element={<VendorResetPassword />} />
-      <Route
-        path="/vendor"
-        element={
-          <VendorProtectedRoute>
-            <VendorLayout />
-          </VendorProtectedRoute>
-        }>
-        <Route index element={<Navigate to="/vendor/dashboard" replace />} />
-        <Route path="dashboard" element={<VendorDashboard />} />
-        <Route path="products" element={<VendorProducts />} />
+        {/* User Module Routes */}
         <Route
-          path="products/manage-products"
-          element={<VendorManageProducts />}
-        />
-        <Route path="products/add-product" element={<VendorAddProduct />} />
-        <Route path="products/:id" element={<VendorProductForm />} />
-        <Route path="orders" element={<VendorOrders />} />
-        <Route path="orders/all-orders" element={<VendorAllOrders />} />
-        <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
-        <Route path="orders/:id" element={<VendorOrderDetail />} />
-        <Route path="analytics" element={<VendorAnalytics />} />
-        <Route path="reports" element={<VendorReports />} />
-        <Route path="earnings" element={<VendorEarnings />} />
-        <Route path="earnings/overview" element={<VendorEarnings />} />
-        <Route
-          path="earnings/commission-history"
-          element={<VendorEarnings />}
+          path="/"
+          element={
+            <RouteWrapper>
+              <UserLayout><UserHomePage /></UserLayout>
+            </RouteWrapper>
+          }
         />
         <Route
-          path="earnings/settlement-history"
-          element={<VendorEarnings />}
+          path="/home"
+          element={
+            <RouteWrapper>
+              <UserLayout><UserHomePage /></UserLayout>
+            </RouteWrapper>
+          }
         />
-        <Route path="stock-management" element={<VendorStockManagement />} />
-        <Route path="wallet-history" element={<VendorWalletHistory />} />
-        <Route path="help" element={<VendorHelp />} />
-        <Route path="notifications" element={<VendorNotifications />} />
-        <Route path="return-requests" element={<VendorReturnRequests />} />
         <Route
-          path="return-requests/:id"
-          element={<VendorReturnRequestDetail />}
+          path="/shop"
+          element={<Navigate to="/categories" replace />}
         />
-        <Route path="product-reviews" element={<VendorProductReviews />} />
-        <Route path="pickup-locations" element={<VendorPickupLocations />} />
-        <Route path="support-tickets" element={<VendorSupportTickets />} />
-        <Route path="inventory-reports" element={<VendorInventoryReports />} />
         <Route
-          path="performance-metrics"
-          element={<VendorPerformanceMetrics />}
+          path="/categories"
+          element={
+            <RouteWrapper>
+              <UserLayout><MobileCategories /></UserLayout>
+            </RouteWrapper>
+          }
         />
-        <Route path="documents" element={<VendorDocuments />} />
-        <Route path="language-settings" element={<VendorLanguageSettings />} />
-        <Route path="settings" element={<VendorSettings />} />
-        <Route path="settings/store" element={<VendorSettings />} />
-        <Route path="settings/payment" element={<VendorSettings />} />
-        <Route path="settings/payment-settings" element={<VendorSettings />} />
-        <Route path="settings/shipping" element={<VendorSettings />} />
-        <Route path="settings/shipping-settings" element={<VendorSettings />} />
-        <Route path="settings/location" element={<VendorSettings />} />
-        <Route path="profile" element={<VendorSettings />} />
-      </Route>
+        <Route
+          path="/category/:categoryId"
+          element={
+            <RouteWrapper>
+              <UserLayout><MobileCategories /></UserLayout>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/products"
+          element={
+            <RouteWrapper>
+              <UserLayout variant="products"><UserProductsPage /></UserLayout>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/product/:id"
+          element={
+            <RouteWrapper>
+              <UserLayout variant="product"><UserProductDetail /></UserLayout>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/cart"
+          element={
+            <RouteWrapper>
+              <UserLayout variant="cart"><UserCartPage /></UserLayout>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout variant="checkout"><UserCheckoutPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/payment"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout variant="payment"><UserPaymentPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/wishlist"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout showHeader={false}><UserWishlistPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/offers"
+          element={
+            <RouteWrapper>
+              <UserLayout><UserOffersPage /></UserLayout>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/events"
+          element={
+            <RouteWrapper>
+              <UserLayout><UserEventsPage /></UserLayout>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/refer"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout><UserReferPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/sale/:slug"
+          element={
+            <RouteWrapper>
+              <UserLayout showCategoryBar={false}><CampaignSale /></UserLayout>
+            </RouteWrapper>
+          }
+        />
 
-      {/* User Module Routes */}
-      <Route
-        path="/"
-        element={
-          <RouteWrapper>
-            <UserLayout><UserHomePage /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/home"
-        element={
-          <RouteWrapper>
-            <UserLayout><UserHomePage /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/shop"
-        element={<Navigate to="/categories" replace />}
-      />
-      <Route
-        path="/categories"
-        element={
-          <RouteWrapper>
-            <UserLayout><MobileCategories /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/category/:categoryId"
-        element={
-          <RouteWrapper>
-            <UserLayout><MobileCategories /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/products"
-        element={
-          <RouteWrapper>
-            <UserLayout variant="products"><UserProductsPage /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/product/:id"
-        element={
-          <RouteWrapper>
-            <UserLayout variant="product"><UserProductDetail /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/cart"
-        element={
-          <RouteWrapper>
-            <UserLayout variant="cart"><UserCartPage /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/checkout"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout variant="checkout"><UserCheckoutPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/payment"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout variant="payment"><UserPaymentPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/wishlist"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout showHeader={false}><UserWishlistPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/offers"
-        element={
-          <RouteWrapper>
-            <UserLayout><UserOffersPage /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/events"
-        element={
-          <RouteWrapper>
-            <UserLayout><UserEventsPage /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/refer"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout><UserReferPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/sale/:slug"
-        element={
-          <RouteWrapper>
-            <UserLayout showCategoryBar={false}><CampaignSale /></UserLayout>
-          </RouteWrapper>
-        }
-      />
+        {/* Auth pages - UserProviders only (contexts but no Header/Footer) */}
+        <Route
+          path="/login"
+          element={
+            <RouteWrapper>
+              <UserLoginPage />
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <RouteWrapper>
+              <UserRegisterPage />
+            </RouteWrapper>
+          }
+        />
 
-      {/* Auth pages - UserProviders only (contexts but no Header/Footer) */}
-      <Route
-        path="/login"
-        element={
-          <RouteWrapper>
-            <UserLoginPage />
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <RouteWrapper>
-            <UserRegisterPage />
-          </RouteWrapper>
-        }
-      />
+        {/* Profile & Account */}
+        <Route
+          path="/profile"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout variant="account"><UserProfilePage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout variant="account"><UserAccountPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/support"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout variant="account"><UserSupportPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/legal/:pageId"
+          element={
+            <RouteWrapper>
+              <UserLayout><UserLegalPage /></UserLayout>
+            </RouteWrapper>
+          }
+        />
 
-      {/* Profile & Account */}
-      <Route
-        path="/profile"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout variant="account"><UserProfilePage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/account"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout variant="account"><UserAccountPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/support"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout variant="account"><UserSupportPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/legal/:pageId"
-        element={
-          <RouteWrapper>
-            <UserLayout><UserLegalPage /></UserLayout>
-          </RouteWrapper>
-        }
-      />
+        {/* Orders */}
+        <Route
+          path="/orders"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout variant="account"><UserOrdersPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/orders/:orderId"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout variant="account"><UserOrderDetailPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/order-confirmation/:orderId"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout><UserOrderSuccessPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/track-order/:orderId"
+          element={
+            <RouteWrapper>
+              <UserLayout><UserTrackOrderPage /></UserLayout>
+            </RouteWrapper>
+          }
+        />
 
-      {/* Orders */}
-      <Route
-        path="/orders"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout variant="account"><UserOrdersPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/orders/:orderId"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout variant="account"><UserOrderDetailPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/order-confirmation/:orderId"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout><UserOrderSuccessPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      <Route
-        path="/track-order/:orderId"
-        element={
-          <RouteWrapper>
-            <UserLayout><UserTrackOrderPage /></UserLayout>
-          </RouteWrapper>
-        }
-      />
-
-      {/* Addresses */}
-      <Route
-        path="/addresses"
-        element={
-          <RouteWrapper>
-            <ProtectedRoute>
-              <UserLayout variant="account"><UserAddressesPage /></UserLayout>
-            </ProtectedRoute>
-          </RouteWrapper>
-        }
-      />
-      {/* This block was moved above */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-
-    </Routes >
+        {/* Addresses */}
+        <Route
+          path="/addresses"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout variant="account"><UserAddressesPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        {/* Catch-all for unmatched routes */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 };
 

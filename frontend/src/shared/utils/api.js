@@ -38,6 +38,9 @@ const AUTH_SCOPES = {
 };
 
 const EXCLUDED_AUTH_SUFFIXES = [
+  '/auth/send-otp',
+  '/auth/send-registration-otp',
+  '/auth/verify-registration-otp',
   '/auth/login',
   '/auth/register',
   '/auth/verify-otp',
@@ -155,6 +158,16 @@ const runRefresh = async (scope) => {
 
       return nextAccessToken;
     })
+    .catch((err) => {
+       // If the refresh token itself is invalid (401/403), we must log out.
+       // For other errors (500, network), we should NOT clear the session.
+       const status = err.response?.status;
+       if (status === 401 || status === 403) {
+         clearScopeAuth(scope);
+         dispatchAuthFailure(scope);
+       }
+       throw err;
+    })
     .finally(() => {
       refreshInFlight[scope] = null;
     });
@@ -189,8 +202,10 @@ api.interceptors.response.use(
         originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers.Authorization = `Bearer ${nextAccessToken}`;
         return api(originalRequest);
-      } catch {
-        // fallback to existing session-expired handling below
+      } catch (refreshError) {
+        // If refresh failed with 401/403, runRefresh already handled logout.
+        // If it failed with something else, we preserve the original session.
+        return Promise.reject(error);
       }
     }
 
@@ -214,8 +229,8 @@ api.interceptors.response.use(
         return 'Your session has expired. Please log in again.';
       }
 
-      if (status === 403) return 'You are not authorized to perform this action.';
-      if (status === 404) return 'The requested information was not found.';
+      if (status === 403) return data?.message || 'You are not authorized to perform this action.';
+      if (status === 404) return data?.message || 'The requested information was not found.';
       if (status === 429) return 'Taking too many actions? Please wait a few seconds.';
       if (status >= 500) return 'Our servers are currently busy. Please try again in a moment.';
 

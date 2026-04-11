@@ -44,6 +44,8 @@ const normalizeBrand = (raw) => ({
   id: raw?._id || raw?.id,
 });
 
+import socketService from "../utils/socket";
+
 const AppBootstrap = () => {
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +59,12 @@ const AppBootstrap = () => {
         useSettingsStore.getState().initializePublic();
       }
 
+      // Small optimization: Skip catalog sync for Delivery and Vendor modules
+      const path = window.location.pathname;
+      if (path.startsWith('/delivery') || path.startsWith('/vendor')) {
+        console.log("⚡ Skipping catalog sync for partner module");
+        return;
+      }
       // Small delay to let initial mounting stabilize
       await new Promise(r => setTimeout(r, 100));
       if (cancelled) return;
@@ -150,6 +158,18 @@ const AppBootstrap = () => {
 
       if (!activeUser || !scopeUrl) return;
 
+      // Register with Socket Service for real-time updates based on role
+      const userId = activeUser._id || activeUser.id;
+      if (userAuth.isAuthenticated) {
+        socketService.userRegister(userId);
+      } else if (adminAuth.isAuthenticated) {
+        // Admin socket registration if needed
+      } else if (vendorAuth.isAuthenticated) {
+        socketService.vendorRegister(userId);
+      } else if (deliveryAuth.isAuthenticated) {
+        socketService.deliveryRegister(userId);
+      }
+
       try {
         const token = await requestForToken();
         if (token) {
@@ -202,8 +222,12 @@ const AppBootstrap = () => {
         const deliveryBoy = useDeliveryAuthStore.getState().deliveryBoy;
         const vendor = useVendorAuthStore.getState().vendor;
 
-        if ((deliveryBoy && (payload.data?.type === 'new_assignment_broadcast' || payload.data?.type === 'return_pickup_broadcast' || payload.data?.type === 'order')) ||
-            (vendor && (payload.data?.type === 'order' || payload.data?.type === 'order_created'))) {
+        const isNewOrder = (payload.data?.type === 'order_created' || 
+                           payload.data?.type === 'new_order' || 
+                           (payload.data?.type === 'order' && (payload.data?.status === 'pending' || payload.data?.status === 'ready_for_pickup' || !payload.data?.status)));
+
+        if ((deliveryBoy && (payload.data?.type === 'new_assignment_broadcast' || payload.data?.type === 'return_pickup_broadcast' || (payload.data?.type === 'order' && payload.data?.status === 'pending'))) ||
+            (vendor && isNewOrder)) {
           const audio = new Audio('/sounds/buzzer.mp3');
           audio.play().catch(e => console.warn('Buzzer playback failed (user interaction required):', e.message));
         }

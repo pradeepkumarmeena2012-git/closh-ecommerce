@@ -92,8 +92,13 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLoc
                                 <FiX size={20} />
                             </button>
                             <div className="flex items-center gap-4">
-                                <div className={`w-14 h-14 ${isReturn ? 'bg-orange-500 shadow-orange-200' : 'bg-indigo-600 shadow-indigo-200'} rounded-2xl flex items-center justify-center text-white shadow-lg`}>
+                                <div className={`w-14 h-14 ${isReturn ? 'bg-orange-500 shadow-orange-200' : 'bg-indigo-600 shadow-indigo-200'} rounded-2xl flex items-center justify-center text-white shadow-lg relative`}>
                                     <FiPackage size={28} />
+                                    {(order.itemsCount > 0 || order.items?.length > 0) && (
+                                        <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black min-w-[22px] h-[22px] rounded-full flex items-center justify-center px-1 border-2 border-white">
+                                            {order.itemsCount || order.items?.length}
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <p className={`${isReturn ? 'text-orange-500' : 'text-indigo-500'} text-[10px] font-black uppercase tracking-[0.2em]`}>Incoming {isReturn ? 'Return' : 'Request'}</p>

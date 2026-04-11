@@ -95,14 +95,15 @@ const TrackOrderPage = () => {
 
         socketService.on('location_updated', handleLocationUpdate);
         socketService.on('order_status_updated', handleStatusUpdate);
+        socketService.on('rider_assigned', handleStatusUpdate);
         socketService.on('rider_arrived', handleRiderArrived);
 
-        const handleOtpResent = (data) => {
-            if (data?.deliveryOtpDebug) {
-                setOrder(prev => prev ? { ...prev, deliveryOtpDebug: data.deliveryOtpDebug } : prev);
-            }
+        const handleOtpSent = (data) => {
+            console.log('🔐 OTP Sent/Updated:', data);
+            loadOrder();
         };
-        socketService.on('delivery_otp_resent', handleOtpResent);
+        socketService.on('delivery_otp_sent', handleOtpSent);
+        socketService.on('delivery_otp_resent', handleOtpSent);
 
         // Fallback polling (every 30 seconds)
         const interval = setInterval(loadOrder, 30000);
