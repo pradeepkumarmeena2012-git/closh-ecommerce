@@ -277,7 +277,8 @@ api.interceptors.response.use(
 
     const isGuestOnPublicPage = is401_403 && isPublicPage && !token;
 
-    if (!is429 && !isLocationUpdate && !isCrossScopeError && !isGuestOnPublicPage) {
+    const isSilent = originalRequest.silent || originalRequest.headers?.silent;
+    if (!is429 && !isLocationUpdate && !isCrossScopeError && !isGuestOnPublicPage && !isSilent) {
       toast.error(understandableMessage, {
         duration: 4000,
         position: 'top-center',
