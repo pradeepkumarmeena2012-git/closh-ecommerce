@@ -12,7 +12,8 @@ import {
   FiChevronRight,
   FiSearch,
   FiFilter,
-  FiActivity
+  FiActivity,
+  FiTruck
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import PageTransition from '../../../shared/components/PageTransition';
@@ -21,6 +22,7 @@ import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import NewOrderModal from '../components/NewOrderModal';
 import socketService from '../../../shared/utils/socket';
+import OrderCardSkeleton from '../../../shared/components/Skeletons/OrderCardSkeleton';
 
 const DeliveryOrders = () => {
   const navigate = useNavigate();
@@ -67,7 +69,7 @@ const DeliveryOrders = () => {
 
   useEffect(() => {
     loadOrders(currentPage, filter);
-    const interval = filter === 'available' ? setInterval(() => loadOrders(currentPage, filter), 30000) : null;
+    const interval = setInterval(() => loadOrders(currentPage, filter), 120000);
 
     // Socket listeners (connection managed by DeliveryLayout)
     socketService.on('order_ready_for_pickup', (data) => {
@@ -101,6 +103,7 @@ const DeliveryOrders = () => {
     });
 
     return () => {
+      clearInterval(interval);
       socketService.off('order_ready_for_pickup');
       socketService.off('order_taken');
     };
@@ -178,7 +181,7 @@ const DeliveryOrders = () => {
         <div className="px-4 sm:px-6 -mt-8 sm:-mt-12 relative z-20 pb-16 transition-all duration-500">
           <div className="space-y-3 sm:space-y-4">
             {isLoadingOrders ? (
-              Array(3).fill(0).map((_, i) => <div key={i} className="h-40 bg-white rounded-[24px] sm:rounded-[32px] animate-pulse" />)
+              Array(6).fill(0).map((_, i) => <OrderCardSkeleton key={i} />)
             ) : orders.length === 0 ? (
               <div className="text-center py-12 sm:py-20 bg-white rounded-[32px] sm:rounded-[40px] border border-slate-100 shadow-sm">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -220,12 +223,17 @@ const DeliveryOrders = () => {
                        </span>
                        <div className="h-3 w-[1px] bg-slate-200 mx-1" />
                        <div className="flex items-center gap-2.5 text-slate-500 text-[9px] font-bold shrink-0">
-                          <span className="flex items-center gap-1"><FiPackage size={11} className="text-slate-400" /> {Array.isArray(order.items) ? order.items.length : 1}</span>
+                          <span className="flex items-center gap-1"><FiPackage size={11} className="text-slate-400" /> {order.items?.length || 0}</span>
                           <span className="flex items-center gap-1"><FiNavigation size={11} className="text-sky-600" /> {order.distance || '2.4 km'}</span>
                        </div>
                     </div>
-                    <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-slate-800 group-hover:text-white transition-all">
-                       <FiChevronRight size={14} />
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/10 relative">
+                      <FiTruck size={16} />
+                      {order.items?.length > 0 && (
+                        <div className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[7px] font-black min-w-[14px] h-[14px] rounded-full flex items-center justify-center px-0.5 border border-white">
+                          {order.items.length}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>

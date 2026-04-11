@@ -43,11 +43,20 @@ const normalizeBrand = (raw) => ({
   id: raw?._id || raw?.id,
 });
 
+import socketService from "../utils/socket";
+
 const AppBootstrap = () => {
   useEffect(() => {
     let cancelled = false;
 
     const syncCatalog = async () => {
+      // Small optimization: Skip catalog sync for Delivery and Vendor modules
+      const path = window.location.pathname;
+      if (path.startsWith('/delivery') || path.startsWith('/vendor')) {
+        console.log("⚡ Skipping catalog sync for partner module");
+        return;
+      }
+      
       // Small delay to let initial mounting stabilize
       await new Promise(r => setTimeout(r, 100));
       if (cancelled) return;
@@ -140,6 +149,18 @@ const AppBootstrap = () => {
       }
 
       if (!activeUser || !scopeUrl) return;
+
+      // Register with Socket Service for real-time updates based on role
+      const userId = activeUser._id || activeUser.id;
+      if (userAuth.isAuthenticated) {
+        socketService.userRegister(userId);
+      } else if (adminAuth.isAuthenticated) {
+        // Admin socket registration if needed
+      } else if (vendorAuth.isAuthenticated) {
+        socketService.vendorRegister(userId);
+      } else if (deliveryAuth.isAuthenticated) {
+        socketService.deliveryRegister(userId);
+      }
 
       try {
         const token = await requestForToken();

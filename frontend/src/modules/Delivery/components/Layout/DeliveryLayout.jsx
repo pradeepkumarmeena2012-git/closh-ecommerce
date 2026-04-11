@@ -24,18 +24,20 @@ const DeliveryLayout = () => {
   } = useDeliveryAuthStore();
   const isOnline = deliveryBoy?.status === 'available';
 
-  const handleToggleOnline = async () => {
+  const handleToggleOnline = () => {
     if (isUpdatingStatus) return;
     const wasOnline = isOnline;
     const newStatus = wasOnline ? 'offline' : 'available';
-    try {
-      await updateStatus(newStatus);
-      toast.success(wasOnline ? 'You are now Offline' : 'You are now Online!');
+    
+    // 🚀 Instant Feedback
+    toast.success(wasOnline ? 'Going Offline...' : 'Going Online...');
+    
+    updateStatus(newStatus).then(() => {
       window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
-    } catch (err) {
+    }).catch((err) => {
       const msg = err?.response?.data?.message || 'Failed to update status';
       toast.error(msg);
-    }
+    });
   };
   const { unreadCount, fetchNotifications } = useDeliveryNotificationStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,9 +54,8 @@ const DeliveryLayout = () => {
     initialFetch();
 
     const interval = setInterval(() => {
-      fetchProfileSummary();
-      fetchNotifications(1);
-    }, 60000);
+      Promise.all([fetchProfileSummary(), fetchNotifications(1)]);
+    }, 120000); // Polling every 2 minutes for better mobile performance
 
     return () => clearInterval(interval);
   }, [isAuthenticated]); // Only run on auth change

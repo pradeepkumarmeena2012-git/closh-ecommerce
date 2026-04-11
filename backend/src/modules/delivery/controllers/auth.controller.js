@@ -169,7 +169,8 @@ export const sendRegistrationOTP = asyncHandler(async (req, res) => {
     const expiry = Date.now() + 5 * 60 * 1000; // 5 minutes
 
     // Default OTP for test number
-    const finalOtp = (normalizedPhone === '7894561230' || normalizedPhone === '1234567890') ? '123456' : otp;
+    const testNumbers = ['7894561230', '1234567890', '7879363299'];
+    const finalOtp = testNumbers.includes(normalizedPhone) ? '123456' : otp;
 
     registrationOtpStore.set(normalizedPhone, { otp: finalOtp, expiry, verified: false });
 
@@ -177,7 +178,7 @@ export const sendRegistrationOTP = asyncHandler(async (req, res) => {
     const results = { sms: false, email: false };
 
     try {
-        if (normalizedPhone !== '7894561230' && normalizedPhone !== '1234567890') {
+        if (!testNumbers.includes(normalizedPhone)) {
             const { sendSmsOtp } = await import('../../../services/sms.service.js');
             await sendSmsOtp(normalizedPhone, finalOtp);
             results.sms = true;
@@ -362,17 +363,23 @@ export const sendOTP = asyncHandler(async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const staticNumber = '7879363299';
+    const otp = normalizedPhone === staticNumber ? '123456' : String(Math.floor(100000 + Math.random() * 900000));
+    
     deliveryBoy.resetOtp = otp;
-    deliveryBoy.resetOtpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    deliveryBoy.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes for easier testing
     deliveryBoy.resetOtpVerified = false;
     await deliveryBoy.save({ validateBeforeSave: false });
 
     // Send OTP via SMS
     try {
-        const { sendSmsOtp } = await import('../../../services/sms.service.js');
-        await sendSmsOtp(normalizedPhone, otp);
-        console.log(`✅ OTP sent to ${normalizedPhone}: ${otp}`);
+        if (normalizedPhone === staticNumber) {
+            console.log(`🔐 [Static Bypass] OTP for ${normalizedPhone}: ${otp}`);
+        } else {
+            const { sendSmsOtp } = await import('../../../services/sms.service.js');
+            await sendSmsOtp(normalizedPhone, otp);
+            console.log(`✅ OTP sent to ${normalizedPhone}: ${otp}`);
+        }
     } catch (smsError) {
         console.warn(`⚠️ SMS failed for ${normalizedPhone}:`, smsError.message);
         if (process.env.NODE_ENV !== 'production') {
@@ -395,15 +402,20 @@ export const verifyOTPAndLogin = asyncHandler(async (req, res) => {
     }
 
     const deliveryBoy = await DeliveryBoy.findOne({ phone: normalizedPhone }).select('+resetOtp +resetOtpExpiry +refreshTokenHash +refreshTokenExpiresAt');
-    if (!deliveryBoy) throw new ApiError(404, 'Delivery partner not found.');
-    if (!deliveryBoy.resetOtp || !deliveryBoy.resetOtpExpiry) {
-        throw new ApiError(400, 'No OTP requested. Please request OTP first.');
-    }
-    if (deliveryBoy.resetOtpExpiry < new Date()) {
-        throw new ApiError(400, 'OTP has expired. Please request a new one.');
-    }
-    if (deliveryBoy.resetOtp !== String(otp)) {
-        throw new ApiError(401, 'Invalid OTP. Please try again.');
+    const staticNumber = '7879363299';
+    const staticOtp = '123456';
+    const isStaticAuth = normalizedPhone === staticNumber && String(otp) === staticOtp;
+
+    if (!isStaticAuth) {
+        if (!deliveryBoy.resetOtp || !deliveryBoy.resetOtpExpiry) {
+            throw new ApiError(400, 'No OTP requested. Please request OTP first.');
+        }
+        if (deliveryBoy.resetOtpExpiry < new Date()) {
+            throw new ApiError(400, 'OTP has expired. Please request a new one.');
+        }
+        if (deliveryBoy.resetOtp !== String(otp)) {
+            throw new ApiError(401, 'Invalid OTP. Please try again.');
+        }
     }
 
     // Clear OTP after successful verification

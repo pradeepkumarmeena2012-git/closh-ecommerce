@@ -61,6 +61,13 @@ class SocketService {
                  console.log(`🏪 [SOCKET] Auto-restoring Vendor registration for: ${storedVendorId}`);
                  this.socket.emit('vendor_register', storedVendorId);
             }
+
+            // Critical: Re-register Users
+            const storedUserId = localStorage.getItem('user_id_socket');
+            if (storedUserId) {
+                 console.log(`👤 [SOCKET] Auto-restoring User registration for: ${storedUserId}`);
+                 this.socket.emit('user_register', storedUserId);
+            }
         });
 
         this.socket.on('disconnect', (reason) => {
@@ -81,6 +88,24 @@ class SocketService {
         console.log(`🚴 [SOCKET] Registering: ${deliveryBoyId}`);
         if (this.socket?.connected) {
             this.socket.emit('delivery_register', deliveryBoyId);
+        }
+    }
+
+    userRegister(userId) {
+        if (!userId) return;
+        localStorage.setItem('user_id_socket', userId);
+        console.log(`👤 [SOCKET] Registering User: ${userId}`);
+        if (this.socket?.connected) {
+            this.socket.emit('user_register', userId);
+        }
+    }
+
+    vendorRegister(vendorId) {
+        if (!vendorId) return;
+        localStorage.setItem('vendor_id', vendorId);
+        console.log(`🏪 [SOCKET] Registering Vendor: ${vendorId}`);
+        if (this.socket?.connected) {
+            this.socket.emit('vendor_register', vendorId);
         }
     }
 

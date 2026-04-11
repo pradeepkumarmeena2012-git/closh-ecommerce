@@ -48,7 +48,9 @@ const normalizeOrder = (raw) => {
   const guestInfo = raw?.guestInfo || {};
   const backendStatus = raw?.status || 'pending';
   const uiStatus = mapBackendStatusToUI(backendStatus);
-  const itemCount = Array.isArray(raw?.items) ? raw.items.length : (typeof raw?.items === 'number' ? raw.items : 0);
+  const itemCount = Array.isArray(raw?.items) 
+    ? raw.items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+    : (typeof raw?.items === 'number' ? raw.items : 0);
   const vendorFirst = Array.isArray(raw?.vendorItems) && raw.vendorItems.length > 0 ? raw.vendorItems[0] : null;
   const vendorData = vendorFirst?.vendorId || {};
   
@@ -238,13 +240,30 @@ export const useDeliveryAuthStore = create(
       updateStatus: async (status) => {
         const current = get().deliveryBoy;
         if (!current) return false;
+        
+        const previousStatus = current.status;
+        // 🚀 Optimistic Update: Change status instantly in store
         set({ isUpdatingStatus: true, deliveryBoy: normalizeDeliveryBoy({ ...current, status }) });
+
         try {
-          const res = await api.put('/delivery/auth/profile', { isAvailable: status === 'available', status });
+          const res = await api.put('/delivery/auth/profile', { 
+            isAvailable: status === 'available', 
+            status 
+          });
           const payload = res.data || res;
-          set({ deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload, status }), isUpdatingStatus: false });
+          set({ 
+            deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload, status }), 
+            isUpdatingStatus: false 
+          });
           return true;
-        } catch (e) { set({ deliveryBoy: current, isUpdatingStatus: false }); throw e; }
+        } catch (e) { 
+          // ⚠️ Rollback on failure
+          set({ 
+            deliveryBoy: normalizeDeliveryBoy({ ...current, status: previousStatus }), 
+            isUpdatingStatus: false 
+          }); 
+          throw e; 
+        }
       },
       _lastLocationUpdate: 0,
       updateLocation: async (latitude, longitude) => {
@@ -297,18 +316,47 @@ export const useDeliveryAuthStore = create(
         } catch (e) { set({ isLoadingOrder: false }); throw e; }
       },
       acceptOrder: async (id) => {
+        const currentOrders = get().orders || [];
+        const targetedOrder = currentOrders.find(o => o.id === id);
+        
+        // 🚀 Optimistic Update: Move order to active state immediately if possible
+        if (targetedOrder) {
+          set({ 
+            orders: currentOrders.map(o => o.id === id ? { ...o, status: 'accepted' } : o) 
+          });
+        }
+
         set({ isUpdatingOrderStatus: true });
         try {
           const res = await api.post(`/delivery/orders/${id}/accept`);
           const order = normalizeOrder(res.data || res);
-          // Instant Logic: Prepend to active orders list immediately
-          const currentOrders = get().orders || [];
+          
           set({ 
-            orders: [order, ...currentOrders.filter(o => o.id !== id)],
+            orders: [order, ...get().orders.filter(o => o.id !== id)],
             isUpdatingOrderStatus: false 
           }); 
           return order;
-        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
+        } catch (e) { 
+          // ⚠️ Rollback: Fetch orders again or revert if we have local copy
+          set({ isUpdatingOrderStatus: false });
+          get().fetchAvailableOrders(); 
+          throw e; 
+        }
+      },
+      cancelOrder: async (id, reason) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const res = await api.post(`/delivery/orders/${id}/cancel`, { reason });
+          const order = normalizeOrder(res.data || res);
+          set({ 
+            orders: get().orders.map(o => o.id === id ? order : o),
+            isUpdatingOrderStatus: false 
+          });
+          return order;
+        } catch (e) { 
+          set({ isUpdatingOrderStatus: false }); 
+          throw e; 
+        }
       },
       updateOrderStatus: async (id, status, opt = {}) => {
         set({ isUpdatingOrderStatus: true });

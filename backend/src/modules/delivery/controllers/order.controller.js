@@ -83,7 +83,7 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     }
 
     const hasPaginationParams = page !== undefined || limit !== undefined;
-    const selectFields = 'orderId status total deliveryEarnings deliveryDistance orderType paymentMethod customer phone address shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.vendorName createdAt updatedAt';
+    const selectFields = 'orderId status total deliveryEarnings deliveryDistance items.name items.image items.quantity orderType paymentMethod customer phone address shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.vendorName createdAt updatedAt';
 
     if (!hasPaginationParams) {
         const orders = await Order.find(filter)
@@ -156,7 +156,7 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
 
     const [orders, total] = await Promise.all([
         Order.find(filter)
-            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image orderType createdAt shippingAddress.city shippingAddress.state')
+            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType createdAt shippingAddress.city shippingAddress.state')
             .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -414,7 +414,7 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
     const order = await Order.findOne(query)
         .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation phone')
         .populate('deliveryBoyId', 'name phone currentLocation')
-        .select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts +deliveryOtpDebug');
+        .select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts');
     if (!order) throw new ApiError(404, 'Order not found.');
 
     // Attach batch context if exists
@@ -650,6 +650,76 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, order, 'Delivery status updated.'));
 });
 
+// POST /api/delivery/orders/:id/cancel
+export const cancelOrder = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const riderId = req.user.id;
+
+    const query = {
+        deliveryBoyId: riderId,
+        isDeleted: { $ne: true },
+        $or: [{ orderId: id }],
+    };
+    if (mongoose.isValidObjectId(id)) {
+        query.$or.push({ _id: id });
+    }
+
+    const order = await Order.findOne(query);
+    if (!order) throw new ApiError(404, 'Order not found.');
+
+    const cancellableStatuses = ['assigned', 'picked_up', 'out_for_delivery', 'arrived'];
+    if (!cancellableStatuses.includes(order.status)) {
+        throw new ApiError(409, `Order cannot be cancelled in ${order.status} state.`);
+    }
+
+    order.status = 'cancelled';
+    order.cancelledAt = new Date();
+    order.cancellationReason = reason || 'Refused by customer at delivery';
+    
+    // Update vendor items statuses
+    if (order.vendorItems && order.vendorItems.length > 0) {
+        order.vendorItems.forEach(group => {
+            group.status = 'cancelled';
+        });
+    }
+
+    // Sync deliveryFlow if exists
+    if (order.deliveryFlow) {
+        order.deliveryFlow.phase = 'delivered'; // Phase-out the active mission
+    }
+
+    await order.save();
+    await cacheInvalidate(`dash:${riderId}`, `profile:${riderId}`);
+
+    // Notify all parties
+    emitEvent(`order_${order.orderId}`, 'order_status_updated', {
+        orderId: order.orderId,
+        status: 'cancelled',
+    });
+    emitEvent(`user_${order.userId}`, 'order_cancelled', {
+        orderId: order.orderId,
+        status: 'cancelled',
+        reason: order.cancellationReason
+    });
+    
+    // Notify vendors
+    order.vendorItems.forEach(group => {
+        emitEvent(`vendor_${group.vendorId}`, 'order_cancelled', {
+          orderId: order.orderId,
+          reason: order.cancellationReason
+        });
+    });
+
+    await OrderNotificationService.notifyOrderUpdate(order._id, 'cancelled', {
+        excludeRecipientId: riderId,
+        title: `Order #${order.orderId} Cancelled`,
+        message: `Order #${order.orderId} has been cancelled. Reason: ${order.cancellationReason}`
+    });
+
+    res.status(200).json(new ApiResponse(200, order, 'Order cancelled successfully.'));
+});
+
 // POST /api/delivery/orders/:id/resend-delivery-otp
 export const resendDeliveryOtp = asyncHandler(async (req, res) => {
     const query = {
@@ -684,21 +754,19 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
     flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
     flow.otpSentAt = new Date();
     flow.otpAttempts = 0;
-    if (!IS_PRODUCTION) {
-        flow.otpDebug = otp;
-    }
+    flow.otpDebug = otp;
     
-    // Sync legacy fields for backward compatibility if needed, but primary is flow
+    // Sync legacy fields
     order.deliveryOtpHash = flow.otpHash;
     order.deliveryOtpExpiry = flow.otpExpiry;
-    if (!IS_PRODUCTION) order.deliveryOtpDebug = otp;
+    order.deliveryOtpDebug = otp;
 
     await order.save();
 
     // Properly use centralized service for multi-channel notification
     await DeliveryOtpService.sendDeliveryOtp(order, otp);
 
-    return res.status(200).json(new ApiResponse(200, { deliveryOtpDebug: otp, order: order }, 'Delivery OTP resent successfully.'));
+    return res.status(200).json(new ApiResponse(200, { ...(IS_PRODUCTION ? {} : { deliveryOtpDebug: otp }), order: order }, 'Delivery OTP resent successfully.'));
 });
 
 // POST /api/delivery/orders/:id/arrived
@@ -730,14 +798,12 @@ export const markArrived = asyncHandler(async (req, res) => {
     flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
     flow.otpSentAt = new Date();
     flow.otpAttempts = 0;
-    if (!IS_PRODUCTION) {
-        flow.otpDebug = otp;
-    }
+    flow.otpDebug = otp;
+    order.deliveryOtpDebug = otp;
 
     // Sync legacy fields
     order.deliveryOtpHash = flow.otpHash;
     order.deliveryOtpExpiry = flow.otpExpiry;
-    if (!IS_PRODUCTION) order.deliveryOtpDebug = otp;
 
     await order.save();
 
@@ -995,14 +1061,14 @@ export const handleArrivedAtCustomer = asyncHandler(async (req, res) => {
         flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
         flow.otpSentAt = new Date();
         flow.otpAttempts = 0;
-        if (!IS_PRODUCTION) flow.otpDebug = otp;
+        flow.otpDebug = otp;
         
         // Keep legacy OTP fields in sync for mixed-version compatibility
         order.deliveryOtpHash = flow.otpHash;
         order.deliveryOtpExpiry = flow.otpExpiry;
         order.deliveryOtpSentAt = flow.otpSentAt;
         order.deliveryOtpAttempts = 0;
-        if (!IS_PRODUCTION) order.deliveryOtpDebug = otp;
+        order.deliveryOtpDebug = otp;
     }
 
     // For try_and_buy orders, populate checklist from order items

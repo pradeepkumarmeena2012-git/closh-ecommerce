@@ -41,8 +41,7 @@ const DeliveryDashboard = () => {
   const loadDashboardData = async () => {
     try {
       setIsDashboardLoading(true);
-      await fetchProfile();
-      await fetchDashboardSummary(); // This now updates useDeliveryAuthStore.orders
+      await Promise.all([fetchProfile(), fetchDashboardSummary()]); // Parallelize for speed
     } catch (err) {
       console.error('Dashboard load error:', err);
     } finally {
@@ -100,7 +99,7 @@ const DeliveryDashboard = () => {
     socketService.on('order_updated', handleRefresh);
     socketService.on('payment_collected', handleRefresh);
 
-    const interval = setInterval(loadDashboardData, 60000); // Polling every minute
+    const interval = setInterval(loadDashboardData, 120000); // Polling every 2 minutes instead of 1
 
     return () => {
       window.removeEventListener('delivery-dashboard-refresh', handleRefresh);
@@ -238,8 +237,13 @@ const DeliveryDashboard = () => {
                     className="bg-[#0F172A] rounded-[14px] p-2 flex items-center gap-2.5 cursor-pointer group active:scale-95 transition-all"
                   >
                     {/* Compact Icon Hub */}
-                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/10">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/10 relative">
                       <FiTruck size={16} />
+                      {order.items?.length > 0 && (
+                        <div className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[7px] font-black min-w-[14px] h-[14px] rounded-full flex items-center justify-center px-0.5 border border-white">
+                          {order.items.length}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex-1 min-w-0">

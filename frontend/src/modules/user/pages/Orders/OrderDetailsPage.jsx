@@ -503,15 +503,25 @@ const OrderDetailsPage = () => {
                             Track Live Order
                         </button>
 
-                        {(order.status?.toLowerCase() === 'delivered') && (
-                            <button
-                                onClick={() => setShowReturnModal(true)}
-                                className="flex-1 py-3 bg-white text-black border-2 border-black rounded-xl font-bold text-[11px] uppercase  hover:bg-white hover:text-black transition-all active:scale-95 flex items-center justify-center gap-2"
-                            >
-                                <RefreshCcw size={14} />
-                                Return Items
-                            </button>
-                        )}
+                        {(() => {
+                            const isDelivered = order.status?.toLowerCase() === 'delivered';
+                            const deliveredTime = order.deliveredAt ? new Date(order.deliveredAt).getTime() : 0;
+                            const now = new Date().getTime();
+                            const isWithin24h = deliveredTime && (now - deliveredTime) < (24 * 60 * 60 * 1000);
+
+                            if (isDelivered && isWithin24h) {
+                                return (
+                                    <button
+                                        onClick={() => setShowReturnModal(true)}
+                                        className="flex-1 py-3 bg-white text-black border-2 border-black rounded-xl font-bold text-[11px] uppercase hover:bg-black hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        <RefreshCcw size={14} />
+                                        Return Items
+                                    </button>
+                                );
+                            }
+                            return null;
+                        })()}
 
                         {order.status?.toLowerCase() === 'return requested' && (
                             <div className="flex-1 py-3 bg-amber-50 text-amber-700 rounded-xl font-bold text-[11px] uppercase  border border-amber-200 flex items-center justify-center gap-2">

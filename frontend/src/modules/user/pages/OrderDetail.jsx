@@ -53,6 +53,7 @@ const MobileOrderDetail = () => {
 
     socketService.connect();
     socketService.joinRoom(`order_${orderId}`);
+    socketService.joinRoom(`guest_${orderId}`);
 
     const handleUpdate = (data) => {
       // For both orderRoom and direct user room messages
@@ -64,15 +65,21 @@ const MobileOrderDetail = () => {
 
     socketService.on('order_status_updated', handleUpdate);
     socketService.on('rider_assigned', handleUpdate);
+    socketService.on('delivery_otp_sent', (data) => {
+        toast.success('🔐 New Delivery OTP received!', { id: `otp-${orderId}` });
+        handleUpdate(data);
+    });
     socketService.on('rider_nearby', (data) => {
-        toast.success('🛵 Your rider is nearby!');
+        toast.success('🛵 Your rider is nearby!', { id: `nearby-${orderId}` });
         handleUpdate(data);
     });
 
     return () => {
       socketService.leaveRoom(`order_${orderId}`);
+      socketService.leaveRoom(`guest_${orderId}`);
       socketService.off('order_status_updated');
       socketService.off('rider_assigned');
+      socketService.off('delivery_otp_sent');
       socketService.off('rider_nearby');
     };
   }, [orderId, fetchOrderById]);
