@@ -15,41 +15,9 @@ const TrackOrderPage = () => {
     const [riderLiveLocation, setRiderLiveLocation] = useState(null);
     const [riderArrived, setRiderArrived] = useState(false);
     const [cardExpanded, setCardExpanded] = useState(false);
-    const [isResendingOtp, setIsResendingOtp] = useState(false);
-    const [resendCooldown, setResendCooldown] = useState(0);
     const cooldownRef = useRef(null);
 
-    const startCooldown = useCallback((seconds = 60) => {
-        setResendCooldown(seconds);
-        if (cooldownRef.current) clearInterval(cooldownRef.current);
-        cooldownRef.current = setInterval(() => {
-            setResendCooldown(prev => {
-                if (prev <= 1) {
-                    clearInterval(cooldownRef.current);
-                    cooldownRef.current = null;
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    }, []);
 
-    const handleResendDeliveryOtp = async () => {
-        if (isResendingOtp || resendCooldown > 0 || !order) return;
-        try {
-            setIsResendingOtp(true);
-            const result = await resendDeliveryOtp(order.orderId || order.id);
-            if (result?.deliveryOtpDebug) {
-                setOrder(prev => ({ ...prev, deliveryOtpDebug: result.deliveryOtpDebug }));
-            }
-            startCooldown(60);
-        } catch (err) {
-            const msg = err?.response?.data?.message || err?.message || 'Failed to resend OTP';
-            console.error('[Resend OTP]', msg);
-        } finally {
-            setIsResendingOtp(false);
-        }
-    };
 
     const loadOrder = async () => {
         if (!orderId) return;
@@ -275,17 +243,6 @@ const TrackOrderPage = () => {
                                         <span className="text-xl font-black tracking-[0.15em] text-indigo-600">{order.deliveryOtpDebug}</span>
                                     </div>
                                 </div>
-                                {/* Resend OTP button */}
-                                <button
-                                    onClick={handleResendDeliveryOtp}
-                                    disabled={isResendingOtp || resendCooldown > 0}
-                                    className="mt-2.5 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-white/15 hover:bg-white/25 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <RefreshCw size={12} className={isResendingOtp ? 'animate-spin' : ''} />
-                                    <span className="text-[10px] font-bold uppercase tracking-wider">
-                                        {isResendingOtp ? 'Sending...' : resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Didn't receive? Resend OTP"}
-                                    </span>
-                                </button>
                             </div>
                         </motion.div>
                     )}

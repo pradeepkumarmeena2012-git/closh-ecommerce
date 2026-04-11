@@ -17,49 +17,9 @@ const OrderDetailsPage = () => {
     const [showReturnModal, setShowReturnModal] = useState(false);
     const [returnReason, setReturnReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isResendingOtp, setIsResendingOtp] = useState(false);
-    const [resendCooldown, setResendCooldown] = useState(0);
     const cooldownRef = useRef(null);
 
-    const startCooldown = useCallback((seconds = 60) => {
-        setResendCooldown(seconds);
-        if (cooldownRef.current) clearInterval(cooldownRef.current);
-        cooldownRef.current = setInterval(() => {
-            setResendCooldown(prev => {
-                if (prev <= 1) {
-                    clearInterval(cooldownRef.current);
-                    cooldownRef.current = null;
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    }, []);
 
-    const handleResendDeliveryOtp = async () => {
-        if (isResendingOtp || resendCooldown > 0 || !order) return;
-        try {
-            setIsResendingOtp(true);
-            const result = await resendDeliveryOtp(order.orderId || order.id);
-            if (result?.deliveryOtpDebug) {
-                // Force UI update with fresh state
-                setOrder(prev => ({ 
-                    ...prev, 
-                    deliveryOtpDebug: result.deliveryOtpDebug 
-                }));
-                toast.success(`🔐 New Delivery OTP: ${result.deliveryOtpDebug}`, {
-                    icon: '✅',
-                    id: `otp-update-${orderId}`
-                });
-            }
-            startCooldown(60);
-        } catch (err) {
-            console.error('[Resend OTP]', err?.response?.data?.message || err?.message);
-            toast.error('Failed to resend OTP. Please try again.');
-        } finally {
-            setIsResendingOtp(false);
-        }
-    };
 
     const RETURN_REASONS = [
         "Wrong size delivered",
@@ -544,16 +504,6 @@ const OrderDetailsPage = () => {
                             <div className="mt-6 p-4 bg-emerald-50 rounded-2xl border-2 border-emerald-100 border-dashed text-center">
                                 <p className="text-[10px] font-bold uppercase  text-emerald-600 mb-1">Share this OTP with delivery partner</p>
                                 <p className="text-2xl font-bold text-emerald-700">{order.deliveryOtpDebug}</p>
-                                {['picked_up', 'out_for_delivery'].includes(order.status?.toLowerCase()) && (
-                                    <button
-                                        onClick={handleResendDeliveryOtp}
-                                        disabled={isResendingOtp || resendCooldown > 0}
-                                        className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <RefreshCw size={12} className={isResendingOtp ? 'animate-spin' : ''} />
-                                        {isResendingOtp ? 'Sending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Didn't receive? Resend OTP"}
-                                    </button>
-                                )}
                             </div>
                         )}
                     </div>
