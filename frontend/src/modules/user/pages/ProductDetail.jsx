@@ -25,6 +25,7 @@ import {
 } from "../data/catalogData";
 import api from "../../../shared/utils/api";
 import { formatPrice } from "../../../shared/utils/helpers";
+import { getVariantSignature } from "../../../shared/utils/variant";
 import toast from "react-hot-toast";
 import MobileLayout from "../components/Layout/MobileLayout";
 import ImageGallery from "../../../shared/components/Product/ImageGallery";
@@ -34,7 +35,6 @@ import MobileProductCard from "../components/Mobile/MobileProductCard";
 import PageTransition from "../../../shared/components/PageTransition";
 import Badge from "../../../shared/components/Badge";
 import ProductCard from "../../../shared/components/ProductCard";
-import { getVariantSignature } from "../../../shared/utils/variant";
 
 const resolveVariantPrice = (product, selectedVariant) => {
   const basePrice = Number(product?.price) || 0;
@@ -404,38 +404,79 @@ const MobileProductDetail = () => {
 
   const productImages = useMemo(() => {
     if (!product) return [];
-    const selectedVariantKey = getVariantSignature(selectedVariant || {});
-    const variantImage = String(
-      product?.variants?.imageMap?.[selectedVariantKey] ||
-      product?.variants?.imageMap?.get?.(selectedVariantKey) ||
-      ""
-    ).trim();
-    const images =
-      Array.isArray(product.images) && product.images.length > 0
-        ? product.images.filter(Boolean)
-        : product.image
-          ? [product.image]
-          : [];
+
+    let variantImage = "";
+    if (selectedVariant && product?.variants?.imageMap) {
+      const signature = getVariantSignature(selectedVariant);
+      const entries = product.variants.imageMap instanceof Map
+        ? Array.from(product.variants.imageMap.entries())
+        : Object.entries(product.variants.imageMap || {});
+
+      // 1. Exact match
+      let match = entries.find(([k]) => String(k).trim() === signature);
+      
+      // 2. Case-insensitive match 
+      if (!match) {
+        match = entries.find(([k]) => String(k).trim().toLowerCase() === signature.toLowerCase());
+      }
+
+      // 3. Simple axis match or legacy format (size|color)
+      if (!match) {
+        const size = String(selectedVariant.size || "").trim().toLowerCase();
+        const color = String(selectedVariant.color || "").trim().toLowerCase();
+        const candidates = [`${size}|${color}`, `${size}-${color}`, size && !color ? size : null, color && !size ? color : null].filter(Boolean);
+        
+        for (const candidate of candidates) {
+          match = entries.find(([k]) => String(k).trim().toLowerCase() === candidate.toLowerCase());
+          if (match) break;
+        }
+      }
+
+      if (match) variantImage = String(match[1] || "").trim();
+    }
+
+    const images = Array.isArray(product.images) && product.images.length > 0 
+      ? product.images.filter(Boolean) 
+      : product.image ? [product.image] : [];
+
     if (variantImage) {
       return [variantImage, ...images.filter((img) => img !== variantImage)];
     }
     return images;
   }, [product, selectedVariant]);
 
-  const currentPrice = useMemo(() => {
-    return resolveVariantPrice(product, selectedVariant);
-  }, [product, selectedVariant]);
-
   const selectedAvailableStock = useMemo(() => {
-    const variantKey = getVariantSignature(selectedVariant || {});
-    const variantStockValue = Number(
-      product?.variants?.stockMap?.[variantKey] ??
-      product?.variants?.stockMap?.get?.(variantKey)
-    );
-    if (Number.isFinite(variantStockValue)) {
-      return Math.max(0, variantStockValue);
+    if (!product) return 0;
+    
+    if (selectedVariant && product?.variants?.stockMap) {
+      const signature = getVariantSignature(selectedVariant);
+      const entries = product.variants.stockMap instanceof Map
+        ? Array.from(product.variants.stockMap.entries())
+        : Object.entries(product.variants.stockMap || {});
+
+      let match = entries.find(([k]) => String(k).trim() === signature);
+      if (!match) {
+        match = entries.find(([k]) => String(k).trim().toLowerCase() === signature.toLowerCase());
+      }
+
+      if (!match) {
+        const size = String(selectedVariant.size || "").trim().toLowerCase();
+        const color = String(selectedVariant.color || "").trim().toLowerCase();
+        const candidates = [`${size}|${color}`, `${size}-${color}`, size && !color ? size : null, color && !size ? color : null].filter(Boolean);
+        
+        for (const candidate of candidates) {
+          match = entries.find(([k]) => String(k).trim().toLowerCase() === candidate.toLowerCase());
+          if (match) break;
+        }
+      }
+
+      if (match) {
+        const parsed = Number(match[1]);
+        return Number.isFinite(parsed) ? Math.max(0, parsed) : Number(product.stockQuantity || 0);
+      }
     }
-    return Number(product?.stockQuantity || 0);
+
+    return Number(product.stockQuantity || 0);
   }, [product, selectedVariant]);
 
   const productFaqs = useMemo(() => {

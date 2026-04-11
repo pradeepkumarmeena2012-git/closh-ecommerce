@@ -248,6 +248,7 @@ router.post('/notifications/broadcast', ...adminAuth, checkPermission('notificat
 
 // ─── Settings & Policies ──────────────────────────────────────────────────────
 import * as settingsController from '../controllers/settings.controller.js';
+router.get('/settings/all', ...adminAuth, settingsController.getAllSettings);
 router.get('/settings/:key', ...adminAuth, settingsController.getSetting);
 router.put('/settings/:key', ...adminAuth, checkPermission('settings_manage'), settingsController.updateSetting);
 

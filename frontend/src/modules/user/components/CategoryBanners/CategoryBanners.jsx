@@ -28,7 +28,7 @@ const CategoryBanners = () => {
 
     return (
         <div className="py-5 md:py-8 bg-white border-b border-gray-50">
-            <div className="px-5 mx-auto max-w-7xl">
+            <div className="px-5 mx-auto max-w-[1600px]">
                 {/* Dynamic Categories Row */}
                 <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 gap-4 md:gap-8">
                     {activeCategories.map((category) => (

@@ -50,8 +50,27 @@ const CampaignSale = () => {
         const payload = response?.data ?? response;
         if (cancelled) return;
         setCampaign(payload || null);
+        
+        const campaignDiscountType = payload?.discountType;
+        const campaignDiscountValue = Number(payload?.discountValue) || 0;
+
         const normalizedProducts = Array.isArray(payload?.products)
-          ? payload.products.map(normalizeProduct)
+          ? payload.products.map(product => {
+              const normalized = normalizeProduct(product);
+              
+              // Apply campaign discount if applicable
+              if (campaignDiscountValue > 0) {
+                if (campaignDiscountType === 'percentage') {
+                  normalized.originalPrice = normalized.originalPrice || normalized.price;
+                  normalized.price = Math.round(normalized.originalPrice * (1 - campaignDiscountValue / 100));
+                } else if (campaignDiscountType === 'fixed') {
+                  normalized.originalPrice = normalized.originalPrice || normalized.price;
+                  normalized.price = Math.max(0, normalized.originalPrice - campaignDiscountValue);
+                }
+              }
+              
+              return normalized;
+          })
           : [];
         setProducts(normalizedProducts);
       } catch {
@@ -82,56 +101,46 @@ const CampaignSale = () => {
 
   return (
     <PageTransition>
-      <MobileLayout showBottomNav={true} showCartBar={true}>
-        <div className="w-full pb-24">
-          <div className="px-4 py-4 bg-white border-b border-gray-200 sticky top-0 z-30">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <FiArrowLeft className="text-xl text-gray-700" />
-              </button>
-              <div className="flex-1">
-                <h1 className="text-xl font-bold text-gray-800">{title}</h1>
-                <p className="text-xs text-gray-500">
-                  {discount}
-                  {products.length ? ` • ${products.length} products` : ""}
-                </p>
-              </div>
+      <div className="w-full min-h-screen bg-white">
+        <div className="px-4 py-8">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+              <div className="w-12 h-12 bg-gray-200 rounded-full mb-4"></div>
+              <div className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Loading campaign...</div>
             </div>
-          </div>
-
-          <div className="px-4 py-4">
-            {isLoading ? (
-              <div className="text-center py-12 text-gray-500">Loading campaign...</div>
-            ) : !campaign ? (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Campaign unavailable</h3>
-                <p className="text-gray-500">This offer is not active right now.</p>
-              </div>
-            ) : products.length === 0 ? (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">No products in this campaign</h3>
-                <p className="text-gray-500">Please check back later.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {products.map((product, index) => (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
-                  >
-                    <ProductCard product={product} />
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </div>
+          ) : !campaign ? (
+            <div className="text-center py-20 bg-gray-50 rounded-3xl mx-4 border border-dashed border-gray-200">
+              <h3 className="text-lg font-black text-gray-900 mb-2 uppercase tracking-tight">Campaign unavailable</h3>
+              <p className="text-gray-500 text-sm">This offer is not active right now.</p>
+              <button onClick={() => navigate('/')} className="mt-6 px-8 py-3 bg-black text-white rounded-full text-xs font-black uppercase tracking-widest">Return Home</button>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-20 bg-gray-50 rounded-3xl mx-4 border border-dashed border-gray-200">
+              <h3 className="text-lg font-black text-gray-900 mb-2 uppercase tracking-tight">No products found</h3>
+              <p className="text-gray-500 text-sm">Please check back later for exciting offers.</p>
+              <button onClick={() => navigate('/')} className="mt-6 px-8 py-3 dark:bg-black text-white rounded-full text-xs font-black uppercase tracking-widest">Explore Others</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-6">
+              {products.map((product, index) => (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ 
+                    duration: 0.6,
+                    delay: (index % 10) * 0.05,
+                    ease: [0.21, 1.11, 0.81, 0.99]
+                  }}
+                >
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
-      </MobileLayout>
+      </div>
     </PageTransition>
   );
 };

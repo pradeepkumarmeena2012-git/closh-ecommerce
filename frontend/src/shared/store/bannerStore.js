@@ -3,13 +3,22 @@ import api from "../utils/api";
 import * as adminService from "../../modules/Admin/services/adminService";
 import toast from "react-hot-toast";
 
-const normalizeBanner = (b) => ({
-  ...b,
-  id: b._id || b.id,
-  link: b.linkUrl || b.url || b.link || "/",
-  isActive: b.isActive !== false,
-  image: b.image || 'https://via.placeholder.com/800x400?text=Banner'
-});
+const normalizeBanner = (b) => {
+  let link = b.linkUrl || b.url || b.link || "/products";
+  
+  // Fix common typo: /product (singular) with no ID should go to /products (plural)
+  if (link === '/product' || link === '/product/') {
+    link = '/products';
+  }
+
+  return {
+    ...b,
+    id: b._id || b.id,
+    link,
+    isActive: b.isActive !== false,
+    image: b.image || 'https://via.placeholder.com/800x400?text=Banner'
+  };
+};
 
 export const useBannerStore = create((set, get) => ({
   banners: [],

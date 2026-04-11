@@ -32,10 +32,20 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
         <div className="bg-white text-gray-900 min-h-screen pb-12">
             <div className="container mx-auto px-4 md:px-8 lg:px-12 py-4 md:py-8">
                 {/* Mobile Back Header */}
-                {isMobile && !isMenuPage && !hideHeader && (
+                {isMobile && !hideHeader && (
                     <div className="flex items-center gap-3 mb-2 bg-gray-50 p-2 md:p-3 rounded-[20px] md:rounded-2xl shadow-sm border border-gray-200 mx-1">
                         <button
-                            onClick={() => navigate('/account')}
+                            onClick={() => {
+                                if (isMenuPage) {
+                                    if (window.history.length > 2) {
+                                        navigate(-1);
+                                    } else {
+                                        navigate('/');
+                                    }
+                                } else {
+                                    navigate('/account');
+                                }
+                            }}
                             className="w-10 h-10 md:w-10 md:h-10 bg-black text-white rounded-[14px] md:rounded-xl flex items-center justify-center active:scale-95 transition-all shadow-[0_0_15px_rgba(212,175,55,0.3)]"
                         >
                             <ChevronLeft size={20} strokeWidth={3} />

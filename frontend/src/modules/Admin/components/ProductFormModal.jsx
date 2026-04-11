@@ -17,6 +17,7 @@ import AnimatedSelect from "./AnimatedSelect";
 import toast from "react-hot-toast";
 import Button from "./Button";
 import { formatPrice } from "../../../shared/utils/helpers";
+import { getVariantSignature } from "../../../shared/utils/variant";
 
 const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
   const location = useLocation();
@@ -390,8 +391,12 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       return true;
     });
   };
-  const createVariantKey = (size = "", color = "") =>
-    `${normalizeVariantPart(size)}|${normalizeVariantPart(color)}`;
+  const createVariantKey = (size = "", color = "") => {
+    const obj = {};
+    if (size) obj.size = size;
+    if (color) obj.color = color;
+    return getVariantSignature(obj);
+  };
 
   const syncVariantMaps = (sizes = [], colors = [], variants = {}) => {
     const combinations =
@@ -434,6 +439,9 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       const nextDefaultSize = String(prevDefault.size || "");
       const nextDefaultColor = String(prevDefault.color || "");
 
+      // For new variants, we can optionally pre-fill with main price/stock
+      // but let's keep it empty to use placeholders/fallbacks for now.
+
       return {
         ...prev,
         variants: {
@@ -450,6 +458,79 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         },
       };
     });
+  };
+
+  const syncAllVariants = (field, value) => {
+    if (!value && value !== 0 && value !== "") return;
+    setFormData(prev => {
+      const fieldName = field === 'price' ? 'prices' : 'stockMap';
+      const nextMap = { ...(prev.variants?.[fieldName] || {}) };
+      
+      variantCombinations.forEach(combo => {
+        nextMap[combo.key] = value === "" ? "" : Number(value);
+      });
+
+      return {
+        ...prev,
+        variants: {
+          ...prev.variants,
+          [fieldName]: nextMap
+        }
+      };
+    });
+    toast.success(`Applied ${field} to all variants`);
+  };
+
+  const applyValueToSimilar = (field, combo, value) => {
+    if (!combo || (!value && value !== 0 && value !== "" && field !== 'image')) return;
+    
+    // Determine the most relevant attribute to match on
+    // Priority: Color (for images), then Size, then first dynamic attribute
+    let matchKey = "";
+    let matchValue = "";
+
+    if (combo.color) {
+      matchKey = "color";
+      matchValue = combo.color;
+    } else if (combo.size) {
+      matchKey = "size";
+      matchValue = combo.size;
+    } else if (combo.selection) {
+      const firstAttr = Object.entries(combo.selection)[0];
+      if (firstAttr) {
+        matchKey = "selection";
+        matchValue = firstAttr; // We'll handle this specially
+      }
+    }
+
+    if (!matchKey) return;
+
+    setFormData(prev => {
+      const fieldName = field === 'price' ? 'prices' : (field === 'stock' ? 'stockMap' : 'imageMap');
+      const nextMap = { ...(prev.variants?.[fieldName] || {}) };
+      
+      variantCombinations.forEach(c => {
+        let isMatch = false;
+        if (matchKey === "selection") {
+          isMatch = c.selection?.[matchValue[0]] === matchValue[1];
+        } else {
+          isMatch = c[matchKey] === matchValue;
+        }
+
+        if (isMatch) {
+          nextMap[c.key] = field === 'image' ? value : (value === "" ? "" : Number(value));
+        }
+      });
+
+      return {
+        ...prev,
+        variants: {
+          ...prev.variants,
+          [fieldName]: nextMap
+        }
+      };
+    });
+    toast.success(`Applied to all variants with ${matchKey === 'selection' ? matchValue[0] : matchKey}: ${matchKey === 'selection' ? matchValue[1] : matchValue}`);
   };
 
   const addVariantAxisValues = (axis, rawInput) => {
@@ -1400,86 +1481,171 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                         </div>
                       </div>
                       {variantCombinations.length > 0 && (
-                        <div className="border border-gray-200 rounded-lg p-3 bg-white">
-                          <p className="text-xs font-semibold text-gray-700 mb-2">
-                            Variant Price / Stock / Image
-                          </p>
-                          <div className="space-y-2">
-                            {variantCombinations.map((combo) => (
-                              <div key={combo.key} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
-                                <p className="text-xs text-gray-700 md:col-span-1">
-                                  {combo.label || ((combo.size || "Any Size") + " / " + (combo.color || "Any Color"))}
-                                </p>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={formData.variants?.prices?.[combo.key] ?? ""}
-                                  onChange={(e) => {
-                                    const nextValue = e.target.value;
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      variants: {
-                                        ...prev.variants,
-                                        prices: {
-                                          ...(prev.variants?.prices || {}),
-                                          [combo.key]: nextValue === "" ? "" : Number(nextValue),
-                                        },
-                                      },
-                                    }));
-                                  }}
-                                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
-                                  placeholder="Price"
-                                />
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="1"
-                                  value={formData.variants?.stockMap?.[combo.key] ?? ""}
-                                  onChange={(e) => {
-                                    const nextValue = e.target.value;
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      variants: {
-                                        ...prev.variants,
-                                        stockMap: {
-                                          ...(prev.variants?.stockMap || {}),
-                                          [combo.key]: nextValue === "" ? "" : Number(nextValue),
-                                        },
-                                      },
-                                    }));
-                                  }}
-                                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
-                                  placeholder="Stock"
-                                />
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    id={`admin-variant-image-${combo.key}`}
-                                    className="hidden"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) handleVariantImageUpload(combo.key, file);
-                                      e.target.value = "";
-                                    }}
-                                  />
-                                  <label
-                                    htmlFor={`admin-variant-image-${combo.key}`}
-                                    className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs cursor-pointer hover:bg-gray-100"
-                                  >
-                                    Upload
-                                  </label>
-                                  {formData.variants?.imageMap?.[combo.key] && (
-                                    <img
-                                      src={formData.variants.imageMap[combo.key]}
-                                      alt="Variant"
-                                      className="w-8 h-8 rounded object-cover border border-gray-300"
-                                    />
-                                  )}
+                        <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
+                            <p className="text-xs font-bold text-gray-700">
+                              Variant Price / Stock / Image Details
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => syncAllVariants('price', formData.price)}
+                                className="text-[10px] font-bold px-2 py-1 bg-primary-50 text-primary-700 border border-primary-200 rounded-md hover:bg-primary-100 transition-colors"
+                              >
+                                Use Main Price For All
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => syncAllVariants('stock', formData.stockQuantity)}
+                                className="text-[10px] font-bold px-2 py-1 bg-primary-50 text-primary-700 border border-primary-200 rounded-md hover:bg-primary-100 transition-colors"
+                              >
+                                Use Main Stock For All
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            {variantCombinations.map((combo, idx) => {
+                              const vPrice = formData.variants?.prices?.[combo.key];
+                              const vStock = formData.variants?.stockMap?.[combo.key];
+                              const vImage = formData.variants?.imageMap?.[combo.key];
+                              
+                              return (
+                                <div key={combo.key} className="p-3 bg-gray-50 rounded-xl border border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
+                                  <div className="flex flex-col md:flex-row md:items-center gap-4">
+                                    <div className="md:w-1/4">
+                                      <p className="text-sm font-bold text-gray-800">
+                                        {combo.label || ((combo.size || "Any Size") + " / " + (combo.color || "Any Color"))}
+                                      </p>
+                                      <p className="text-[10px] text-gray-500 uppercase font-medium tracking-wider">Variant Option</p>
+                                    </div>
+
+                                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      {/* Price Input */}
+                                      <div className="relative group">
+                                        <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Price</label>
+                                        <div className="flex gap-1">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={vPrice ?? ""}
+                                            onChange={(e) => {
+                                              const nextValue = e.target.value;
+                                              setFormData((prev) => ({
+                                                ...prev,
+                                                variants: {
+                                                  ...prev.variants,
+                                                  prices: {
+                                                    ...(prev.variants?.prices || {}),
+                                                    [combo.key]: nextValue === "" ? "" : Number(nextValue),
+                                                  },
+                                                },
+                                              }));
+                                            }}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm font-medium"
+                                            placeholder={formData.price || "Price"}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => applyValueToSimilar('price', combo, vPrice ?? formData.price)}
+                                            className="px-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-600 transition-colors"
+                                            title="Apply this price to all similar variants"
+                                          >
+                                            <FiSave size={14} />
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {/* Stock Input */}
+                                      <div className="relative group">
+                                        <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Stock</label>
+                                        <div className="flex gap-1">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            value={vStock ?? ""}
+                                            onChange={(e) => {
+                                              const nextValue = e.target.value;
+                                              setFormData((prev) => ({
+                                                ...prev,
+                                                variants: {
+                                                  ...prev.variants,
+                                                  stockMap: {
+                                                    ...(prev.variants?.stockMap || {}),
+                                                    [combo.key]: nextValue === "" ? "" : Number(nextValue),
+                                                  },
+                                                },
+                                              }));
+                                            }}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm font-medium"
+                                            placeholder={formData.stockQuantity || "Stock"}
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => applyValueToSimilar('stock', combo, vStock ?? formData.stockQuantity)}
+                                            className="px-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-600 transition-colors"
+                                            title="Apply this stock to all similar variants"
+                                          >
+                                            <FiSave size={14} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Image Upload */}
+                                    <div className="md:w-1/4 flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200">
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        id={`admin-variant-image-${idx}`}
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) handleVariantImageUpload(combo.key, file);
+                                          e.target.value = "";
+                                        }}
+                                      />
+                                      <label 
+                                        htmlFor={`admin-variant-image-${idx}`}
+                                        className="relative w-12 h-12 flex-shrink-0 group cursor-pointer hover:opacity-80 transition-opacity"
+                                      >
+                                        {vImage ? (
+                                          <img
+                                            src={vImage}
+                                            alt="Variant"
+                                            className="w-full h-full rounded-md object-cover border border-gray-200"
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full rounded-md bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300 text-gray-400 group-hover:border-primary-400 group-hover:text-primary-500">
+                                            <FiUpload size={16} />
+                                          </div>
+                                        )}
+                                      </label>
+                                      
+                                      <div className="flex flex-col gap-1">
+                                        <label
+                                          htmlFor={`admin-variant-image-${idx}`}
+                                          className="text-[10px] font-bold text-primary-600 hover:text-primary-700 cursor-pointer uppercase tracking-tight"
+                                        >
+                                          Upload Image
+                                        </label>
+                                        {vImage && (
+                                          <button
+                                            type="button"
+                                            onClick={() => applyValueToSimilar('image', combo, vImage)}
+                                            className="text-[9px] font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-tight text-left"
+                                          >
+                                            Copy to same {combo.color ? 'Color' : 'Size'}
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}

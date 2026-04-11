@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import toast from "react-hot-toast";
 import logoImage from "../../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
+import * as settingsService from "../services/settingsService";
 
 const defaultSettings = {
   general: {
@@ -155,60 +156,94 @@ export const useSettingsStore = create(
       settings: defaultSettings,
       isLoading: false,
 
-      // Initialize settings
-      initialize: () => {
-        const state = get();
+      // Initialize settings from API (Admin version - fetches all including sensitive)
+      initialize: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await settingsService.getAllSettings();
+          const backendSettings = response?.data || response || {};
+          get()._applySettings(backendSettings);
+        } catch (error) {
+          console.error("Failed to fetch admin settings:", error);
+          get()._fallbackToLocal();
+        }
+      },
+
+      // Initialize settings from API (Public version - fetches non-sensitive only)
+      initializePublic: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await settingsService.getAllPublicSettings();
+          const backendSettings = response?.data || response || {};
+          get()._applySettings(backendSettings);
+        } catch (error) {
+          console.error("Failed to fetch public settings:", error);
+          get()._fallbackToLocal();
+        }
+      },
+
+      // Helper to apply settings with deep merge
+      _applySettings: (backendSettings) => {
+        const mergedSettings = JSON.parse(JSON.stringify(defaultSettings));
+        Object.keys(backendSettings).forEach(key => {
+          if (mergedSettings[key]) {
+            mergedSettings[key] = {
+              ...mergedSettings[key],
+              ...backendSettings[key]
+            };
+          } else {
+            mergedSettings[key] = backendSettings[key];
+          }
+        });
+        set({ settings: mergedSettings, isLoading: false });
+      },
+
+      // Helper to fallback to local storage
+      _fallbackToLocal: () => {
         const savedSettings = localStorage.getItem("admin-settings");
         if (savedSettings) {
-          try {
-            const parsed = JSON.parse(savedSettings);
-            // Only update if current state is different to avoid re-render loops
-            if (JSON.stringify(parsed) !== JSON.stringify(state.settings)) {
-              set({ settings: parsed });
-            }
-          } catch (e) {
-            set({ settings: defaultSettings });
-          }
+           set({ settings: JSON.parse(savedSettings), isLoading: false });
         } else {
-          set({ settings: defaultSettings });
-          localStorage.setItem(
-            "admin-settings",
-            JSON.stringify(defaultSettings)
-          );
+           set({ settings: defaultSettings, isLoading: false });
         }
       },
 
       // Get settings
       getSettings: () => {
-        const state = get();
-        if (!state.settings) {
-          state.initialize();
-        }
         return get().settings;
       },
 
-      // Update settings
-      updateSettings: (category, settingsData) => {
+      // Update settings (Saves to both API and Local)
+      updateSettings: async (category, settingsData) => {
         set({ isLoading: true });
         try {
           const currentSettings = get().settings;
+          const categoryData = {
+            ...currentSettings[category],
+            ...settingsData,
+          };
+          
           const updatedSettings = {
             ...currentSettings,
-            [category]: {
-              ...currentSettings[category],
-              ...settingsData,
-            },
+            [category]: categoryData,
           };
+
+          // Save to Backend
+          await settingsService.updateAdminSetting(category, categoryData);
+
+          // Update Local State
           set({ settings: updatedSettings, isLoading: false });
+          
           localStorage.setItem(
             "admin-settings",
             JSON.stringify(updatedSettings)
           );
-          toast.success("Settings updated successfully");
+          
+          toast.success("Settings updated and synced successfully");
           return updatedSettings;
         } catch (error) {
           set({ isLoading: false });
-          toast.error("Failed to update settings");
+          toast.error("Failed to sync settings with server");
           throw error;
         }
       },

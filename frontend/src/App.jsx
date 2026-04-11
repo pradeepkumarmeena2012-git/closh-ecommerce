@@ -137,9 +137,15 @@ import UserWishlistPage from "./modules/user/pages/Wishlist/WishlistPage";
 import UserOffersPage from "./modules/user/pages/Offers/OffersPage";
 import UserEventsPage from "./modules/user/pages/Events/EventsPage";
 import UserReferPage from "./modules/user/pages/Refer/ReferPage";
+import CampaignSale from "./modules/user/pages/CampaignSale";
+// Delivery Routes
+import DeliveryLogin from "./modules/Delivery/pages/Login";
+// Vendor Routes
+import VendorLogin from "./modules/Vendor/pages/Login";
+
+// Routes handled via lazy loading below
 
 // Delivery Routes (Lazy Loaded)
-const DeliveryLogin = lazy(() => import("./modules/Delivery/pages/Login"));
 const DeliveryRegister = lazy(() => import("./modules/Delivery/pages/Register"));
 const DeliveryForgotPassword = lazy(() => import("./modules/Delivery/pages/ForgotPassword"));
 const DeliveryResetPassword = lazy(() => import("./modules/Delivery/pages/ResetPassword"));
@@ -154,7 +160,6 @@ const DeliveryLiveTracking = lazy(() => import("./modules/Delivery/pages/LiveTra
 const DeliveryPayouts = lazy(() => import("./modules/Delivery/pages/Payouts"));
 
 // Vendor Routes (Lazy Loaded)
-const VendorLogin = lazy(() => import("./modules/Vendor/pages/Login"));
 const VendorRegister = lazy(() => import("./modules/Vendor/pages/Register"));
 const VendorVerification = lazy(() => import("./modules/Vendor/pages/Verification"));
 const VendorForgotPassword = lazy(() => import("./modules/Vendor/pages/ForgotPassword"));
@@ -267,7 +272,7 @@ const AppRoutes = () => {
           {/* Support Routes */}
           <Route path="chat-support" element={<LiveChat />} />
           <Route path="support" element={<Navigate to="/admin/customer-support/live-chat" replace />} />
-          
+
           <Route path="customer-support">
             <Route index element={<Navigate to="/admin/customer-support/live-chat" replace />} />
             <Route path="live-chat" element={<LiveChat type="customer" />} />
@@ -285,7 +290,7 @@ const AppRoutes = () => {
             path="notifications/push-notifications"
             element={<PushNotifications />}
           />
-          
+
           <Route path="reports">
             <Route index element={<Navigate to="/admin/reports/sales-report" replace />} />
             <Route path="sales-report" element={<SalesReport />} />
@@ -532,6 +537,14 @@ const AppRoutes = () => {
               <ProtectedRoute>
                 <UserLayout><UserReferPage /></UserLayout>
               </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
+          path="/sale/:slug"
+          element={
+            <RouteWrapper>
+              <UserLayout showCategoryBar={false}><CampaignSale /></UserLayout>
             </RouteWrapper>
           }
         />

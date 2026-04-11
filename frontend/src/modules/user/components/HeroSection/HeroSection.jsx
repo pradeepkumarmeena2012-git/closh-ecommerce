@@ -30,7 +30,7 @@ const HeroSection = () => {
             subtitle: "Discover the new season's most coveted pieces, crafted with uncompromising attention to luxury and detail.",
             image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=2070",
             cta: "Shop Now",
-            link: "/shop"
+            link: "/products"
         },
         {
             id: 'fallback-2',
@@ -38,7 +38,7 @@ const HeroSection = () => {
             subtitle: "Elevate your daily rotation with pieces designed for versatility and timeless aesthetic.",
             image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&q=80&w=2070",
             cta: "Explore Now",
-            link: "/shop"
+            link: "/products"
         }
     ];
 
@@ -117,7 +117,10 @@ const HeroSection = () => {
                                     {/* Bottom Section: CTA */}
                                     <div className="flex items-center justify-start mt-auto md:mt-0">
                                         <button
-                                            onClick={() => navigate(banner.link)}
+                                            onClick={() => {
+                                                const targetLink = banner.link === '/product' ? '/products' : banner.link;
+                                                navigate(targetLink);
+                                            }}
                                             className="bg-white text-black py-2.5 px-6 rounded-lg font-black text-[10px] md:text-[12px] uppercase hover:bg-black hover:text-white transition-all shadow-[0_10px_20px_rgba(0,0,0,0.4)] active:scale-95"
                                         >
                                             {banner.cta || "Shop Now"}

@@ -106,13 +106,14 @@ const TaxPricing = () => {
     const currentPricingRules = [...pricingRules];
     let nextTaxRules = [];
 
-    if (editingTax) {
+    if (editingTax && editingTax.id) {
       nextTaxRules = currentTaxRules.map((t) =>
           t.id === editingTax.id ? { ...taxData, id: editingTax.id } : t
         );
       await persistRules(nextTaxRules, currentPricingRules, "Tax rule updated");
     } else {
-      nextTaxRules = [...currentTaxRules, { ...taxData, id: currentTaxRules.length + 1 }];
+      const nextId = currentTaxRules.length > 0 ? Math.max(...currentTaxRules.map(t => t.id)) + 1 : 1;
+      nextTaxRules = [...currentTaxRules, { ...taxData, id: nextId }];
       await persistRules(nextTaxRules, currentPricingRules, "Tax rule added");
     }
     setEditingTax(null);
@@ -123,7 +124,7 @@ const TaxPricing = () => {
     const currentPricingRules = [...pricingRules];
     let nextPricingRules = [];
 
-    if (editingPricing) {
+    if (editingPricing && editingPricing.id) {
       nextPricingRules = currentPricingRules.map((p) =>
           p.id === editingPricing.id
             ? { ...pricingData, id: editingPricing.id }
@@ -131,9 +132,10 @@ const TaxPricing = () => {
         );
       await persistRules(currentTaxRules, nextPricingRules, "Pricing rule updated");
     } else {
+      const nextId = currentPricingRules.length > 0 ? Math.max(...currentPricingRules.map(p => p.id)) + 1 : 1;
       nextPricingRules = [
         ...currentPricingRules,
-        { ...pricingData, id: currentPricingRules.length + 1 },
+        { ...pricingData, id: nextId },
       ];
       await persistRules(currentTaxRules, nextPricingRules, "Pricing rule added");
     }
@@ -360,11 +362,11 @@ const TaxPricing = () => {
                     const formData = new FormData(e.target);
                     try {
                       await handleSaveTax({
-                        name: formData.get("name"),
+                        name: String(formData.get("name") || "").trim(),
                         rate: parseFloat(formData.get("rate")),
-                        type: formData.get("type"),
-                        applicableTo: formData.get("applicableTo"),
-                        status: formData.get("status"),
+                        type: String(formData.get("type") || "percentage"),
+                        applicableTo: String(formData.get("applicableTo") || "all"),
+                        status: String(formData.get("status") || "active"),
                       });
                     } catch (error) {
                       // interceptor handles toasts
@@ -533,14 +535,14 @@ const TaxPricing = () => {
                     const formData = new FormData(e.target);
                     try {
                       await handleSavePricing({
-                        name: formData.get("name"),
-                        type: formData.get("type"),
+                        name: String(formData.get("name") || "").trim(),
+                        type: String(formData.get("type") || "discount"),
                         value: parseFloat(formData.get("value")),
                         minQuantity: formData.get("minQuantity")
                           ? parseInt(formData.get("minQuantity"))
                           : null,
-                        applicableTo: formData.get("applicableTo") || null,
-                        status: formData.get("status"),
+                        applicableTo: String(formData.get("applicableTo") || ""),
+                        status: String(formData.get("status") || "active"),
                       });
                     } catch (error) {
                       // interceptor handles toasts

@@ -11,8 +11,8 @@ export const useDealsStore = create((set, get) => ({
         if (get().hasFetched) return;
         set({ isLoading: true });
         try {
-            // Re-mapping to existing Campaigns API with daily_deal type
-            const response = await api.get('/campaigns', { params: { type: 'daily_deal' } });
+            // Fetching all active Campaigns (daily_deals, festivals, etc.)
+            const response = await api.get('/campaigns');
             const payload = response?.data || response;
             const campaigns = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
 
@@ -20,7 +20,12 @@ export const useDealsStore = create((set, get) => ({
                 const mappedDeals = campaigns.map(c => ({
                     id: c._id || c.id,
                     name: c.name,
-                    promo: c.bannerConfig?.title || (c.discountValue ? `${c.discountValue}${c.discountType === 'percentage' ? '%' : ' OFF'} DISCOUNT` : 'SPECIAL OFFER'),
+                    slug: c.slug,
+                    link: `/sale/${c.slug}`,
+                    brand: c.bannerConfig?.subtitle || c.name,
+                    title: c.bannerConfig?.title || (c.discountValue ? `${c.discountValue}${c.discountType === 'percentage' ? '%' : ' OFF'}` : 'OFFER'),
+                    subtitle: c.description || 'Limited time offer',
+                    badge: c.discountValue ? `${c.discountValue}${c.discountType === 'percentage' ? '%' : ' OFF'}` : 'BEST DEAL',
                     bg: getDealBg(c.type),
                     image: c.bannerConfig?.image || '/placeholder-deal.png',
                     status: 'active'
@@ -40,14 +45,19 @@ export const useDealsStore = create((set, get) => ({
     fetchDeals: async () => {
         set({ isLoading: true });
         try {
-            const response = await api.get('/campaigns', { params: { type: 'daily_deal' } });
+            const response = await api.get('/campaigns');
             const payload = response?.data || response;
             const campaigns = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
 
             const mappedDeals = campaigns.map(c => ({
                 id: c._id || c.id,
                 name: c.name,
-                promo: c.bannerConfig?.title || (c.discountValue ? `${c.discountValue}${c.discountType === 'percentage' ? '%' : ' OFF'} DISCOUNT` : 'SPECIAL OFFER'),
+                slug: c.slug,
+                link: `/sale/${c.slug}`,
+                brand: c.bannerConfig?.subtitle || c.name,
+                title: c.bannerConfig?.title || (c.discountValue ? `${c.discountValue}${c.discountType === 'percentage' ? '%' : ' OFF'}` : 'OFFER'),
+                subtitle: c.description || 'Limited time offer',
+                badge: c.discountValue ? `${c.discountValue}${c.discountType === 'percentage' ? '%' : ' OFF'}` : 'BEST DEAL',
                 bg: getDealBg(c.type),
                 image: c.bannerConfig?.image || '/placeholder-deal.png',
                 status: 'active'

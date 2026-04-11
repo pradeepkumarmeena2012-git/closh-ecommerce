@@ -13,6 +13,62 @@ import { calculateVendorShippingForGroups } from '../services/vendorShipping.ser
 
 import { getCache, setCache } from '../utils/cache.js';
 
+// Helper to globally apply campaign discounts to products fetched by users
+const applyActiveCampaigns = async (productsInput) => {
+    if (!productsInput) return productsInput;
+    const isArray = Array.isArray(productsInput);
+    const products = isArray ? productsInput : [productsInput];
+    if (products.length === 0) return productsInput;
+
+    const now = new Date();
+    const activeCampaigns = await Campaign.find({
+        isActive: true,
+        $and: [
+            { $or: [{ startDate: null }, { startDate: { $exists: false } }, { startDate: { $lte: now } }] },
+            { $or: [{ endDate: null }, { endDate: { $exists: false } }, { endDate: { $gte: now } }] }
+        ]
+    }).select('productIds discountType discountValue type').lean();
+
+    if (!activeCampaigns.length) return productsInput;
+
+    const discountMap = {};
+    activeCampaigns.forEach(campaign => {
+        if (!campaign.productIds) return;
+        campaign.productIds.forEach(pidStr => {
+            const pid = String(pidStr);
+            if (!discountMap[pid]) discountMap[pid] = [];
+            discountMap[pid].push(campaign);
+        });
+    });
+
+    const result = products.map(p => {
+        const obj = typeof p.toObject === 'function' ? p.toObject() : p;
+        const pid = String(obj._id);
+        const campaignsForProduct = discountMap[pid];
+        
+        if (campaignsForProduct && campaignsForProduct.length > 0) {
+            const camp = campaignsForProduct[0];
+            const originalPrice = Number(obj.originalPrice || obj.price);
+            let discountedPrice = originalPrice;
+            
+            if (camp.discountType === 'percentage') {
+                discountedPrice = Math.round(originalPrice * (1 - camp.discountValue / 100));
+            } else if (camp.discountType === 'fixed') {
+                discountedPrice = Math.max(0, originalPrice - camp.discountValue);
+            }
+            
+            obj.originalPrice = originalPrice;
+            obj.price = discountedPrice;
+            obj.discountedPrice = discountedPrice; // Ensure frontend preferences use campaign price
+            obj.hasActiveCampaign = true;
+            obj.campaignType = camp.type;
+        }
+        return obj;
+    });
+
+    return isArray ? result : result[0];
+};
+
 const router = Router();
 
 const toPublicVendor = (vendorDoc) => {
@@ -178,7 +234,7 @@ const listProducts = asyncHandler(async (req, res) => {
     const sortMap = { newest: { createdAt: -1 }, oldest: { createdAt: 1 }, 'price-asc': { price: 1 }, 'price-desc': { price: -1 }, popular: { reviewCount: -1 }, rating: { rating: -1 } };
 
     const products = await Product.find(filter)
-        .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount')
+        .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount variants')
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
         .populate('vendorId', 'storeName')
@@ -187,7 +243,8 @@ const listProducts = asyncHandler(async (req, res) => {
         .limit(Number(limit));
     const total = await Product.countDocuments(filter);
 
-    const responseData = { products, total, page: Number(page), pages: Math.ceil(total / limit) };
+    const activeProducts = await applyActiveCampaigns(products);
+    const responseData = { products: activeProducts, total, page: Number(page), pages: Math.ceil(total / limit) };
 
     // --- CACHE STORE START ---
     // Cache the result for 5 seconds to avoid stale data during development/testing
@@ -203,7 +260,8 @@ router.get('/products', listProducts);
 // GET /api/products/flash-sale
 router.get('/flash-sale', asyncHandler(async (req, res) => {
     const products = await Product.find({ isActive: true, flashSale: true }).limit(20);
-    res.status(200).json(new ApiResponse(200, products, 'Flash sale products.'));
+    const activeProducts = await applyActiveCampaigns(products);
+    res.status(200).json(new ApiResponse(200, activeProducts, 'Flash sale products.'));
 }));
 
 // GET /api/products/new-arrivals
@@ -256,8 +314,9 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
         Product.countDocuments(filter),
     ]);
 
+    const activeProducts = await applyActiveCampaigns(products);
     res.status(200).json(new ApiResponse(200, {
-        products,
+        products: activeProducts,
         total,
         page: numericPage,
         pages: Math.ceil(total / numericLimit),
@@ -267,7 +326,8 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
 // GET /api/products/popular
 router.get('/popular', asyncHandler(async (req, res) => {
     const products = await Product.find({ isActive: true }).sort({ reviewCount: -1, rating: -1 }).limit(10);
-    res.status(200).json(new ApiResponse(200, products, 'Popular products.'));
+    const activeProducts = await applyActiveCampaigns(products);
+    res.status(200).json(new ApiResponse(200, activeProducts, 'Popular products.'));
 }));
 
 // GET /api/products/similar/:id
@@ -275,7 +335,8 @@ router.get('/similar/:id', asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) throw new ApiError(404, 'Product not found.');
     const similar = await Product.find({ isActive: true, _id: { $ne: product._id }, categoryId: product.categoryId }).limit(6);
-    res.status(200).json(new ApiResponse(200, similar, 'Similar products.'));
+    const activeSimilar = await applyActiveCampaigns(similar);
+    res.status(200).json(new ApiResponse(200, activeSimilar, 'Similar products.'));
 }));
 
 const getProductDetail = asyncHandler(async (req, res) => {
@@ -284,7 +345,8 @@ const getProductDetail = asyncHandler(async (req, res) => {
         .populate('brandId', 'name')
         .populate('vendorId', 'storeName storeLogo rating address shopLocation freeShippingThreshold');
     if (!product) throw new ApiError(404, 'Product not found.');
-    res.status(200).json(new ApiResponse(200, product, 'Product detail.'));
+    const activeProduct = await applyActiveCampaigns(product);
+    res.status(200).json(new ApiResponse(200, activeProduct, 'Product detail.'));
 });
 
 // GET /api/products/:id
@@ -543,8 +605,9 @@ router.get('/banners', asyncHandler(async (req, res) => {
 
 // GET /api/campaigns
 router.get('/campaigns', asyncHandler(async (req, res) => {
-    const { type, limit = 20 } = req.query;
-    const cacheKey = `campaigns:${type || 'all'}:${limit}`;
+    const { type, limit = 20, withProducts } = req.query;
+    const includeProducts = withProducts === 'true';
+    const cacheKey = `campaigns:${type || 'all'}:${limit}:${includeProducts}`;
     const cachedData = await getCache(cacheKey);
     if (cachedData) {
         return res.status(200).json(new ApiResponse(200, cachedData, 'Campaigns fetched (from cache).'));
@@ -563,13 +626,42 @@ router.get('/campaigns', asyncHandler(async (req, res) => {
     if (type) query.type = type;
 
     const campaigns = await Campaign.find(query)
-        .select('name slug type route discountType discountValue startDate endDate bannerConfig')
+        .select('name slug type route discountType discountValue startDate endDate bannerConfig productIds description')
         .sort({ createdAt: -1 })
         .limit(parsedLimit);
 
-    await setCache(cacheKey, campaigns, 1800); // 30 minutes
+    let result = campaigns;
 
-    res.status(200).json(new ApiResponse(200, campaigns, 'Campaigns fetched.'));
+    // If withProducts=true, populate product details for each campaign
+    if (includeProducts) {
+        const campaignObjects = campaigns.map(c => c.toObject());
+        for (const camp of campaignObjects) {
+            const productIds = Array.isArray(camp.productIds)
+                ? camp.productIds
+                    .map(v => String(v || '').trim())
+                    .filter(v => v && /^[a-fA-F0-9]{24}$/.test(v))
+                : [];
+            if (productIds.length > 0) {
+                camp.products = await Product.find({
+                    _id: { $in: productIds },
+                    isActive: true
+                })
+                    .populate('categoryId', 'name')
+                    .populate('brandId', 'name')
+                    .populate('vendorId', 'storeName')
+                    .select('name price originalPrice images image categoryId brandId vendorId')
+                    .limit(20)
+                    .lean();
+            } else {
+                camp.products = [];
+            }
+        }
+        result = campaignObjects;
+    }
+
+    await setCache(cacheKey, result, 1800); // 30 minutes
+
+    res.status(200).json(new ApiResponse(200, result, 'Campaigns fetched.'));
 }));
 
 // DIAGNOSTIC ALIAS: GET /api/deals (Redirects to daily_deal campaigns)
@@ -588,18 +680,30 @@ router.get('/deals', asyncHandler(async (req, res) => {
 
 // GET /api/campaigns/:slug
 router.get('/campaigns/:slug', asyncHandler(async (req, res) => {
-    const slug = String(req.params.slug || '').trim().toLowerCase();
-    if (!slug) throw new ApiError(400, 'Campaign slug is required.');
+    const slugParam = String(req.params.slug || '').trim().toLowerCase();
+    if (!slugParam) throw new ApiError(400, 'Campaign slug is required.');
 
-    const campaign = await Campaign.findOne({ slug, isActive: true });
-    if (!campaign) throw new ApiError(404, 'Campaign not found.');
+    // Try finding by slug (case-insensitive), then by _id as fallback
+    let campaign = await Campaign.findOne({ slug: { $regex: new RegExp(`^${slugParam}$`, 'i') }, isActive: true });
+    
+    // Fallback: try finding by _id if slug didn't match
+    if (!campaign && /^[a-fA-F0-9]{24}$/.test(slugParam)) {
+        campaign = await Campaign.findOne({ _id: slugParam, isActive: true });
+    }
+    
+    if (!campaign) {
+        console.log(`[Campaign] Not found for slug/id: "${slugParam}". Active campaigns:`, 
+            (await Campaign.find({ isActive: true }).select('slug name').lean()).map(c => c.slug));
+        throw new ApiError(404, 'Campaign not found.');
+    }
 
     const now = new Date();
     if (campaign.startDate && campaign.startDate > now) {
         throw new ApiError(404, 'Campaign is not active yet.');
     }
     if (campaign.endDate && campaign.endDate < now) {
-        throw new ApiError(404, 'Campaign has ended.');
+        // Campaign has ended — still return it but mark as expired
+        // (don't throw 404 so users can still see historical offers)
     }
 
     const productIds = Array.isArray(campaign.productIds)
@@ -678,9 +782,10 @@ router.get('/orders/track/:id', asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, trackingInfo, 'Order tracking info.'));
 }));
 
-// GET /api/settings/:key
-import { getSetting } from '../modules/admin/controllers/settings.controller.js';
-router.get('/settings/:key', getSetting);
+// GET /api/settings
+import * as settingsController from '../modules/admin/controllers/settings.controller.js';
+router.get('/settings', settingsController.getPublicSettings);
+router.get('/settings/:key', settingsController.getSetting);
 
 // ─── Service Area / Serviceability Check ──────────────────────────────────────
 import * as serviceAreaService from '../services/serviceArea.service.js';
