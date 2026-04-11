@@ -68,7 +68,7 @@ const OrderDetailsPage = () => {
                 // Try cache first
                 let foundOrder = getOrder(orderId);
                 // Always refresh from API to get latest status
-                foundOrder = await fetchOrderById(orderId);
+                foundOrder = await fetchOrderById(orderId, true);
                 if (foundOrder) setOrder(foundOrder);
             } catch (error) {
                 console.error("Failed to load order details:", error);
@@ -78,6 +78,45 @@ const OrderDetailsPage = () => {
         };
         loadOrder();
     }, [orderId, fetchOrderById, getOrder]);
+
+    // Socket.io for real-time updates
+    useEffect(() => {
+        if (!orderId) return;
+
+        socketService.connect();
+        socketService.joinRoom(`order_${orderId}`);
+        socketService.joinRoom(`guest_${orderId}`);
+
+        const loadLatest = () => {
+            fetchOrderById(orderId, true).then(updated => {
+                if (updated) setOrder(updated);
+            }).catch(() => {});
+        };
+
+        const handleUpdate = (data) => {
+            if (!data.orderId || String(data.orderId) === String(orderId)) {
+                console.log('📦 Order update received:', data);
+                loadLatest();
+            }
+        };
+
+        socketService.on('order_status_updated', handleUpdate);
+        socketService.on('rider_assigned', handleUpdate);
+        socketService.on('delivery_otp_sent', (data) => {
+            toast.success('🔐 New Delivery OTP received!', { id: `otp-${orderId}` });
+            handleUpdate(data);
+        });
+        socketService.on('delivery_otp_resent', handleUpdate);
+
+        return () => {
+            socketService.leaveRoom(`order_${orderId}`);
+            socketService.leaveRoom(`guest_${orderId}`);
+            socketService.off('order_status_updated', handleUpdate);
+            socketService.off('rider_assigned', handleUpdate);
+            socketService.off('delivery_otp_sent');
+            socketService.off('delivery_otp_resent');
+        };
+    }, [orderId, fetchOrderById]);
 
     // Cleanup cooldown timer on unmount
     useEffect(() => {
@@ -408,7 +447,8 @@ const OrderDetailsPage = () => {
                             const isCancelled = status === 'cancelled' || status === 'canceled';
 
                             let step = 1; // Default to Ordered (1)
-                            if (status === 'shipped') step = 2;
+                            const midStatuses = ['processing', 'ready_for_pickup', 'accepted', 'assigned', 'picked_up', 'out_for_delivery', 'shipped'];
+                            if (midStatuses.includes(status)) step = 2;
                             if (status === 'delivered') step = 3;
                             if (isCancelled) step = 0; // Special case
 

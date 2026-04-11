@@ -171,9 +171,11 @@ export const useOrderStore = create(
         }
       },
 
-      fetchOrderById: async (orderId) => {
-        const existing = get().orders.find((order) => String(order.id) === String(orderId));
-        if (existing) return existing;
+      fetchOrderById: async (orderId, bypassCache = false) => {
+        if (!bypassCache) {
+          const existing = get().orders.find((order) => String(order.id) === String(orderId));
+          if (existing) return existing;
+        }
 
         try {
           const response = await api.get(`/user/orders/${orderId}`);
