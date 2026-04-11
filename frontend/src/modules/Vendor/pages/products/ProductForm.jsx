@@ -80,6 +80,7 @@ const ProductForm = () => {
     sizes: "",
     colors: "",
   });
+  const [tagInput, setTagInput] = useState("");
   const variantCombinations = useMemo(
     () =>
       buildVariantCombinations(
@@ -172,13 +173,9 @@ const ProductForm = () => {
       taxIncluded: product.taxIncluded || false,
       description: product.description || "",
       discount: product.discount || 0,
-      tags: product.tags || [],
-      variants: normalizedVariants,
-      seoTitle: product.seoTitle || "",
-      seoDescription: product.seoDescription || "",
-      relatedProducts: product.relatedProducts || [],
       faqs: Array.isArray(product.faqs) ? product.faqs : [],
     });
+    setTagInput((product.tags || []).join(", "));
   };
 
   const handleChange = (e) => {
@@ -370,9 +367,23 @@ const ProductForm = () => {
 
   const addVariantAxisValues = (axis, rawInput) => {
     const parsed = parseVariantAxis(rawInput);
-    if (!parsed.length) return;
+    if (!parsed.length) {
+      if (rawInput.trim()) toast.error(`No valid ${axis === "sizes" ? "size" : "color"} values found`);
+      return;
+    }
     const current = Array.isArray(formData?.variants?.[axis]) ? formData.variants[axis] : [];
-    const merged = parseVariantAxis([...current, ...parsed].join(", "));
+    
+    // Check for duplicates
+    const duplicates = parsed.filter(val => 
+      current.some(c => String(c).trim().toLowerCase() === String(val).trim().toLowerCase())
+    );
+    
+    if (duplicates.length > 0) {
+      toast.error(`${axis === "sizes" ? "Size" : "Color"} "${duplicates[0]}" already exists`);
+      return;
+    }
+
+    const merged = [...current, ...parsed];
     updateVariantAxes(axis, merged.join(", "));
     setVariantAxisInput((prev) => ({ ...prev, [axis]: "" }));
   };
@@ -434,23 +445,23 @@ const ProductForm = () => {
     }
 
     if (!formData.name || !formData.price || !formData.stockQuantity || !formData.categoryId) {
-      toast.error("Please fill in all required fields");
+      toast.error("Please fill in all required fields (Name, Price, Stock, Category)");
       return;
     }
 
     const finalCategoryId = formData.subcategoryId ?? formData.categoryId ?? null;
 
-    const parsedPrice = parseFloat(formData.price);
-    const parsedOriginalPrice = formData.originalPrice
-      ? parseFloat(formData.originalPrice)
-      : null;
-    const parsedStockQuantity = parseInt(formData.stockQuantity, 10);
-    const parsedTotalAllowedQuantity = formData.totalAllowedQuantity
-      ? parseInt(formData.totalAllowedQuantity, 10)
-      : null;
-    const parsedMinimumOrderQuantity = formData.minimumOrderQuantity
-      ? parseInt(formData.minimumOrderQuantity, 10)
-      : null;
+    const parsedPrice = parseFloat(formData.price || 0);
+    const parsedOriginalPrice = (formData.originalPrice === "" || formData.originalPrice === null)
+      ? null
+      : parseFloat(formData.originalPrice);
+    const parsedStockQuantity = parseInt(formData.stockQuantity || 0, 10);
+    const parsedTotalAllowedQuantity = (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
+      ? null
+      : parseInt(formData.totalAllowedQuantity, 10);
+    const parsedMinimumOrderQuantity = (formData.minimumOrderQuantity === "" || formData.minimumOrderQuantity === null || isNaN(parseInt(formData.minimumOrderQuantity)))
+      ? null
+      : parseInt(formData.minimumOrderQuantity, 10);
 
     if (!Number.isFinite(parsedPrice) || !Number.isFinite(parsedStockQuantity)) {
       toast.error("Please enter valid numeric values");
@@ -1077,19 +1088,20 @@ const ProductForm = () => {
           </div>
         </div>
 
-        {/* Tags */}
         <div>
           <h2 className="text-base font-bold text-gray-800 mb-2">Tags</h2>
           <div>
             <input
               type="text"
-              value={(formData.tags || []).join(", ")}
+              value={tagInput}
               onChange={(e) => {
-                const tags = e.target.value
+                const val = e.target.value;
+                setTagInput(val);
+                const tags = val
                   .split(",")
                   .map((t) => t.trim())
                   .filter((t) => t);
-                setFormData({ ...formData, tags });
+                setFormData((prev) => ({ ...prev, tags }));
               }}
               placeholder="tag1, tag2, tag3"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"

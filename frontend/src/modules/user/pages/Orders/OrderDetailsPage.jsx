@@ -336,7 +336,7 @@ const OrderDetailsPage = () => {
 
     return (
         <AccountLayout hideHeader={true}>
-            <div className="max-w-4xl mx-auto px-5 md:px-0 pb-10">
+            <div className="max-w-6xl mx-auto px-0.5 md:px-0 pb-10">
                 {/* Responsive Header */}
                 <div className="flex flex-wrap items-center gap-2 md:gap-4 mb-4 pt-1">
                     <button
