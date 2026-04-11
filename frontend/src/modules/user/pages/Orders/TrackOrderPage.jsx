@@ -113,8 +113,10 @@ const TrackOrderPage = () => {
             if (cooldownRef.current) clearInterval(cooldownRef.current);
             socketService.off('location_updated', handleLocationUpdate);
             socketService.off('order_status_updated', handleStatusUpdate);
+            socketService.off('rider_assigned', handleStatusUpdate);
             socketService.off('rider_arrived', handleRiderArrived);
-            socketService.off('delivery_otp_resent', handleOtpResent);
+            socketService.off('delivery_otp_sent', handleOtpSent);
+            socketService.off('delivery_otp_resent', handleOtpSent);
         };
     }, [orderId]);
 
