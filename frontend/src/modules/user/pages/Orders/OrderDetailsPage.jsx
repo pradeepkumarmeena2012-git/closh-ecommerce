@@ -42,11 +42,20 @@ const OrderDetailsPage = () => {
             setIsResendingOtp(true);
             const result = await resendDeliveryOtp(order.orderId || order.id);
             if (result?.deliveryOtpDebug) {
-                setOrder(prev => ({ ...prev, deliveryOtpDebug: result.deliveryOtpDebug }));
+                // Force UI update with fresh state
+                setOrder(prev => ({ 
+                    ...prev, 
+                    deliveryOtpDebug: result.deliveryOtpDebug 
+                }));
+                toast.success(`🔐 New Delivery OTP: ${result.deliveryOtpDebug}`, {
+                    icon: '✅',
+                    id: `otp-update-${orderId}`
+                });
             }
             startCooldown(60);
         } catch (err) {
             console.error('[Resend OTP]', err?.response?.data?.message || err?.message);
+            toast.error('Failed to resend OTP. Please try again.');
         } finally {
             setIsResendingOtp(false);
         }
@@ -89,14 +98,25 @@ const OrderDetailsPage = () => {
         socketService.joinRoom(`guest_${orderId}`);
 
         const loadLatest = () => {
+            console.log('🔄 Fetching latest order data via socket signal...');
             fetchOrderById(orderId, true).then(updated => {
-                if (updated) setOrder(updated);
-            }).catch(() => {});
+                if (updated) {
+                    setOrder(prev => {
+                        // Deep merge to ensure we don't lose local state like temporary animations
+                        // but strictly update critical data from server
+                        return {
+                            ...prev,
+                            ...updated,
+                            deliveryOtpDebug: updated.deliveryOtpDebug || prev?.deliveryOtpDebug
+                        };
+                    });
+                }
+            }).catch(err => console.error('Socket refresh failed:', err));
         };
 
         const handleUpdate = (data) => {
             if (!data.orderId || String(data.orderId) === String(orderId)) {
-                console.log('📦 Order update received:', data);
+                console.log('📦 Real-time update received:', data);
                 loadLatest();
             }
         };
@@ -104,10 +124,13 @@ const OrderDetailsPage = () => {
         socketService.on('order_status_updated', handleUpdate);
         socketService.on('rider_assigned', handleUpdate);
         socketService.on('delivery_otp_sent', (data) => {
-            toast.success('🔐 New Delivery OTP received!', { id: `otp-${orderId}` });
-            handleUpdate(data);
+            toast.success('🔐 Delivery OTP Updated!', { id: `otp-sock-${orderId}` });
+            loadLatest();
         });
-        socketService.on('delivery_otp_resent', handleUpdate);
+        socketService.on('delivery_otp_resent', (data) => {
+            toast.success('🔐 New Delivery OTP received!', { id: `otp-sock-${orderId}` });
+            loadLatest();
+        });
 
         return () => {
             socketService.leaveRoom(`order_${orderId}`);
