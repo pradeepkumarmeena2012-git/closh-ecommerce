@@ -222,8 +222,12 @@ const AppBootstrap = () => {
         const deliveryBoy = useDeliveryAuthStore.getState().deliveryBoy;
         const vendor = useVendorAuthStore.getState().vendor;
 
-        if ((deliveryBoy && (payload.data?.type === 'new_assignment_broadcast' || payload.data?.type === 'return_pickup_broadcast' || payload.data?.type === 'order')) ||
-            (vendor && (payload.data?.type === 'order' || payload.data?.type === 'order_created'))) {
+        const isNewOrder = (payload.data?.type === 'order_created' || 
+                           payload.data?.type === 'new_order' || 
+                           (payload.data?.type === 'order' && (payload.data?.status === 'pending' || payload.data?.status === 'ready_for_pickup' || !payload.data?.status)));
+
+        if ((deliveryBoy && (payload.data?.type === 'new_assignment_broadcast' || payload.data?.type === 'return_pickup_broadcast' || (payload.data?.type === 'order' && payload.data?.status === 'pending'))) ||
+            (vendor && isNewOrder)) {
           const audio = new Audio('/sounds/buzzer.mp3');
           audio.play().catch(e => console.warn('Buzzer playback failed (user interaction required):', e.message));
         }
