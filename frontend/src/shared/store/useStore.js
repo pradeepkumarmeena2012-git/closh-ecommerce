@@ -126,7 +126,7 @@ export const useCartStore = create(
         });
 
         if (Number.isFinite(availableStock) && newQuantity >= availableStock * 0.8) {
-          toast.warning(`Only ${availableStock} left in stock!`);
+          toast(`Only ${availableStock} left in stock!`, { icon: "⚠️" });
         }
 
         // Trigger cart animation

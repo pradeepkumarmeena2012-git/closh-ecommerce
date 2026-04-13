@@ -9,65 +9,10 @@ import Vendor from '../models/Vendor.model.js';
 import Coupon from '../models/Coupon.model.js';
 import Banner from '../models/Banner.model.js';
 import Campaign from '../models/Campaign.model.js';
+import { applyActiveCampaigns } from '../utils/productUtils.js';
 import { calculateVendorShippingForGroups } from '../services/vendorShipping.service.js';
-
 import { getCache, setCache } from '../utils/cache.js';
 
-// Helper to globally apply campaign discounts to products fetched by users
-const applyActiveCampaigns = async (productsInput) => {
-    if (!productsInput) return productsInput;
-    const isArray = Array.isArray(productsInput);
-    const products = isArray ? productsInput : [productsInput];
-    if (products.length === 0) return productsInput;
-
-    const now = new Date();
-    const activeCampaigns = await Campaign.find({
-        isActive: true,
-        $and: [
-            { $or: [{ startDate: null }, { startDate: { $exists: false } }, { startDate: { $lte: now } }] },
-            { $or: [{ endDate: null }, { endDate: { $exists: false } }, { endDate: { $gte: now } }] }
-        ]
-    }).select('productIds discountType discountValue type').lean();
-
-    if (!activeCampaigns.length) return productsInput;
-
-    const discountMap = {};
-    activeCampaigns.forEach(campaign => {
-        if (!campaign.productIds) return;
-        campaign.productIds.forEach(pidStr => {
-            const pid = String(pidStr);
-            if (!discountMap[pid]) discountMap[pid] = [];
-            discountMap[pid].push(campaign);
-        });
-    });
-
-    const result = products.map(p => {
-        const obj = typeof p.toObject === 'function' ? p.toObject() : p;
-        const pid = String(obj._id);
-        const campaignsForProduct = discountMap[pid];
-        
-        if (campaignsForProduct && campaignsForProduct.length > 0) {
-            const camp = campaignsForProduct[0];
-            const originalPrice = Number(obj.originalPrice || obj.price);
-            let discountedPrice = originalPrice;
-            
-            if (camp.discountType === 'percentage') {
-                discountedPrice = Math.round(originalPrice * (1 - camp.discountValue / 100));
-            } else if (camp.discountType === 'fixed') {
-                discountedPrice = Math.max(0, originalPrice - camp.discountValue);
-            }
-            
-            obj.originalPrice = originalPrice;
-            obj.price = discountedPrice;
-            obj.discountedPrice = discountedPrice; // Ensure frontend preferences use campaign price
-            obj.hasActiveCampaign = true;
-            obj.campaignType = camp.type;
-        }
-        return obj;
-    });
-
-    return isArray ? result : result[0];
-};
 
 const router = Router();
 

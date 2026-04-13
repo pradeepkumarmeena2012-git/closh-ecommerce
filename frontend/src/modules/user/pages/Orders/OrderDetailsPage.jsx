@@ -426,10 +426,32 @@ const OrderDetailsPage = () => {
                             <div className="space-y-1.5">
                                 <div className="flex justify-between text-[10px] font-bold text-gray-500">
                                     <span>Subtotal</span>
-                                    <span>₹{order.total}</span>
+                                    <span>₹{order.subtotal}</span>
                                 </div>
+                                {order.discount > 0 && (
+                                    <div className="flex justify-between text-[10px] font-bold text-emerald-600">
+                                        <span>Discount</span>
+                                        <span>-₹{order.discount}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between text-[10px] font-bold text-gray-500">
+                                    <span>Shipping</span>
+                                    <span>{order.shipping > 0 ? `₹${order.shipping}` : 'FREE'}</span>
+                                </div>
+                                {order.tax > 0 && (
+                                    <div className="flex justify-between text-[10px] font-bold text-gray-500">
+                                        <span>Tax</span>
+                                        <span>₹{order.tax}</span>
+                                    </div>
+                                )}
+                                {order.platformFee > 0 && (
+                                    <div className="flex justify-between text-[10px] font-bold text-gray-500">
+                                        <span>Platform Fee</span>
+                                        <span>₹{order.platformFee}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between text-[10px] font-black text-black pt-1.5 border-t border-gray-50">
-                                    <span>Paid via {order.paymentMethod || 'COD'}</span>
+                                    <span>Paid via {order.paymentMethod?.toUpperCase() || 'COD'}</span>
                                     <span>₹{order.total}</span>
                                 </div>
                             </div>

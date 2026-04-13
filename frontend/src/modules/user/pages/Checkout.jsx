@@ -137,9 +137,10 @@ const MobileCheckout = () => {
       ? estimatedShipping
       : calculateShippingFallback();
   const discount = appliedCoupon ? appliedDiscount : 0;
+  const platformFee = 20;
   const taxableAmount = Math.max(0, total - discount);
   const tax = taxableAmount * 0.18;
-  const finalTotal = Math.max(0, total + shipping + tax - discount);
+  const finalTotal = Math.max(0, total + shipping + tax + platformFee - discount);
 
   useEffect(() => {
     if (appliedCoupon) {
@@ -739,6 +740,7 @@ const MobileCheckout = () => {
                         discount={discount}
                         shipping={shipping}
                         tax={tax}
+                        platformFee={platformFee}
                         finalTotal={finalTotal}
                         formatPrice={formatPrice}
                         distances={estimatedDistances}
@@ -758,6 +760,7 @@ const MobileCheckout = () => {
                       discount={discount}
                       shipping={shipping}
                       tax={tax}
+                      platformFee={platformFee}
                       finalTotal={finalTotal}
                       formatPrice={formatPrice}
                       distances={estimatedDistances}

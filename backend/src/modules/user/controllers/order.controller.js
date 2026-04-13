@@ -17,6 +17,8 @@ import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
 import Vendor from '../../../models/Vendor.model.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 import { geocodeAddress, getDistanceMatrix } from '../../../services/googleMaps.service.js';
+import { applyActiveCampaigns } from '../../../utils/productUtils.js';
+
 
 const normalizeVariantPart = (value) => String(value || '').trim().toLowerCase();
 const normalizeAxisName = (value) =>
@@ -250,11 +252,14 @@ export const placeOrder = asyncHandler(async (req, res) => {
     const vendorMap = {};
 
     for (const item of items) {
-        const product = await Product.findById(item.productId).populate(
+        const productDoc = await Product.findById(item.productId).populate(
             'vendorId',
             'commissionRate storeName shippingEnabled defaultShippingRate freeShippingThreshold shopLocation'
         );
-        if (!product) throw new ApiError(404, `Product not found: ${item.productId}`);
+        if (!productDoc) throw new ApiError(404, `Product not found: ${item.productId}`);
+        
+        // Apply active campaigns to ensure order pricing matches catalog pricing
+        const product = await applyActiveCampaigns(productDoc);
         
         console.log(`🛒 [ITEM] ${product.name} x${item.quantity}, Price: ${product.price}, Vendor: ${product.vendorId.storeName}`);
 
@@ -397,7 +402,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
     // 4. Calculate tax (18%)
     const tax = parseFloat(((subtotal - couponDiscount) * 0.18).toFixed(2));
-    const total = parseFloat((subtotal - couponDiscount + shipping + tax).toFixed(2));
+    const platformFee = 20; // Matches frontend PaymentPage.jsx
+    const total = parseFloat((subtotal - couponDiscount + shipping + tax + platformFee).toFixed(2));
     console.log(`💰 [TOTALS] Shipping: ₹${shipping}, Tax: ₹${tax}, Grand Total: ₹${total}`);
 
     // 5. Build vendor item groups
@@ -451,6 +457,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 shipping,
                 tax,
                 discount: couponDiscount,
+                platformFee,
                 total,
                 couponCode: couponCode?.toUpperCase(),
                 couponDiscount,

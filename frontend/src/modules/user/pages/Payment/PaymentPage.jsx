@@ -58,6 +58,8 @@ const PaymentPage = () => {
     const [appliedPromo, setAppliedPromo] = useState(null);
     const [promoError, setPromoError] = useState('');
     const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+    const [estimatedShipping, setEstimatedShipping] = useState(null);
+    const [isEstimatingShipping, setIsEstimatingShipping] = useState(false);
 
     useEffect(() => {
         refreshAddresses();
@@ -76,18 +78,19 @@ const PaymentPage = () => {
     }, [activeAddress]);
 
     const totalMRP = cart.reduce((acc, item) => {
-        const itemSellingPrice = item.discountedPrice !== undefined ? item.discountedPrice : (item.price || item.originalPrice || 0);
-        const itemMRP = Math.max(item.originalPrice || 0, item.price || 0, itemSellingPrice);
+        // originalPrice is the MRP stored in the cart item (set during addToCart)
+        const itemMRP = Number(item.originalPrice) || Number(item.price) || 0;
         return acc + (itemMRP * item.quantity);
     }, 0);
 
     const totalDiscount = totalMRP - getCartTotal();
     const platformFee = 20;
-    const shipping = getCartTotal() > 500 ? 0 : 40;
+    const shipping = typeof estimatedShipping === 'number' ? estimatedShipping : (getCartTotal() > 500 ? 0 : 40);
 
+    const subtotal = getCartTotal();
     let promoDiscount = 0;
+
     if (appliedPromo) {
-        const subtotal = totalMRP - totalDiscount;
         if (appliedPromo.type === 'percentage') {
             promoDiscount = (subtotal * appliedPromo.value) / 100;
             if (appliedPromo.maxDiscount) {
@@ -98,7 +101,10 @@ const PaymentPage = () => {
         }
     }
 
-    const finalTotal = totalMRP - totalDiscount - promoDiscount + platformFee + shipping;
+    const taxableAmount = Math.max(0, subtotal - promoDiscount);
+    const tax = Number((taxableAmount * 0.18).toFixed(2));
+
+    const finalTotal = subtotal - promoDiscount + platformFee + shipping + tax;
 
     const handleApplyPromo = (codeToApply) => {
         const finalCode = (typeof codeToApply === 'string' ? codeToApply : promoCode).trim();
@@ -145,6 +151,52 @@ const PaymentPage = () => {
                 setIsApplyingPromo(false);
             });
     };
+    
+    // Shipping Estimation logic (Matches Checkout.jsx)
+    useEffect(() => {
+        let active = true;
+        const timer = setTimeout(async () => {
+            const validItems = cart.map(item => ({
+                productId: item?.id || item?._id,
+                quantity: Number(item?.quantity || 1),
+                variant: item?.variant || undefined,
+            })).filter(item => item.productId);
+
+            if (!validItems.length) {
+                if (active) setEstimatedShipping(0);
+                return;
+            }
+
+            setIsEstimatingShipping(true);
+            try {
+                const response = await api.post("/shipping/estimate", {
+                    items: validItems,
+                    shippingAddress: {
+                        country: 'India',
+                        coordinates: currentAddress?.coordinates?.coordinates || currentAddress?.coordinates || null,
+                    },
+                    shippingOption: 'online',
+                    couponType: appliedPromo?.type || null,
+                });
+
+                const payload = response?.data ?? response;
+                const nextShipping = Number(payload?.shipping);
+                if (active) {
+                    setEstimatedShipping(Number.isFinite(nextShipping) ? nextShipping : null);
+                }
+            } catch (err) {
+                console.error("Shipping estimation error:", err);
+                if (active) setEstimatedShipping(null);
+            } finally {
+                if (active) setIsEstimatingShipping(false);
+            }
+        }, 300);
+
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
+    }, [cart, currentAddress, appliedPromo]);
 
     useEffect(() => {
         if (location.state?.appliedCode) {
@@ -217,7 +269,20 @@ const PaymentPage = () => {
                 couponCode: appliedPromo?.code || "",
                 shippingOption: 'online',
                 orderType: ['try_and_buy', 'check_and_buy'].includes(deliveryType) ? deliveryType : 'check_and_buy',
-                deliveryType: 'online'
+                deliveryType: 'online',
+                dropoffLocation: currentAddress?.coordinates?.coordinates ? {
+                    type: 'Point',
+                    coordinates: currentAddress.coordinates.coordinates
+                } : (currentAddress?.coordinates ? {
+                    type: 'Point',
+                    coordinates: [currentAddress.coordinates.lon || currentAddress.coordinates.lng, currentAddress.coordinates.lat]
+                } : null),
+                // Send frontend calculations as well for record/validation
+                subtotal: subtotal,
+                tax: tax,
+                shipping: shipping,
+                platformFee: platformFee,
+                total: finalTotal
             };
 
             const response = await createOrder(orderPayload);
@@ -426,6 +491,10 @@ const PaymentPage = () => {
                         <div className="flex justify-between text-[13px]">
                             <span className="text-gray-500 font-medium">Platform Fee</span>
                             <span className="text-gray-900 font-bold">₹{platformFee}</span>
+                        </div>
+                        <div className="flex justify-between text-[13px]">
+                            <span className="text-gray-500 font-medium">GST (18%)</span>
+                            <span className="text-gray-900 font-bold">₹{tax}</span>
                         </div>
                         <div className="flex justify-between text-[13px]">
                             <span className="text-gray-500 font-medium">Shipping Fee</span>

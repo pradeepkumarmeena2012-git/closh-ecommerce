@@ -159,10 +159,10 @@ const ProductsPage = () => {
         // 6. Sorting Logic
         switch (selectedSort) {
             case 'Price: Low to High':
-                result.sort((a, b) => a.discountedPrice - b.discountedPrice);
+                result.sort((a, b) => Number(a.price) - Number(b.price));
                 break;
             case 'Price: High to Low':
-                result.sort((a, b) => b.discountedPrice - a.discountedPrice);
+                result.sort((a, b) => Number(b.price) - Number(a.price));
                 break;
             case 'Discount':
                 result.sort((a, b) => {

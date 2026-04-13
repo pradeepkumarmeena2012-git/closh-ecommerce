@@ -18,11 +18,17 @@ export const CartProvider = ({ children }) => {
     const [lastAddedItem, setLastAddedItem] = useState(null);
 
     const addToCart = useCallback((product) => {
+        // The caller (e.g. ProductDetailsPage) resolves the correct variant price
+        // and passes it as `product.price`. We must use that resolved price.
+        // Only fall back to discountedPrice when no explicit price is given.
+        const resolvedPrice = Number(product.price) || Number(product.discountedPrice) || 0;
+        
         const added = storeAddItem({
             id: product._id || product.id,
             name: product.name,
-            price: product.discountedPrice !== undefined ? product.discountedPrice : (product.price || 0),
+            price: resolvedPrice,
             originalPrice: product.originalPrice || product.price || 0,
+            discountedPrice: product.discountedPrice,
             image: Array.isArray(product.images) ? product.images[0] : (product.image || ''),
             images: product.images,
             brand: product.brand,

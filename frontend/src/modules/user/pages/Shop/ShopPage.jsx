@@ -225,18 +225,18 @@ const ShopPage = () => {
         // Sorting
         switch (sortBy) {
             case 'Price: Low to High':
-                result = [...result].sort((a, b) => a.discountedPrice - b.discountedPrice);
+                result = [...result].sort((a, b) => Number(a.price) - Number(b.price));
                 break;
             case 'Price: High to Low':
-                result = [...result].sort((a, b) => b.discountedPrice - a.discountedPrice);
+                result = [...result].sort((a, b) => Number(b.price) - Number(a.price));
                 break;
             case 'Newest Arrivals':
                 result = [...result].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
                 break;
             case 'Discount':
                 result = [...result].sort((a, b) => {
-                    const discountA = a.originalPrice ? ((a.originalPrice - a.discountedPrice) / a.originalPrice) * 100 : 0;
-                    const discountB = b.originalPrice ? ((b.originalPrice - b.discountedPrice) / b.originalPrice) * 100 : 0;
+                    const discountA = Number(a.originalPrice) ? ((Number(a.originalPrice) - Number(a.price)) / Number(a.originalPrice)) * 100 : 0;
+                    const discountB = Number(b.originalPrice) ? ((Number(b.originalPrice) - Number(b.price)) / Number(b.originalPrice)) * 100 : 0;
                     return discountB - discountA;
                 });
                 break;

@@ -20,8 +20,7 @@ const CartPage = () => {
     }, [cart.length, navigate]);
 
     const totalMRP = cart.reduce((acc, item) => {
-        const itemSellingPrice = item.discountedPrice !== undefined ? item.discountedPrice : (item.price || item.originalPrice || 0);
-        const itemMRP = Math.max(item.originalPrice || 0, item.price || 0, itemSellingPrice);
+        const itemMRP = Number(item.originalPrice) || Number(item.price) || 0;
         return acc + (itemMRP * item.quantity);
     }, 0);
     const totalDiscount = totalMRP - getCartTotal();
@@ -157,17 +156,17 @@ const CartPage = () => {
                                         <div className="text-right">
                                             <div className="flex items-center gap-2.5">
                                                 <div className="flex flex-col items-end leading-none">
-                                                    {(item.originalPrice > (item.discountedPrice || item.price)) && (
-                                                        <span className="text-[10px] font-bold text-gray-300 line-through mb-1">₹{item.originalPrice * item.quantity}</span>
+                                                    {(Number(item.originalPrice) > Number(item.price)) && (
+                                                        <span className="text-[10px] font-bold text-gray-300 line-through mb-1">₹{Number(item.originalPrice) * item.quantity}</span>
                                                     )}
                                                     <span className="text-[16px] font-black text-gray-900">
-                                                        ₹{((item.discountedPrice !== undefined ? item.discountedPrice : (item.price || item.originalPrice || 0)) * item.quantity).toFixed(0)}
+                                                        ₹{(Number(item.price) * item.quantity).toFixed(0)}
                                                     </span>
                                                 </div>
                                                 
-                                                {(item.originalPrice > (item.discountedPrice || item.price)) && (
+                                                {(Number(item.originalPrice) > Number(item.price)) && (
                                                     <div className="bg-black text-white w-10 h-10 rounded-full flex flex-col items-center justify-center leading-none shrink-0 border border-black group-hover:bg-white group-hover:text-black transition-all">
-                                                        <span className="text-[9px] font-black">{Math.round(((item.originalPrice - (item.discountedPrice || item.price)) / item.originalPrice) * 100)}%</span>
+                                                        <span className="text-[9px] font-black">{Math.round(((Number(item.originalPrice) - Number(item.price)) / Number(item.originalPrice)) * 100)}%</span>
                                                         <span className="text-[6px] font-black uppercase">OFF</span>
                                                     </div>
                                                 )}
