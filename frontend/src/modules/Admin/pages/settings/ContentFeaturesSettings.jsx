@@ -88,6 +88,7 @@ const ContentFeaturesSettings = () => {
   };
 
   const sections = [
+    { id: 'policies', label: 'Legal Policies', icon: FiStar },
     { id: 'features', label: 'Feature Toggles', icon: FiToggleRight },
     { id: 'homepage', label: 'Home Page', icon: FiHome },
     { id: 'reviews', label: 'Reviews & Ratings', icon: FiStar },
@@ -127,6 +128,29 @@ const ContentFeaturesSettings = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-3 sm:p-4 md:p-6">
+          {/* Policies Section */}
+          {activeSection === 'policies' && (
+            <div className="space-y-6">
+              {[
+                { label: 'Privacy Policy', field: 'privacy_policy' },
+                { label: 'Terms & Conditions', field: 'terms_policy' },
+                { label: 'Refund Policy', field: 'refund_policy' },
+                { label: 'About Us', field: 'about_us' },
+                { label: 'Contact Information (HTML supported)', field: 'contact_info' }
+              ].map((item) => (
+                <div key={item.field} className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">{item.label}</label>
+                  <textarea
+                    className="w-full h-32 p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none font-sans text-sm"
+                    placeholder={`Enter ${item.label.toLowerCase()}...`}
+                    value={contentData[item.field] || ''}
+                    onChange={(e) => handleContentChange(item.field, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Features Section */}
           {activeSection === 'features' && (
             <div className="space-y-3 sm:space-y-4">

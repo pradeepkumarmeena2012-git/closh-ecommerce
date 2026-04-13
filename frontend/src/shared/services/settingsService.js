@@ -9,8 +9,8 @@ export const getAllPublicSettings = () =>
 /**
  * Fetch a public setting by key
  */
-export const getPublicSetting = (key) =>
-    api.get(`/settings/${key}`);
+export const getPublicSetting = (key, silent = false) =>
+    api.get(`/settings/${key}`, { silent });
 
 /**
  * Fetch all settings (Admin)

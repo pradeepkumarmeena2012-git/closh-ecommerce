@@ -5,6 +5,7 @@ import AccountLayout from '../../components/Profile/AccountLayout';
 import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrderStore } from '../../../../shared/store/orderStore';
+import socketService from '../../../../shared/utils/socket';
 
 const OrderDetailsPage = () => {
     const { orderId } = useParams();
@@ -16,40 +17,9 @@ const OrderDetailsPage = () => {
     const [showReturnModal, setShowReturnModal] = useState(false);
     const [returnReason, setReturnReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isResendingOtp, setIsResendingOtp] = useState(false);
-    const [resendCooldown, setResendCooldown] = useState(0);
     const cooldownRef = useRef(null);
 
-    const startCooldown = useCallback((seconds = 60) => {
-        setResendCooldown(seconds);
-        if (cooldownRef.current) clearInterval(cooldownRef.current);
-        cooldownRef.current = setInterval(() => {
-            setResendCooldown(prev => {
-                if (prev <= 1) {
-                    clearInterval(cooldownRef.current);
-                    cooldownRef.current = null;
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    }, []);
 
-    const handleResendDeliveryOtp = async () => {
-        if (isResendingOtp || resendCooldown > 0 || !order) return;
-        try {
-            setIsResendingOtp(true);
-            const result = await resendDeliveryOtp(order.orderId || order.id);
-            if (result?.deliveryOtpDebug) {
-                setOrder(prev => ({ ...prev, deliveryOtpDebug: result.deliveryOtpDebug }));
-            }
-            startCooldown(60);
-        } catch (err) {
-            console.error('[Resend OTP]', err?.response?.data?.message || err?.message);
-        } finally {
-            setIsResendingOtp(false);
-        }
-    };
 
     const RETURN_REASONS = [
         "Wrong size delivered",
@@ -88,14 +58,25 @@ const OrderDetailsPage = () => {
         socketService.joinRoom(`guest_${orderId}`);
 
         const loadLatest = () => {
+            console.log('🔄 Fetching latest order data via socket signal...');
             fetchOrderById(orderId, true).then(updated => {
-                if (updated) setOrder(updated);
-            }).catch(() => {});
+                if (updated) {
+                    setOrder(prev => {
+                        // Deep merge to ensure we don't lose local state like temporary animations
+                        // but strictly update critical data from server
+                        return {
+                            ...prev,
+                            ...updated,
+                            deliveryOtpDebug: updated.deliveryOtpDebug || prev?.deliveryOtpDebug
+                        };
+                    });
+                }
+            }).catch(err => console.error('Socket refresh failed:', err));
         };
 
         const handleUpdate = (data) => {
             if (!data.orderId || String(data.orderId) === String(orderId)) {
-                console.log('📦 Order update received:', data);
+                console.log('📦 Real-time update received:', data);
                 loadLatest();
             }
         };
@@ -103,10 +84,13 @@ const OrderDetailsPage = () => {
         socketService.on('order_status_updated', handleUpdate);
         socketService.on('rider_assigned', handleUpdate);
         socketService.on('delivery_otp_sent', (data) => {
-            toast.success('🔐 New Delivery OTP received!', { id: `otp-${orderId}` });
-            handleUpdate(data);
+            toast.success('🔐 Delivery OTP Updated!', { id: `otp-sock-${orderId}` });
+            loadLatest();
         });
-        socketService.on('delivery_otp_resent', handleUpdate);
+        socketService.on('delivery_otp_resent', (data) => {
+            toast.success('🔐 New Delivery OTP received!', { id: `otp-sock-${orderId}` });
+            loadLatest();
+        });
 
         return () => {
             socketService.leaveRoom(`order_${orderId}`);
@@ -542,16 +526,6 @@ const OrderDetailsPage = () => {
                             <div className="mt-6 p-4 bg-emerald-50 rounded-2xl border-2 border-emerald-100 border-dashed text-center">
                                 <p className="text-[10px] font-bold uppercase  text-emerald-600 mb-1">Share this OTP with delivery partner</p>
                                 <p className="text-2xl font-bold text-emerald-700">{order.deliveryOtpDebug}</p>
-                                {['picked_up', 'out_for_delivery'].includes(order.status?.toLowerCase()) && (
-                                    <button
-                                        onClick={handleResendDeliveryOtp}
-                                        disabled={isResendingOtp || resendCooldown > 0}
-                                        className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <RefreshCw size={12} className={isResendingOtp ? 'animate-spin' : ''} />
-                                        {isResendingOtp ? 'Sending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Didn't receive? Resend OTP"}
-                                    </button>
-                                )}
                             </div>
                         )}
                     </div>

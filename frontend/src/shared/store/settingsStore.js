@@ -87,6 +87,11 @@ const defaultSettings = {
     privacyPolicy: "",
     termsConditions: "",
     refundPolicy: "",
+    privacy_policy: "",
+    terms_policy: "",
+    refund_policy: "",
+    about_us: "",
+    contact_info: "",
   },
   features: {
     wishlistEnabled: true,

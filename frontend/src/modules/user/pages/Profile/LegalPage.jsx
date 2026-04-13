@@ -88,7 +88,7 @@ const LegalPage = () => {
             try {
                 const key = keyMap[pageId];
                 if (key) {
-                    const res = await getPublicSetting(key);
+                    const res = await getPublicSetting(key, true);
                     if (res?.data) {
                         setPageContent({
                             title: DEFAULT_LEGAL_DATA[pageId]?.title || 'Information',

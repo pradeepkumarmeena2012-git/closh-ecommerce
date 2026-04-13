@@ -19,7 +19,7 @@ const VendorLayout = () => {
   const audioUnlockedRef = useRef(false);
 
   // Audio Policy Unlock: User interaction required
-  
+
   // Audio Notification State
   const [isBuzzerActive, setIsBuzzerActive] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -31,59 +31,59 @@ const VendorLayout = () => {
   const initBuzzer = useCallback(() => {
     if (buzzerRef.current) return;
     try {
-        const audio = new Audio('/sounds/buzzer.mp3');
-        audio.loop = true;
-        audio.volume = 0.8;
-        // Pre-load but don't play yet
-        audio.load();
-        buzzerRef.current = audio;
-        console.log('🔊 Buzzer audio initialized and ready.');
+      const audio = new Audio('/sounds/buzzer.mp3');
+      audio.loop = true;
+      audio.volume = 0.8;
+      // Pre-load but don't play yet
+      audio.load();
+      buzzerRef.current = audio;
+      console.log('🔊 Buzzer audio initialized and ready.');
     } catch (err) {
-        console.error('Failed to init buzzer:', err);
+      console.error('Failed to init buzzer:', err);
     }
   }, []);
 
   useEffect(() => {
     const unlock = () => {
-        if (audioUnlockedRef.current) return;
-        initBuzzer();
-        // Play and immediately pause to "unlock" the audio stream
-        if (buzzerRef.current) {
-            buzzerRef.current.play().then(() => {
-                buzzerRef.current.pause();
-                buzzerRef.current.currentTime = 0;
-            }).catch(() => {});
-        }
-        audioUnlockedRef.current = true;
-        window.removeEventListener('click', unlock);
-        window.removeEventListener('touchstart', unlock);
+      if (audioUnlockedRef.current) return;
+      initBuzzer();
+      // Play and immediately pause to "unlock" the audio stream
+      if (buzzerRef.current) {
+        buzzerRef.current.play().then(() => {
+          buzzerRef.current.pause();
+          buzzerRef.current.currentTime = 0;
+        }).catch(() => { });
+      }
+      audioUnlockedRef.current = true;
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
     };
     window.addEventListener('click', unlock);
     window.addEventListener('touchstart', unlock);
     return () => {
-        window.removeEventListener('click', unlock);
-        window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
     };
   }, [initBuzzer]);
 
   const startBuzzer = useCallback(() => {
     if (!buzzerRef.current) {
-        initBuzzer();
+      initBuzzer();
     }
-    
+
     if (buzzerRef.current) {
-        buzzerRef.current.play().catch(err => {
-            console.warn('Buzzer playback blocked:', err);
-            toast.error('New Order! Please tap the screen to hear the alert.', { id: 'buzzer-block' });
-        });
-        setIsBuzzerActive(true);
+      buzzerRef.current.play().catch(err => {
+        console.warn('Buzzer playback blocked:', err);
+        toast.error('New Order! Please tap the screen to hear the alert.', { id: 'buzzer-block' });
+      });
+      setIsBuzzerActive(true);
     }
   }, [initBuzzer]);
 
   const stopBuzzer = useCallback(() => {
     if (buzzerRef.current) {
-        buzzerRef.current.pause();
-        buzzerRef.current.currentTime = 0;
+      buzzerRef.current.pause();
+      buzzerRef.current.currentTime = 0;
     }
     setIsBuzzerActive(false);
   }, []);
@@ -109,56 +109,56 @@ const VendorLayout = () => {
     // Listen for new orders globally
     const handleNewOrder = async (orderData) => {
       console.log('🍕 New order event received:', orderData);
-      
+
       let fullOrder = orderData;
-      
+
       // If we only have a summary (e.g. from a general notification), fetch the full details
       const orderId = orderData.orderId || orderData.id || (orderData.data?.orderId);
       const hasItems = (orderData.items && orderData.items.length > 0) || (orderData.vendorItems);
-      
+
       if (orderId && !hasItems) {
         console.log(`🔍 [VENDOR] Fetching full details for Order: ${orderId}`);
         try {
-            const { getVendorOrderById } = await import("../../services/vendorService");
-            const res = await getVendorOrderById(orderId);
-            fullOrder = res?.data ?? res;
+          const { getVendorOrderById } = await import("../../services/vendorService");
+          const res = await getVendorOrderById(orderId);
+          fullOrder = res?.data ?? res;
         } catch (err) {
-            console.error('Failed to fetch full order details:', err);
+          console.error('Failed to fetch full order details:', err);
         }
       }
 
       startBuzzer();
       setSelectedOrder(fullOrder);
       setShowOrderModal(true);
-      
+
       const orderIdForRoom = fullOrder.orderId || fullOrder.id;
       if (orderIdForRoom) {
-          socketService.joinRoom(`order_${orderIdForRoom}`);
+        socketService.joinRoom(`order_${orderIdForRoom}`);
       }
-      
-      toast.success(`🎉 New Order received!`, { 
+
+      toast.success(`🎉 New Order received!`, {
         duration: 10000,
         icon: '🔔',
       });
-      
+
       window.dispatchEvent(new CustomEvent('vendor-new-order', { detail: fullOrder }));
     };
 
     socketService.on("order_created", handleNewOrder);
     socketService.on("new_notification", (notif) => {
-        console.log('🔔 [VENDOR] Received general notification:', notif);
-        const status = notif.data?.status?.toLowerCase();
-        const isNewOrderRequest = notif?.type === 'order' && (status === 'pending' || status === 'ready_for_pickup' || !status);
-        
-        if (isNewOrderRequest && !showOrderModal) {
-            handleNewOrder(notif.data || { orderId: notif.data?.orderId });
-        }
+      console.log('🔔 [VENDOR] Received general notification:', notif);
+      const status = notif.data?.status?.toLowerCase();
+      const isNewOrderRequest = notif?.type === 'order' && (status === 'pending' || status === 'ready_for_pickup' || !status);
+
+      if (isNewOrderRequest && !showOrderModal) {
+        handleNewOrder(notif.data || { orderId: notif.data?.orderId });
+      }
     });
 
     socketService.on("order_status_updated", (data) => {
-        window.dispatchEvent(new CustomEvent('vendor-order-updated', { detail: data }));
+      window.dispatchEvent(new CustomEvent('vendor-order-updated', { detail: data }));
     });
-    
+
     return () => {
       socketService.socket?.off('connect', registerVendor);
       socketService.off("order_created", handleNewOrder);
@@ -168,20 +168,20 @@ const VendorLayout = () => {
   }, [vendor?.id, vendor?._id, startBuzzer, stopBuzzer]);
 
   const handleAcceptNewOrder = async (orderId) => {
-      setIsAcceptingOrder(true);
-      try {
-          const res = await updateOrderStatus(orderId, 'accepted', {});
-          if (res.success) {
-              stopBuzzer();
-              setShowOrderModal(false);
-              toast.success(`Accepted successfully!`);
-              window.dispatchEvent(new CustomEvent('vendor-order-updated'));
-          }
-      } catch (err) {
-          toast.error(err?.response?.data?.message || 'Failed to accept order');
-      } finally {
-          setIsAcceptingOrder(false);
+    setIsAcceptingOrder(true);
+    try {
+      const res = await updateOrderStatus(orderId, 'accepted', {});
+      if (res.success) {
+        stopBuzzer();
+        setShowOrderModal(false);
+        toast.success(`Accepted successfully!`);
+        window.dispatchEvent(new CustomEvent('vendor-order-updated'));
       }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to accept order');
+    } finally {
+      setIsAcceptingOrder(false);
+    }
   };
 
   const bottomNavHeight = 64;
@@ -213,7 +213,7 @@ const VendorLayout = () => {
       {/* Global Notifications Layer */}
       <AnimatePresence>
         {isBuzzerActive && (
-          <motion.div 
+          <motion.div
             initial={{ y: 100, x: '-50%', opacity: 0 }}
             animate={{ y: 0, x: '-50%', opacity: 1 }}
             exit={{ y: 100, x: '-50%', opacity: 0 }}
@@ -221,7 +221,7 @@ const VendorLayout = () => {
           >
             <div className="w-3 h-3 bg-white rounded-full animate-ping shrink-0" />
             <span className="font-black uppercase tracking-widest text-xs sm:text-sm text-white">New Order Alert!</span>
-            <button 
+            <button
               onClick={stopBuzzer}
               className="bg-white text-red-600 px-4 py-2 rounded-xl font-black text-xs uppercase hover:bg-red-50 transition-colors shadow-sm"
             >
@@ -231,7 +231,7 @@ const VendorLayout = () => {
         )}
       </AnimatePresence>
 
-      <NewOrderModal 
+      <NewOrderModal
         isOpen={showOrderModal}
         order={selectedOrder}
         isAccepting={isAcceptingOrder}
