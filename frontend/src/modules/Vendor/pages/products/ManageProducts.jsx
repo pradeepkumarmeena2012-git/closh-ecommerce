@@ -109,7 +109,7 @@ const ManageProducts = () => {
       key: "price",
       label: "Price",
       sortable: true,
-      render: (value) => formatPrice(value),
+      render: (value, row) => formatPrice(row.vendorPrice || value),
     },
     {
       key: "stockQuantity",

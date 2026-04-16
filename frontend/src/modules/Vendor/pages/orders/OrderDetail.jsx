@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getVendorOrderById, updateVendorOrderStatus } from '../../services/vendorService';
 import { formatPrice } from '../../../../shared/utils/helpers';
+import { formatVariantLabel } from '../../../../shared/utils/variant';
 import Badge from '../../../../shared/components/Badge';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
@@ -291,31 +292,14 @@ const OrderDetail = () => {
                                                     <h3 className="font-medium text-gray-800">
                                                         {item.name}
                                                     </h3>
-                                                    <div className="flex gap-2 items-center flex-wrap mt-1">
+                                                    <div className="flex flex-col gap-1">
                                                         <p className="text-sm text-gray-500">
                                                             Qty: {item.quantity}
                                                         </p>
-                                                        {typeof item.variant === 'object' && item.variant !== null && Object.keys(item.variant).length > 0 && (
-                                                            Object.entries(item.variant).map(([k, v]) => (
-                                                                <span key={k} className="bg-gray-100 px-2 py-0.5 border border-gray-200 rounded text-xs text-gray-600 capitalize font-medium">
-                                                                    {k}: {v}
-                                                                </span>
-                                                            ))
-                                                        )}
-                                                        {(!item.variant || typeof item.variant !== 'object' || Object.keys(item.variant).length === 0) && item.variantKey && (
-                                                            <span className="bg-gray-100 px-2 py-0.5 border border-gray-200 rounded text-xs text-gray-600 capitalize font-medium">
-                                                                Variant: {item.variantKey.replace(/-/g, ' ')}
-                                                            </span>
-                                                        )}
-                                                        {item.selectedSize && (
-                                                            <span className="bg-gray-100 px-2 py-0.5 border border-gray-200 rounded text-xs text-gray-600 capitalize font-medium">
-                                                                Size: {item.selectedSize}
-                                                            </span>
-                                                        )}
-                                                        {item.selectedColor && (
-                                                            <span className="bg-gray-100 px-2 py-0.5 border border-gray-200 rounded text-xs text-gray-600 capitalize font-medium">
-                                                                Color: {item.selectedColor}
-                                                            </span>
+                                                        {formatVariantLabel(item?.variant) && (
+                                                            <p className="text-[11px] text-gray-400 font-medium">
+                                                                {formatVariantLabel(item?.variant)}
+                                                            </p>
                                                         )}
                                                     </div>
                                                 </div>

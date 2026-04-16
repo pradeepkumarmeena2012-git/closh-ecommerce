@@ -11,6 +11,7 @@ import ExportButton from "../../../Admin/components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import { formatPrice } from '../../../../shared/utils/helpers';
+import { formatVariantLabel } from '../../../../shared/utils/variant';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getAllVendorOrders, updateVendorOrderStatus } from '../../services/vendorService';
 import toast from 'react-hot-toast';
@@ -134,9 +135,24 @@ const AllOrders = () => {
         const vendorItem = row.vendorItems?.find(
           (vi) => vi.vendorId?.toString() === vendorId?.toString()
         );
-        const count = vendorItem?.items?.length ?? row.vendorItems?.length ?? 0;
+        const items = vendorItem?.items || [];
+        if (items.length === 0) return <span className="text-sm text-gray-500">N/A</span>;
+        
         return (
-          <span className="text-sm text-gray-700">{count} item(s)</span>
+          <div className="flex flex-col gap-1 py-1 min-w-[140px]">
+            {items.map((item, idx) => (
+              <div key={idx} className="flex flex-col">
+                <span className="text-[13px] font-semibold text-gray-800 leading-tight">
+                  {item.name} <span className="text-gray-400 text-[11px] font-normal">x{item.quantity}</span>
+                </span>
+                {formatVariantLabel(item.variant) && (
+                  <span className="text-[10px] text-gray-500 font-medium leading-tight">
+                    {formatVariantLabel(item.variant)}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         );
       },
     },

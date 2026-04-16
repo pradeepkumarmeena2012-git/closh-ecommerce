@@ -74,6 +74,10 @@ const getChildRoute = (parentRoute, childName) => {
       "Payment Settings": "/vendor/settings/payment",
       "Shipping Settings": "/vendor/settings/shipping",
     },
+    "/vendor/stock-management": {
+      "Manage Stock": "/vendor/stock-management/manage",
+      "Offline Sales": "/vendor/stock-management/offline-sales",
+    },
   };
 
   return routeMap[parentRoute]?.[childName] || parentRoute;

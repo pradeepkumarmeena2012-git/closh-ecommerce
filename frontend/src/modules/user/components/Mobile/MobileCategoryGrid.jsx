@@ -15,13 +15,21 @@ const MobileCategoryGrid = () => {
   }, [initialize]);
 
   const displayCategories = useMemo(() => {
-    const roots = getRootCategories().filter((cat) => cat.isActive !== false);
-    if (!roots.length) return fallbackCategories;
+    // Robust check for root categories
+    const roots = getRootCategories().filter((cat) => 
+      (!cat.parentId || cat.parentId === '' || cat.parentId === null) && 
+      cat.isActive !== false
+    );
+    
+    // If we have categories in store but no roots, check if we should still show fallback
+    // Usually if categories were fetched from DB, we want to show those.
+    if (!roots.length && categories.length === 0) return fallbackCategories;
+    if (!roots.length) return [];
 
     return roots.map((cat) => {
       const fallbackCat = fallbackCategories.find(
         (fc) =>
-          normalizeId(fc.id) === normalizeId(cat.id) ||
+          normalizeId(fc.id) === normalizeId(cat.id || cat._id) ||
           fc.name?.toLowerCase() === cat.name?.toLowerCase()
       );
       return {

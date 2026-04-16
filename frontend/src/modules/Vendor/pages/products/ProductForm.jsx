@@ -127,6 +127,33 @@ const ProductForm = () => {
     }
   }, [isEdit, id, vendorId, navigate, categories, getById, fetchProductById]);
 
+  // Auto-calculate total stock from variants
+  useEffect(() => {
+    const hasVariants =
+      (formData.variants?.sizes?.length > 0) ||
+      (formData.variants?.colors?.length > 0) ||
+      (formData.variants?.attributes?.length > 0);
+
+    if (hasVariants && formData.variants?.stockMap) {
+      const total = Object.values(formData.variants.stockMap).reduce((sum, val) => {
+        const num = parseInt(val, 10);
+        return sum + (isNaN(num) ? 0 : num);
+      }, 0);
+
+      if (parseInt(formData.stockQuantity || 0, 10) !== total) {
+        setFormData((prev) => ({
+          ...prev,
+          stockQuantity: total,
+        }));
+      }
+    }
+  }, [
+    formData.variants?.stockMap,
+    formData.variants?.sizes,
+    formData.variants?.colors,
+    formData.variants?.attributes,
+  ]);
+
   const populateForm = (product, cats) => {
     const normalizedCategoryId = normalizeId(product.categoryId);
     const normalizedBrandId = normalizeId(product.brandId);
@@ -174,6 +201,7 @@ const ProductForm = () => {
       description: product.description || "",
       discount: product.discount || 0,
       faqs: Array.isArray(product.faqs) ? product.faqs : [],
+      variants: normalizedVariants,
     });
     setTagInput((product.tags || []).join(", "));
   };
@@ -794,8 +822,10 @@ const ProductForm = () => {
                 value={formData.stockQuantity}
                 onChange={handleChange}
                 required
-                min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                readOnly={variantCombinations.length > 0}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm ${
+                  variantCombinations.length > 0 ? "bg-gray-100 cursor-not-allowed font-bold text-primary-600" : ""
+                }`}
                 placeholder="0"
               />
             </div>

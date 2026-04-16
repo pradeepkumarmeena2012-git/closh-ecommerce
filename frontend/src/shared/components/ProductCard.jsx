@@ -23,7 +23,7 @@ const ProductCard = ({ product }) => {
     <>
       <motion.div
         whileTap={{ scale: 0.98 }}
-        className="flex flex-col w-full h-full group relative bg-white"
+        className="flex flex-col w-full h-full group relative bg-white rounded-xl transition-all duration-500 hover:shadow-[0_15px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1"
       >
         {/* IMAGE AREA - Taller 3:4 ratio with matching rounded corners */}
         <div className="relative aspect-[3/4] md:aspect-[4/5] overflow-hidden rounded-xl bg-[#F8F8F8]">
@@ -36,15 +36,6 @@ const ProductCard = ({ product }) => {
             />
           </Link>
 
-          {/* Out of Stock Overlay */}
-          {(product.stock === 'out_of_stock' || product.stockQuantity <= 0) && (
-            <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-20 flex items-center justify-center p-2 pointer-events-none">
-              <span className="bg-red-500 text-white text-[10px] md:text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-xl transform -rotate-12 border-2 border-white scale-110">
-                Sold Out
-              </span>
-            </div>
-          )}
-
           {/* Wishlist Icon */}
           <button
             onClick={handleFavorite}
@@ -52,6 +43,15 @@ const ProductCard = ({ product }) => {
           >
             <FiHeart size={12} className={`${isFavorite ? 'fill-current text-red-500' : ''}`} />
           </button>
+
+          {/* Out of Stock Status - Gradient Overlay for Readability */}
+          {(product.stock === 'out_of_stock' || product.stockQuantity <= 0) && (
+            <div className="absolute inset-x-0 bottom-0 top-0 bg-gradient-to-t from-black/40 via-transparent to-transparent z-10 pointer-events-none flex flex-col justify-end pb-3 transition-opacity duration-300">
+              <span className="text-red-500 text-[10px] md:text-[12px] font-black uppercase tracking-[0.2em] text-center drop-shadow-sm">
+                Currently unavailable
+              </span>
+            </div>
+          )}
         </div>
 
         {/* INFO AREA - Compact */}

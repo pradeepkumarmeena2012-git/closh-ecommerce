@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { FiPackage, FiArrowRight, FiCheckCircle, FiEye } from 'react-icons/fi';
 import { formatPrice } from '../../../shared/utils/helpers';
+import { formatVariantLabel } from '../../../shared/utils/variant';
 import { useVendorAuthStore } from '../store/vendorAuthStore';
 import toast from 'react-hot-toast';
 
@@ -124,7 +125,12 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-gray-800 truncate">{vendorItem?.items?.[0]?.name || order.items?.[0]?.name || 'Multiple Products'}</p>
-                        <p className="text-[10px] text-gray-500 font-medium">Qty: {vendorItem?.items?.[0]?.quantity || order.items?.[0]?.quantity || 1}</p>
+                        <p className="text-[10px] text-gray-500 font-medium mt-0.5">Qty: {vendorItem?.items?.[0]?.quantity || order.items?.[0]?.quantity || 1}</p>
+                        {(vendorItem?.items?.[0]?.variant || order.items?.[0]?.variant) && formatVariantLabel(vendorItem?.items?.[0]?.variant || order.items?.[0]?.variant) && (
+                            <p className="text-[10px] text-gray-400 font-medium leading-tight mt-0.5">
+                                {formatVariantLabel(vendorItem?.items?.[0]?.variant || order.items?.[0]?.variant)}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>

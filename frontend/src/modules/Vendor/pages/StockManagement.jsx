@@ -21,11 +21,15 @@ import toast from "react-hot-toast";
 
 const StockManagement = () => {
   const { vendor } = useVendorAuthStore();
-  const { products, isLoading, fetchProducts, patchStock } = useVendorProductStore();
+  const { products, isLoading, fetchProducts, patchStock, patchVariantStock } = useVendorProductStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
   const [alertThreshold, setAlertThreshold] = useState(10);
   const [stockModal, setStockModal] = useState({
+    isOpen: false,
+    product: null,
+  });
+  const [variantDrawer, setVariantDrawer] = useState({
     isOpen: false,
     product: null,
   });
@@ -110,7 +114,7 @@ const StockManagement = () => {
       key: "price",
       label: "Price",
       sortable: true,
-      render: (value) => formatPrice(value),
+      render: (value, row) => formatPrice(row.vendorPrice || value),
     },
     {
       key: "stockQuantity",
@@ -142,11 +146,22 @@ const StockManagement = () => {
       label: "Actions",
       sortable: false,
       render: (_, row) => (
-        <button
-          onClick={() => setStockModal({ isOpen: true, product: row })}
-          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-          <FiEdit />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setStockModal({ isOpen: true, product: row })}
+            title="Update Total Stock"
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+            <FiEdit />
+          </button>
+          {((row.variants?.sizes?.length > 0) || (row.variants?.colors?.length > 0) || (row.variants?.attributes?.length > 0)) && (
+            <button
+              onClick={() => setVariantDrawer({ isOpen: true, product: row })}
+              title="Check Variant Stock"
+              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
+              <FiPackage />
+            </button>
+          )}
+        </div>
       ),
     },
   ];
@@ -298,6 +313,19 @@ const StockManagement = () => {
         onUpdate={(newQuantity) => {
           if (stockModal.product) {
             handleStockUpdate(stockModal.product._id ?? stockModal.product.id, newQuantity);
+          }
+        }}
+      />
+
+      {/* Variant Stock Drawer */}
+      <VariantStockDrawer
+        isOpen={variantDrawer.isOpen}
+        product={variantDrawer.product}
+        onClose={() => setVariantDrawer({ isOpen: false, product: null })}
+        onUpdate={async (productId, stockMap) => {
+          const success = await patchVariantStock(productId, stockMap);
+          if (success) {
+            setVariantDrawer({ isOpen: false, product: null });
           }
         }}
       />
@@ -516,3 +544,156 @@ const StockUpdateModal = ({
 };
 
 export default StockManagement;
+
+// Variant Stock Drawer Component
+const VariantStockDrawer = ({ isOpen, product, onClose }) => {
+  const stockMap = product?.variants?.stockMap || {};
+
+  if (!isOpen || !product) return null;
+
+  // Generate variant keys based on sizes, colors, or attributes
+  const combinations = [];
+  const sizes = product.variants?.sizes || [];
+  const colors = product.variants?.colors || [];
+  const attributes = product.variants?.attributes || [];
+
+  if (attributes.length > 0) {
+    const combinationsList = (attrs) => {
+      if (attrs.length === 0) return [{}];
+      const res = [];
+      const rest = combinationsList(attrs.slice(1));
+      attrs[0].values.forEach((val) => {
+        rest.forEach((r) => {
+          res.push({ [attrs[0].name.toLowerCase().replace(/\s+/g, '_')]: val.toLowerCase().trim(), ...r });
+        });
+      });
+      return res;
+    };
+
+    const allCombos = combinationsList(attributes);
+    allCombos.forEach((combo) => {
+      const key = Object.entries(combo)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([k, v]) => `${k}=${v}`)
+        .join('|');
+      
+      const label = Object.entries(combo)
+        .map(([k, v]) => `${v.toUpperCase()}`)
+        .join(' / ');
+
+      combinations.push({ key, label });
+    });
+  } else if (sizes.length > 0 && colors.length > 0) {
+    sizes.forEach((s) => {
+      colors.forEach((c) => {
+        const key = `${s.toLowerCase().trim()}|${c.toLowerCase().trim()}`;
+        combinations.push({ key, label: `${s.toUpperCase()} / ${c.toUpperCase()}` });
+      });
+    });
+  } else if (sizes.length > 0) {
+    sizes.forEach((s) => {
+      const key = `${s.toLowerCase().trim()}|`;
+      combinations.push({ key, label: `Size: ${s.toUpperCase()}` });
+    });
+  } else if (colors.length > 0) {
+    colors.forEach((c) => {
+      const key = `|${c.toLowerCase().trim()}`;
+      combinations.push({ key, label: `Color: ${c.toUpperCase()}` });
+    });
+  }
+
+  const totalStock = product.stockQuantity || 0;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/40 z-[60] backdrop-blur-sm"
+          />
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-[70] shadow-2xl flex flex-col"
+          >
+            {/* Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Variant Stock Details</h2>
+                <p className="text-sm text-gray-500 truncate max-w-[250px]">{product.name}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <FiX className="text-gray-500 w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex items-center gap-4 mb-8 bg-gray-50 p-4 rounded-xl border border-dashed border-gray-200">
+                <img
+                  src={product.image || product.images?.[0] || "https://via.placeholder.com/100x100?text=Product"}
+                  className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                  alt={product.name}
+                />
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Stock</p>
+                  <p className="text-2xl font-bold text-primary-600">{totalStock}</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest border-l-4 border-primary-500 pl-3">
+                  Stock by Variant
+                </h3>
+                
+                {combinations.length === 0 ? (
+                  <div className="text-center py-10 bg-gray-50 rounded-xl border border-gray-100">
+                    <FiPackage className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500">No variants found for this product.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {combinations.map((combo) => (
+                      <div
+                        key={combo.key}
+                        className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50/30 hover:bg-white hover:border-primary-100 transition-all group"
+                      >
+                        <span className="font-semibold text-gray-600 group-hover:text-gray-900 transition-colors">
+                          {combo.label}
+                        </span>
+                        <div className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm">
+                          <span className="text-lg font-bold text-gray-800">
+                            {stockMap[combo.key] || 0}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-100 bg-gray-50/50">
+              <button
+                onClick={onClose}
+                className="w-full py-4 bg-gray-800 text-white font-bold rounded-xl shadow-lg hover:bg-gray-900 transition-all"
+              >
+                Close Details
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};

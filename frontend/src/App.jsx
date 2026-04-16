@@ -193,6 +193,8 @@ const VendorPickupLocations = lazy(() => import("./modules/Vendor/pages/PickupLo
 const VendorReports = lazy(() => import("./modules/Vendor/pages/Reports"));
 const VendorLanguageSettings = lazy(() => import("./modules/Vendor/pages/LanguageSettings"));
 
+const VendorOfflineSales = lazy(() => import("./modules/Vendor/pages/stock/OfflineSales"));
+
 // Inner component that has access to useLocation
 const AppRoutes = () => {
   return (
@@ -394,7 +396,11 @@ const AppRoutes = () => {
             path="earnings/settlement-history"
             element={<VendorEarnings />}
           />
-          <Route path="stock-management" element={<VendorStockManagement />} />
+          <Route path="stock-management">
+            <Route index element={<VendorStockManagement />} />
+            <Route path="manage" element={<VendorStockManagement />} />
+            <Route path="offline-sales" element={<VendorOfflineSales />} />
+          </Route>
           <Route path="wallet-history" element={<VendorWalletHistory />} />
           <Route path="help" element={<VendorHelp />} />
           <Route path="notifications" element={<VendorNotifications />} />

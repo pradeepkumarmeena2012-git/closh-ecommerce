@@ -405,3 +405,50 @@ export const updateStock = asyncHandler(async (req, res) => {
 
     res.status(200).json(new ApiResponse(200, product, 'Stock updated.'));
 });
+// PATCH /api/vendor/stock/:productId/variants
+export const updateVariantStock = asyncHandler(async (req, res) => {
+    const { stockMap } = req.body;
+    const product = await Product.findOne({ _id: req.params.productId, vendorId: req.user.id });
+    if (!product) throw new ApiError(404, 'Product not found.');
+
+    if (!stockMap || typeof stockMap !== 'object') {
+        throw new ApiError(400, 'Invalid stock map.');
+    }
+
+    // Ensure variants object exists
+    if (!product.variants) {
+        product.variants = {
+            sizes: [],
+            colors: [],
+            attributes: [],
+            prices: {},
+            stockMap: {},
+            imageMap: {},
+            defaultVariant: {},
+            defaultSelection: {}
+        };
+    }
+
+    // Update variant stock map
+    // Note: This replaces the entire stockMap for simplicity of dynamic management from frontend
+    product.variants.stockMap = stockMap;
+
+    // Recalculate total stock quantity from all variants
+    const variantAggregateStock = calculateVariantAggregateStock(product.variants);
+    if (Number.isFinite(variantAggregateStock)) {
+        product.stockQuantity = variantAggregateStock;
+    }
+
+    // Update stock status based on the new total quantity
+    product.stock = deriveStockStatus(
+        Number(product.stockQuantity ?? 0),
+        Number(product.lowStockThreshold ?? 10)
+    );
+
+    await product.save();
+
+    // Clear relevant caches
+    await clearCachePattern('products:list:*');
+
+    res.status(200).json(new ApiResponse(200, product, 'Variant stock updated.'));
+});
