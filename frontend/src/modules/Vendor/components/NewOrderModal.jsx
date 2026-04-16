@@ -7,6 +7,7 @@ import {
     FiCheck
 } from 'react-icons/fi';
 import { formatPrice } from '../../../shared/utils/helpers';
+import { formatVariantLabel } from '../../../shared/utils/variant';
 import { createPortal } from 'react-dom';
 
 import { IMAGE_BASE_URL } from '../../../shared/utils/constants';
@@ -84,12 +85,19 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzer
                                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Order Items</p>
                                 <div className="space-y-2">
                                     {items.map((it, idx) => (
-                                        <div key={idx} className="flex justify-between items-center text-[14px]">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <span className="w-5 h-5 flex items-center justify-center bg-slate-50 rounded text-slate-400 text-[10px] font-bold shrink-0">{it.quantity}x</span>
-                                                <span className="font-semibold text-slate-700 truncate">{it.name}</span>
+                                        <div key={idx} className="flex justify-between items-start text-[14px]">
+                                            <div className="flex items-start gap-2 min-w-0">
+                                                <span className="w-5 h-5 flex items-center justify-center bg-slate-50 rounded text-slate-400 text-[10px] font-bold shrink-0 mt-0.5">{it.quantity}x</span>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="font-semibold text-slate-700 truncate">{it.name}</span>
+                                                    {it.variant && formatVariantLabel(it.variant) && (
+                                                        <span className="text-[11px] text-slate-500 font-medium leading-tight">
+                                                            {formatVariantLabel(it.variant)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <span className="text-slate-400 font-medium ml-4">{formatPrice(it.price * (it.quantity || 1))}</span>
+                                            <span className="text-slate-400 font-medium ml-4 whitespace-nowrap">{formatPrice(it.price * (it.quantity || 1))}</span>
                                         </div>
                                     ))}
                                 </div>

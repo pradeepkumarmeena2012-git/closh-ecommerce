@@ -11,7 +11,7 @@ const ProductCard = ({ product }) => {
 
     return (
         <>
-            <div className="group relative w-full h-full flex flex-col bg-white overflow-hidden transition-all duration-300">
+            <div className="group relative w-full h-full flex flex-col bg-white overflow-hidden rounded-xl transition-all duration-500 hover:shadow-[0_15px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1">
                 <Link
                     to={`/product/${product.id}`}
                     className="flex flex-col group no-underline text-inherit h-full"
@@ -23,15 +23,6 @@ const ProductCard = ({ product }) => {
                             alt={product.name}
                             className={`w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110 ${product.stock === 'out_of_stock' ? 'grayscale opacity-70' : ''}`}
                         />
-
-                        {/* Out of Stock Overlay */}
-                        {product.stock === 'out_of_stock' && (
-                            <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] z-20 flex items-center justify-center p-2 pointer-events-none">
-                                <span className="bg-red-500 text-white text-[10px] md:text-xs font-black px-3 py-1.5 rounded-full uppercase tracking-widest shadow-xl transform -rotate-12 border-2 border-white scale-110">
-                                    Sold Out
-                                </span>
-                            </div>
-                        )}
 
                         {/* Top Right Actions (Wishlist) - Glassmorphism */}
                         <div className="absolute top-2 right-2 z-10 transition-all duration-500">
@@ -46,9 +37,14 @@ const ProductCard = ({ product }) => {
                                 <Heart size={11} className={`${isInWishlist(product.id) ? 'fill-red-500' : ''}`} />
                             </button>
                         </div>
-
-                        {/* Discount Badge on Image? Image 2 shows it below, but we can have it here too if needed. 
-                            Actually Image 2 has it next to price. Let's keep it there. */}
+                        {/* Out of Stock Status - Gradient Overlay for Readability */}
+                        {product.stock === 'out_of_stock' && (
+                            <div className="absolute inset-x-0 bottom-0 top-0 bg-gradient-to-t from-black/40 via-transparent to-transparent z-10 pointer-events-none flex flex-col justify-end pb-4 transition-opacity duration-300">
+                                <span className="text-red-500 text-[11px] md:text-[13px] font-black uppercase tracking-[0.2em] text-center drop-shadow-sm">
+                                    Currently unavailable
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Content Area - Matching Image 2 Minimalist Style */}

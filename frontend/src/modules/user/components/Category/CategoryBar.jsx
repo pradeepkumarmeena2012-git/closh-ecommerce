@@ -16,11 +16,17 @@ const CategoryBar = () => {
         initialize();
     }, [initialize]);
 
-    const filteredCategories = categories.filter(cat => !cat.parentId && cat.isActive !== false);
-    const rootCategories = [
+    const filteredCategories = React.useMemo(() => {
+        return categories.filter(cat => 
+            (!cat.parentId || cat.parentId === '' || cat.parentId === null) && 
+            cat.isActive !== false
+        );
+    }, [categories]);
+
+    const rootCategories = React.useMemo(() => [
         { _id: 'all', id: 'all', name: 'All', image: allImage },
         ...filteredCategories
-    ];
+    ], [filteredCategories]);
 
     const handleCategoryClick = (cat) => {
         setActiveCategory(cat.name);
@@ -65,7 +71,7 @@ const CategoryBar = () => {
                             onClick={() => handleCategoryClick(cat)}
                             className="flex flex-col items-center flex-shrink-0 group transition-all"
                         >
-                            <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full p-[2px] transition-all duration-300 ${isSelected ? 'bg-red-500' : 'bg-transparent'}`}>
+                            <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full p-[2px] transition-all duration-300 ${isSelected ? 'bg-gray-200' : 'bg-transparent'}`}>
                                 <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center p-0.5 shadow-[0_4px_12px_rgba(0,0,0,0.08)]">
                                     <img
                                         src={cat.image || "https://via.placeholder.com/150"}

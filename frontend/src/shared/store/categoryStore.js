@@ -18,10 +18,12 @@ export const useCategoryStore = create(
       isLoading: false,
 
       // Initialize categories
-      initialize: async () => {
-        // Guard: Don't initialize if already loading or already have data
+      initialize: async (force = false) => {
         const state = get();
-        if (state.isLoading || state.categories.length > 0) return;
+        // Guard: Don't initialize if already loading
+        // If categories already exist, only re-fetch if forced or if it's the first initialization this session
+        if (state.isLoading) return;
+        if (!force && state.categories.length > 0) return;
 
         set({ isLoading: true });
         try {
@@ -31,7 +33,12 @@ export const useCategoryStore = create(
           const response = isAdminArea
             ? await getAllCategories()
             : await getPublicCategories();
-          const normalizedCategories = (response?.data || []).map(cat => {
+            
+          // The API might return the data directly or wrapped in { data: [...] }
+          const rawData = response?.data || response || [];
+          const categoriesArray = Array.isArray(rawData) ? rawData : (Array.isArray(rawData.data) ? rawData.data : []);
+
+          const normalizedCategories = categoriesArray.map(cat => {
             let image = cat.image;
             if (image && !image.startsWith('http') && image.includes('150?text=')) {
               image = 'https://placehold.co/' + image;
@@ -42,13 +49,13 @@ export const useCategoryStore = create(
             return {
               ...cat,
               image,
-              id: cat._id // Ensure UI compatibility by aliasing _id to id
+              id: cat._id || cat.id, // Ensure UI compatibility
+              parentId: cat.parentId || null // Ensure null consistency
             };
           });
           set({ categories: normalizedCategories, isLoading: false });
         } catch (error) {
           set({ isLoading: false });
-          // Error toast is handled in api.js interceptor
         }
       },
 

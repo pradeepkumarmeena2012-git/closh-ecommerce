@@ -40,7 +40,7 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         : { 'vendorItems.vendorId': req.user.id };
 
     const orders = await Order.find(filter)
-        .select('orderId status total items.name items.image items.quantity shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.status vendorItems.items.name vendorItems.items.image vendorItems.items.quantity vendorItems.subtotal createdAt updatedAt')
+        .select('orderId status total items.name items.image items.quantity items.variant shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.status vendorItems.items.name vendorItems.items.image vendorItems.items.quantity vendorItems.items.variant vendorItems.subtotal createdAt updatedAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(numericLimit)

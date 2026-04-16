@@ -35,7 +35,11 @@ export const CartProvider = ({ children }) => {
             vendorId: product.vendorId?._id || product.vendorId || 1,
             vendorName: product.vendorId?.storeName || product.vendorName || 'Store',
             stockQuantity: product.stockQuantity || product.stock,
-            variant: product.selectedSize ? { size: product.selectedSize } : (product.variant || undefined),
+            variant: {
+                ...(product.selectedSize && { size: product.selectedSize }),
+                ...(product.selectedColor && { color: product.selectedColor }),
+                ...(!product.selectedSize && !product.selectedColor && product.variant ? product.variant : {})
+            },
             quantity: product.quantity || 1,
         });
         if (added) {

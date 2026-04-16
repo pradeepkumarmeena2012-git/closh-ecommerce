@@ -65,6 +65,7 @@ router.post('/products', ...vendorAuth, validate(createProductSchema), productCo
 router.put('/products/:id', ...vendorAuth, validate(productIdParamSchema, 'params'), validate(updateProductSchema), productController.updateProduct);
 router.delete('/products/:id', ...vendorAuth, validate(productIdParamSchema, 'params'), productController.deleteProduct);
 router.patch('/stock/:productId', ...vendorAuth, productController.updateStock);
+router.patch('/stock/:productId/variants', ...vendorAuth, productController.updateVariantStock);
 
 // Orders
 router.get('/orders', ...vendorAuth, orderController.getVendorOrders);

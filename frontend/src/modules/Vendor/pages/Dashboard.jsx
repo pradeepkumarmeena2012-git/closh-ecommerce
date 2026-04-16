@@ -12,6 +12,7 @@ import { useVendorAuthStore } from "../store/vendorAuthStore";
 import { useVendorProductStore } from "../store/vendorProductStore";
 import { getVendorOrders, getVendorEarnings } from "../services/vendorService";
 import { formatPrice } from "@shared/utils/helpers";
+import { formatVariantLabel } from "@shared/utils/variant";
 import { FiMapPin, FiAlertCircle } from "react-icons/fi";
 import toast from "react-hot-toast";
 import SwipeOrderCard from "../components/SwipeOrderCard";
@@ -302,9 +303,23 @@ const VendorDashboard = () => {
                 const displayAmount = vendorItem?.subtotal ?? order.totalAmount ?? order.total ?? 0;
                 return (
                   <div key={order._id ?? order.orderId} onClick={() => navigate(`/vendor/orders/${order.orderId ?? order._id}`)} className="flex items-center justify-between p-3 bg-white hover:bg-gray-100 rounded-lg cursor-pointer transition-colors border border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-white p-2 rounded-lg shadow-sm"><FiPackage className="text-gray-400" /></div>
-                      <div><p className="font-semibold text-gray-800">{order.orderId ?? order._id}</p><p className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</p></div>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="bg-white p-2 rounded-lg shadow-sm shrink-0"><FiPackage className="text-gray-400" /></div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-800 truncate leading-tight">{order.orderId ?? order._id}</p>
+                        <p className="text-[11px] text-gray-600 font-bold truncate mt-1">
+                          {vendorItem?.items?.[0]?.name || order.items?.[0]?.name || 'Order Details'}
+                        </p>
+                        <p className="text-[10px] text-gray-500 font-medium mt-0.5">
+                          Qty: {vendorItem?.items?.[0]?.quantity || order.items?.[0]?.quantity || 1}
+                        </p>
+                        {(vendorItem?.items?.[0]?.variant || order.items?.[0]?.variant) && formatVariantLabel(vendorItem?.items?.[0]?.variant || order.items?.[0]?.variant) && (
+                          <p className="text-[10px] text-gray-400 font-medium truncate mt-0.1">
+                            {formatVariantLabel(vendorItem?.items?.[0]?.variant || order.items?.[0]?.variant)}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-gray-400 mt-1">{new Date(order.createdAt).toLocaleDateString()}</p>
+                      </div>
                     </div>
                     <div className="text-right"><p className="font-bold text-gray-800 text-sm">{formatPrice(displayAmount)}</p><span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${displayStatus === "delivered" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>{displayStatus}</span></div>
                   </div>

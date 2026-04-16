@@ -6,6 +6,7 @@ import {
     updateVendorProduct,
     deleteVendorProduct,
     updateVendorStock,
+    updateVendorVariantStock,
 } from '../services/vendorService';
 import toast from 'react-hot-toast';
 
@@ -187,6 +188,25 @@ export const useVendorProductStore = create((set, get) => ({
                 isSaving: false,
             }));
             toast.success('Stock updated successfully');
+            return true;
+        } catch {
+            set({ isSaving: false });
+            return false;
+        }
+    },
+
+    patchVariantStock: async (productId, stockMap) => {
+        set({ isSaving: true });
+        try {
+            const res = await updateVendorVariantStock(productId, stockMap);
+            const updated = res.data ?? res;
+            set((state) => ({
+                products: state.products.map((p) =>
+                    (p._id ?? p.id) === productId ? updated : p
+                ),
+                isSaving: false,
+            }));
+            toast.success('Variant stock updated successfully');
             return true;
         } catch {
             set({ isSaving: false });

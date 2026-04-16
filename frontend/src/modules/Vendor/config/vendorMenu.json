@@ -33,7 +33,10 @@
     {
         "title": "Stock Management",
         "route": "/vendor/stock-management",
-        "children": []
+        "children": [
+            "Manage Stock",
+            "Offline Sales"
+        ]
     },
     {
         "title": "Wallet History",

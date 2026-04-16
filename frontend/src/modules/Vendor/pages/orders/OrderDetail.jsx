@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getVendorOrderById, updateVendorOrderStatus } from '../../services/vendorService';
 import { formatPrice } from '../../../../shared/utils/helpers';
+import { formatVariantLabel } from '../../../../shared/utils/variant';
 import Badge from '../../../../shared/components/Badge';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
@@ -291,9 +292,16 @@ const OrderDetail = () => {
                                                     <h3 className="font-medium text-gray-800">
                                                         {item.name}
                                                     </h3>
-                                                    <p className="text-sm text-gray-500">
-                                                        Qty: {item.quantity}
-                                                    </p>
+                                                    <div className="flex flex-col gap-1">
+                                                        <p className="text-sm text-gray-500">
+                                                            Qty: {item.quantity}
+                                                        </p>
+                                                        {formatVariantLabel(item?.variant) && (
+                                                            <p className="text-[11px] text-gray-400 font-medium">
+                                                                {formatVariantLabel(item?.variant)}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <p className="font-semibold text-gray-800">
                                                     {formatPrice(

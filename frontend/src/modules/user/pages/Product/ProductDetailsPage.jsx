@@ -355,8 +355,8 @@ const ProductDetailsPage = () => {
                             {/* Tags/Badges - Smaller on Mobile */}
                             <div className="absolute top-3 left-3 md:top-6 md:left-6 flex flex-col gap-1.5 md:gap-2 z-20">
                                 {isOutOfStock && (
-                                    <div className="bg-red-600 text-white text-[10px] md:text-[12px] font-black px-4 py-2 rounded-full shadow-lg border-2 border-white uppercase tracking-widest animate-pulse">
-                                        Sold Out
+                                    <div className="bg-white/90 text-[#C2185B] text-[10px] md:text-[12px] font-bold px-4 py-2 rounded-lg shadow-sm border border-gray-100 uppercase tracking-widest backdrop-blur-sm">
+                                        Currently unavailable
                                     </div>
                                 )}
                                 <div className="bg-white text-gray-900 text-[8px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-md border border-gray-200">
@@ -529,9 +529,9 @@ const ProductDetailsPage = () => {
                             {isOutOfStock ? (
                                 <button
                                     disabled
-                                    className="flex-[3] h-12 md:h-14 bg-gray-200 text-gray-500 rounded-xl md:rounded-[18px] font-bold text-[12px] md:text-[14px] flex items-center justify-center shadow-inner cursor-not-allowed uppercase"
+                                    className="flex-[3] h-12 md:h-14 bg-gray-200 text-gray-400 rounded-xl md:rounded-[18px] font-bold text-[11px] md:text-[13px] flex items-center justify-center shadow-inner cursor-not-allowed uppercase"
                                 >
-                                    Out of Stock
+                                    Currently unavailable
                                 </button>
                             ) : (
                                 <button

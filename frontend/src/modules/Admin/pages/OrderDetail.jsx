@@ -21,6 +21,7 @@ import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import { getOrderById, updateOrderStatus } from '../services/adminService';
+import { formatVariantLabel } from '../../../shared/utils/variant';
 import toast from 'react-hot-toast';
 
 const OrderDetail = () => {
@@ -261,6 +262,11 @@ const OrderDetail = () => {
                       <p className="text-xs text-gray-600">
                         {formatCurrency(item.price || 0)} x {item.quantity || 1}
                       </p>
+                      {formatVariantLabel(item.variant) && (
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          {formatVariantLabel(item.variant)}
+                        </p>
+                      )}
                     </div>
                     <p className="font-bold text-sm text-gray-800">
                       {formatCurrency((item.price || 0) * (item.quantity || 1))}

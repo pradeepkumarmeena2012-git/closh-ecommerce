@@ -125,6 +125,10 @@ export const deleteVendorProduct = (id) =>
 export const updateVendorStock = (productId, stockQuantity) =>
     api.patch(`/vendor/stock/${productId}`, { stockQuantity });
 
+export const updateVendorVariantStock = (productId, stockMap) =>
+    api.patch(`/vendor/stock/${productId}/variants`, { stockMap });
+
+
 
 // ─── ORDERS ────────────────────────────────────────────────────────────────────
 
