@@ -81,7 +81,7 @@ const CheckoutPage = () => {
 
     const totalPrice = getCartTotal();
     const shipping = totalPrice > 500 ? 0 : 40;
-    const tax = Math.round(totalPrice * 0.05); // 5% GST
+    const tax = 0; // GST removed as per user request
     
     let promoDiscount = 0;
     if (appliedPromo) {
@@ -542,10 +542,6 @@ const CheckoutPage = () => {
                             <div className="flex justify-between text-[13px] font-bold text-gray-500 uppercase ">
                                 <span>Shipping Fee</span>
                                 <span>{shipping === 0 ? <span className="text-[#10B981]">FREE</span> : `₹${shipping}`}</span>
-                            </div>
-                            <div className="flex justify-between text-[13px] font-bold text-gray-500 uppercase ">
-                                <span>GST (5%)</span>
-                                <span className="text-black">₹{tax}</span>
                             </div>
                         </div>
 

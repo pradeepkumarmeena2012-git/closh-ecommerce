@@ -400,8 +400,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
     }
     const shipping = totalShipping;
 
-    // 4. Calculate tax (18%)
-    const tax = parseFloat(((subtotal - couponDiscount) * 0.18).toFixed(2));
+    // 4. Calculate tax (GST removed as per user request)
+    const tax = 0;
     const platformFee = 20; // Matches frontend PaymentPage.jsx
     const total = parseFloat((subtotal - couponDiscount + shipping + tax + platformFee).toFixed(2));
     console.log(`💰 [TOTALS] Shipping: ₹${shipping}, Tax: ₹${tax}, Grand Total: ₹${total}`);
@@ -418,7 +418,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             subtotal: v.subtotal,
             shipping: Number(shippingByVendor[String(v.vendorId)] || 0),
             distance: v.distance || 0,
-            tax: parseFloat((v.subtotal * 0.18).toFixed(2)),
+            tax: 0,
             discount: 0,
             commissionRate: v.commissionRate,
             commissionAmount: vendorCommissionAmount,
