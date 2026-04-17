@@ -44,14 +44,20 @@ const ProductCard = ({ product }) => {
             <FiHeart size={12} className={`${isFavorite ? 'fill-current text-red-500' : ''}`} />
           </button>
 
-          {/* Out of Stock Status - Gradient Overlay for Readability */}
-          {(product.stock === 'out_of_stock' || product.stockQuantity <= 0) && (
+          {/* Out of Stock Status - Original Red Style */}
+          {product.stock === 'out_of_stock' || product.stockQuantity <= 0 ? (
             <div className="absolute inset-x-0 bottom-0 top-0 bg-gradient-to-t from-black/40 via-transparent to-transparent z-10 pointer-events-none flex flex-col justify-end pb-3 transition-opacity duration-300">
               <span className="text-red-500 text-[10px] md:text-[12px] font-black uppercase tracking-[0.2em] text-center drop-shadow-sm">
                 Currently unavailable
               </span>
             </div>
-          )}
+          ) : product.vendorId?.isOnline === false ? (
+            <div className="absolute inset-x-0 bottom-0 top-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 pointer-events-none flex flex-col justify-end pb-3 transition-opacity duration-300">
+              <span className="text-white text-[10px] md:text-[12px] font-black uppercase tracking-[0.2em] text-center drop-shadow-lg">
+                Store Offline
+              </span>
+            </div>
+          ) : null}
         </div>
 
         {/* INFO AREA - Compact */}

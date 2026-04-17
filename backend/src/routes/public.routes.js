@@ -182,7 +182,7 @@ const listProducts = asyncHandler(async (req, res) => {
         .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount variants')
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
-        .populate('vendorId', 'storeName')
+        .populate('vendorId', 'storeName isOnline')
         .sort(sortMap[sort] || { createdAt: -1 })
         .skip(skip)
         .limit(Number(limit));
@@ -204,7 +204,9 @@ router.get('/products', listProducts);
 
 // GET /api/products/flash-sale
 router.get('/flash-sale', asyncHandler(async (req, res) => {
-    const products = await Product.find({ isActive: true, flashSale: true }).limit(20);
+    const products = await Product.find({ isActive: true, flashSale: true })
+        .populate('vendorId', 'storeName isOnline')
+        .limit(20);
     const activeProducts = await applyActiveCampaigns(products);
     res.status(200).json(new ApiResponse(200, activeProducts, 'Flash sale products.'));
 }));
@@ -252,7 +254,7 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
         Product.find(filter)
             .populate('categoryId', 'name')
             .populate('brandId', 'name')
-            .populate('vendorId', 'storeName')
+            .populate('vendorId', 'storeName isOnline')
             .sort(sortMap[sort] || sortMap.newest)
             .skip(skip)
             .limit(numericLimit),
@@ -270,7 +272,10 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
 
 // GET /api/products/popular
 router.get('/popular', asyncHandler(async (req, res) => {
-    const products = await Product.find({ isActive: true }).sort({ reviewCount: -1, rating: -1 }).limit(10);
+    const products = await Product.find({ isActive: true })
+        .populate('vendorId', 'storeName isOnline')
+        .sort({ reviewCount: -1, rating: -1 })
+        .limit(10);
     const activeProducts = await applyActiveCampaigns(products);
     res.status(200).json(new ApiResponse(200, activeProducts, 'Popular products.'));
 }));
@@ -279,7 +284,9 @@ router.get('/popular', asyncHandler(async (req, res) => {
 router.get('/similar/:id', asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) throw new ApiError(404, 'Product not found.');
-    const similar = await Product.find({ isActive: true, _id: { $ne: product._id }, categoryId: product.categoryId }).limit(6);
+    const similar = await Product.find({ isActive: true, _id: { $ne: product._id }, categoryId: product.categoryId })
+        .populate('vendorId', 'storeName isOnline')
+        .limit(6);
     const activeSimilar = await applyActiveCampaigns(similar);
     res.status(200).json(new ApiResponse(200, activeSimilar, 'Similar products.'));
 }));
@@ -288,7 +295,7 @@ const getProductDetail = asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id)
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
-        .populate('vendorId', 'storeName storeLogo rating address shopLocation freeShippingThreshold');
+        .populate('vendorId', 'storeName storeLogo rating address shopLocation freeShippingThreshold isOnline');
     if (!product) throw new ApiError(404, 'Product not found.');
     const activeProduct = await applyActiveCampaigns(product);
     res.status(200).json(new ApiResponse(200, activeProduct, 'Product detail.'));
@@ -394,7 +401,7 @@ router.get('/vendors/:id/products', asyncHandler(async (req, res) => {
     const products = await Product.find(filter)
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
-        .populate('vendorId', 'storeName')
+        .populate('vendorId', 'storeName isOnline')
         .sort(sortMap[sort] || { createdAt: -1 })
         .skip(skip)
         .limit(numericLimit);
@@ -593,7 +600,7 @@ router.get('/campaigns', asyncHandler(async (req, res) => {
                 })
                     .populate('categoryId', 'name')
                     .populate('brandId', 'name')
-                    .populate('vendorId', 'storeName')
+                    .populate('vendorId', 'storeName isOnline')
                     .select('name price originalPrice images image categoryId brandId vendorId')
                     .limit(20)
                     .lean();

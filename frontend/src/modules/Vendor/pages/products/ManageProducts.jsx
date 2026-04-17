@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiSearch, FiEdit, FiTrash2 } from "react-icons/fi";
+import { FiSearch, FiEdit, FiTrash2, FiAlertTriangle } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../../Admin/components/DataTable";
 import ExportButton from "../../../Admin/components/ExportButton";
@@ -152,6 +152,15 @@ const ManageProducts = () => {
       ),
     },
     {
+      key: "visibility",
+      label: "Visibility",
+      render: () => (
+        <Badge variant={vendor?.isOnline !== false ? "success" : "error"}>
+          {vendor?.isOnline !== false ? "STORE ONLINE" : "STORE OFFLINE"}
+        </Badge>
+      ),
+    },
+    {
       key: "actions",
       label: "Actions",
       sortable: false,
@@ -198,6 +207,18 @@ const ManageProducts = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6">
+      
+      {vendor?.isOnline === false && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded-xl flex items-center gap-3 mb-6 animate-pulse">
+          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
+            <FiAlertTriangle size={20} />
+          </div>
+          <div>
+            <h4 className="font-bold text-red-800">Store is Offline</h4>
+            <p className="text-sm text-red-600">Your registered products are hidden from the storefront. Switch to "Store Online" in the header to make them visible.</p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="lg:hidden">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">

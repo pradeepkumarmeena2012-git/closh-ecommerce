@@ -57,6 +57,7 @@ router.put('/auth/profile', ...vendorAuth, authController.updateProfile);
 router.put('/auth/change-password', ...vendorAuth, authController.changePassword);
 router.put('/auth/bank-details', ...vendorAuth, authController.updateBankDetails);
 router.put('/auth/location', ...vendorAuth, authController.updateLocation);
+router.patch('/auth/online-status', ...vendorAuth, authController.updateOnlineStatus);
 
 // Products
 router.get('/products', ...vendorAuth, productController.getVendorProducts);

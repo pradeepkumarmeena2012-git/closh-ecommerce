@@ -197,6 +197,28 @@ export const useVendorAuthStore = create(
           throw error;
         }
       },
+      updateOnlineStatus: async (isOnline) => {
+        set({ isLoading: true });
+        try {
+          const { updateVendorOnlineStatus } = await import("../services/vendorService");
+          const response = await updateVendorOnlineStatus(isOnline);
+          const data = response?.data ?? response;
+          // Result might be in data.data or just data depending on ApiResponse structure
+          const updatedVendor = data?.data || data;
+          set({
+            vendor: { ...get().vendor, isOnline: updatedVendor.isOnline },
+            isLoading: false,
+          });
+          return { success: true, isOnline: updatedVendor.isOnline };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+      toggleOnlineStatus: async () => {
+        const currentStatus = get().vendor?.isOnline;
+        return get().updateOnlineStatus(!currentStatus);
+      },
 
       updateOrderStatus: async (orderId, status) => {
         set({ isLoading: true });
