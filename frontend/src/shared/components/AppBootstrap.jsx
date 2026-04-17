@@ -184,7 +184,7 @@ const AppBootstrap = () => {
           
           if (!registeredTokens.includes(tokenKey)) {
             const endpoint = `/notifications/fcm-token`;
-            await api.post(`${scopeUrl}${endpoint}`, { token, platform });
+            await api.post(`${scopeUrl}${endpoint}`, { token, platform }, { silent: true });
             
             // Clean up old tokens for this user from localStorage (keep only current)
             const otherTokens = registeredTokens.filter(k => !k.startsWith(`${userId}_`));

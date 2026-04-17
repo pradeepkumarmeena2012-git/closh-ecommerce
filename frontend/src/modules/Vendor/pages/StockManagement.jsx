@@ -613,14 +613,14 @@ const VariantStockDrawer = ({ isOpen, product, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 z-[60] backdrop-blur-sm"
+            className="fixed inset-0 bg-black/40 z-[9998] backdrop-blur-sm"
           />
           <motion.div
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-[70] shadow-2xl flex flex-col"
+            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-[9999] shadow-2xl flex flex-col"
           >
             {/* Header */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0">

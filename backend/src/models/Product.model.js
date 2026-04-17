@@ -13,6 +13,12 @@ const productSchema = new mongoose.Schema(
         images: [{ type: String }],
         image: { type: String }, // primary image
         categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true, index: true },
+        division: { 
+            type: String, 
+            enum: ['Men', 'Women', 'Boys', 'Girls', 'Unisex'], 
+            default: 'Unisex',
+            index: true 
+        },
         brandId: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand', index: true },
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true, index: true },
         stock: {

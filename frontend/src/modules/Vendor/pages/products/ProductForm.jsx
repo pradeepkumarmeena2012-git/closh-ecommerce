@@ -41,6 +41,7 @@ const ProductForm = () => {
     categoryId: null,
     subcategoryId: null,
     brandId: null,
+    division: "Unisex",
     stock: "in_stock",
     stockQuantity: "",
     totalAllowedQuantity: "",
@@ -183,6 +184,7 @@ const ProductForm = () => {
         ? normalizedCategoryId
         : normalizedSubcategoryId || null,
       brandId: normalizedBrandId || null,
+      division: product.division || "Unisex",
       stock: product.stock || "in_stock",
       stockQuantity: product.stockQuantity || "",
       totalAllowedQuantity: product.totalAllowedQuantity || "",
@@ -616,6 +618,25 @@ const ProductForm = () => {
                   ...brands
                     .filter((brand) => brand.isActive !== false)
                     .map((brand) => ({ value: String(brand.id), label: brand.name })),
+                ]}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                Gender / Division <span className="text-red-500">*</span>
+              </label>
+              <AnimatedSelect
+                name="division"
+                value={formData.division || "Unisex"}
+                onChange={handleChange}
+                required
+                options={[
+                  { value: "Men", label: "Men" },
+                  { value: "Women", label: "Women" },
+                  { value: "Boys", label: "Boys" },
+                  { value: "Girls", label: "Girls" },
+                  { value: "Unisex", label: "Unisex" },
                 ]}
               />
             </div>

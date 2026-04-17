@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../../../shared/store/authStore';
 import { Phone, ArrowRight, ShieldCheck, ChevronLeft, Timer, X, User as UserIcon, Mail } from 'lucide-react';
 import { isValidEmail } from '../../../../shared/utils/helpers';
+import PolicyModal from '../../../../shared/components/PolicyModal';
 
 const LoginPage = () => {
     const [step, setStep] = useState(1); // 1: Mobile, 2: Name/Email (New User), 3: OTP
@@ -13,6 +14,7 @@ const LoginPage = () => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [resendTimer, setResendTimer] = useState(0);
+    const [modalConfig, setModalConfig] = useState({ isOpen: false, type: 'terms' });
 
     const { checkPhone, loginOtp, registerOtp, verifyOTP } = useAuthStore();
     const navigate = useNavigate();
@@ -63,7 +65,8 @@ const LoginPage = () => {
                 setStep(2); // Ask for details
             }
         } catch (err) {
-            const message = err.response?.data?.message || err.message || 'Verification failed.';
+            let message = err.response?.data?.message || err.message || 'Verification failed.';
+            if (message === 'Validation failed') message = 'Wrong Email Address';
             setError(message);
         } finally {
             setIsLoading(false);
@@ -90,7 +93,8 @@ const LoginPage = () => {
             setStep(3);
             setResendTimer(30);
         } catch (err) {
-            const message = err.response?.data?.message || err.message || 'Registration failed.';
+            let message = err.response?.data?.message || err.message || 'Registration failed.';
+            if (message === 'Validation failed') message = 'Wrong Email Address';
             setError(message);
         } finally {
             setIsLoading(false);
@@ -266,7 +270,7 @@ const LoginPage = () => {
                                             setOtp(e.target.value.replace(/\D/g, ''));
                                             if (error) setError('');
                                         }}
-                                        className={`w-full pl-12 pr-4 py-4 text-[18px] tracking-[0.2em] font-bold text-center bg-white border-2 rounded-2xl focus:bg-white outline-none transition-all placeholder:text-gray-400 ${error ? 'border-red-500 bg-red-50/10 text-red-900' : 'border-gray-100 focus:border-black text-gray-900'}`}
+                                        className={`w-full pl-14 pr-4 py-4 text-[20px] tracking-[0.3em] font-bold text-left bg-white border-2 rounded-2xl focus:bg-white outline-none transition-all placeholder:text-gray-400 ${error ? 'border-red-500 bg-red-50/10 text-red-900' : 'border-gray-100 focus:border-black text-gray-900'}`}
                                         placeholder="••••••"
                                     />
                                 </div>
@@ -319,9 +323,25 @@ const LoginPage = () => {
 
                 <p className="mt-8 text-center text-[12px] font-medium text-gray-400 leading-relaxed">
                     By continuing, you agree to our <br />
-                    <span className="text-black font-semibold hover:underline cursor-pointer">Terms of Service</span> & <span className="text-black font-semibold hover:underline cursor-pointer">Privacy Policy</span>
+                    <span 
+                        onClick={() => setModalConfig({ isOpen: true, type: 'terms' })}
+                        className="text-black font-semibold hover:underline cursor-pointer"
+                    >
+                        Terms of Service
+                    </span> & <span 
+                        onClick={() => setModalConfig({ isOpen: true, type: 'privacy' })}
+                        className="text-black font-semibold hover:underline cursor-pointer"
+                    >
+                        Privacy Policy
+                    </span>
                 </p>
             </div>
+
+            <PolicyModal 
+                isOpen={modalConfig.isOpen} 
+                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })} 
+                type={modalConfig.type} 
+            />
         </div>
     );
 };

@@ -10,14 +10,16 @@ import LoginModal from '../../components/Modals/LoginModal';
 import { useUserLocation } from '../../context/LocationContext';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import ProductSkeleton from '../../components/ProductCard/ProductSkeleton';
+import { useCategoryStore } from '../../../../shared/store/categoryStore';
 
 const ProductsPage = () => {
     const { products, isLoading, fetchPublicProducts } = useProductStore();
+    const { categories: allCategoriesStore, initialize: initCategories } = useCategoryStore();
     const { toggleWishlist, isInWishlist, wishlistItems } = useWishlist();
     const { addToCart, getCartCount } = useCart();
     const { activeAddress } = useUserLocation();
     const { user } = useAuth();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [isSortOpen, setIsSortOpen] = useState(false);
@@ -30,11 +32,37 @@ const ProductsPage = () => {
     const [activeFilterTab, setActiveFilterTab] = useState('Brand');
     const [searchValue, setSearchValue] = useState(''); // Brand search in drawer
     const [headerSearchValue, setHeaderSearchValue] = useState(searchParams.get('search') || ''); // Main grid search
-    const [selectedSort, setSelectedSort] = useState('New Arrivals');
-    const [selectedGender, setSelectedGender] = useState('All');
-    const [selectedBrands, setSelectedBrands] = useState([]);
-    const [selectedSubCategories, setSelectedSubCategories] = useState([]);
+    const [selectedGender, setSelectedGender] = useState(searchParams.get('division') || 'All');
+    const [selectedBrands, setSelectedBrands] = useState(searchParams.getAll('brand') || []);
+    const [selectedSubCategories, setSelectedSubCategories] = useState(searchParams.getAll('subCategory') || []);
+    const [selectedSort, setSelectedSort] = useState(searchParams.get('sort') || 'newest');
+    const [selectedFabrics, setSelectedFabrics] = useState([]);
+    const [selectedPatterns, setSelectedPatterns] = useState([]);
+    const [selectedFits, setSelectedFits] = useState([]);
     const [selectedSizes, setSelectedSizes] = useState([]);
+
+    // Update browser URL query params whenever filters change
+    useEffect(() => {
+        const params = new URLSearchParams(searchParams);
+        
+        if (selectedGender && selectedGender !== 'All') params.set('division', selectedGender);
+        else params.delete('division');
+
+        params.delete('brand');
+        selectedBrands.forEach(b => params.append('brand', b));
+
+        params.delete('subCategory');
+        selectedSubCategories.forEach(s => params.append('subCategory', s));
+
+        if (selectedSort !== 'newest') params.set('sort', selectedSort);
+        else params.delete('sort');
+
+        const nextQuery = params.toString();
+        const currentQuery = searchParams.toString();
+        if (nextQuery !== currentQuery) {
+            setSearchParams(params, { replace: true });
+        }
+    }, [selectedGender, selectedBrands, selectedSubCategories, selectedSort]);
 
     // Desktop Section states
     const [openSections, setOpenSections] = useState({
@@ -77,15 +105,24 @@ const ProductsPage = () => {
         fits: []
     });
 
+    // Load categories
+    useEffect(() => {
+        initCategories();
+    }, [initCategories]);
+
     // Load admin products and attributes
     useEffect(() => {
-        // Fetch products based on URL params
-        const categoryToFetch = category || (selectedGender !== 'All' ? selectedGender : undefined);
+        // Fetch products based on ALL active filters
+        // Priority: selectedGender maps to DB 'division' field
+        const divisionToFetch = division || (selectedGender !== 'All' ? selectedGender : undefined);
+        const categoryToFetch = category || undefined;
+        
         fetchPublicProducts({
+            division: divisionToFetch,
             category: categoryToFetch,
-            subCategory: subCategoryFromUrl || undefined,
-            division: division || undefined,
-            sort: 'newest'
+            subCategory: (selectedSubCategories.length > 0 ? selectedSubCategories[0] : (subCategoryFromUrl || undefined)),
+            brand: (selectedBrands.length > 0 ? selectedBrands[0] : undefined),
+            sort: selectedSort === 'New Arrivals' ? 'newest' : (selectedSort === 'Price: Low to High' ? 'price-asc' : (selectedSort === 'Price: High to Low' ? 'price-desc' : 'popular')),
         });
 
         // Load attribute sets from admin side
@@ -104,15 +141,36 @@ const ProductsPage = () => {
 
             setFilterOptions(newOptions);
         }
-    }, [category, subCategoryFromUrl, division, selectedGender, fetchPublicProducts]);
+    }, [category, subCategoryFromUrl, division, selectedGender, selectedBrands, selectedSubCategories, selectedSort, fetchPublicProducts]);
 
-    // Mock unique values for filters
-    const filterCategories = [
-        'Brand', 'Sub Category', 'Product Type', 'Trend', 'Trend Type', 'Size', 'Fit', 'Fabric', 'Pattern', 'Closure Type', 'Neck Type', 'Rise Type', 'Length'
-    ];
+    // Derived subcategories based on gender
+    const subCategories = useMemo(() => {
+        if (selectedGender === 'All') {
+            return [...new Set((products || []).map(p => p.categoryId?.name || p.subCategory))].filter(Boolean);
+        }
 
-    const brands = [...new Set((products || []).map(p => p.brand))].filter(Boolean).sort();
-    const subCategories = [...new Set((products || []).map(p => p.categoryId?.name || p.subCategory))].filter(Boolean);
+        // Find the root category matching the selected gender
+        const rootCat = allCategoriesStore.find(cat => 
+            !cat.parentId && (cat.name === selectedGender || cat.name?.toLowerCase() === selectedGender.toLowerCase())
+        );
+
+        if (rootCat) {
+            const rootId = String(rootCat.id || rootCat._id);
+            return allCategoriesStore
+                .filter(cat => {
+                    const pid = cat.parentId ? (typeof cat.parentId === 'object' ? (cat.parentId._id || cat.parentId.id) : cat.parentId) : null;
+                    return String(pid) === rootId;
+                })
+                .map(cat => cat.name);
+        }
+
+        return [...new Set((products || []).map(p => p.categoryId?.name || p.subCategory))].filter(Boolean);
+    }, [selectedGender, allCategoriesStore, products]);
+
+    const brands = useMemo(() => {
+        return [...new Set((products || []).map(p => p.brand))].filter(Boolean).sort();
+    }, [products]);
+
     // Use dynamic sizes with strict uniqueness
     const sizes = [...new Set(filterOptions.sizes)].filter(Boolean);
 
@@ -130,11 +188,6 @@ const ProductsPage = () => {
         if (selectedGender !== 'All') {
             result = result.filter(p => p.division?.toLowerCase() === selectedGender.toLowerCase());
         }
-
-        // 2. URL Params Filter: Removed. 
-        // The backend handles category, subCategory, and division filtering hierarchically. 
-        // We shouldn't strictly string-match here because a product in the "Jeans" subcategory 
-        // validly belongs to the parent "Top wear" category, but frontend string-matching would incorrectly hide it.
 
         // 4. Header Search Filter
         if (headerSearchValue) {
@@ -156,7 +209,55 @@ const ProductsPage = () => {
             result = result.filter(p => selectedSubCategories.includes(p.categoryId?.name) || selectedSubCategories.includes(p.subCategory));
         }
 
-        // 6. Sorting Logic
+        // 6. Size Filter
+        if (selectedSizes.length > 0) {
+            result = result.filter(p => {
+                const productSizes = p.sizes || p.variantData?.sizes || [];
+                return selectedSizes.some(s => productSizes.includes(s));
+            });
+        }
+
+        // 7. Fabric/Material Filter
+        if (selectedFabrics.length > 0) {
+            result = result.filter(p => {
+                if (p.fabric && selectedFabrics.includes(p.fabric)) return true;
+                if (p.material && selectedFabrics.includes(p.material)) return true;
+                const attrs = p.attributes || p.variantData?.attributes || [];
+                const fabricAttr = attrs.find(a => a.name.toLowerCase().includes('fabric') || a.name.toLowerCase().includes('material'));
+                if (fabricAttr) {
+                    return selectedFabrics.some(f => fabricAttr.values.includes(f));
+                }
+                return false;
+            });
+        }
+
+        // 8. Pattern Filter
+        if (selectedPatterns.length > 0) {
+            result = result.filter(p => {
+                if (p.pattern && selectedPatterns.includes(p.pattern)) return true;
+                const attrs = p.attributes || p.variantData?.attributes || [];
+                const patternAttr = attrs.find(a => a.name.toLowerCase().includes('pattern'));
+                if (patternAttr) {
+                    return selectedPatterns.some(pat => patternAttr.values.includes(pat));
+                }
+                return false;
+            });
+        }
+
+        // 9. Fit Filter
+        if (selectedFits.length > 0) {
+            result = result.filter(p => {
+                if (p.fit && selectedFits.includes(p.fit)) return true;
+                const attrs = p.attributes || p.variantData?.attributes || [];
+                const fitAttr = attrs.find(a => a.name.toLowerCase().includes('fit'));
+                if (fitAttr) {
+                    return selectedFits.some(fit => fitAttr.values.includes(fit));
+                }
+                return false;
+            });
+        }
+
+        // 10. Sorting Logic
         switch (selectedSort) {
             case 'Price: Low to High':
                 result.sort((a, b) => Number(a.price) - Number(b.price));
@@ -176,7 +277,7 @@ const ProductsPage = () => {
         }
 
         return result;
-    }, [headerSearchValue, selectedGender, selectedSort, selectedBrands, division, category, subCategoryFromUrl, products]);
+    }, [headerSearchValue, selectedGender, selectedSort, selectedBrands, selectedSubCategories, selectedSizes, selectedFabrics, selectedPatterns, selectedFits, products]);
 
     const handleSelectBrand = (brand) => {
         setSelectedBrands(prev =>
@@ -190,10 +291,37 @@ const ProductsPage = () => {
         );
     };
 
+    const handleSelectSize = (size) => {
+        setSelectedSizes(prev =>
+            prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+        );
+    };
+
+    const handleSelectFabric = (fabric) => {
+        setSelectedFabrics(prev =>
+            prev.includes(fabric) ? prev.filter(f => f !== fabric) : [...prev, fabric]
+        );
+    };
+
+    const handleSelectPattern = (pattern) => {
+        setSelectedPatterns(prev =>
+            prev.includes(pattern) ? prev.filter(p => p !== pattern) : [...prev, pattern]
+        );
+    };
+
+    const handleSelectFit = (fit) => {
+        setSelectedFits(prev =>
+            prev.includes(fit) ? prev.filter(f => f !== fit) : [...prev, fit]
+        );
+    };
+
     const clearFilters = () => {
         setSelectedBrands([]);
         setSelectedSubCategories([]);
         setSelectedSizes([]);
+        setSelectedFabrics([]);
+        setSelectedPatterns([]);
+        setSelectedFits([]);
         setSelectedGender('All');
         setHeaderSearchValue('');
     };
@@ -565,22 +693,79 @@ const ProductsPage = () => {
                                     </div>
                                 </FilterSection>
 
-                                <FilterSection title="Size" id="size">
-                                    <div className="grid grid-cols-4 gap-2">
+                                { /* <FilterSection title="Size" id="size">
+                                    <div className="grid grid-cols-4 gap-2 pt-2">
                                         {sizes.map(size => (
-                                            <button key={size} className="border border-gray-200 bg-white py-3 text-[11px] font-bold rounded-lg hover:border-black text-gray-500 hover:text-black transition-all">
+                                            <button 
+                                                key={size} 
+                                                onClick={() => handleSelectSize(size)}
+                                                className={`border py-3 text-[11px] font-bold rounded-lg transition-all ${selectedSizes.includes(size) ? 'bg-black border-black text-white shadow-md' : 'border-gray-200 bg-white text-gray-500 hover:border-black hover:text-black'}`}
+                                            >
                                                 {size}
                                             </button>
                                         ))}
                                     </div>
+                                </FilterSection> */ }
+
+                                <FilterSection title="Fabric" id="fabric">
+                                    <div className="space-y-3 pt-2">
+                                        {filterOptions.fabrics.map(fabric => (
+                                            <label key={fabric} className="flex items-center gap-3 cursor-pointer group">
+                                                <input
+                                                    type="checkbox"
+                                                    className="hidden"
+                                                    checked={selectedFabrics.includes(fabric)}
+                                                    onChange={() => handleSelectFabric(fabric)}
+                                                />
+                                                <div className={`w-4 h-4 border rounded flex items-center justify-center transition-all ${selectedFabrics.includes(fabric) ? 'bg-black border-black shadow-sm' : 'border-gray-200 bg-white'}`}>
+                                                    {selectedFabrics.includes(fabric) && <Check size={10} className="text-white" strokeWidth={4} />}
+                                                </div>
+                                                <span className={`text-[12px] font-semibold uppercase transition-colors ${selectedFabrics.includes(fabric) ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-900'}`}>{fabric}</span>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </FilterSection>
 
-                                {/* Other sections as placeholders or implemented similarly */}
+                                <FilterSection title="Pattern" id="pattern">
+                                    <div className="space-y-3 pt-2">
+                                        {filterOptions.patterns.map(pattern => (
+                                            <label key={pattern} className="flex items-center gap-3 cursor-pointer group">
+                                                <input
+                                                    type="checkbox"
+                                                    className="hidden"
+                                                    checked={selectedPatterns.includes(pattern)}
+                                                    onChange={() => handleSelectPattern(pattern)}
+                                                />
+                                                <div className={`w-4 h-4 border rounded flex items-center justify-center transition-all ${selectedPatterns.includes(pattern) ? 'bg-black border-black shadow-sm' : 'border-gray-200 bg-white'}`}>
+                                                    {selectedPatterns.includes(pattern) && <Check size={10} className="text-white" strokeWidth={4} />}
+                                                </div>
+                                                <span className={`text-[12px] font-semibold uppercase transition-colors ${selectedPatterns.includes(pattern) ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-900'}`}>{pattern}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </FilterSection>
+
+                                <FilterSection title="Fit" id="fit">
+                                    <div className="space-y-3 pt-2">
+                                        {filterOptions.fits.map(fit => (
+                                            <label key={fit} className="flex items-center gap-3 cursor-pointer group">
+                                                <input
+                                                    type="checkbox"
+                                                    className="hidden"
+                                                    checked={selectedFits.includes(fit)}
+                                                    onChange={() => handleSelectFit(fit)}
+                                                />
+                                                <div className={`w-4 h-4 border rounded flex items-center justify-center transition-all ${selectedFits.includes(fit) ? 'bg-black border-black shadow-sm' : 'border-gray-200 bg-white'}`}>
+                                                    {selectedFits.includes(fit) && <Check size={10} className="text-white" strokeWidth={4} />}
+                                                </div>
+                                                <span className={`text-[12px] font-semibold uppercase transition-colors ${selectedFits.includes(fit) ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-900'}`}>{fit}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </FilterSection>
+
                                 <FilterSection title="Product Type" id="productType" />
                                 <FilterSection title="Trend" id="trend" />
-                                <FilterSection title="Fit" id="fit" />
-                                <FilterSection title="Fabric" id="fabric" />
-                                <FilterSection title="Pattern" id="pattern" />
                             </div>
                         </div>
                         <div className="border-t border-gray-100 p-3 pl-safe pr-safe pb-safe flex gap-3 bg-white/95 backdrop-blur-xl absolute bottom-0 left-0 w-full shadow-[0_-5px_30px_rgba(0,0,0,0.1)] z-10">

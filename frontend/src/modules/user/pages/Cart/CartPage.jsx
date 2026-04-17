@@ -13,11 +13,6 @@ const CartPage = () => {
     const navigate = useNavigate();
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
-    useEffect(() => {
-        if (cart.length === 0) {
-            navigate('/products');
-        }
-    }, [cart.length, navigate]);
 
     const totalMRP = cart.reduce((acc, item) => {
         const itemMRP = Number(item.originalPrice) || Number(item.price) || 0;

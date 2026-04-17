@@ -125,25 +125,28 @@ const listProducts = asyncHandler(async (req, res) => {
     const skip = (page - 1) * limit;
     const filter = { isActive: true };
 
-    const requestedCategory = subcategory || subCategory || category || division;
+    if (division && division !== 'All') {
+        filter.division = { $regex: new RegExp(`^${division}$`, 'i') };
+    }
 
-    if (requestedCategory) {
+    const requestedCategory = subcategory || subCategory || category;
+
+    if (requestedCategory && requestedCategory !== 'All') {
         let categoryId = String(requestedCategory);
         const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(categoryId);
 
         let shouldFilter = true;
         if (!isValidObjectId) {
-            const catDoc = await Category.findOne({ name: { $regex: new RegExp(`^${requestedCategory}$`, 'i') } });
+            const catDoc = await Category.findOne({ name: { $regex: new RegExp(`^${requestedCategory}$`, 'i') }, isActive: true });
             if (catDoc) {
                 categoryId = String(catDoc._id);
             } else {
                 shouldFilter = false;
-                filter.categoryId = null; // Force empty result if name not found
+                filter.categoryId = null;
             }
         }
 
         if (shouldFilter) {
-            // Get all descendants to support recursive filtering (Admin selects a parent, we show all products in children)
             const allDescendants = await Category.find({ isActive: true }).lean();
             const getDescendantIds = (parentId) => {
                 let ids = [String(parentId)];
@@ -155,12 +158,21 @@ const listProducts = asyncHandler(async (req, res) => {
             };
 
             const categoryIds = Array.from(new Set(getDescendantIds(categoryId)));
-            
-            // Search in categoryId on the Product model
             filter.categoryId = { $in: categoryIds };
         }
     }
-    if (brand) filter.brandId = brand;
+
+    // Smart Brand Resolution: Resolve name to ID if needed
+    if (brand) {
+        if (/^[0-9a-fA-F]{24}$/.test(brand)) {
+            filter.brandId = brand;
+        } else {
+            const brandDoc = await Brand.findOne({ name: { $regex: new RegExp(`^${brand}$`, 'i') } });
+            if (brandDoc) filter.brandId = brandDoc._id;
+            else filter.brandId = null; // No match found
+        }
+    }
+
     if (vendor) filter.vendorId = vendor;
     if (flashSale === 'true') filter.flashSale = true;
     if (isNewArrival === 'true') filter.isNewArrival = true;
@@ -179,7 +191,7 @@ const listProducts = asyncHandler(async (req, res) => {
     const sortMap = { newest: { createdAt: -1 }, oldest: { createdAt: 1 }, 'price-asc': { price: 1 }, 'price-desc': { price: -1 }, popular: { reviewCount: -1 }, rating: { rating: -1 } };
 
     const products = await Product.find(filter)
-        .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount variants')
+        .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount variants division')
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
         .populate('vendorId', 'storeName')
