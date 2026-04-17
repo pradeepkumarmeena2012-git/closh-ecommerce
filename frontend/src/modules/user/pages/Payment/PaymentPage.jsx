@@ -102,7 +102,7 @@ const PaymentPage = () => {
     }
 
     const taxableAmount = Math.max(0, subtotal - promoDiscount);
-    const tax = Number((taxableAmount * 0.18).toFixed(2));
+    const tax = 0;
 
     const finalTotal = subtotal - promoDiscount + platformFee + shipping + tax;
 
@@ -234,12 +234,19 @@ const PaymentPage = () => {
         try {
             let normalizedPaymentMethod = 'cod';
             const lowerPm = paymentMethod.toLowerCase();
-            if (lowerPm.includes('cod')) normalizedPaymentMethod = 'cod';
-            else if (lowerPm.includes('upi')) normalizedPaymentMethod = 'upi';
-            else if (lowerPm.includes('card')) normalizedPaymentMethod = 'card';
-            else if (lowerPm.includes('wallet')) normalizedPaymentMethod = 'wallet';
-            else if (lowerPm.includes('bank')) normalizedPaymentMethod = 'bank';
-            else if (lowerPm.includes('amazon_pay')) normalizedPaymentMethod = 'upi';
+            
+            // Comprehensive mapping for common payment identifiers
+            if (lowerPm.includes('cod') || lowerPm.includes('cash')) {
+                normalizedPaymentMethod = 'cod';
+            } else if (lowerPm.includes('upi') || lowerPm.includes('gpay') || lowerPm.includes('phonepe') || lowerPm.includes('paytm') || lowerPm.includes('amazon')) {
+                normalizedPaymentMethod = 'upi';
+            } else if (lowerPm.includes('card') || lowerPm.includes('visa') || lowerPm.includes('master')) {
+                normalizedPaymentMethod = 'card';
+            } else if (lowerPm.includes('wallet')) {
+                normalizedPaymentMethod = 'wallet';
+            } else if (lowerPm.includes('bank')) {
+                normalizedPaymentMethod = 'bank';
+            }
 
             const orderPayload = {
                 items: cart.map(item => {
@@ -293,8 +300,12 @@ const PaymentPage = () => {
                 navigate(`/order-success/${response.id}`);
             }
         } catch (error) {
-            console.error("PaymentPage handlePlaceOrder Error - Complete Trace:", error);
-            console.error("PaymentPage handlePlaceOrder Error - Message:", error?.message);
+            console.error("❌ PAYMENT_PAGE_ORDER_ERROR:", error);
+            console.error("Error Detail:", {
+                message: error.message,
+                stack: error.stack,
+                response: error.response?.data
+            });
             toast.error(error?.message || 'Failed to place order. Please check your connection.');
         } finally {
             setIsProcessing(false);
@@ -477,7 +488,7 @@ const PaymentPage = () => {
                             <span className="text-gray-900 font-bold">₹{Number(totalMRP.toFixed(2))}</span>
                         </div>
                         <div className="flex justify-between text-[13px]">
-                            <span className="text-gray-500 font-medium">Discount on MRP</span>
+                            <span className="text-gray-500 font-medium">Discount price</span>
                             <span className="text-emerald-600 font-bold">-₹{Number(totalDiscount.toFixed(2))}</span>
                         </div>
                         {appliedPromo && (
@@ -491,10 +502,6 @@ const PaymentPage = () => {
                         <div className="flex justify-between text-[13px]">
                             <span className="text-gray-500 font-medium">Platform Fee</span>
                             <span className="text-gray-900 font-bold">₹{platformFee}</span>
-                        </div>
-                        <div className="flex justify-between text-[13px]">
-                            <span className="text-gray-500 font-medium">GST (18%)</span>
-                            <span className="text-gray-900 font-bold">₹{tax}</span>
                         </div>
                         <div className="flex justify-between text-[13px]">
                             <span className="text-gray-500 font-medium">Shipping Fee</span>
