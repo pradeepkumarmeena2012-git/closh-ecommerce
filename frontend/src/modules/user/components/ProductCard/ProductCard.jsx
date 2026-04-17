@@ -37,14 +37,20 @@ const ProductCard = ({ product }) => {
                                 <Heart size={11} className={`${isInWishlist(product.id) ? 'fill-red-500' : ''}`} />
                             </button>
                         </div>
-                        {/* Out of Stock Status - Gradient Overlay for Readability */}
-                        {product.stock === 'out_of_stock' && (
+                        {/* Out of Stock Status - Original Red Style */}
+                        {product.stock === 'out_of_stock' ? (
                             <div className="absolute inset-x-0 bottom-0 top-0 bg-gradient-to-t from-black/40 via-transparent to-transparent z-10 pointer-events-none flex flex-col justify-end pb-4 transition-opacity duration-300">
                                 <span className="text-red-500 text-[11px] md:text-[13px] font-black uppercase tracking-[0.2em] text-center drop-shadow-sm">
                                     Currently unavailable
                                 </span>
                             </div>
-                        )}
+                        ) : product.vendorId?.isOnline === false ? (
+                            <div className="absolute inset-x-0 bottom-0 top-0 bg-gradient-to-t from-black/70 via-transparent to-transparent z-10 pointer-events-none flex flex-col justify-end pb-4 transition-opacity duration-300">
+                                <span className="text-white text-[11px] md:text-[13px] font-black uppercase tracking-[0.2em] text-center drop-shadow-lg">
+                                    Store Offline
+                                </span>
+                            </div>
+                        ) : null}
                     </div>
 
                     {/* Content Area - Matching Image 2 Minimalist Style */}

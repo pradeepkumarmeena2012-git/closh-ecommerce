@@ -74,6 +74,13 @@ export const updateVendorProfile = (data) => api.put('/vendor/auth/profile', dat
 export const updateVendorLocation = (latitude, longitude) =>
     api.put('/vendor/auth/location', { latitude, longitude });
 
+/**
+ * Update vendor online status
+ * @param {boolean} isOnline
+ */
+export const updateVendorOnlineStatus = (isOnline) =>
+    api.patch('/vendor/auth/online-status', { isOnline });
+
 
 // ─── PRODUCTS ──────────────────────────────────────────────────────────────────
 

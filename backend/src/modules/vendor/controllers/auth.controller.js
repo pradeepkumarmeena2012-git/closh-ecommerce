@@ -15,6 +15,8 @@ import {
     persistRefreshSession,
     rotateRefreshSession,
 } from '../../../services/refreshToken.service.js';
+import { clearCachePattern } from '../../../utils/cache.js';
+import { notifyWishlistUsersWhenVendorOnline } from '../../../services/vendorOnlineNotifier.service.js';
 
 // POST /api/vendor/auth/register
 export const register = asyncHandler(async (req, res) => {
@@ -219,7 +221,7 @@ export const login = asyncHandler(async (req, res) => {
         });
     }
 
-    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, vendor: { id: vendor._id, name: vendor.name, storeName: vendor.storeName, email: vendor.email, storeLogo: vendor.storeLogo } }, 'Login successful.'));
+    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, vendor: { id: vendor._id, name: vendor.name, storeName: vendor.storeName, email: vendor.email, storeLogo: vendor.storeLogo, isOnline: vendor.isOnline } }, 'Login successful.'));
 });
 
 // POST /api/vendor/auth/refresh
@@ -283,6 +285,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
         'shippingMethods',
         'handlingTime',
         'processingTime',
+        'isOnline',
     ];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
     const vendor = await Vendor.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true }).select('-password -otp -otpExpiry');
@@ -354,4 +357,28 @@ export const updateLocation = asyncHandler(async (req, res) => {
     ).select('-password -otp -otpExpiry');
 
     res.status(200).json(new ApiResponse(200, vendor, 'Shop location updated successfully.'));
+});
+
+// PATCH /api/vendor/auth/online-status
+export const updateOnlineStatus = asyncHandler(async (req, res) => {
+    const { isOnline } = req.body;
+    if (typeof isOnline !== 'boolean') {
+        throw new ApiError(400, 'isOnline must be a boolean.');
+    }
+
+    const vendor = await Vendor.findByIdAndUpdate(
+        req.user.id,
+        { $set: { isOnline } },
+        { new: true, runValidators: true }
+    ).select('-password -otp -otpExpiry');
+
+    await clearCachePattern('products:*');
+
+    if (isOnline === true) {
+        notifyWishlistUsersWhenVendorOnline(vendor._id, vendor.storeName).catch(err => {
+            console.error('Failed to notify wishlist users:', err.message);
+        });
+    }
+
+    res.status(200).json(new ApiResponse(200, vendor, `Store is now ${isOnline ? 'online' : 'offline'}.`));
 });

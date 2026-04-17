@@ -91,26 +91,45 @@ export const useOrderStore = create(
           throw new Error('Your cart is empty.');
         }
 
-        const hasInvalidProductIds = items.some((item) => !isMongoId(item?.id));
+        const hasInvalidProductIds = items.some((item) => {
+          const id = String(item?.id || '');
+          return !id.startsWith('upsell-') && !isMongoId(id);
+        });
         if (hasInvalidProductIds) {
-          throw new Error('Some cart items are outdated. Please refresh your cart and try again.');
+          throw new Error('Some cart items have invalid identifiers. Please refresh your cart.');
         }
 
         set({ isLoading: true, lastError: null });
         try {
           const payload = {
-            items: orderData.items.map((item) => ({
-              productId: item.id,
-              quantity: Number(item.quantity || 1),
-              price: Number(item.price || 0),
-              variant: item.variant || undefined,
-            })),
+            items: orderData.items.map((item) => {
+              // Extract original Mongo ID if it's an upsell item (format: upsell-ID-timestamp)
+              const productId = String(item.id).startsWith('upsell-') 
+                ? item.id.split('-')[1] 
+                : item.id;
+
+              return {
+                productId,
+                quantity: Number(item.quantity || 1),
+                price: Number(item.price || 0),
+                variant: item.variant || undefined,
+              };
+            }),
             shippingAddress: orderData.shippingAddress,
             paymentMethod: orderData.paymentMethod,
             couponCode: orderData.couponCode || undefined,
             shippingOption: orderData.shippingOption || 'standard',
             orderType: orderData.orderType || 'check_and_buy',
+            // Pass through any extra fields like dropoffLocation
+            ...orderData
           };
+          delete payload.items; // items already mapped above
+          payload.items = orderData.items.map(item => ({
+             productId: String(item.id).startsWith('upsell-') ? item.id.split('-')[1] : item.id,
+             quantity: Number(item.quantity || 1),
+             price: Number(item.price || 0),
+             variant: item.variant || undefined,
+          }));
           const idempotencyKey = buildIdempotencyKey(payload, orderData.userId);
 
           console.log("Order Store - Placing Order with Payload:", payload);
@@ -119,8 +138,9 @@ export const useOrderStore = create(
               "x-idempotency-key": idempotencyKey,
             },
           });
-          const payloadData = response?.data ?? response;
-          const createdOrderId = payloadData?.orderId;
+          const payloadData = response?.data || response;
+          // Support both flattened and wrapped response structures
+          const createdOrderId = payloadData?.orderId || response?.orderId || response?.data?.orderId;
           
           if (!createdOrderId) {
             throw new Error('Invalid order creation response from server.');
@@ -145,10 +165,10 @@ export const useOrderStore = create(
         set({ isLoading: true, lastError: null });
         try {
           const response = await api.get('/user/orders', { params: { page, limit } });
-          const payload = response?.data ?? response;
-          const list = Array.isArray(payload?.orders)
-            ? payload.orders.map(normalizeOrder)
-            : [];
+          const payload = response?.data || response;
+          // Orders are in payload.orders if flattened, or payload.data.orders if wrapped
+          const orderListData = Array.isArray(payload?.orders) ? payload.orders : (payload?.data?.orders || []);
+          const list = orderListData.map(normalizeOrder);
           const pagination = {
             total: Number(payload?.total || 0),
             page: Number(payload?.page || page),
@@ -179,8 +199,10 @@ export const useOrderStore = create(
 
         try {
           const response = await api.get(`/user/orders/${orderId}`);
-          const payload = response?.data ?? response;
-          const normalized = normalizeOrder(payload);
+          const payload = response?.data || response;
+          // Extract order object from payload or payload.data
+          const orderData = payload?.orderId ? payload : (payload?.data || payload);
+          const normalized = normalizeOrder(orderData);
 
           set((state) => ({
             orders: [normalized, ...state.orders.filter((o) => String(o.id) !== String(normalized.id))],
