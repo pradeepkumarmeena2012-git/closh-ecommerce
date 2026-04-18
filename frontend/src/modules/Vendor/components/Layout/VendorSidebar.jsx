@@ -76,7 +76,6 @@ const getChildRoute = (parentRoute, childName) => {
     },
     "/vendor/stock-management": {
       "Manage Stock": "/vendor/stock-management/manage",
-      "Offline Sales": "/vendor/stock-management/offline-sales",
     },
   };
 

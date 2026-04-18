@@ -8,6 +8,7 @@ import {
   FiMinus,
   FiTrendingDown,
   FiX,
+  FiShoppingBag,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
@@ -32,6 +33,11 @@ const StockManagement = () => {
   const [variantDrawer, setVariantDrawer] = useState({
     isOpen: false,
     product: null,
+  });
+  const [saleModal, setSaleModal] = useState({
+    isOpen: false,
+    product: null,
+    type: "offline", // "offline" or "online"
   });
 
   const vendorId = vendor?.id;
@@ -161,6 +167,12 @@ const StockManagement = () => {
               <FiPackage />
             </button>
           )}
+          <button
+            onClick={() => setSaleModal({ isOpen: true, product: row, type: "offline" })}
+            title="Record Offline Sale"
+            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+            <FiShoppingBag />
+          </button>
         </div>
       ),
     },
@@ -326,6 +338,25 @@ const StockManagement = () => {
           const success = await patchVariantStock(productId, stockMap);
           if (success) {
             setVariantDrawer({ isOpen: false, product: null });
+          }
+        }}
+      />
+
+      {/* Manual Sale Modal */}
+      <ManualSaleModal
+        isOpen={saleModal.isOpen}
+        product={saleModal.product}
+        type={saleModal.type}
+        onClose={() => setSaleModal({ isOpen: false, product: null, type: "offline" })}
+        onUpdate={async (productId, payload) => {
+          let success = false;
+          if (payload.stockMap) {
+            success = await patchVariantStock(productId, payload.stockMap);
+          } else {
+            success = await patchStock(productId, payload.stockQuantity);
+          }
+          if (success) {
+            setSaleModal({ isOpen: false, product: null, type: "offline" });
           }
         }}
       />
@@ -539,6 +570,252 @@ const StockUpdateModal = ({
           </motion.div>
         </>
       )}
+    </AnimatePresence>
+  );
+};
+
+// --- NEW COMPONENT: Manual Sale Modal ---
+const ManualSaleModal = ({ isOpen, product, type, onClose, onUpdate }) => {
+  const [selectedVariant, setSelectedVariant] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Generate variants for selection
+  const combinations = useMemo(() => {
+    if (!product) return [];
+    
+    const combos = [];
+    const sizes = product.variants?.sizes || [];
+    const colors = product.variants?.colors || [];
+    const attributes = product.variants?.attributes || [];
+    const stockMap = product.variants?.stockMap || {};
+
+    if (attributes.length > 0) {
+      const combinationsList = (attrs) => {
+        if (attrs.length === 0) return [{}];
+        const res = [];
+        const rest = combinationsList(attrs.slice(1));
+        const currentAttr = attrs[0];
+        const axisKey = currentAttr.axisKey || currentAttr.name.toLowerCase().replace(/\s+/g, '_');
+        currentAttr.values.forEach((val) => {
+          rest.forEach((r) => {
+            res.push({ [axisKey]: val.toLowerCase().trim(), ...r });
+          });
+        });
+        return res;
+      };
+
+      const allCombos = combinationsList(attributes);
+      allCombos.forEach((selection) => {
+        const key = Object.entries(selection)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([k, v]) => `${k}=${v}`)
+          .join('|');
+        const label = Object.entries(selection)
+          .map(([k, v]) => `${v.toUpperCase()}`)
+          .join(' / ');
+        const stock = stockMap[key] || 0;
+        if (stock > 0) combos.push({ key, label, stock });
+      });
+    } else if (sizes.length > 0 && colors.length > 0) {
+      sizes.forEach((s) => {
+        colors.forEach((c) => {
+          const key = `${s.toLowerCase().trim()}|${c.toLowerCase().trim()}`;
+          const stock = stockMap[key] || 0;
+          if (stock > 0) combos.push({ key, label: `${s.toUpperCase()} / ${c.toUpperCase()}`, stock });
+        });
+      });
+    } else if (sizes.length > 0) {
+      sizes.forEach((s) => {
+        const key = `${s.toLowerCase().trim()}|`;
+        const stock = stockMap[key] || 0;
+        if (stock > 0) combos.push({ key, label: `Size: ${s.toUpperCase()}`, stock });
+      });
+    } else if (colors.length > 0) {
+      colors.forEach((c) => {
+        const key = `|${c.toLowerCase().trim()}`;
+        const stock = stockMap[key] || 0;
+        if (stock > 0) combos.push({ key, label: `Color: ${c.toUpperCase()}`, stock });
+      });
+    }
+
+    return combos;
+  }, [product]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedVariant("");
+      setQuantity(1);
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen || !product) return null;
+
+  const hasVariants = combinations.length > 0;
+  const currentVariantStock = hasVariants 
+    ? (combinations.find(c => c.key === selectedVariant)?.stock || 0)
+    : (product.stockQuantity || 0);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (hasVariants && !selectedVariant) {
+      toast.error("Please select a variant/size");
+      return;
+    }
+    if (quantity > currentVariantStock) {
+      toast.error(`Only ${currentVariantStock} items available in stock`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    const productId = product._id ?? product.id;
+
+    let payload;
+    if (hasVariants) {
+      const newStockMap = { ...(product.variants?.stockMap || {}) };
+      newStockMap[selectedVariant] = Math.max(0, currentVariantStock - quantity);
+      payload = { stockMap: newStockMap };
+    } else {
+      payload = { stockQuantity: Math.max(0, product.stockQuantity - quantity) };
+    }
+
+    await onUpdate(productId, payload);
+    toast.success(`${type === "offline" ? "Offline" : "Online"} sale recorded successfully!`);
+    setIsSubmitting(false);
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 z-[10000] backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="fixed inset-0 z-[10001] flex items-center justify-center p-4 pointer-events-none"
+      >
+        <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden pointer-events-auto border border-gray-100">
+          {/* Header */}
+          <div className={`p-6 border-b border-gray-100 ${type === "offline" ? "bg-emerald-50/30" : "bg-blue-50/30"}`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${type === "offline" ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"}`}>
+                  {type === "offline" ? <FiShoppingBag size={24} /> : <FiShoppingCart size={24} />}
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-gray-800 tracking-tight">
+                    Record {type === "offline" ? "Offline" : "Online"} Sale
+                  </h2>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Manual Stock Deduction</p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white/50 rounded-xl transition-colors"
+              >
+                <FiX className="text-gray-500" />
+              </button>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            {/* Product Info */}
+            <div className="flex items-center gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+              <img
+                src={product.image || product.images?.[0] || "https://via.placeholder.com/100x100?text=Product"}
+                alt={product.name}
+                className="w-16 h-16 object-cover rounded-xl shadow-sm"
+              />
+              <div className="min-w-0">
+                <h3 className="font-bold text-gray-800 text-sm truncate">{product.name}</h3>
+                <p className="text-xs font-bold text-emerald-600">Total Stock: {product.stockQuantity || 0}</p>
+              </div>
+            </div>
+
+            {hasVariants && (
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Select Size / Variant
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {combinations.map((variant) => (
+                    <button
+                      key={variant.key}
+                      type="button"
+                      onClick={() => setSelectedVariant(variant.key)}
+                      className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-start gap-1 ${
+                        selectedVariant === variant.key
+                          ? `${type === "offline" ? "border-emerald-500 bg-emerald-50/50" : "border-blue-500 bg-blue-50/50"}`
+                          : "border-gray-100 hover:border-gray-200 bg-white"
+                      }`}
+                    >
+                      <span className={`text-[10px] font-black ${selectedVariant === variant.key ? "text-gray-900" : "text-gray-600"}`}>
+                        {variant.label}
+                      </span>
+                      <span className="text-[9px] font-bold text-gray-400">Stock: {variant.stock}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                Quantity to Deduct
+              </label>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="size-12 rounded-2xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <FiMinus className="text-gray-600" />
+                </button>
+                <input
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="flex-1 h-12 bg-gray-50 border-none rounded-2xl text-center font-black text-lg focus:ring-2 focus:ring-gray-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.min(currentVariantStock, quantity + 1))}
+                  className="size-12 rounded-2xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <FiPlus className="text-gray-600" />
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-4 bg-gray-50 text-gray-600 font-black rounded-2xl hover:bg-gray-100 transition-all text-sm uppercase tracking-widest"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || (hasVariants && !selectedVariant) || currentVariantStock === 0}
+                className={`flex-1 py-4 text-white font-black rounded-2xl transition-all shadow-xl text-sm uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed ${
+                  type === "offline" 
+                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" 
+                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
+                }`}
+              >
+                {isSubmitting ? "Processing..." : "Confirm Sale"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 };

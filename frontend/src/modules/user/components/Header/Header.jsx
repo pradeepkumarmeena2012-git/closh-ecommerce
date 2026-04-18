@@ -280,10 +280,13 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                 className="px-4 py-1.5 flex items-center justify-between group transition-all overflow-hidden"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className="flex items-center ml-1">
-                                        <div className="flex flex-col items-center justify-center bg-white rounded-[7px] px-1.5 py-0.5 shadow-sm shrink-0 border border-black/5 min-w-[32px]">
-                                            <span className="text-[10px] font-black text-black leading-none uppercase">delivery in</span>
-                                            <span className="text-[10px] font-black text-[#FFC107] uppercase leading-none mt-0.5 whitespace-nowrap">60 min</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center justify-center bg-black rounded-[10px] w-8 h-8 shrink-0 shadow-sm">
+                                            <span className="text-white text-[14px] font-black">60</span>
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[9px] font-black text-black leading-none uppercase tracking-tight">Delivery in</span>
+                                            <span className="text-[9px] font-black text-black/70 leading-none mt-0.5">60 Mins</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => setIsLocationModalOpen(true)}>
