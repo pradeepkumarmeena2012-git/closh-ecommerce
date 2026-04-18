@@ -119,6 +119,7 @@ const getChildRoute = (parentRoute, childName) => {
     },
     "/admin/finance": {
       "Revenue Overview": "/admin/finance/revenue-overview",
+      "Vendor Settlements": "/admin/finance/settlements",
       "Profit & Loss": "/admin/finance/profit-loss",
       "Order Trends": "/admin/finance/order-trends",
       "Payment Breakdown": "/admin/finance/payment-breakdown",

@@ -23,6 +23,7 @@ const Earnings = () => {
   const getActiveTab = () => {
     const path = location.pathname;
     if (path.includes("/commission-history")) return "commission";
+    if (path.includes("/settlement-history")) return "payouts";
     return "overview";
   };
 
@@ -89,6 +90,8 @@ const Earnings = () => {
       navigate("/vendor/earnings");
     } else if (tab === "commission") {
       navigate("/vendor/earnings/commission-history");
+    } else if (tab === "payouts") {
+      navigate("/vendor/earnings/settlement-history");
     }
   };
 
@@ -130,6 +133,15 @@ const Earnings = () => {
               <FiFileText />
               <span>Commission History</span>
             </button>
+            <button
+              onClick={() => handleTabChange("payouts")}
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap text-sm ${activeTab === "payouts"
+                ? "border-purple-600 text-purple-600 font-semibold"
+                : "border-transparent text-gray-600 hover:text-gray-800"
+                }`}>
+              <FiCheckCircle />
+              <span>Payout History</span>
+            </button>
           </div>
         </div>
 
@@ -156,17 +168,17 @@ const Earnings = () => {
                 <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-6 shadow-sm border border-yellow-200">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm text-yellow-700 font-medium">
-                      Pending
+                      Available Balance
                     </p>
                     <FiClock className="text-yellow-600" />
                   </div>
                   <p className="text-2xl font-bold text-yellow-800">
                     {earningsSummary
-                      ? formatPrice(earningsSummary.pendingEarnings)
+                      ? formatPrice(earningsSummary.availableBalance || earningsSummary.pendingEarnings)
                       : formatPrice(0)}
                   </p>
                   <p className="text-xs text-yellow-600 mt-1">
-                    Awaiting settlement
+                    Ready for settlement
                   </p>
                 </div>
 
@@ -200,8 +212,8 @@ const Earnings = () => {
           )}
 
           {/* Commission History Section */}
-          {(activeTab === "overview" || activeTab === "commission") && (
-            <div className={activeTab === "overview" ? "mb-6" : ""}>
+          {activeTab === "commission" && (
+            <div className="">
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                   <div>
@@ -211,51 +223,6 @@ const Earnings = () => {
                     <p className="text-sm text-gray-600">
                       View all your commission records
                     </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <AnimatedSelect
-                      value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value)}
-                      options={[
-                        { value: "all", label: "All Status" },
-                        { value: "pending", label: "Pending" },
-                        { value: "paid", label: "Paid" },
-                        { value: "cancelled", label: "Cancelled" },
-                      ]}
-                      className="min-w-[140px]"
-                    />
-                    <ExportButton
-                      data={filteredCommissions}
-                      headers={[
-                        {
-                          label: "Order",
-                          accessor: (row) =>
-                            row.orderDisplayId ||
-                            (typeof row.orderId === "object"
-                              ? row.orderId?.orderId || row.orderId?._id
-                              : row.orderId),
-                        },
-                        {
-                          label: "Date",
-                          accessor: (row) =>
-                            new Date(row.createdAt).toLocaleDateString(),
-                        },
-                        {
-                          label: "Subtotal",
-                          accessor: (row) => formatPrice(row.subtotal),
-                        },
-                        {
-                          label: "Commission",
-                          accessor: (row) => formatPrice(row.commission),
-                        },
-                        {
-                          label: "Your Earnings",
-                          accessor: (row) => formatPrice(row.vendorEarnings),
-                        },
-                        { label: "Status", accessor: (row) => row.status },
-                      ]}
-                      filename="vendor-commissions"
-                    />
                   </div>
                 </div>
 
@@ -316,17 +283,6 @@ const Earnings = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() =>
-                              navigate(
-                                `/vendor/orders/${commission.orderRef || commission.orderId}`
-                              )
-                            }
-                            className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
-                            View Order
-                          </button>
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -336,11 +292,58 @@ const Earnings = () => {
                     <p className="text-gray-500 mb-2">
                       No commission records found
                     </p>
-                    <p className="text-sm text-gray-400">
-                      {selectedStatus !== "all"
-                        ? "Try selecting a different status"
-                        : "Commissions will appear here once you receive orders"}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Payout History Section */}
+          {activeTab === "payouts" && (
+            <div className="">
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-800 mb-1">
+                      Payout History
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      View all payments received from the platform
                     </p>
+                  </div>
+                </div>
+
+                {settlements && settlements.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
+                        <tr>
+                          <th className="px-6 py-4">Date</th>
+                          <th className="px-6 py-4">Amount</th>
+                          <th className="px-6 py-4">Method</th>
+                          <th className="px-6 py-4">Ref ID</th>
+                          <th className="px-6 py-4">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {settlements.map((s) => (
+                          <tr key={s._id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4 text-sm">{new Date(s.createdAt).toLocaleDateString()}</td>
+                            <td className="px-6 py-4 text-sm font-bold text-green-600">{formatPrice(s.amount)}</td>
+                            <td className="px-6 py-4 text-sm uppercase">{s.method}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{s.referenceId || 'N/A'}</td>
+                            <td className="px-6 py-4">
+                              <Badge variant="success">{s.status?.toUpperCase()}</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <FiCheckCircle className="text-4xl text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No payouts record found</p>
                   </div>
                 )}
               </div>

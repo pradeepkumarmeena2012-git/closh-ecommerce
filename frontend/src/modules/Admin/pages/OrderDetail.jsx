@@ -23,6 +23,14 @@ import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import { getOrderById, updateOrderStatus } from '../services/adminService';
 import { formatVariantLabel } from '../../../shared/utils/variant';
 import toast from 'react-hot-toast';
+import { IMAGE_BASE_URL } from '../../../shared/utils/constants';
+
+const getFullImageUrl = (image) => {
+    if (!image) return null;
+    if (image.startsWith('http')) return image;
+    const cleanImage = image.startsWith('/') ? image : `/${image}`;
+    return `${IMAGE_BASE_URL}${cleanImage}`;
+};
 
 const OrderDetail = () => {
   const navigate = useNavigate();
@@ -113,10 +121,10 @@ const OrderDetail = () => {
   // Resolve product image safely from the order payload
   const getProductImage = (item) => {
     if (item.image) {
-      return item.image;
+      return getFullImageUrl(item.image);
     }
     if (item.productId?.images?.[0]) {
-      return item.productId.images[0];
+      return getFullImageUrl(item.productId.images[0]);
     }
 
     // Return placeholder
@@ -390,43 +398,63 @@ const OrderDetail = () => {
             </div>
           )}
 
-          {/* Proof of Delivery Card */}
-          {(order.pickupPhoto || order.deliveryPhoto) && (
+          {/* Proof & Verification Gallery */}
+          {(order.readyPhoto || order.pickupPhoto || order.deliveryPhoto || order.openBoxPhoto) && (
             <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
                 <FiCamera className="text-primary-600 text-base" />
-                Proof of Delivery
+                Proof & Verification Photos
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {order.pickupPhoto && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-gray-500 uppercase ">Pickup Proof (from Vendor)</p>
-                    <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 group">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                {order.readyPhoto && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Package Ready</p>
+                    <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden border border-gray-200 group">
                       <img
-                        src={order.pickupPhoto}
+                        src={getFullImageUrl(order.readyPhoto)}
+                        alt="Ready Proof"
+                        className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                        onClick={() => window.open(getFullImageUrl(order.readyPhoto), '_blank')}
+                      />
+                    </div>
+                  </div>
+                )}
+                {order.pickupPhoto && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Pickup Proof</p>
+                    <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden border border-gray-200 group">
+                      <img
+                        src={getFullImageUrl(order.pickupPhoto)}
                         alt="Pickup Proof"
                         className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                        onClick={() => window.open(order.pickupPhoto, '_blank')}
+                        onClick={() => window.open(getFullImageUrl(order.pickupPhoto), '_blank')}
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                        <span className="text-white text-[10px] font-bold uppercase ">Click to View</span>
-                      </div>
                     </div>
                   </div>
                 )}
                 {order.deliveryPhoto && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-gray-500 uppercase ">Delivery Proof (to Customer)</p>
-                    <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200 group">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Delivery Proof</p>
+                    <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden border border-gray-200 group">
                       <img
-                        src={order.deliveryPhoto}
+                        src={getFullImageUrl(order.deliveryPhoto)}
                         alt="Delivery Proof"
                         className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                        onClick={() => window.open(order.deliveryPhoto, '_blank')}
+                        onClick={() => window.open(getFullImageUrl(order.deliveryPhoto), '_blank')}
                       />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                        <span className="text-white text-[10px] font-bold uppercase ">Click to View</span>
-                      </div>
+                    </div>
+                  </div>
+                )}
+                {order.openBoxPhoto && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Open Box Proof</p>
+                    <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden border border-gray-200 group">
+                      <img
+                        src={getFullImageUrl(order.openBoxPhoto)}
+                        alt="Open Box Proof"
+                        className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                        onClick={() => window.open(getFullImageUrl(order.openBoxPhoto), '_blank')}
+                      />
                     </div>
                   </div>
                 )}

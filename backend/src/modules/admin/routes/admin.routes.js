@@ -139,6 +139,7 @@ router.put('/brands/:id', ...adminAuth, checkPermission('brands_manage'), valida
 router.delete('/brands/:id', ...adminAuth, checkPermission('brands_manage'), validate(brandIdParamSchema, 'params'), catalogController.deleteBrand);
 
 // ─── Vendors ──────────────────────────────────────────────────────────────────
+import * as settlementController from '../controllers/settlement.controller.js';
 router.post('/vendors', ...adminAuth, checkPermission('vendors_manage'), uploadSingle('document'), validate(registerVendorSchema), vendorController.registerVendor);
 router.get('/vendors', ...adminAuth, checkPermission('vendors_manage'), validate(vendorListQuerySchema, 'query'), vendorController.getAllVendors);
 router.get('/vendors/pending', ...adminAuth, checkPermission('vendors_manage'), (req, res, next) => { req.query.status = 'pending'; next(); }, validate(vendorListQuerySchema, 'query'), vendorController.getAllVendors);
@@ -149,6 +150,11 @@ router.patch('/vendors/:id/documents/:documentId/status', ...adminAuth, checkPer
 router.get('/vendors/:id/commissions', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), validate(vendorCommissionsQuerySchema, 'query'), vendorController.getVendorCommissions);
 router.patch('/vendors/:id/status', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), validate(vendorStatusUpdateSchema), vendorController.updateVendorStatus);
 router.patch('/vendors/:id/commission', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), validate(vendorCommissionUpdateSchema), vendorController.updateCommissionRate);
+
+// ─── Vendor Settlements ────────────────────────────────────────────────────────
+router.get('/settlements/balances', ...adminAuth, checkPermission('finance_view'), settlementController.getVendorsBalances);
+router.post('/settlements/process', ...adminAuth, checkPermission('finance_view'), settlementController.processSettlement);
+router.get('/settlements/history', ...adminAuth, checkPermission('finance_view'), settlementController.getSettlementHistory);
 
 // ─── Customers ────────────────────────────────────────────────────────────────
 router.get('/customers', ...adminAuth, checkPermission('customers_manage'), validate(customerListQuerySchema, 'query'), customerController.getAllCustomers);

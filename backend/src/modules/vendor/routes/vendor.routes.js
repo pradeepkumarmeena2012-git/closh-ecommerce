@@ -112,8 +112,12 @@ router.get('/performance/metrics', ...vendorAuth, performanceController.getPerfo
 // Analytics
 router.get('/analytics/overview', ...vendorAuth, analyticsController.getAnalyticsOverview);
 
-// Earnings & Withdrawals
+// Earnings & Wallet
+import * as walletController from '../controllers/wallet.controller.js';
 router.get('/earnings', ...vendorAuth, orderController.getEarnings);
+router.get('/wallet/summary', ...vendorAuth, walletController.getWalletSummary);
+router.get('/wallet/payouts', ...vendorAuth, walletController.getPayoutHistory);
+router.get('/wallet/transactions', ...vendorAuth, walletController.getTransactionLedger);
 router.post('/withdrawals', ...vendorAuth, withdrawalController.requestWithdrawal);
 router.get('/withdrawals', ...vendorAuth, withdrawalController.getWithdrawalHistory);
 
