@@ -361,9 +361,14 @@ const TaxPricing = () => {
                     e.preventDefault();
                     const formData = new FormData(e.target);
                     try {
+                      const rate = parseFloat(formData.get("rate") || 0);
+                      if (rate < 0) {
+                        toast.error("Tax rate cannot be negative");
+                        return;
+                      }
                       await handleSaveTax({
                         name: String(formData.get("name") || "").trim(),
-                        rate: parseFloat(formData.get("rate")),
+                        rate,
                         type: String(formData.get("type") || "percentage"),
                         applicableTo: String(formData.get("applicableTo") || "all"),
                         status: String(formData.get("status") || "active"),
@@ -388,6 +393,11 @@ const TaxPricing = () => {
                     placeholder="Tax Rate (%)"
                     required
                     step="0.01"
+                    min="0"
+                    onKeyDown={(e) => ["-", "+", "e"].includes(e.key) && e.preventDefault()}
+                    onInput={(e) => {
+                      if (e.target.value < 0) e.target.value = 0;
+                    }}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <AnimatedSelect
@@ -534,10 +544,15 @@ const TaxPricing = () => {
                     e.preventDefault();
                     const formData = new FormData(e.target);
                     try {
+                      const value = parseFloat(formData.get("value") || 0);
+                      if (value < 0) {
+                        toast.error("Value cannot be negative");
+                        return;
+                      }
                       await handleSavePricing({
                         name: String(formData.get("name") || "").trim(),
                         type: String(formData.get("type") || "discount"),
-                        value: parseFloat(formData.get("value")),
+                        value,
                         minQuantity: formData.get("minQuantity")
                           ? parseInt(formData.get("minQuantity"))
                           : null,
@@ -583,6 +598,11 @@ const TaxPricing = () => {
                     placeholder="Value (%)"
                     required
                     step="0.01"
+                    min="0"
+                    onKeyDown={(e) => ["-", "+", "e"].includes(e.key) && e.preventDefault()}
+                    onInput={(e) => {
+                      if (e.target.value < 0) e.target.value = 0;
+                    }}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <input

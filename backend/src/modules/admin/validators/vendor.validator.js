@@ -34,7 +34,9 @@ export const registerVendorSchema = Joi.object({
     phone: Joi.string().trim().min(10).max(15).required(),
     gstNumber: Joi.string().trim().min(15).max(15).required(), // GST is usually 15 chars
     shopAddress: Joi.string().trim().min(5).max(500).required(),
-    email: Joi.string().trim().lowercase().email().required(),
+    email: Joi.string().trim().lowercase().email().required().messages({
+        "string.email": "Invalid mail",
+    }),
     password: Joi.string().trim().min(6).required(),
 });
 

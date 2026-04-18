@@ -60,7 +60,8 @@ const RegisterVendor = () => {
                 toast.error(response.message || "Failed to register vendor");
             }
         } catch (error) {
-            toast.error(error.message || "An error occurred");
+            // Error is already handled by the API interceptor toast
+            console.error("Registration error:", error);
         } finally {
             setLoading(false);
         }

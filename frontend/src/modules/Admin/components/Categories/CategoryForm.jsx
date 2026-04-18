@@ -29,7 +29,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
     image: "",
     parentId: null,
     isActive: true,
-    order: 0,
+    order: "",
   });
 
   useEffect(() => {
@@ -40,7 +40,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
         image: category.image || "",
         parentId: category.parentId || null,
         isActive: category.isActive !== undefined ? category.isActive : true,
-        order: category.order || 0,
+        order: category.order ?? "",
       });
     } else if (parentId !== null) {
       setFormData({
@@ -49,7 +49,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
         image: "",
         parentId: parentId,
         isActive: true,
-        order: 0,
+        order: "",
       });
     }
   }, [category, parentId]);
@@ -70,14 +70,24 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
       return;
     }
 
+    if (!formData.image) {
+      toast.error("Category image is required");
+      return;
+    }
+
     if (isSubmitting) return;
     setIsSubmitting(true);
 
+    const submissionData = {
+      ...formData,
+      order: (formData.order === "" || formData.order === null) ? 0 : parseInt(formData.order, 10),
+    };
+
     try {
       if (isEdit) {
-        await updateCategory(category.id, formData);
+        await updateCategory(category.id, submissionData);
       } else {
-        await createCategory(formData);
+        await createCategory(submissionData);
       }
       onSave?.();
       onClose();
@@ -313,7 +323,7 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                 </h3>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Upload Image
+                    Upload Image <span className="text-red-500">*</span>
                   </label>
                   <div className="mt-1">
                     <label className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer text-sm font-semibold">
@@ -360,9 +370,10 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
                     <input
                       type="number"
                       name="order"
-                      value={formData.order}
+                      value={formData.order ?? ""}
                       onChange={handleChange}
                       min="0"
+                      placeholder="0"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   </div>
