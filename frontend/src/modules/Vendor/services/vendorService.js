@@ -497,6 +497,21 @@ export const deleteVendorShippingRate = (id) =>
  */
 export const getVendorEarnings = () => api.get('/vendor/earnings');
 
+/**
+ * Get vendor wallet summary
+ */
+export const getVendorWalletSummary = () => api.get('/vendor/wallet/summary');
+
+/**
+ * Get vendor payout history (settlements)
+ */
+export const getVendorPayoutHistory = (params = {}) => api.get('/vendor/wallet/payouts', { params });
+
+/**
+ * Get vendor transaction ledger
+ */
+export const getVendorTransactionLedger = () => api.get('/vendor/wallet/transactions');
+
 
 // ─── BANK DETAILS ───────────────────────────────────────────────────────────────
 

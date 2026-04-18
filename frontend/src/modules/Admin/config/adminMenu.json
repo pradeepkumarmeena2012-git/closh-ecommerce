@@ -162,6 +162,7 @@
     "permission": "finance_view",
     "children": [
       "Revenue Overview",
+      "Vendor Settlements",
       "Profit & Loss",
       "Order Trends",
       "Payment Breakdown",

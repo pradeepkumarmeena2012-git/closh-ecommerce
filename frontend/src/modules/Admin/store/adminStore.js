@@ -71,6 +71,12 @@ export const useAdminAuthStore = create(
     {
       name: 'admin-auth-storage',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        admin: state.admin,
+        token: state.token,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated
+      }),
     }
   )
 )

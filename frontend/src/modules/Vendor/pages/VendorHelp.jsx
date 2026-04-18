@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FiMessageSquare, FiSend, FiMail, FiPhoneCall, FiClock, FiPlus, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
@@ -10,6 +10,12 @@ const VendorHelp = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
+    const messagesEndRef = useRef(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
     const [formData, setFormData] = useState({
         subject: '',
         message: ''
@@ -20,6 +26,13 @@ const VendorHelp = () => {
     useEffect(() => {
         fetchTickets();
     }, []);
+
+    // Scroll to bottom when messages change
+    useEffect(() => {
+        if (selectedTicket) {
+            scrollToBottom();
+        }
+    }, [selectedTicket?.messages]);
 
     // Real-time: join ticket room when a ticket is selected
     useEffect(() => {
@@ -43,11 +56,26 @@ const VendorHelp = () => {
             setSelectedTicket((prev) => {
                 if (!prev || prev._id !== ticketId) return prev;
 
-                // Prevent duplicate messages
-                const isDuplicate = prev.messages.some(m =>
+                // Check if we have an optimistic version of this message
+                const optimisticIdx = prev.messages.findIndex(m =>
+                    m.isOptimistic &&
                     m.message === message.message &&
-                    m.senderType === message.senderType &&
-                    String(m.createdAt) === String(message.createdAt)
+                    m.senderType === message.senderType
+                );
+
+                if (optimisticIdx !== -1) {
+                    // Replace optimistic message with the real one from server
+                    const newMessages = [...prev.messages];
+                    newMessages[optimisticIdx] = message;
+                    return { ...prev, messages: newMessages };
+                }
+
+                // Prevent duplicate messages by ID
+                const isDuplicate = prev.messages.some(m =>
+                    (m._id && message._id && m._id === message._id) ||
+                    (m.message === message.message &&
+                        m.senderType === message.senderType &&
+                        Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 5000)
                 );
                 if (isDuplicate) return prev;
 
@@ -120,7 +148,8 @@ const VendorHelp = () => {
             senderId: 'vendor',
             senderType: 'vendor',
             message: replyMessage.trim(),
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            isOptimistic: true // Mark as optimistic to prevent double display
         };
 
         const previousTicket = { ...selectedTicket, messages: [...selectedTicket.messages] };
@@ -282,6 +311,7 @@ const VendorHelp = () => {
                                         </span>
                                     </div>
                                 ))}
+                                <div ref={messagesEndRef} />
                             </div>
 
                             {/* Chat Input */}

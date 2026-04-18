@@ -2,13 +2,17 @@ import mongoose from 'mongoose';
 
 const settlementSchema = new mongoose.Schema(
     {
-        vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true, index: true },
-        commissionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Commission' }],
+        vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', index: true },
+        deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBoy', index: true },
+        type: { type: String, enum: ['vendor', 'rider'], default: 'vendor' },
         amount: { type: Number, required: true },
-        paymentMethod: { type: String, enum: ['bank_transfer', 'wallet', 'upi'], default: 'bank_transfer' },
-        transactionId: String,
+        method: { type: String, enum: ['bank_transfer', 'upi', 'cash', 'other'], default: 'bank_transfer' },
+        referenceId: { type: String, trim: true, unique: true, sparse: true }, // Transaction ID
         notes: String,
-        status: { type: String, enum: ['completed', 'failed'], default: 'completed' },
+        status: { type: String, enum: ['processing', 'completed', 'failed'], default: 'completed' },
+        processedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' },
+        periodStart: Date,
+        periodEnd: Date,
     },
     { timestamps: true }
 );

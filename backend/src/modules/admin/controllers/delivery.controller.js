@@ -1,5 +1,6 @@
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import { Order } from '../../../models/Order.model.js';
+import Settlement from '../../../models/Settlement.model.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
@@ -96,7 +97,7 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
                                 {
                                     $and: [
                                         { $eq: ['$status', 'delivered'] },
-                                        { $in: ['$paymentMethod', ['cod', 'cash']] },
+                                        { $in: ['$paymentMethod', ['cod', 'cash', 'COD', 'CASH']] },
                                         { $ne: ['$isCashSettled', true] }
                                     ]
                                 },
@@ -140,9 +141,30 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
         };
     }));
 
+    // Calculate Global Stats
+    const globalStats = await Order.aggregate([
+        {
+            $match: {
+                status: 'delivered',
+                paymentMethod: { $in: ['cod', 'cash', 'COD', 'CASH'] },
+                isDeleted: { $ne: true }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                totalLifetime: { $sum: '$total' },
+                pendingSettlement: {
+                    $sum: { $cond: [{ $ne: ['$isCashSettled', true] }, '$total', 0] }
+                }
+            }
+        }
+    ]);
+
     res.status(200).json(
         new ApiResponse(200, {
             deliveryBoys: boysWithStats,
+            summary: globalStats[0] || { totalLifetime: 0, pendingSettlement: 0 },
             pagination: {
                 total,
                 page: numericPage,
@@ -188,7 +210,7 @@ export const getDeliveryBoyById = asyncHandler(async (req, res) => {
                             {
                                 $and: [
                                     { $eq: ['$status', 'delivered'] },
-                                    { $in: ['$paymentMethod', ['cod', 'cash']] },
+                                    { $in: ['$paymentMethod', ['cod', 'cash', 'COD', 'CASH']] },
                                     { $ne: ['$isCashSettled', true] }
                                 ]
                             },
@@ -449,9 +471,12 @@ export const settleCash = asyncHandler(async (req, res) => {
     }
 
     const baseFilter = {
-        deliveryBoyId: req.params.id,
+        $or: [
+            { deliveryBoyId: req.params.id },
+            { deliveryBoyId: mongoose.Types.ObjectId.isValid(req.params.id) ? new mongoose.Types.ObjectId(req.params.id) : null }
+        ].filter(f => f.deliveryBoyId !== null),
         status: 'delivered',
-        paymentMethod: { $in: ['cod', 'cash'] },
+        paymentMethod: { $in: ['cod', 'cash', 'COD', 'CASH'] },
         isCashSettled: { $ne: true },
         isDeleted: { $ne: true },
     };
@@ -483,15 +508,32 @@ export const settleCash = asyncHandler(async (req, res) => {
         }
     );
 
-    await DeliveryBoy.findByIdAndUpdate(req.params.id, {
-        $inc: { cashCollected: settledAmount },
+    // 1. Create Settlement Record (Type: Rider)
+    await Settlement.create({
+        deliveryBoyId: req.params.id,
+        type: 'rider',
+        amount: settledAmount,
+        method: 'cash',
+        notes: `Cash collected from rider for ${result.modifiedCount} orders`,
+        processedBy: req.user._id,
+        status: 'completed'
     });
+
+    // 2. Decrement Rider Cash Collected (In Hand)
+    // We use Math.max to ensure it doesn't go negative if there's a mismatch with old data
+    const rider = await DeliveryBoy.findById(req.params.id);
+    if (rider) {
+        const newBalance = Math.max(0, (rider.cashCollected || 0) - settledAmount);
+        await DeliveryBoy.findByIdAndUpdate(req.params.id, {
+            $set: { cashCollected: newBalance },
+        });
+    }
 
     res.status(200).json(
         new ApiResponse(
             200,
             { modifiedCount: result.modifiedCount, settledAmount },
-            `Settled cash for ${result.modifiedCount} orders`
+            `Cash collection done. Settled ₹${settledAmount} for ${result.modifiedCount} orders.`
         )
     );
 });
@@ -509,9 +551,12 @@ export const getCashHistory = asyncHandler(async (req, res) => {
 
     // Find all COD/Cash orders delivered by this boy
     const orders = await Order.find({
-        deliveryBoyId: req.params.id,
+        $or: [
+            { deliveryBoyId: req.params.id },
+            { deliveryBoyId: mongoose.Types.ObjectId.isValid(req.params.id) ? new mongoose.Types.ObjectId(req.params.id) : null }
+        ].filter(f => f.deliveryBoyId !== null),
         status: 'delivered',
-        paymentMethod: { $in: ['cod', 'cash'] },
+        paymentMethod: { $in: ['cod', 'cash', 'COD', 'CASH'] },
         isDeleted: { $ne: true }
     })
         .sort({ deliveredAt: -1, createdAt: -1 })

@@ -24,6 +24,11 @@ const AdminLogin = () => {
     return '/admin/dashboard';
   };
 
+  useEffect(() => {
+    // Reset loading state on mount to prevent stuck "Authorizing..." state
+    useAdminAuthStore.setState({ isLoading: false });
+  }, []);
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',

@@ -333,42 +333,62 @@ const OrderDetail = () => {
                     </div>
 
                     {/* Proof of Delivery Card */}
-                    {(order.pickupPhoto || order.deliveryPhoto) && (
+                    {(order.readyPhoto || order.pickupPhoto || order.deliveryPhoto || order.openBoxPhoto) && (
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mt-6">
                             <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
                                 <FiCamera className="text-blue-600" />
-                                Proof of Delivery
+                                Proof & Verification Photos
                             </h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                                {order.readyPhoto && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase ">Package Ready Proof</p>
+                                        <div className="relative aspect-video bg-white rounded-lg overflow-hidden border border-gray-100 group">
+                                            <img
+                                                src={getFullImageUrl(order.readyPhoto)}
+                                                alt="Ready Proof"
+                                                className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                                                onClick={() => window.open(getFullImageUrl(order.readyPhoto), '_blank')}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                                 {order.pickupPhoto && (
                                     <div className="space-y-2">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase ">Pickup Proof (from Your Store)</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase ">Pickup Proof</p>
                                         <div className="relative aspect-video bg-white rounded-lg overflow-hidden border border-gray-100 group">
                                             <img
                                                 src={getFullImageUrl(order.pickupPhoto)}
                                                 alt="Pickup Proof"
                                                 className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                                                onClick={() => window.open(order.pickupPhoto, '_blank')}
+                                                onClick={() => window.open(getFullImageUrl(order.pickupPhoto), '_blank')}
                                             />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                                <span className="text-white text-[10px] font-bold uppercase ">View Full Size</span>
-                                            </div>
                                         </div>
                                     </div>
                                 )}
                                 {order.deliveryPhoto && (
                                     <div className="space-y-2">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase ">Delivery Proof (to Customer)</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase ">Delivery Proof</p>
                                         <div className="relative aspect-video bg-white rounded-lg overflow-hidden border border-gray-100 group">
                                             <img
                                                 src={getFullImageUrl(order.deliveryPhoto)}
                                                 alt="Delivery Proof"
                                                 className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                                                onClick={() => window.open(order.deliveryPhoto, '_blank')}
+                                                onClick={() => window.open(getFullImageUrl(order.deliveryPhoto), '_blank')}
                                             />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                                <span className="text-white text-[10px] font-bold uppercase ">View Full Size</span>
-                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {order.openBoxPhoto && (
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase ">Open Box Proof</p>
+                                        <div className="relative aspect-video bg-white rounded-lg overflow-hidden border border-gray-100 group">
+                                            <img
+                                                src={getFullImageUrl(order.openBoxPhoto)}
+                                                alt="Open Box Proof"
+                                                className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
+                                                onClick={() => window.open(getFullImageUrl(order.openBoxPhoto), '_blank')}
+                                            />
                                         </div>
                                     </div>
                                 )}
