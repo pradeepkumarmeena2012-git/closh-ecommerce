@@ -60,8 +60,9 @@ const Transactions = () => {
                 amount,
                 type: "payment",
                 status:
-                  paymentStatusMap[order.paymentStatus] ||
-                  (order.status === "cancelled" ? "failed" : "completed"),
+                  order.status === "cancelled"
+                    ? "failed"
+                    : paymentStatusMap[order.paymentStatus] || "completed",
                 method,
                 date: createdDate,
               },
@@ -181,11 +182,18 @@ const Transactions = () => {
       key: "status",
       label: "Status",
       sortable: true,
-      render: (value) => (
-        <Badge variant={value === "completed" ? "success" : "error"}>
-          {value}
-        </Badge>
-      ),
+      render: (value) => {
+        const variantMap = {
+          completed: "success",
+          pending: "warning",
+          failed: "error",
+        };
+        return (
+          <Badge variant={variantMap[value] || "info"}>
+            {value.charAt(0).toUpperCase() + value.slice(1)}
+          </Badge>
+        );
+      },
     },
     {
       key: "date",
