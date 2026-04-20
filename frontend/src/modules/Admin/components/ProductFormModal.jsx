@@ -727,6 +727,25 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       return;
     }
 
+    // Validate Variant Stock
+    const mainStock = parseInt(formData.stockQuantity || 0, 10);
+    if (variantCombinations.length > 0) {
+      let totalVariantStock = 0;
+      let hasVariantsWithStock = false;
+      Object.entries(formData.variants?.stockMap || {}).forEach(([key, stock]) => {
+        const isValidCombination = variantCombinations.some(c => c.key === key);
+        if (isValidCombination && stock !== undefined && stock !== "") {
+          totalVariantStock += Number(stock);
+          hasVariantsWithStock = true;
+        }
+      });
+
+      if (hasVariantsWithStock && totalVariantStock > mainStock) {
+        toast.error(`Total variant stock (${totalVariantStock}) cannot exceed main stock quantity (${mainStock}).`);
+        return;
+      }
+    }
+
     const submissionData = {
       ...formData,
       price: parseFloat(formData.price || 0),
@@ -782,6 +801,25 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     try {
       // First update the status and activation fields
       await updateProductStatus(productId, "approved");
+
+      // Validate Variant Stock
+      const mainStock = parseInt(formData.stockQuantity || 0, 10);
+      if (variantCombinations.length > 0) {
+        let totalVariantStock = 0;
+        let hasVariantsWithStock = false;
+        Object.entries(formData.variants?.stockMap || {}).forEach(([key, stock]) => {
+          const isValidCombination = variantCombinations.some(c => c.key === key);
+          if (isValidCombination && stock !== undefined && stock !== "") {
+            totalVariantStock += Number(stock);
+            hasVariantsWithStock = true;
+          }
+        });
+
+        if (hasVariantsWithStock && totalVariantStock > mainStock) {
+          toast.error(`Total variant stock (${totalVariantStock}) cannot exceed main stock quantity (${mainStock}).`);
+          return;
+        }
+      }
 
       // Then save the rest of the form (prices, etc)
       const submissionData = {
@@ -1502,7 +1540,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                                             type="number"
                                             min="0"
                                             step="0.01"
-                                            value={vPrice ?? ""}
+                                            value={vPrice !== undefined ? vPrice : formData.price || ""}
                                             onChange={(e) => {
                                               const nextValue = e.target.value;
                                               setFormData((prev) => ({
@@ -1564,55 +1602,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                                             <FiSave size={14} />
                                           </button>
                                         </div>
-                                      </div>
-                                    </div>
-
-                                    {/* Image Upload */}
-                                    <div className="md:w-1/4 flex items-center gap-3 bg-white p-2 rounded-lg border border-gray-200">
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        id={`admin-variant-image-${idx}`}
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file) handleVariantImageUpload(combo.key, file);
-                                          e.target.value = "";
-                                        }}
-                                      />
-                                      <label 
-                                        htmlFor={`admin-variant-image-${idx}`}
-                                        className="relative w-12 h-12 flex-shrink-0 group cursor-pointer hover:opacity-80 transition-opacity"
-                                      >
-                                        {vImage ? (
-                                          <img
-                                            src={vImage}
-                                            alt="Variant"
-                                            className="w-full h-full rounded-md object-cover border border-gray-200"
-                                          />
-                                        ) : (
-                                          <div className="w-full h-full rounded-md bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300 text-gray-400 group-hover:border-primary-400 group-hover:text-primary-500">
-                                            <FiUpload size={16} />
-                                          </div>
-                                        )}
-                                      </label>
-                                      
-                                      <div className="flex flex-col gap-1">
-                                        <label
-                                          htmlFor={`admin-variant-image-${idx}`}
-                                          className="text-[10px] font-bold text-primary-600 hover:text-primary-700 cursor-pointer uppercase tracking-tight"
-                                        >
-                                          Upload Image
-                                        </label>
-                                        {vImage && (
-                                          <button
-                                            type="button"
-                                            onClick={() => applyValueToSimilar('image', combo, vImage)}
-                                            className="text-[9px] font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-tight text-left"
-                                          >
-                                            Copy to same {combo.color ? 'Color' : 'Size'}
-                                          </button>
-                                        )}
                                       </div>
                                     </div>
                                   </div>

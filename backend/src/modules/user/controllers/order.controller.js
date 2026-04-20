@@ -119,6 +119,7 @@ const resolveVariantSelection = (product, selectedVariant) => {
     }
 
     const candidateKeys = [
+        [size && `size=${size}`, color && `color=${color}`].filter(Boolean).sort().join('|'),
         `${size}|${color}`,
         `${size}-${color}`,
         `${size}_${color}`,
@@ -184,6 +185,7 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
     if (!size && !color) return null;
 
     const candidates = [
+        [size && `size=${size}`, color && `color=${color}`].filter(Boolean).sort().join('|'),
         `${size}|${color}`,
         `${size}-${color}`,
         `${size}_${color}`,
