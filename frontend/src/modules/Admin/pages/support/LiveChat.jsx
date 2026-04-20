@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { FiMessageCircle, FiSend, FiUser, FiCheckCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useSupportStore } from '../../../../shared/store/supportStore';
@@ -16,6 +16,17 @@ const LiveChat = ({ type = 'customer' }) => {
     leaveTicketRoom
   } = useSupportStore();
   const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (selectedTicket?.messages) {
+      scrollToBottom();
+    }
+  }, [selectedTicket?.messages]);
 
   useEffect(() => {
     fetchTickets({ limit: 200, type });
@@ -168,6 +179,7 @@ const LiveChat = ({ type = 'customer' }) => {
               {(!selectedTicket.messages || selectedTicket.messages.length === 0) && (
                 <p className="text-center text-gray-500 text-sm">No messages yet.</p>
               )}
+              <div ref={messagesEndRef} />
             </div>
             <div className="p-4 border-t border-gray-200">
               <div className="flex items-center gap-2">

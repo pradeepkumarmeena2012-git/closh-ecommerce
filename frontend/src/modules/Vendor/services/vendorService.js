@@ -74,6 +74,13 @@ export const updateVendorProfile = (data) => api.put('/vendor/auth/profile', dat
 export const updateVendorLocation = (latitude, longitude) =>
     api.put('/vendor/auth/location', { latitude, longitude });
 
+/**
+ * Update vendor online status
+ * @param {boolean} isOnline
+ */
+export const updateVendorOnlineStatus = (isOnline) =>
+    api.patch('/vendor/auth/online-status', { isOnline });
+
 
 // ─── PRODUCTS ──────────────────────────────────────────────────────────────────
 
@@ -489,6 +496,21 @@ export const deleteVendorShippingRate = (id) =>
  * Returns { summary: { totalEarnings, pendingEarnings, paidEarnings, totalCommission, totalOrders }, commissions: [...] }
  */
 export const getVendorEarnings = () => api.get('/vendor/earnings');
+
+/**
+ * Get vendor wallet summary
+ */
+export const getVendorWalletSummary = () => api.get('/vendor/wallet/summary');
+
+/**
+ * Get vendor payout history (settlements)
+ */
+export const getVendorPayoutHistory = (params = {}) => api.get('/vendor/wallet/payouts', { params });
+
+/**
+ * Get vendor transaction ledger
+ */
+export const getVendorTransactionLedger = () => api.get('/vendor/wallet/transactions');
 
 
 // ─── BANK DETAILS ───────────────────────────────────────────────────────────────

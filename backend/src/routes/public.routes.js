@@ -125,25 +125,28 @@ const listProducts = asyncHandler(async (req, res) => {
     const skip = (page - 1) * limit;
     const filter = { isActive: true };
 
-    const requestedCategory = subcategory || subCategory || category || division;
+    if (division && division !== 'All') {
+        filter.division = { $regex: new RegExp(`^${division}$`, 'i') };
+    }
 
-    if (requestedCategory) {
+    const requestedCategory = subcategory || subCategory || category;
+
+    if (requestedCategory && requestedCategory !== 'All') {
         let categoryId = String(requestedCategory);
         const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(categoryId);
 
         let shouldFilter = true;
         if (!isValidObjectId) {
-            const catDoc = await Category.findOne({ name: { $regex: new RegExp(`^${requestedCategory}$`, 'i') } });
+            const catDoc = await Category.findOne({ name: { $regex: new RegExp(`^${requestedCategory}$`, 'i') }, isActive: true });
             if (catDoc) {
                 categoryId = String(catDoc._id);
             } else {
                 shouldFilter = false;
-                filter.categoryId = null; // Force empty result if name not found
+                filter.categoryId = null;
             }
         }
 
         if (shouldFilter) {
-            // Get all descendants to support recursive filtering (Admin selects a parent, we show all products in children)
             const allDescendants = await Category.find({ isActive: true }).lean();
             const getDescendantIds = (parentId) => {
                 let ids = [String(parentId)];
@@ -155,12 +158,21 @@ const listProducts = asyncHandler(async (req, res) => {
             };
 
             const categoryIds = Array.from(new Set(getDescendantIds(categoryId)));
-            
-            // Search in categoryId on the Product model
             filter.categoryId = { $in: categoryIds };
         }
     }
-    if (brand) filter.brandId = brand;
+
+    // Smart Brand Resolution: Resolve name to ID if needed
+    if (brand) {
+        if (/^[0-9a-fA-F]{24}$/.test(brand)) {
+            filter.brandId = brand;
+        } else {
+            const brandDoc = await Brand.findOne({ name: { $regex: new RegExp(`^${brand}$`, 'i') } });
+            if (brandDoc) filter.brandId = brandDoc._id;
+            else filter.brandId = null; // No match found
+        }
+    }
+
     if (vendor) filter.vendorId = vendor;
     if (flashSale === 'true') filter.flashSale = true;
     if (isNewArrival === 'true') filter.isNewArrival = true;
@@ -179,10 +191,10 @@ const listProducts = asyncHandler(async (req, res) => {
     const sortMap = { newest: { createdAt: -1 }, oldest: { createdAt: 1 }, 'price-asc': { price: 1 }, 'price-desc': { price: -1 }, popular: { reviewCount: -1 }, rating: { rating: -1 } };
 
     const products = await Product.find(filter)
-        .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount variants')
+        .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount variants division')
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
-        .populate('vendorId', 'storeName')
+        .populate('vendorId', 'storeName isOnline')
         .sort(sortMap[sort] || { createdAt: -1 })
         .skip(skip)
         .limit(Number(limit));
@@ -204,7 +216,9 @@ router.get('/products', listProducts);
 
 // GET /api/products/flash-sale
 router.get('/flash-sale', asyncHandler(async (req, res) => {
-    const products = await Product.find({ isActive: true, flashSale: true }).limit(20);
+    const products = await Product.find({ isActive: true, flashSale: true })
+        .populate('vendorId', 'storeName isOnline')
+        .limit(20);
     const activeProducts = await applyActiveCampaigns(products);
     res.status(200).json(new ApiResponse(200, activeProducts, 'Flash sale products.'));
 }));
@@ -252,7 +266,7 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
         Product.find(filter)
             .populate('categoryId', 'name')
             .populate('brandId', 'name')
-            .populate('vendorId', 'storeName')
+            .populate('vendorId', 'storeName isOnline')
             .sort(sortMap[sort] || sortMap.newest)
             .skip(skip)
             .limit(numericLimit),
@@ -270,7 +284,10 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
 
 // GET /api/products/popular
 router.get('/popular', asyncHandler(async (req, res) => {
-    const products = await Product.find({ isActive: true }).sort({ reviewCount: -1, rating: -1 }).limit(10);
+    const products = await Product.find({ isActive: true })
+        .populate('vendorId', 'storeName isOnline')
+        .sort({ reviewCount: -1, rating: -1 })
+        .limit(10);
     const activeProducts = await applyActiveCampaigns(products);
     res.status(200).json(new ApiResponse(200, activeProducts, 'Popular products.'));
 }));
@@ -279,7 +296,9 @@ router.get('/popular', asyncHandler(async (req, res) => {
 router.get('/similar/:id', asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) throw new ApiError(404, 'Product not found.');
-    const similar = await Product.find({ isActive: true, _id: { $ne: product._id }, categoryId: product.categoryId }).limit(6);
+    const similar = await Product.find({ isActive: true, _id: { $ne: product._id }, categoryId: product.categoryId })
+        .populate('vendorId', 'storeName isOnline')
+        .limit(6);
     const activeSimilar = await applyActiveCampaigns(similar);
     res.status(200).json(new ApiResponse(200, activeSimilar, 'Similar products.'));
 }));
@@ -288,7 +307,7 @@ const getProductDetail = asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id)
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
-        .populate('vendorId', 'storeName storeLogo rating address shopLocation freeShippingThreshold');
+        .populate('vendorId', 'storeName storeLogo rating address shopLocation freeShippingThreshold isOnline');
     if (!product) throw new ApiError(404, 'Product not found.');
     const activeProduct = await applyActiveCampaigns(product);
     res.status(200).json(new ApiResponse(200, activeProduct, 'Product detail.'));
@@ -394,7 +413,7 @@ router.get('/vendors/:id/products', asyncHandler(async (req, res) => {
     const products = await Product.find(filter)
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
-        .populate('vendorId', 'storeName')
+        .populate('vendorId', 'storeName isOnline')
         .sort(sortMap[sort] || { createdAt: -1 })
         .skip(skip)
         .limit(numericLimit);
@@ -593,7 +612,7 @@ router.get('/campaigns', asyncHandler(async (req, res) => {
                 })
                     .populate('categoryId', 'name')
                     .populate('brandId', 'name')
-                    .populate('vendorId', 'storeName')
+                    .populate('vendorId', 'storeName isOnline')
                     .select('name price originalPrice images image categoryId brandId vendorId')
                     .limit(20)
                     .lean();

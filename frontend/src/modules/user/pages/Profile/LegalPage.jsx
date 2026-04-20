@@ -88,8 +88,19 @@ const LegalPage = () => {
             try {
                 const key = keyMap[pageId];
                 if (key) {
+                    // Try 'content' category first (User edits in Content & Features go here)
+                    const contentRes = await getPublicSetting('content', true);
+                    if (contentRes?.data && contentRes.data[key]) {
+                        setPageContent({
+                            title: DEFAULT_LEGAL_DATA[pageId]?.title || 'Information',
+                            content: contentRes.data[key]
+                        });
+                        return;
+                    }
+
+                    // Try direct key next (Seeded defaults or specific Policy pages)
                     const res = await getPublicSetting(key, true);
-                    if (res?.data) {
+                    if (res?.data && !res.data.includes('<h1>Terms and Conditions</h1>')) { // Avoid placeholder
                         setPageContent({
                             title: DEFAULT_LEGAL_DATA[pageId]?.title || 'Information',
                             content: res.data

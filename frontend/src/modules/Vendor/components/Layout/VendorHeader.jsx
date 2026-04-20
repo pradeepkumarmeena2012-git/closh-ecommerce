@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FiMenu, FiBell, FiLogOut, FiShoppingBag } from "react-icons/fi";
+import { FiMenu, FiBell, FiLogOut, FiShoppingBag, FiPower, FiLoader } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useVendorNotificationStore } from "../../store/vendorNotificationStore";
@@ -12,11 +12,13 @@ import socketService from "@shared/utils/socket";
 const VendorHeader = ({ onMenuClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { vendor, logout } = useVendorAuthStore();
+  const { vendor, logout, toggleOnlineStatus, isLoading: isAuthLoading } = useVendorAuthStore();
   const { unreadCount, fetchNotifications, pushNotification } = useVendorNotificationStore();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   const vendorId = vendor?.id || vendor?._id;
+  const isOnline = vendor?.isOnline !== false; // Default to true if undefined
 
   useEffect(() => {
     if (vendorId) {
@@ -46,6 +48,23 @@ const VendorHeader = ({ onMenuClick }) => {
     logout();
     toast.success("Logged out successfully");
     navigate("/vendor/login");
+  };
+
+  const handleToggleOnline = async () => {
+    if (isToggling) return;
+    setIsToggling(true);
+    try {
+      const result = await toggleOnlineStatus();
+      if (result.success) {
+        toast.success(`Store is now ${result.isOnline ? "Online" : "Offline"}`, {
+          icon: result.isOnline ? "🟢" : "🔴",
+        });
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to update status");
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   const toggleNotifications = () => {
@@ -98,8 +117,27 @@ const VendorHeader = ({ onMenuClick }) => {
           </div>
         </div>
 
-        {/* Right: Notifications & Logout */}
-        <div className="flex items-center gap-4">
+        {/* Right: Notifications, Toggle & Logout */}
+        <div className="flex items-center gap-2 lg:gap-4">
+          {/* Online/Offline Toggle */}
+          <button
+            onClick={handleToggleOnline}
+            disabled={isToggling}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 border ${
+              isOnline
+                ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+            } ${isToggling ? "opacity-70 cursor-not-allowed" : ""}`}>
+            {isToggling ? (
+              <FiLoader className="animate-spin" />
+            ) : (
+              <span className={`w-2 h-2 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"}`} />
+            )}
+            <span className="hidden sm:inline">{isOnline ? "Store Online" : "Store Offline"}</span>
+            <span className="sm:hidden">{isOnline ? "Online" : "Offline"}</span>
+          </button>
+
+          {/* Notifications */}
           {/* Notifications */}
           <div className="relative">
             <Button

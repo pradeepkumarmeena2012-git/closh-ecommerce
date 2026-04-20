@@ -544,34 +544,10 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         order.deliveryEarnings = riderEarnings;
         order.deliveryDistance = distanceKm;
 
-        const updatedRider = await DeliveryBoy.findByIdAndUpdate(
-            order.deliveryBoyId,
-            {
-                $inc: {
-                    totalDeliveries: 1,
-                    totalEarnings: riderEarnings,
-                    availableBalance: riderEarnings,
-                },
-            },
-            { new: true }
-        );
+        // ── WALLET SETTLEMENT ──
+        const { WalletService } = await import('../../../services/wallet.service.js');
+        await WalletService.processOrderCompletion(order);
 
-        // Increment each vendor's availableBalance based on their respective group earnings
-        const vendorUpdates = (order.vendorItems || []).map((group) => {
-            if (group.vendorId && group.vendorEarnings > 0) {
-                return mongoose.model('Vendor').findByIdAndUpdate(group.vendorId, {
-                    $inc: { availableBalance: Number(group.vendorEarnings) },
-                });
-            }
-            return null;
-        }).filter(Boolean);
-
-        if (vendorUpdates.length > 0) {
-            await Promise.all(vendorUpdates);
-        }
-
-        // Unified Notification to all parties
-        // ── CRITICAL: Set status and save BEFORE returning ──
         order.status = 'delivered';
         if (order.deliveryFlow) {
             order.deliveryFlow.phase = 'delivered';

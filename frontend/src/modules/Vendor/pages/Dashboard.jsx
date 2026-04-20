@@ -222,6 +222,22 @@ const VendorDashboard = () => {
         </div>
       </div>
 
+      {vendor?.isOnline === false && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3"
+        >
+          <div className="bg-red-500 p-2 rounded-lg">
+            <FiAlertCircle className="text-white text-xl" />
+          </div>
+          <div>
+            <h3 className="font-bold text-red-800">Your Store is Offline</h3>
+            <p className="text-sm text-red-700">Customers cannot see or buy your products. Turn on your store from the top toggle to start receiving orders.</p>
+          </div>
+        </motion.div>
+      )}
+
       {!isLocationSet && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}

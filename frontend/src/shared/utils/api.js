@@ -159,8 +159,6 @@ const runRefresh = async (scope) => {
       return nextAccessToken;
     })
     .catch((err) => {
-       // If the refresh token itself is invalid (401/403), we must log out.
-       // For other errors (500, network), we should NOT clear the session.
        const status = err.response?.status;
        if (status === 401 || status === 403) {
          clearScopeAuth(scope);
@@ -195,6 +193,7 @@ api.interceptors.response.use(
     const currentPath = window.location.pathname;
     const pathScope = getScopeFromPath(currentPath);
 
+    // If we should refresh, do it and retry
     if (shouldAttemptRefresh(error, scope)) {
       try {
         const nextAccessToken = await runRefresh(scope);
@@ -203,132 +202,73 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${nextAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        // If refresh failed with 401/403, runRefresh already handled logout.
-        // If it failed with something else, we preserve the original session.
         return Promise.reject(error);
       }
     }
 
+    // Otherwise, handle error normally (toast and redirect)
     const getUnderstandableMessage = (err) => {
       const status = err.response?.status;
       const data = err.response?.data;
-      const originalRequest = err.config || {};
-      const url = originalRequest.url || '';
+      const url = err.config?.url || '';
       const scope = getScopeFromUrl(url);
 
-      // 1. If it's an auth request (login/register), always prefer server-provided message
       if (isExcludedAuthRequest(scope, url)) {
-        return data?.message || data?.error || 'Authentication failed. Please try again.';
+        return data?.message || data?.error || 'Authentication failed.';
       }
 
-      // 2. Specific status code handling
       if (status === 401) {
         const token = localStorage.getItem(AUTH_SCOPES[scope].accessKey);
-        // Distinguish between actual expiration and just not being logged in
-        if (!token) return 'Access restricted. Please log in to continue.';
+        if (!token) return 'Access restricted. Please log in.';
         return 'Your session has expired. Please log in again.';
       }
 
-      if (status === 403) return data?.message || 'You are not authorized to perform this action.';
-      if (status === 404) return data?.message || 'The requested information was not found.';
-      if (status === 429) return 'Taking too many actions? Please wait a few seconds.';
-      if (status >= 500) return 'Our servers are currently busy. Please try again in a moment.';
+      if (status === 403) return data?.message || 'Access denied.';
+      if (status === 404) return data?.message || 'Not found.';
+      if (status === 429) return 'Too many attempts. Please wait.';
+      if (status >= 500) return 'Server busy. Please try again later.';
 
-      // 3. Specific business logic errors
-      if (data?.message?.toLowerCase().includes('out of stock')) return 'Sorry, one or more items just went out of stock.';
-      if (data?.message?.toLowerCase().includes('coupon')) return 'This coupon code is not valid or has expired.';
-
-      return data?.message || err.message || 'Something went wrong. Please check your connection.';
+      return data?.message || err.message || 'Something went wrong.';
     };
 
-    const understandableMessage = getUnderstandableMessage(error);
-
-    const isAuthPage =
-      currentPath === '/login' ||
-      currentPath === '/register' ||
-      currentPath === '/verification' ||
-      currentPath === '/forgot-password' ||
-      currentPath === '/reset-password' ||
-      currentPath.includes('/admin/login') ||
-      currentPath.includes('/vendor/login') ||
-      currentPath.includes('/delivery/login');
-
-    const isPublicPage =
-      currentPath === '/' ||
-      currentPath === '/home' ||
-      currentPath === '/shop' ||
-      currentPath.startsWith('/products') ||
-      currentPath.startsWith('/product/') ||
-      currentPath === '/offers' ||
-      currentPath === '/events';
-
-    // Suppress toast for:
-    // 1. Silent location updates (429)
-    // 2. Cross-scope errors (e.g. user API failing while on admin page)
-    // 3. 401s on public pages for guest users (unless they triggered a specific action)
-    const token = localStorage.getItem(AUTH_SCOPES[scope].accessKey);
     const status = error.response?.status;
-    const url = originalRequest.url || '';
+    const understandableMessage = getUnderstandableMessage(error);
+    const token = localStorage.getItem(AUTH_SCOPES[scope].accessKey);
 
-    const is401_403 = status === 401 || status === 403;
-    const is429 = status === 429;
-    const isLocationUpdate = url.includes('/location');
-    const isCrossScopeError = scope !== pathScope;
-
-    const isGuestOnPublicPage = is401_403 && isPublicPage && !token;
+    const isPublicPage = ['/', '/home', '/shop'].includes(currentPath) || 
+                        currentPath.startsWith('/products') || 
+                        currentPath.startsWith('/product/') ||
+                        currentPath.startsWith('/legal/');
 
     const isSilent = originalRequest.silent || originalRequest.headers?.silent;
-    if (!is429 && !isLocationUpdate && !isCrossScopeError && !isGuestOnPublicPage && !isSilent) {
-      toast.error(understandableMessage, {
-        duration: 4000,
-        position: 'top-center',
-        style: {
-          background: 'rgba(17, 17, 17, 0.9)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          color: '#fff',
-          padding: '14px 24px',
-          borderRadius: '20px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          fontSize: '14px',
-          fontWeight: '500',
-          boxShadow: '0 12px 30px rgba(0,0,0,0.4)',
-          maxWidth: '90%',
-          textAlign: 'center',
-        },
-        iconTheme: {
-          primary: '#ff4b4b',
-          secondary: '#fff',
-        },
-      });
+    const isRefreshing = !!refreshInFlight[scope];
+    const isCrossScope = scope !== pathScope;
+
+    // Suppress toasts for background/silent/refreshing/guest-public requests
+    const shouldSuppressToast = isSilent || isRefreshing || isCrossScope || (status === 401 && isPublicPage && !token) || status === 429;
+
+    if (!shouldSuppressToast) {
+       toast.error(understandableMessage, {
+         duration: 4000,
+         position: 'top-center'
+       });
     }
 
-    // 401 — session expired / token invalid
-    if (error.response?.status === 401) {
-      // Check if we should even handle this (is it a legitimate auth failure for the current scope?)
-      const isAuthPage = currentPath.includes('/login') || currentPath.includes('/register');
-      if (isAuthPage) return Promise.reject(error);
-
-      // Only logout IF it's a 401 AND a refresh isn't possible (or failed)
-      const canRefresh = shouldAttemptRefresh(error, scope);
-      if (!canRefresh) {
-        const activeScope = pathScope;
-        clearScopeAuth(scope);
-        dispatchAuthFailure(scope);
-
-        if (scope === activeScope) {
-           const routeConfig = AUTH_SCOPES[scope];
-           if (scope === 'user') {
-             if (!isPublicPage) redirectTo(routeConfig.loginPath);
-           } else if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {
-             redirectTo(routeConfig.loginPath);
-           }
+    // 401/403 Handling (Logout & Redirect)
+    if (status === 401) {
+      if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
+        const canRefresh = shouldAttemptRefresh(error, scope);
+        if (!canRefresh && !isRefreshing) {
+          clearScopeAuth(scope);
+          dispatchAuthFailure(scope);
+          if (scope === pathScope && !isPublicPage) {
+            redirectTo(AUTH_SCOPES[scope].loginPath);
+          }
         }
       }
     }
 
-    // 403 for vendor/delivery — account suspended or deactivated after login
-    if (error.response?.status === 403 && (scope === 'vendor' || scope === 'delivery')) {
+    if (status === 403 && (scope === 'vendor' || scope === 'delivery')) {
       const routeConfig = AUTH_SCOPES[scope];
       if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {
         clearScopeAuth(scope);

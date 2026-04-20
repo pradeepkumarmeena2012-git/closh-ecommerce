@@ -60,30 +60,6 @@ const Footer = () => {
 
             {/* Premium Mobile App Footer (From User Screenshot) */}
             <div className="flex flex-col md:hidden w-full relative pb-[80px]">
-                {/* Newsletter Block */}
-                <div className="relative py-14 px-6 flex flex-col items-center justify-center text-center overflow-hidden border-b border-gray-100 bg-white">
-                    {/* Abstract Dark Grid Background */}
-                    <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-
-                    <h2 className="text-[28px] font-bold  text-gray-900 leading-[1.15] z-10 mb-5 drop-shadow-md">
-                        Join The <span className="text-black italic font-normal drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">Inner<br />Circle</span>
-                    </h2>
-
-                    <p className="text-gray-900/50 text-[10px] font-semibold uppercase  leading-relaxed max-w-[280px] z-10 mb-8 px-2">
-                        Exclusive early access to new drops, VIP sales, and highly curated luxury edits delivered to your inbox.
-                    </p>
-
-                    <div className="w-full max-w-[320px] z-10 space-y-4">
-                        <input
-                            type="email"
-                            placeholder="Enter your email address"
-                            className="w-full bg-gray-50 text-gray-900 font-medium text-[13px] px-6 py-4 rounded-[24px] border border-gray-200 placeholder-gray-400 focus:outline-none focus:border-black/50 transition-colors shadow-inner"
-                        />
-                        <button className="w-full bg-[#FAFAFA] text-black font-bold text-[12px] uppercase  px-6 py-4 rounded-[24px] hover:bg-black transition-colors shadow-[0_5px_15px_rgba(250,250,250,0.15)] active:scale-95">
-                            Subscribe
-                        </button>
-                    </div>
-                </div>
 
                 {/* Brand & Social/App Block */}
                 <div className="py-12 px-6 flex flex-col items-center bg-gray-100">
@@ -91,22 +67,7 @@ const Footer = () => {
                         CLOSH<span className="text-black">.</span>
                     </h1>
 
-                    <div className="flex items-center gap-4 mb-10">
-                        {[Instagram, Facebook, Twitter].map((Icon, idx) => (
-                            <a key={idx} href="#" className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center hover:bg-black hover:text-white transition-all duration-300 border border-gray-100 shadow-sm text-gray-900/70 hover:scale-110 active:scale-95">
-                                <Icon size={18} strokeWidth={1.5} />
-                            </a>
-                        ))}
-                    </div>
 
-                    <div className="flex gap-3 w-full max-w-[320px]">
-                        <button className="flex-1 bg-gray-50 text-gray-900 rounded-[16px] py-4 text-[10px] font-bold uppercase hover:bg-black hover:text-white transition-all active:scale-95 shadow-sm flex justify-center">
-                            Google Play
-                        </button>
-                        <button className="flex-1 bg-gray-50 text-gray-900 rounded-[16px] py-4 text-[10px] font-bold uppercase border border-gray-100 hover:bg-black hover:text-white transition-all active:scale-95 shadow-sm flex justify-center">
-                            App Store
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -124,25 +85,9 @@ const Footer = () => {
                         <p className="text-[10px] md:text-[12px] font-medium text-gray-500 max-w-[240px] md:max-w-[280px] leading-relaxed hidden md:block">
                             Elevating everyday fashion. Premium quality, expertly curated styles delivered with speed.
                         </p>
-                        <div className="flex gap-2 md:gap-4 mt-1 md:mt-2">
-                            <a href="#" className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gray-50 flex items-center justify-center hover:bg-black hover:text-white transition-all duration-300 border border-gray-100 shadow-sm text-gray-900"><Instagram size={14} className="md:w-[18px] md:h-[18px]" /></a>
-                            <a href="#" className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gray-50 flex items-center justify-center hover:bg-black hover:text-white transition-all duration-300 border border-gray-100 shadow-sm text-gray-900"><Facebook size={14} className="md:w-[18px] md:h-[18px]" /></a>
-                            <a href="#" className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gray-50 flex items-center justify-center hover:bg-black hover:text-white transition-all duration-300 border border-gray-100 shadow-sm text-gray-900"><Twitter size={14} className="md:w-[18px] md:h-[18px]" /></a>
-                        </div>
                     </div>
 
                     {/* App Download Card Style (Native Feel) */}
-                    <div className="flex flex-col gap-2 md:gap-3 items-center md:items-end w-full md:w-auto bg-white/[0.03] md:bg-transparent backdrop-blur-md p-4 md:p-0 rounded-[20px] md:rounded-none border border-gray-100 md:border-none shadow-inner md:shadow-none">
-                        <span className="font-bold text-[10px] md:text-[14px] uppercase  text-black md:text-gray-900 text-center md:text-right hidden md:block">Experience The App</span>
-                        <div className="flex flex-row md:flex-col lg:flex-row gap-2 md:gap-3 w-full justify-center md:justify-end">
-                            <button className="flex-1 lg:flex-none h-10 md:h-12 px-4 md:px-6 bg-gray-50 text-gray-900 rounded-[12px] md:rounded-[16px] text-[9px] md:text-[11px] font-bold uppercase hover:bg-black hover:text-white transition-colors active:scale-95 flex items-center justify-center gap-2 shadow-sm">
-                                Google Play
-                            </button>
-                            <button className="flex-1 lg:flex-none h-10 md:h-12 px-4 md:px-6 bg-gray-100 text-gray-900 rounded-[12px] md:rounded-[16px] text-[9px] md:text-[11px] font-bold uppercase hover:bg-black hover:text-white transition-colors active:scale-95 flex items-center justify-center gap-2 border border-gray-200 shadow-sm">
-                                App Store
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Grid - High Density Luxury Spacing (Desktop) / Accordion (Mobile) */}

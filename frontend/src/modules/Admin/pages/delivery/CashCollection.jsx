@@ -27,6 +27,7 @@ const CashCollection = () => {
   });
   const [isSettlingId, setIsSettlingId] = useState(null);
   const [historyModal, setHistoryModal] = useState({ open: false, data: [], loading: false, boy: null });
+  const [serverStats, setServerStats] = useState({ totalLifetime: 0, pendingSettlement: 0 });
   const itemsPerPage = 20;
 
   useEffect(() => {
@@ -46,6 +47,7 @@ const CashCollection = () => {
             cashCollected: Number(boy.cashCollected || 0),
           }));
           setDeliveryBoys(rows);
+          setServerStats(response?.data?.summary || { totalLifetime: 0, pendingSettlement: 0 });
           setPagination(response?.data?.pagination || {
             total: rows.length,
             page: 1,
@@ -73,8 +75,8 @@ const CashCollection = () => {
     return true;
   });
 
-  const totalCollected = boysWithCash.reduce((sum, boy) => sum + Number(boy.cashCollected || 0), 0);
-  const totalPending = boysWithCash.reduce((sum, boy) => sum + Number(boy.cashInHand || 0), 0);
+  const totalCollected = serverStats.totalLifetime;
+  const totalPending = serverStats.pendingSettlement;
 
   const handleSettleCash = async (row) => {
     if (!row?.id || Number(row.cashInHand || 0) <= 0) return;

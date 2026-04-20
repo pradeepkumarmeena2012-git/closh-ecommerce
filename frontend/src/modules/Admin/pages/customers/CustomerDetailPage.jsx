@@ -83,8 +83,9 @@ const CustomerDetailPage = () => {
             amount: Number(order.total) || 0,
             type: 'payment',
             status:
-              paymentStatusMap[order.paymentStatus] ||
-              (order.status === 'cancelled' ? 'failed' : 'completed'),
+              order.status === 'cancelled'
+                ? 'failed'
+                : paymentStatusMap[order.paymentStatus] || 'completed',
             method: order.paymentMethod || 'N/A',
             date: createdDate,
           };

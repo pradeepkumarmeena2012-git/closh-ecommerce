@@ -281,13 +281,28 @@ export const completeBatchDelivery = asyncHandler(async (req, res) => {
         { status: 'delivered', otpVerified: true, openBoxPhoto, deliveredAt: new Date() }
      );
 
-     // Final Sync to Order
+     // Sync order statuses
      const deliveries = await Delivery.find({ _id: { $in: batch.deliveries } });
-     const orderIds = deliveries.map(d => d.orderId);
-     await Order.updateMany(
-         { _id: { $in: orderIds } },
-         { status: 'delivered', deliveredAt: new Date() }
-     );
+     const orders = await Order.find({ _id: { $in: deliveries.map(d => d.orderId) } });
+     
+     const { WalletService } = await import('../../../services/wallet.service.js');
+     
+     for (let order of orders) {
+         order.status = 'delivered';
+         order.deliveredAt = new Date();
+         if (order.vendorItems) {
+            order.vendorItems.forEach(vi => {
+                vi.status = 'delivered';
+                vi.deliveredAt = new Date();
+            });
+         }
+         await order.save();
+         
+         // Credit earnings
+         await WalletService.processOrderCompletion(order).catch(e => console.error(`[Batch Earnings] Failed for ${order._id}:`, e.message));
+     }
+
+     batch.status = 'delivered';
      await batch.save();
      
      res.status(200).json(new ApiResponse(200, batch, "Batch delivered and verified successfully!"));

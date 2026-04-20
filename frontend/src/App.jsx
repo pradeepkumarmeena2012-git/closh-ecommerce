@@ -91,6 +91,7 @@ import RevenueOverview from "./modules/Admin/pages/finance/RevenueOverview";
 import ProfitLoss from "./modules/Admin/pages/finance/ProfitLoss";
 import OrderTrends from "./modules/Admin/pages/finance/OrderTrends";
 import PaymentBreakdown from "./modules/Admin/pages/finance/PaymentBreakdown";
+import Settlements from "./modules/Admin/pages/finance/Settlements";
 import TaxReports from "./modules/Admin/pages/finance/TaxReports";
 import RefundReports from "./modules/Admin/pages/finance/RefundReports";
 // Consolidated Settings pages
@@ -301,6 +302,7 @@ const AppRoutes = () => {
           </Route>
           <Route path="finance" element={<RevenueOverview />} />
           <Route path="finance/revenue-overview" element={<RevenueOverview />} />
+          <Route path="finance/settlements" element={<Settlements />} />
           <Route path="finance/profit-loss" element={<ProfitLoss />} />
           <Route path="finance/order-trends" element={<OrderTrends />} />
           <Route

@@ -165,6 +165,10 @@ const ProductDetailsPage = () => {
         return currentStock <= 0;
     }, [product, currentStock, sizes.length, colors.length, selectedSize, selectedColor]);
 
+    const isVendorOffline = useMemo(() => {
+        return product?.vendorId?.isOnline === false;
+    }, [product]);
+
     const handleAddToCart = () => {
         if (!user) {
             setIsLoginModalOpen(true);
@@ -180,6 +184,11 @@ const ProductDetailsPage = () => {
 
         if (currentStock <= 0) {
             toast.error(`Only 0 units available for selected variant of ${product.name}`);
+            return;
+        }
+
+        if (isVendorOffline) {
+            toast.error('Store is currently offline. You cannot add products to cart.');
             return;
         }
 
@@ -358,6 +367,11 @@ const ProductDetailsPage = () => {
                                         Currently unavailable
                                     </div>
                                 )}
+                                {isVendorOffline && (
+                                    <div className="bg-red-500/90 text-white text-[10px] md:text-[12px] font-bold px-4 py-2 rounded-lg shadow-sm border border-red-400 uppercase tracking-widest backdrop-blur-sm">
+                                        Store Offline
+                                    </div>
+                                )}
                                 <div className="bg-white text-gray-900 text-[8px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-md border border-gray-200">
                                     New Arrival
                                 </div>
@@ -498,13 +512,21 @@ const ProductDetailsPage = () => {
 
 
                         {/* Actions - Inline */}
+                        {isVendorOffline && (
+                            <div className="mb-4 bg-red-50 border border-red-100 p-3 rounded-xl flex items-center gap-3 animate-pulse">
+                                <Info size={16} className="text-red-500" />
+                                <p className="text-[11px] font-bold text-red-600 uppercase tracking-tight">
+                                    This product currently not deliverable. Store is offline.
+                                </p>
+                            </div>
+                        )}
                         <div className="flex gap-2.5 md:gap-4 mb-4 md:mb-8">
-                            {isOutOfStock ? (
+                            {isOutOfStock || isVendorOffline ? (
                                 <button
                                     disabled
                                     className="flex-[3] h-12 md:h-14 bg-gray-200 text-gray-400 rounded-xl md:rounded-[18px] font-bold text-[11px] md:text-[13px] flex items-center justify-center shadow-inner cursor-not-allowed uppercase"
                                 >
-                                    Currently unavailable
+                                    {isVendorOffline ? "Store Offline" : "Currently unavailable"}
                                 </button>
                             ) : (
                                 <button

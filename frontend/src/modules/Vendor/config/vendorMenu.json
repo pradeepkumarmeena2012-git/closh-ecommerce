@@ -34,8 +34,7 @@
         "title": "Stock Management",
         "route": "/vendor/stock-management",
         "children": [
-            "Manage Stock",
-            "Offline Sales"
+            "Manage Stock"
         ]
     },
     {

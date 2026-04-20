@@ -104,7 +104,7 @@ const ProfilePage = () => {
 
     return (
         <AccountLayout>
-            <div className="max-w-[800px] mx-auto bg-white min-h-screen pb-20">
+            <div className="max-w-[800px] mx-auto pb-4">
 
                 {/* Header & Avatar Section */}
                 <div className="flex flex-col items-center mb-5 pt-1 px-4">
@@ -193,11 +193,11 @@ const ProfilePage = () => {
                         <div className="relative group">
                             <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] md:text-[11px] font-bold text-gray-400 z-10 transition-colors group-focus-within:text-[#FF5722]">Date of Birth</label>
                             <input
-                                type="text"
-                                value={formData.dob}
+                                type="date"
+                                max={new Date().toISOString().split('T')[0]}
+                                value={formData.dob ? (formData.dob.includes('/') ? formData.dob.split('/').reverse().join('-') : formData.dob) : ''}
                                 onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                                 className="w-full px-4 py-2.5 md:py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-1 focus:ring-[#FF5722] focus:border-[#FF5722] outline-none transition-all font-semibold text-[13px] md:text-[14px] text-gray-900"
-                                placeholder="DD/MM/YYYY"
                             />
                         </div>
                     </div>

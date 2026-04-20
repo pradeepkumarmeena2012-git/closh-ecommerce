@@ -39,17 +39,24 @@ export const useProductStore = create((set, get) => ({
             // Backend maps /products to Public routes
             const response = await api.get('/products', { params });
             const payload = response?.data || response;
-            const productsList = Array.isArray(payload?.products) ? payload.products : [];
+            
+            // Handle both ApiResponse wrapped format and direct format
+            const productsList = Array.isArray(payload?.data?.products) 
+                ? payload.data.products 
+                : (Array.isArray(payload?.products) ? payload.products : []);
+
             const normalized = productsList.map(normalizeProduct);
+
+            const pagination = payload?.data?.pagination || payload?.pagination || {
+                total: payload?.data?.total || payload?.total || 0,
+                page: payload?.data?.page || payload?.page || 1,
+                pages: payload?.data?.pages || payload?.pages || 1,
+                limit: params.limit || 20
+            };
 
             set({
                 products: normalized,
-                pagination: payload.pagination || {
-                    total: payload.total || 0,
-                    page: payload.page || 1,
-                    pages: payload.pages || 1,
-                    limit: params.limit || 20
-                },
+                pagination,
                 isLoading: false
             });
         } catch (error) {
@@ -67,7 +74,8 @@ export const useProductStore = create((set, get) => ({
         try {
             const response = await api.get(`/products/${id}`);
             const payload = response?.data || response;
-            return normalizeProduct(payload);
+            const productData = payload?.data || payload;
+            return normalizeProduct(productData);
         } catch (error) {
             // Fallback to local cache if network fails
             const existing = get().products.find(p => String(p.id) === String(id));

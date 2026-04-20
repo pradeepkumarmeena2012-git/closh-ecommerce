@@ -44,12 +44,18 @@ const ProductCard = ({ product }) => {
             <FiHeart size={12} className={`${isFavorite ? 'fill-current text-red-500' : ''}`} />
           </button>
 
-          {/* Out of Stock Status - Gradient Overlay for Readability */}
-          {(product.stock === 'out_of_stock' || product.stockQuantity <= 0) && (
-            <div className="absolute inset-x-0 bottom-0 top-0 bg-gradient-to-t from-black/40 via-transparent to-transparent z-10 pointer-events-none flex flex-col justify-end pb-3 transition-opacity duration-300">
-              <span className="text-red-500 text-[10px] md:text-[12px] font-black uppercase tracking-[0.2em] text-center drop-shadow-sm">
-                Currently unavailable
-              </span>
+          {/* Status Badges */}
+          {product.stock === 'out_of_stock' || product.stockQuantity <= 0 ? (
+            <div className="absolute bottom-0 left-0 bg-red-600 text-white text-[9px] md:text-[11px] font-black px-3 py-0.5 rounded-tr-lg z-20 shadow-lg border-t border-r border-white/10 uppercase tracking-wider">
+                SOLD OUT
+            </div>
+          ) : product.vendorId?.isOnline === false ? (
+            <div className="absolute bottom-0 left-0 bg-[#52b788] text-white text-[9px] md:text-[11px] font-black px-3 py-0.5 rounded-tr-lg z-20 shadow-lg border-t border-r border-white/10 uppercase tracking-wider">
+                STORE OFFLINE
+            </div>
+          ) : (
+            <div className="absolute bottom-0 left-0 bg-[#000033] text-white text-[9px] md:text-[11px] font-black px-3 py-0.5 rounded-tr-lg z-20 shadow-lg border-t border-r border-white/10 uppercase tracking-wider">
+                Try & Buy
             </div>
           )}
         </div>

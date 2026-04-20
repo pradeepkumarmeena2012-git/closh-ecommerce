@@ -1052,10 +1052,10 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                             value={marginPercent.toFixed(2)}
                             onChange={handleMarginChange}
                             step="0.1"
-                            className="w-full px-3 py-2 text-sm border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white font-bold text-purple-900"
+                            className="w-full pl-3 pr-8 py-2 text-sm border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white font-bold text-purple-900 no-spinner"
                             placeholder="Profit %"
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 font-bold">%</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 font-bold text-xs">%</span>
                         </div>
                         <p className="mt-1 text-xs text-purple-600">Calculates selling price</p>
                       </div>

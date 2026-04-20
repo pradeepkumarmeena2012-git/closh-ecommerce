@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FiSearch, FiEye, FiMessageSquare, FiSend, FiX, FiCheckCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,6 +17,17 @@ const Tickets = ({ type = 'customer' }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [replyMessage, setReplyMessage] = useState('');
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (selectedTicket?.messages) {
+      scrollToBottom();
+    }
+  }, [selectedTicket?.messages]);
 
   useEffect(() => {
     fetchTickets({
@@ -320,6 +331,7 @@ const Tickets = ({ type = 'customer' }) => {
                           </span>
                         </div>
                       ))}
+                      <div ref={messagesEndRef} />
                       {(!selectedTicket.messages || selectedTicket.messages.length === 0) && (
                         <p className="text-center text-gray-400 text-xs py-4">No messages yet</p>
                       )}
