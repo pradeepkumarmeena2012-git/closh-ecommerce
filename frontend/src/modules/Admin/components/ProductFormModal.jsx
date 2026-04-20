@@ -1410,50 +1410,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           </div>
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Colors
-                        </label>
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap gap-2">
-                            {(formData.variants?.colors || []).map((color) => (
-                              <span
-                                key={color}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs border border-emerald-200"
-                              >
-                                {color}
-                                <button
-                                  type="button"
-                                  onClick={() => removeVariantAxisValue("colors", color)}
-                                  className="text-emerald-700 hover:text-emerald-900"
-                                >
-                                  <FiX className="w-3 h-3" />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={variantAxisInput.colors}
-                              onChange={(e) =>
-                                setVariantAxisInput((prev) => ({ ...prev, colors: e.target.value }))
-                              }
-                              onKeyDown={(e) => handleVariantAxisInputKeyDown("colors", e)}
-                              onBlur={() => addVariantAxisValues("colors", variantAxisInput.colors)}
-                              placeholder="Type color and press Enter (e.g. Red, Blue)"
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => addVariantAxisValues("colors", variantAxisInput.colors)}
-                              className="px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg hover:bg-white hover:text-black"
-                            >
-                              Add
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <label className="block text-sm font-semibold text-gray-700">

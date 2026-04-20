@@ -92,6 +92,8 @@ const ProductDetailsPage = () => {
 
                 if (data.variants?.defaultVariant?.color) {
                     setSelectedColor(data.variants.defaultVariant.color);
+                } else if (data.variants?.colors && data.variants.colors.length > 0) {
+                    setSelectedColor(data.variants.colors[0]);
                 } else {
                     setSelectedColor(null);
                 }
@@ -174,10 +176,7 @@ const ProductDetailsPage = () => {
             return;
         }
 
-        if (colors.length > 0 && !selectedColor) {
-            toast.error('Please select a color first');
-            return;
-        }
+
 
         if (currentStock <= 0) {
             toast.error(`Only 0 units available for selected variant of ${product.name}`);
@@ -496,33 +495,7 @@ const ProductDetailsPage = () => {
                             </div>
                         )}
 
-                        {/* Color Selection */}
-                        {colors.length > 0 && (
-                            <div className="mb-4 md:mb-8">
-                                <h3 className="text-[11px] md:text-[12px] font-bold text-gray-900 mb-3 md:mb-4 uppercase tracking-wider">
-                                    Select Color
-                                </h3>
-                                <div className="flex flex-wrap gap-2.5 md:gap-3">
-                                    {colors.map((color) => (
-                                        <button
-                                            key={color}
-                                            onClick={() => setSelectedColor(color)}
-                                            className={`group relative flex flex-col items-center gap-1 transition-all ${selectedColor === color ? 'scale-105' : 'hover:scale-105'}`}
-                                        >
-                                            <div 
-                                                className={`w-8 h-8 md:w-10 md:h-10 rounded-full border-2 transition-all flex items-center justify-center ${selectedColor === color ? 'border-black ring-2 ring-black/10' : 'border-gray-200'}`}
-                                                style={{ backgroundColor: color.toLowerCase() }}
-                                            >
-                                                {selectedColor === color && <Check size={12} className={['white', 'yellow', 'light'].some(c => color.toLowerCase().includes(c)) ? 'text-black' : 'text-white'} strokeWidth={4} />}
-                                            </div>
-                                            <span className={`text-[8px] md:text-[9px] font-bold uppercase ${selectedColor === color ? 'text-black' : 'text-gray-400'}`}>
-                                                {color}
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+
 
                         {/* Actions - Inline */}
                         <div className="flex gap-2.5 md:gap-4 mb-4 md:mb-8">
