@@ -13,7 +13,8 @@ export const validate = (schema, source = 'body') =>
             console.error(`Source: ${source}`);
             console.error(`Received value:`, JSON.stringify(req[source], null, 2));
             console.error(`Errors:`, JSON.stringify(errors, null, 2));
-            return next(new ApiError(400, 'Validation failed', errors));
+            const primaryMessage = errors[0]?.message || 'Validation failed';
+            return next(new ApiError(400, primaryMessage, errors));
         }
         req[source] = value;
         next();

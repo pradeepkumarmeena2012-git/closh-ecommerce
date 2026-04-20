@@ -228,6 +228,8 @@ const DocumentUploadForm = ({ onSave, onClose, isSaving }) => {
               type="date"
               value={formData.expiryDate}
               onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+              min={new Date().toISOString().split("T")[0]}
+              onKeyDown={(e) => e.preventDefault()}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg"
             />
           </div>

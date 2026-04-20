@@ -23,7 +23,7 @@ import { IMAGE_BASE_URL } from '../../../../shared/utils/constants';
 
 const getFullImageUrl = (image) => {
     if (!image) return null;
-    if (image.startsWith('http')) return image;
+    if (image.startsWith('http') || image.startsWith('data:')) return image;
     const cleanImage = image.startsWith('/') ? image : `/${image}`;
     return `${IMAGE_BASE_URL}${cleanImage}`;
 };

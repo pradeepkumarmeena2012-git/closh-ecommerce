@@ -149,7 +149,18 @@ const Analytics = () => {
           <ExportButton
             data={exportData}
             headers={[
-              { label: "Date", accessor: (row) => row.date },
+              {
+                label: "Date",
+                accessor: (row) => {
+                  if (!row.date) return "—";
+                  const d = new Date(row.date);
+                  const day = String(d.getDate()).padStart(2, "0");
+                  const month = String(d.getMonth() + 1).padStart(2, "0");
+                  const year = String(d.getFullYear()).slice(-2);
+                  // Prepend a space to force Excel to treat it as text and avoid #### width issues
+                  return ` ${day}-${month}-${year}`;
+                },
+              },
               { label: "Revenue", accessor: (row) => formatPrice(row.revenue) },
               { label: "Orders", accessor: (row) => row.orders },
             ]}
