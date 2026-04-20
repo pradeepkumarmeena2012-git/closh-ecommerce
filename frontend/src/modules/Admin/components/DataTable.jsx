@@ -193,7 +193,7 @@ const DataTable = ({
                     return (
                       <td
                         key={column.key}
-                        className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-sm text-gray-700"
+                        className="px-3 sm:px-6 py-3 sm:py-4 whitespace-normal break-words text-sm text-gray-700"
                       >
                         {displayValue}
                       </td>

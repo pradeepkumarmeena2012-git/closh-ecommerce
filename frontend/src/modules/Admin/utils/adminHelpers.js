@@ -70,8 +70,8 @@ export const generateCSV = (data, headers, filename) => {
   // Combine header and data
   const csvContent = [headerRow, ...dataRows].join('\n');
 
-  // Create blob and download
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  // Create blob and download (adding BOM \uFEFF for Excel UTF-8 support)
+  const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
   

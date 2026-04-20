@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { FiCalendar } from 'react-icons/fi';
 
 const TimePeriodFilter = ({ onPeriodChange, selectedPeriod = 'month' }) => {
   const periods = [
@@ -11,7 +10,6 @@ const TimePeriodFilter = ({ onPeriodChange, selectedPeriod = 'month' }) => {
 
   return (
     <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
-      <FiCalendar className="text-gray-500 text-base sm:text-lg flex-shrink-0" />
       <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-100 rounded-lg p-0.5 sm:p-1 flex-1 sm:flex-initial overflow-x-auto scrollbar-hide">
         {periods.map((period) => (
           <button
