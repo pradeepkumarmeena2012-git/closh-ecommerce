@@ -852,69 +852,7 @@ const AddProduct = () => {
                 </div>
               </div>
             </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-gray-700">
-                  Colors
-                </label>
-                {availableSets.length > 0 && (
-                  <select
-                    className="px-2 py-1 bg-white border border-gray-300 rounded-md focus:ring-primary-500 text-[10px] font-semibold text-gray-600 outline-none"
-                    onChange={e => {
-                      const set = availableSets.find(s => s._id === e.target.value);
-                      if (set && set.values?.length) {
-                        addVariantAxisValues('colors', set.values.join(', '));
-                      }
-                      e.target.value = "";
-                    }}
-                  >
-                    <option value="">+ Copy from Set...</option>
-                    {availableSets.map(s => (
-                      <option key={s._id} value={s._id}>{s.name}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  {(formData.variants?.colors || []).map((color) => (
-                    <span
-                      key={color}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs border border-emerald-200"
-                    >
-                      {color}
-                      <button
-                        type="button"
-                        onClick={() => removeVariantAxisValue("colors", color)}
-                        className="text-emerald-700 hover:text-emerald-900"
-                      >
-                        <FiX className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={variantAxisInput.colors}
-                    onChange={(e) =>
-                      setVariantAxisInput((prev) => ({ ...prev, colors: e.target.value }))
-                    }
-                    onKeyDown={(e) => handleVariantAxisInputKeyDown("colors", e)}
-                    onBlur={() => addVariantAxisValues("colors", variantAxisInput.colors)}
-                    placeholder="Type color and press Enter (e.g. Red, Blue)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => addVariantAxisValues("colors", variantAxisInput.colors)}
-                    className="px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg hover:bg-white hover:text-black"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            </div>
+
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-semibold text-gray-700">
@@ -1084,27 +1022,7 @@ const AddProduct = () => {
                       <option key={size} value={size}>{size}</option>
                     ))}
                   </select>
-                  <select
-                    value={formData.variants?.defaultVariant?.color || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        variants: {
-                          ...prev.variants,
-                          defaultVariant: {
-                            ...(prev.variants?.defaultVariant || {}),
-                            color: e.target.value,
-                          },
-                        },
-                      }))
-                    }
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
-                  >
-                    <option value="">Default color (optional)</option>
-                    {(formData.variants?.colors || []).map((color) => (
-                      <option key={color} value={color}>{color}</option>
-                    ))}
-                  </select>
+
                 </div>
               </div>
             )}

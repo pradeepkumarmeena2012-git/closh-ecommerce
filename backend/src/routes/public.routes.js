@@ -182,9 +182,12 @@ const listProducts = asyncHandler(async (req, res) => {
     if (searchQuery) {
         // Escape regex characters
         const escapedSearch = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Remove existing spaces and hyphens, then join with optional space/hyphen matcher
+        const flexibleSearch = escapedSearch.replace(/[-\s]+/g, '').split('').join('[-\\s]*');
+        
         filter.$or = [
-            { name: { $regex: escapedSearch, $options: 'i' } },
-            { tags: { $regex: escapedSearch, $options: 'i' } }
+            { name: { $regex: flexibleSearch, $options: 'i' } },
+            { tags: { $regex: flexibleSearch, $options: 'i' } }
         ];
     }
 

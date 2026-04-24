@@ -47,6 +47,7 @@ const CheckoutPage = () => {
     const [isCouponsModalOpen, setIsCouponsModalOpen] = useState(false);
     const [upsellProducts, setUpsellProducts] = useState([]);
     const [isUpsellLoading, setIsUpsellLoading] = useState(true);
+    const [zoomedImage, setZoomedImage] = useState(null);
 
     useEffect(() => {
         const fetchUpsells = async () => {
@@ -251,7 +252,10 @@ const CheckoutPage = () => {
 
 
                                 {/* Product Image with Badge */}
-                                <div className="relative w-[110px] h-[140px] shrink-0 rounded-2xl overflow-hidden bg-gray-100">
+                                <div 
+                                    className="relative w-[110px] h-[140px] shrink-0 rounded-2xl overflow-hidden bg-gray-100 cursor-pointer"
+                                    onClick={() => setZoomedImage(item.image)}
+                                >
                                     <img src={item.image} alt="" className="w-full h-full object-cover" />
                                     {item.tryAndBuy && (
                                         <div className="absolute left-0 top-0 bottom-0 w-8 bg-black/90 flex items-center justify-center">
@@ -423,20 +427,13 @@ const CheckoutPage = () => {
                                 ))
                             ) : upsellProducts.length > 0 ? (
                                 upsellProducts.map((item) => (
-                                    <div key={item.id} className="min-w-[170px] bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col group hover:shadow-md transition-shadow">
+                                    <div 
+                                        key={item.id} 
+                                        onClick={() => navigate(`/product/${item.id}`)}
+                                        className="min-w-[170px] bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col group hover:shadow-md transition-shadow cursor-pointer"
+                                    >
                                         <div className="aspect-[4/5] bg-gray-100 relative overflow-hidden">
                                             <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                                            <div className="absolute bottom-2 right-2">
-                                                <button
-                                                    onClick={() => {
-                                                        addToCart({ ...item, quantity: 1 });
-                                                        toast.success('Added to Bag');
-                                                    }}
-                                                    className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg text-black hover:bg-black hover:text-white transition-all active:scale-90"
-                                                >
-                                                    <Plus size={20} />
-                                                </button>
-                                            </div>
                                         </div>
                                         <div className="p-3">
                                             <p className="text-[9px] font-bold uppercase text-gray-400 mb-0.5 truncate">{item.brand}</p>
@@ -621,6 +618,31 @@ const CheckoutPage = () => {
                     toast.success('Size updated');
                 }}
             />
+
+            {/* Image Zoom Modal */}
+            {zoomedImage && (
+                <div 
+                    className="fixed inset-0 z-[30000] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out p-4 animate-fadeIn"
+                    onClick={() => setZoomedImage(null)}
+                >
+                    <div className="relative max-w-[90vw] max-h-[90vh]">
+                        <img 
+                            src={zoomedImage} 
+                            alt="Zoomed product" 
+                            className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl"
+                        />
+                        <button 
+                            className="absolute -top-4 -right-4 w-10 h-10 bg-white text-black rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform cursor-pointer"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setZoomedImage(null);
+                            }}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Global Custom Styles */}
             <style dangerouslySetInnerHTML={{

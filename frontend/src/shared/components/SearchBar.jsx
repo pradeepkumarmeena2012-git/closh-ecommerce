@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiSearch, FiClock, FiTrendingUp } from 'react-icons/fi';
@@ -80,8 +79,9 @@ const SearchBar = () => {
       } catch {
         if (cancelled) return;
         const lowerQuery = searchQuery.toLowerCase();
+        const cleanQuery = lowerQuery.replace(/[-\s]+/g, '');
         const fallback = getCatalogProducts()
-          .filter((product) => String(product?.name || '').toLowerCase().includes(lowerQuery))
+          .filter((product) => String(product?.name || '').toLowerCase().replace(/[-\s]+/g, '').includes(cleanQuery))
           .slice(0, MAX_SUGGESTIONS)
           .map((product) => ({
             type: 'product',
@@ -327,4 +327,3 @@ const SearchBar = () => {
 };
 
 export default SearchBar;
-

@@ -72,7 +72,7 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
         : axis.key === "color"
         ? String(variants?.defaultVariant?.color || "").trim()
         : "";
-      const selected = directDefault || legacyDefault;
+      const selected = directDefault || legacyDefault || (axis.values && axis.values.length > 0 ? String(axis.values[0]) : "");
       if (selected) nextSelection[axis.key] = selected;
     });
     setSelectedVariant(nextSelection);
@@ -126,7 +126,7 @@ const VariantSelector = ({ variants, onVariantChange, currentPrice }) => {
 
   return (
     <div className="space-y-6">
-      {axes.map((axis) => (
+      {axes.filter(axis => axis.key !== "color").map((axis) => (
         <div key={axis.key}>
           <label className="block text-sm font-semibold text-gray-700 mb-3">
             {axis.label}:{" "}
