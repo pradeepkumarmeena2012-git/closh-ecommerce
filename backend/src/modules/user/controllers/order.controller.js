@@ -8,6 +8,7 @@ import Commission from '../../../models/Commission.model.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import Admin from '../../../models/Admin.model.js';
 import { generateOrderId } from '../../../utils/generateOrderId.js';
+import { generateReturnId } from '../../../utils/generateReturnId.js';
 import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js';
 import mongoose from 'mongoose';
 import { createNotification } from '../../../services/notification.service.js';
@@ -203,8 +204,8 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
 
 // POST /api/user/orders
 export const placeOrder = asyncHandler(async (req, res) => {
-    const { items, shippingAddress, paymentMethod, couponCode, shippingOption, orderType, deliveryType, deviceToken } = req.body;
-    console.log("STEP 3 - req.body.customerLocation:", req.body.dropoffLocation);
+    const { items, shippingAddress, paymentMethod, couponCode, shippingOption, orderType, deliveryType, deviceToken, dropoffLocation } = req.body;
+    console.log("STEP 3 - Received dropoffLocation:", dropoffLocation);
 
     // Validate order type
     const allowedOrderTypes = ['check_and_buy', 'try_and_buy'];
@@ -280,8 +281,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 ? String((product?.variants?.imageMap?.get?.(variantKey) ?? product?.variants?.imageMap?.[variantKey]) || '').trim()
                 : '';
         const itemCommissionRate = product.vendorId.commissionRate || 0;
-        const itemCommissionAmount = (itemPrice * item.quantity * itemCommissionRate) / 100;
         const itemVendorPrice = product.vendorPrice || 0;
+        const itemCommissionAmount = (itemVendorPrice * item.quantity * itemCommissionRate) / 100;
         const itemMarginAmount = (itemPrice - itemVendorPrice) * item.quantity;
 
         const enriched = {
@@ -312,10 +313,12 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 freeShippingThreshold: product.vendorId.freeShippingThreshold,
                 items: [],
                 subtotal: 0,
+                basePrice: 0,
             };
         }
         vendorMap[vid].items.push(enriched);
         vendorMap[vid].subtotal += itemSubtotal;
+        vendorMap[vid].basePrice += (itemVendorPrice * item.quantity);
         vendorMap[vid].shopLocation = product.vendorId.shopLocation;
     }
     console.log(`[OrderCalc] Subtotal: ₹${subtotal}, Vendors: ${Object.keys(vendorMap).length}`);
@@ -416,6 +419,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             vendorName: v.vendorName,
             items: v.items,
             subtotal: v.subtotal,
+            basePrice: v.basePrice,
             shipping: Number(shippingByVendor[String(v.vendorId)] || 0),
             distance: v.distance || 0,
             tax: 0,
@@ -681,7 +685,7 @@ const normalizeReturnRequest = (requestDoc) => {
     const orderRefId = request?.orderId?._id || request?.orderId || null;
     return {
         ...request,
-        id: String(request?._id || ''),
+        id: request.returnId || String(request?._id || ''),
         orderId: orderOrderId || String(orderRefId || ''),
         orderRefId: orderRefId ? String(orderRefId) : null,
         requestDate: request?.createdAt,
@@ -705,8 +709,26 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
 
     const orderStatusNormalized = String(order.status || '').toLowerCase();
     if (orderStatusNormalized !== 'delivered') {
-        console.log('Order is not in delivered status', { orderId: order.orderId, status: order.status });
         throw new ApiError(400, 'Return can only be requested for delivered orders.');
+    }
+
+    // Check 24-hour validity
+    if (order.deliveredAt) {
+        const deliveredDate = new Date(order.deliveredAt);
+        const now = new Date();
+        const diffInHours = (now - deliveredDate) / (1000 * 60 * 60);
+        
+        if (diffInHours > 24) {
+            throw new ApiError(400, 'Return validity has expired. Returns must be requested within 24 hours of delivery.');
+        }
+    } else {
+        // Fallback if deliveredAt is missing (unlikely but safe)
+        const updatedDate = new Date(order.updatedAt);
+        const now = new Date();
+        const diffInHours = (now - updatedDate) / (1000 * 60 * 60);
+        if (diffInHours > 24) {
+             throw new ApiError(400, 'Return validity has expired. Returns must be requested within 24 hours of delivery.');
+        }
     }
 
     const requestedVendorId = String(req.body.vendorId || '').trim();
@@ -780,6 +802,7 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
 
     const request = await ReturnRequest.create({
         orderId: order._id,
+        returnId: generateReturnId(),
         userId: req.user.id,
         vendorId,
         items: normalizedItems,

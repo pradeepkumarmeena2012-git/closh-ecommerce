@@ -207,7 +207,7 @@ const ServiceAreas = () => {
                     Service Type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Delivery Settings
+                    Service Radius
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Stats
@@ -233,16 +233,22 @@ const ServiceAreas = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getServiceTypeBadge(area.serviceType)}`}>
-                        {area.serviceType.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        <div>Fee: {formatPrice(area.deliverySettings?.deliveryFee || 0)}</div>
-                        <div className="text-gray-500">Min: {formatPrice(area.deliverySettings?.minOrderAmount || 0)}</div>
-                        <div className="text-gray-500">Time: {area.deliverySettings?.averageDeliveryTime}</div>
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full w-fit ${getServiceTypeBadge(area.serviceType)}`}>
+                          {area.serviceType.replace('_', ' ').toUpperCase()}
+                        </span>
+                        {area.isStrictBoundary && (
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-600 border border-red-100 rounded-full w-fit uppercase tracking-tighter">
+                            Strict Boundary
+                          </span>
+                        )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {area.deliverySettings?.maxDeliveryRadius || 0} km
+                      </div>
+                      <div className="text-[10px] text-gray-500 uppercase tracking-tighter">Service Radius</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm">

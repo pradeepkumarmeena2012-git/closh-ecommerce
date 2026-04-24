@@ -258,7 +258,15 @@ const AddressFormModal = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
             <input
               type="tel"
-              {...register('phone', { required: 'Phone number is required' })}
+              {...register('phone', {
+                required: 'Phone number is required',
+                pattern: {
+                  value: /^[6-9]\d{9}$/,
+                  message: 'Invalid phone number. Must be 10 digits starting with 6-9'
+                }
+              })}
+              placeholder="10-digit Mobile Number"
+              maxLength={10}
               className={`w-full px-4 py-3 rounded-xl border-2 ${errors.phone ? 'border-red-300' : 'border-gray-200'
                 } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
             />
@@ -299,10 +307,21 @@ const AddressFormModal = ({
               <label className="block text-sm font-semibold text-gray-700 mb-2">Zip Code</label>
               <input
                 type="text"
-                {...register('zipCode', { required: 'Zip code is required' })}
+                {...register('zipCode', {
+                  required: 'Zip code is required',
+                  pattern: {
+                    value: /^\d{6}$/,
+                    message: 'Zip code must be exactly 6 digits'
+                  },
+                  minLength: { value: 6, message: 'Zip code must be 6 digits' },
+                  maxLength: { value: 6, message: 'Zip code must be 6 digits' }
+                })}
                 className={`w-full px-4 py-3 rounded-xl border-2 ${errors.zipCode ? 'border-red-300' : 'border-gray-200'
                   } focus:outline-none focus:ring-2 focus:ring-primary-500 text-base`}
+                placeholder="6-digit Pincode"
+                maxLength={6}
               />
+              {errors.zipCode && <p className="mt-1 text-sm text-red-600">{errors.zipCode.message}</p>}
             </div>
           </div>
           <div>

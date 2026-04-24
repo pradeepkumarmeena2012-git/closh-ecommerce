@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow, Circle } from '@react-google-maps/api';
+import { GoogleMap, Polyline, Marker, InfoWindow, Circle } from '@react-google-maps/api';
 import { FiNavigation, FiMapPin, FiTrendingUp } from 'react-icons/fi';
 
 const containerStyle = {

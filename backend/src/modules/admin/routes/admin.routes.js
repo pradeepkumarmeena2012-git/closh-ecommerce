@@ -18,6 +18,7 @@ import * as roleController from '../controllers/role.controller.js';
 import * as attributeController from '../controllers/attribute.controller.js';
 import * as adminWithdrawalController from '../controllers/adminWithdrawal.controller.js';
 import * as serviceAreaController from '../controllers/serviceArea.controller.js';
+import * as riderSettlementController from '../controllers/riderSettlement.controller.js';
 
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus, checkPermission, authorizeAdmin } from '../../../middlewares/authorize.js';
@@ -106,6 +107,7 @@ router.get('/analytics/finance-summary', ...adminAuth, checkPermission('finance_
 router.get('/analytics/inventory-stats', ...adminAuth, checkPermission('dashboard_view'), analyticsController.getInventoryStats);
 router.get('/analytics/earnings-summary', ...adminAuth, checkPermission('finance_view'), analyticsController.getAdminEarningsSummary);
 router.get('/analytics/earnings-report', ...adminAuth, checkPermission('finance_view'), analyticsController.getDetailedEarningsReport);
+router.get('/analytics/vendor-performance', ...adminAuth, checkPermission('dashboard_view'), analyticsController.getVendorPerformance);
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 router.get('/orders', ...adminAuth, checkPermission('orders_manage'), orderController.getAllOrders);
@@ -155,6 +157,7 @@ router.patch('/vendors/:id/commission', ...adminAuth, checkPermission('vendors_m
 router.get('/settlements/balances', ...adminAuth, checkPermission('finance_view'), settlementController.getVendorsBalances);
 router.post('/settlements/process', ...adminAuth, checkPermission('finance_view'), settlementController.processSettlement);
 router.get('/settlements/history', ...adminAuth, checkPermission('finance_view'), settlementController.getSettlementHistory);
+router.get('/settlements/vendor/:vendorId/pending-commissions', ...adminAuth, checkPermission('finance_view'), settlementController.getPendingCommissions);
 
 // ─── Customers ────────────────────────────────────────────────────────────────
 router.get('/customers', ...adminAuth, checkPermission('customers_manage'), validate(customerListQuerySchema, 'query'), customerController.getAllCustomers);
@@ -177,6 +180,7 @@ router.patch('/delivery-boys/:id/application-status', ...adminAuth, checkPermiss
 router.patch('/delivery-boys/:id/kyc-status', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), validate(updateKycStatusSchema), deliveryController.updateKycStatus);
 router.get('/delivery-boys/:id/cash-history', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), deliveryController.getCashHistory);
 router.post('/delivery-boys/:id/settle-cash', ...adminAuth, checkPermission('delivery_manage'), validate(deliveryBoyIdParamSchema, 'params'), validate(settleCashSchema), deliveryController.settleCash);
+router.get('/delivery-settlements', ...adminAuth, checkPermission('delivery_manage'), riderSettlementController.getAllSettlements);
 
 // ─── Withdrawal Requests ──────────────────────────────────────────────────────
 router.get('/withdrawals', ...adminAuth, checkPermission('finance_view'), adminWithdrawalController.getAllWithdrawalRequests);

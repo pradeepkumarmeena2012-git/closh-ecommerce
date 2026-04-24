@@ -324,7 +324,7 @@ router.get('/categories/all', asyncHandler(async (req, res) => {
         return res.status(200).json(new ApiResponse(200, cachedData, 'Categories fetched (from cache).'));
     }
 
-    const categories = await Category.find({ isActive: true }).sort({ order: 1 });
+    const categories = await Category.find({ isActive: true }).sort({ order: 1, name: 1 });
     await setCache(cacheKey, categories, 3600); // 1 hour
 
     res.status(200).json(new ApiResponse(200, categories, 'Categories fetched.'));

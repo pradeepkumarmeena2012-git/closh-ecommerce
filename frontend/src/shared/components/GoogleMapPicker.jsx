@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader } from '@googlemaps/js-api-loader';
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 
 const GoogleMapPicker = ({ onLocationSelect, initialLocation, height = '400px', zoom = 12 }) => {
   const mapRef = useRef(null);
@@ -8,80 +8,84 @@ const GoogleMapPicker = ({ onLocationSelect, initialLocation, height = '400px', 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Google Maps API Key - You should move this to environment variables
+  // Google Maps API Key
   const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
 
   useEffect(() => {
-    const loader = new Loader({
-      apiKey: GOOGLE_MAPS_API_KEY,
-      version: 'weekly',
-      libraries: ['places']
-    });
+    let isMounted = true;
 
-    loader
-      .load()
-      .then((google) => {
-        const defaultLocation = initialLocation || { lat: 26.9124, lng: 75.7873 }; // Default to Jaipur
+    const initMap = async () => {
+      try {
+        setOptions({
+          apiKey: GOOGLE_MAPS_API_KEY,
+          version: 'weekly'
+        });
 
-        const mapInstance = new google.maps.Map(mapRef.current, {
+        const [{ Map }, { Marker }] = await Promise.all([
+          importLibrary('maps'),
+          importLibrary('marker')
+        ]);
+
+        if (!isMounted) return;
+
+        const defaultLocation = initialLocation || { lat: 26.9124, lng: 75.7873 }; // Jaipur
+
+        const mapInstance = new Map(mapRef.current, {
           center: defaultLocation,
           zoom: zoom,
+          mapId: 'DEMO_MAP_ID', // Required for advanced markers if needed
           mapTypeControl: true,
           streetViewControl: false,
           fullscreenControl: true,
         });
 
-        // Add marker
-        const markerInstance = new google.maps.Marker({
+        const markerInstance = new Marker({
           position: defaultLocation,
           map: mapInstance,
           draggable: true,
           title: 'Service Area Center'
         });
 
-        // Click event to set new location
+        // Click event
         mapInstance.addListener('click', (event) => {
           const location = {
             lat: event.latLng.lat(),
             lng: event.latLng.lng()
           };
           markerInstance.setPosition(location);
-          if (onLocationSelect) {
-            onLocationSelect(location);
-          }
+          if (onLocationSelect) onLocationSelect(location);
         });
 
-        // Drag event for marker
+        // Drag event
         markerInstance.addListener('dragend', (event) => {
           const location = {
             lat: event.latLng.lat(),
             lng: event.latLng.lng()
           };
-          if (onLocationSelect) {
-            onLocationSelect(location);
-          }
+          if (onLocationSelect) onLocationSelect(location);
         });
 
         setMap(mapInstance);
         setMarker(markerInstance);
         setIsLoading(false);
 
-        // Call initial location select
         if (onLocationSelect && defaultLocation) {
           onLocationSelect(defaultLocation);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('Error loading Google Maps:', err);
-        setError('Failed to load Google Maps. Please check your API key.');
-        setIsLoading(false);
-      });
+        if (isMounted) {
+          setError('Failed to load Google Maps. Please check your API key.');
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initMap();
 
     return () => {
-      // Cleanup
-      if (marker) {
-        marker.setMap(null);
-      }
+      isMounted = false;
+      if (marker) marker.setMap(null);
     };
   }, []);
 

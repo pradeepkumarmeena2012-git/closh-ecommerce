@@ -15,7 +15,7 @@ const VendorBottomNav = () => {
     { path: "/vendor/dashboard", icon: FiHome, label: "Home" },
     { path: "/vendor/products", icon: FiPackage, label: "Products" },
     { path: "/vendor/orders", icon: FiShoppingBag, label: "Orders" },
-    { path: "/vendor/earnings", icon: FiDollarSign, label: "Earnings" },
+    { path: "/vendor/settlements", icon: FiDollarSign, label: "Settlements" },
   ];
 
   const isActive = (path) => {

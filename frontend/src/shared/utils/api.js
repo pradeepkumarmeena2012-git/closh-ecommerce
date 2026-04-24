@@ -130,13 +130,21 @@ const shouldAttemptRefresh = (error, scope) => {
   return true;
 };
 
-const runRefresh = async (scope) => {
+const runRefresh = async (scope, failedRefreshToken) => {
   if (refreshInFlight[scope]) {
     return refreshInFlight[scope];
   }
 
   const config = AUTH_SCOPES[scope];
   const currentRefreshToken = localStorage.getItem(config.refreshKey);
+
+  // If the token in storage is already different from the one that failed,
+  // it means another tab or concurrent request already refreshed it.
+  if (currentRefreshToken && failedRefreshToken && currentRefreshToken !== failedRefreshToken) {
+    const nextAccessToken = localStorage.getItem(config.accessKey);
+    if (nextAccessToken) return nextAccessToken;
+  }
+
   if (!currentRefreshToken) {
     throw new Error('No refresh token available.');
   }
@@ -160,6 +168,8 @@ const runRefresh = async (scope) => {
     })
     .catch((err) => {
        const status = err.response?.status;
+       // Only clear auth if the refresh attempt itself was rejected by the server
+       // using the "latest" token we had.
        if (status === 401 || status === 403) {
          clearScopeAuth(scope);
          dispatchAuthFailure(scope);
@@ -196,7 +206,8 @@ api.interceptors.response.use(
     // If we should refresh, do it and retry
     if (shouldAttemptRefresh(error, scope)) {
       try {
-        const nextAccessToken = await runRefresh(scope);
+        const failedRefreshToken = localStorage.getItem(AUTH_SCOPES[scope].refreshKey);
+        const nextAccessToken = await runRefresh(scope, failedRefreshToken);
         originalRequest._retry = true;
         originalRequest.headers = originalRequest.headers || {};
         originalRequest.headers.Authorization = `Bearer ${nextAccessToken}`;
@@ -268,14 +279,6 @@ api.interceptors.response.use(
       }
     }
 
-    if (status === 403 && (scope === 'vendor' || scope === 'delivery')) {
-      const routeConfig = AUTH_SCOPES[scope];
-      if (currentPath.startsWith(routeConfig.areaPrefix) && currentPath !== routeConfig.loginPath) {
-        clearScopeAuth(scope);
-        dispatchAuthFailure(scope);
-        redirectTo(routeConfig.loginPath);
-      }
-    }
 
     return Promise.reject(error);
   }

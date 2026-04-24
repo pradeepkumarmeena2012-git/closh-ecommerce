@@ -4,6 +4,7 @@ import * as orderController from '../controllers/order.controller.js';
 import * as assignmentController from '../controllers/assignment.controller.js';
 import * as notificationController from '../controllers/notification.controller.js';
 import * as withdrawalController from '../controllers/withdrawal.controller.js';
+import * as settlementController from '../controllers/settlement.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
 import { authLimiter } from '../../../middlewares/rateLimiter.js';
@@ -92,5 +93,10 @@ router.delete('/notifications/:id', ...deliveryAuth, notificationController.dele
 // Withdrawals
 router.post('/withdrawals', ...deliveryAuth, withdrawalController.requestWithdrawal);
 router.get('/withdrawals', ...deliveryAuth, withdrawalController.getWithdrawalHistory);
+
+// Cash Settlements
+router.post('/settlements', ...deliveryAuth, settlementController.createSettlementOrder);
+router.post('/settlements/verify', ...deliveryAuth, settlementController.verifySettlement);
+router.get('/settlements', ...deliveryAuth, settlementController.getSettlementHistory);
 
 export default router;

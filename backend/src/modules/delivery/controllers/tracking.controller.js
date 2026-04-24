@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import Order from '../../../models/Order.model.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
+import { emitEvent } from '../../../services/socket.service.js';
 
 /**
  * @desc    Update delivery boy location and calculate distance/earnings
@@ -71,6 +72,26 @@ export const updateLocationWithTracking = asyncHandler(async (req, res) => {
             await order.save();
         }
     }
+
+    // --- Broadcast Live Update ---
+    // Emit to order room for customer tracking
+    if (orderId) {
+        emitEvent(`order_${orderId}`, 'location_updated', {
+            lat,
+            lng,
+            deliveryBoyId,
+            orderId,
+            timestamp: Date.now()
+        });
+    }
+
+    // Emit to admin room
+    emitEvent('admin_tracking', 'delivery_boy_moved', {
+        lat,
+        lng,
+        deliveryBoyId,
+        timestamp: Date.now()
+    });
 
     res.json({
         success: true,

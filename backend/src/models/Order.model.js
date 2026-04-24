@@ -20,6 +20,7 @@ const vendorItemGroupSchema = new mongoose.Schema({
     vendorName: String,
     items: [orderItemSchema],
     subtotal: Number,
+    basePrice: Number,
     shipping: Number,
     tax: Number,
     discount: Number,

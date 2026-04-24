@@ -277,13 +277,16 @@ const PaymentPage = () => {
                 shippingOption: 'online',
                 orderType: ['try_and_buy', 'check_and_buy'].includes(deliveryType) ? deliveryType : 'check_and_buy',
                 deliveryType: 'online',
-                dropoffLocation: currentAddress?.coordinates?.coordinates ? {
-                    type: 'Point',
-                    coordinates: currentAddress.coordinates.coordinates
-                } : (currentAddress?.coordinates ? {
-                    type: 'Point',
-                    coordinates: [currentAddress.coordinates.lon || currentAddress.coordinates.lng, currentAddress.coordinates.lat]
-                } : null),
+                dropoffLocation: (function() {
+                    const coords = currentAddress?.coordinates?.coordinates || currentAddress?.coordinates;
+                    if (Array.isArray(coords) && coords.length === 2 && Number.isFinite(coords[0])) {
+                        return { type: 'Point', coordinates: [Number(coords[0]), Number(coords[1])] };
+                    }
+                    if (coords && typeof coords === 'object' && (coords.lon || coords.lng) && coords.lat) {
+                        return { type: 'Point', coordinates: [Number(coords.lon || coords.lng), Number(coords.lat)] };
+                    }
+                    return null;
+                })(),
                 // Send frontend calculations as well for record/validation
                 subtotal: subtotal,
                 tax: tax,
@@ -291,6 +294,7 @@ const PaymentPage = () => {
                 platformFee: platformFee,
                 total: finalTotal
             };
+            console.log("PaymentPage - Prepared orderPayload:", orderPayload);
 
             const response = await createOrder(orderPayload);
             if (response && response.id) {

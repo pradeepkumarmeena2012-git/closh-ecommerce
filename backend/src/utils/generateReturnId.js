@@ -1,9 +1,9 @@
 /**
- * Generates a unique order ID: ORD-{timestamp}-{random4}
+ * Generates a unique Return ID: RET-YYMMDD-RANDOM4
  */
-export const generateOrderId = () => {
+export const generateReturnId = () => {
     const now = new Date();
     const datePart = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
     const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `ORD-${datePart}-${random}`;
+    return `RET-${datePart}-${random}`;
 };

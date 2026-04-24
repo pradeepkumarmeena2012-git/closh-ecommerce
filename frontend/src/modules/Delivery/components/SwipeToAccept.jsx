@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, useAnimation, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { FiChevronRight, FiCheck } from 'react-icons/fi';
 
-const SwipeToAccept = ({ onAccept, isLoading = false, label = 'Swipe to Accept Request' }) => {
+const SwipeToAccept = ({ onAccept, isLoading = false, label = 'Swipe to Accept Request', color = '#6366f1' }) => {
     const [accepted, setAccepted] = useState(false);
     const containerRef = useRef(null);
     const handleRef = useRef(null);
@@ -45,13 +45,14 @@ const SwipeToAccept = ({ onAccept, isLoading = false, label = 'Swipe to Accept R
             <motion.div
                 ref={containerRef}
                 className={`relative w-full h-[68px] rounded-[34px] overflow-hidden flex items-center p-1.5 transition-all duration-300 ${
-                  accepted ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-100 border-slate-200'
+                  accepted ? 'border-transparent' : 'bg-slate-100 border-slate-200'
                 } border shadow-inner`}
+                style={{ backgroundColor: accepted ? color : undefined }}
             >
                 {/* Background Progress Fill */}
                 <motion.div 
-                   style={{ width: x, opacity: accepted ? 0 : 1 }}
-                   className="absolute inset-y-0 left-0 bg-indigo-500/10 pointer-events-none"
+                   style={{ width: x, opacity: accepted ? 0 : 1, backgroundColor: color }}
+                   className="absolute inset-y-0 left-0 opacity-10 pointer-events-none"
                 />
 
                 <motion.div
@@ -79,9 +80,11 @@ const SwipeToAccept = ({ onAccept, isLoading = false, label = 'Swipe to Accept R
                 >
                     <div className={`w-full h-full rounded-[28px] flex items-center justify-center shadow-lg transition-all duration-500 ${
                         accepted 
-                        ? 'bg-white text-emerald-600 scale-95' 
-                        : 'bg-[#0F172A] text-white group-hover:bg-indigo-600'
-                    }`}>
+                        ? 'bg-white scale-95' 
+                        : 'bg-[#0F172A] text-white'
+                    }`}
+                    style={{ color: accepted ? color : undefined }}
+                    >
                         {accepted ? (
                            <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }}>
                               <FiCheck size={28} />

@@ -14,6 +14,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import PageTransition from '../../../shared/components/PageTransition';
 import WithdrawalModal from '../components/WithdrawalModal';
+import CashSettlementModal from '../components/CashSettlementModal';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
@@ -23,6 +24,7 @@ const Payouts = () => {
   const navigate = useNavigate();
   const { deliveryBoy, fetchProfile } = useDeliveryAuthStore();
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [withdrawalHistory, setWithdrawalHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, pending, approved, rejected, completed
@@ -77,6 +79,12 @@ const Payouts = () => {
     setShowWithdrawalModal(false);
     loadWithdrawalHistory();
     fetchProfile();
+  };
+
+  const handleSettlementComplete = () => {
+    setShowSettlementModal(false);
+    fetchProfile();
+    loadWithdrawalHistory(); // maybe settlements show up here? no, distinct fee usually
   };
 
   const getStatusIcon = (status) => {
@@ -177,9 +185,17 @@ const Payouts = () => {
                   <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Earned</p>
                   <p className="text-sm font-bold text-slate-800">{formatPrice(deliveryBoy?.totalEarnings || 0)}</p>
                 </div>
-                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center">
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center relative group">
                   <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">In Hand</p>
                   <p className="text-sm font-bold text-slate-800">{formatPrice(deliveryBoy?.cashInHand || 0)}</p>
+                  {(deliveryBoy?.cashInHand > 0) && (
+                    <button 
+                      onClick={() => setShowSettlementModal(true)}
+                      className="absolute -top-2 -right-1 bg-indigo-600 text-white text-[7px] font-black px-2 py-1 rounded-full shadow-lg shadow-indigo-200 active:scale-95 transition-all"
+                    >
+                        SETTLE
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -291,6 +307,13 @@ const Payouts = () => {
         onClose={() => setShowWithdrawalModal(false)}
         balance={deliveryBoy?.availableBalance || 0}
         onWithdrawalRequested={handleWithdrawalRequested}
+      />
+
+      <CashSettlementModal
+        isOpen={showSettlementModal}
+        onClose={() => setShowSettlementModal(false)}
+        cashInHand={deliveryBoy?.cashInHand || 0}
+        onSettlementComplete={handleSettlementComplete}
       />
     </PageTransition>
   );

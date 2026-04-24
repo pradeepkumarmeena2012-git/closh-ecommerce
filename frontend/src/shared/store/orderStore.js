@@ -55,12 +55,12 @@ const normalizePublicTrackingOrder = (order) =>
 const buildIdempotencyKey = (payload, userId = null) => {
   const base = JSON.stringify({
     userId: userId || null,
-    items: payload?.items || [],
+    items: (payload?.items || []).map(i => ({ productId: i.productId, quantity: i.quantity, variant: i.variant })),
     shippingAddress: payload?.shippingAddress || {},
     paymentMethod: payload?.paymentMethod || "",
     couponCode: payload?.couponCode || "",
-    shippingOption: payload?.shippingOption || "standard",
     orderType: payload?.orderType || "check_and_buy",
+    dropoffLocation: payload?.dropoffLocation || null,
   });
 
   let hash = 0;
@@ -68,11 +68,9 @@ const buildIdempotencyKey = (payload, userId = null) => {
     hash = (hash << 5) - hash + base.charCodeAt(i);
     hash |= 0;
   }
-  const attemptNonce =
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-  return `ord-${Math.abs(hash)}-${payload?.items?.length || 0}-${attemptNonce}`;
+  
+  // Use a stable key per unique order intent for better duplicate detection
+  return `ord-${Math.abs(hash)}-${payload?.items?.length || 0}`;
 };
 
 export const useOrderStore = create(
@@ -104,9 +102,9 @@ export const useOrderStore = create(
           const payload = {
             items: orderData.items.map((item) => {
               // Extract original Mongo ID if it's an upsell item (format: upsell-ID-timestamp)
-              const productId = String(item.id).startsWith('upsell-') 
-                ? item.id.split('-')[1] 
-                : item.id;
+              const productId = String(item.id || item.productId || item._id).startsWith('upsell-') 
+                ? (item.id || item.productId || item._id).split('-')[1] 
+                : (item.id || item.productId || item._id);
 
               return {
                 productId,
@@ -120,16 +118,10 @@ export const useOrderStore = create(
             couponCode: orderData.couponCode || undefined,
             shippingOption: orderData.shippingOption || 'standard',
             orderType: orderData.orderType || 'check_and_buy',
-            // Pass through any extra fields like dropoffLocation
-            ...orderData
+            dropoffLocation: orderData.dropoffLocation || null,
+            deviceToken: orderData.deviceToken || undefined,
+            deliveryType: orderData.deliveryType || 'online'
           };
-          delete payload.items; // items already mapped above
-          payload.items = orderData.items.map(item => ({
-             productId: String(item.id).startsWith('upsell-') ? item.id.split('-')[1] : item.id,
-             quantity: Number(item.quantity || 1),
-             price: Number(item.price || 0),
-             variant: item.variant || undefined,
-          }));
           const idempotencyKey = buildIdempotencyKey(payload, orderData.userId);
 
           console.log("Order Store - Placing Order with Payload:", payload);

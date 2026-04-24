@@ -62,6 +62,7 @@ import DeliveryBoys from "./modules/Admin/pages/delivery/DeliveryBoys";
 import CashCollection from "./modules/Admin/pages/delivery/CashCollection";
 import AssignDelivery from "./modules/Admin/pages/delivery/AssignDelivery";
 import Withdrawals from "./modules/Admin/pages/delivery/Withdrawals";
+import RiderSettlements from "./modules/Admin/pages/delivery/RiderSettlements";
 // Vendors child pages
 import Vendors from "./modules/Admin/pages/Vendors";
 import ManageVendors from "./modules/Admin/pages/vendors/ManageVendors";
@@ -176,22 +177,17 @@ const VendorOrders = lazy(() => import("./modules/Vendor/pages/Orders"));
 const VendorAllOrders = lazy(() => import("./modules/Vendor/pages/orders/AllOrders"));
 const VendorOrderTracking = lazy(() => import("./modules/Vendor/pages/orders/OrderTracking"));
 const VendorOrderDetail = lazy(() => import("./modules/Vendor/pages/orders/OrderDetail"));
-const VendorAnalytics = lazy(() => import("./modules/Vendor/pages/Analytics"));
-const VendorEarnings = lazy(() => import("./modules/Vendor/pages/Earnings"));
+const VendorSettlements = lazy(() => import("./modules/Vendor/pages/Settlements.jsx"));
 const VendorSettings = lazy(() => import("./modules/Vendor/pages/Settings"));
 const VendorStockManagement = lazy(() => import("./modules/Vendor/pages/StockManagement"));
-const VendorWalletHistory = lazy(() => import("./modules/Vendor/pages/WalletHistory"));
 const VendorReturnRequests = lazy(() => import("./modules/Vendor/pages/ReturnRequests"));
 const VendorReturnRequestDetail = lazy(() => import("./modules/Vendor/pages/returns/ReturnRequestDetail"));
 const VendorProductReviews = lazy(() => import("./modules/Vendor/pages/ProductReviews"));
 const VendorHelp = lazy(() => import("./modules/Vendor/pages/VendorHelp"));
-const VendorInventoryReports = lazy(() => import("./modules/Vendor/pages/InventoryReports"));
-const VendorPerformanceMetrics = lazy(() => import("./modules/Vendor/pages/PerformanceMetrics"));
 const VendorDocuments = lazy(() => import("./modules/Vendor/pages/Documents"));
 const VendorNotifications = lazy(() => import("./modules/Vendor/pages/Notifications"));
 const VendorSupportTickets = lazy(() => import("./modules/Vendor/pages/SupportTickets"));
 const VendorPickupLocations = lazy(() => import("./modules/Vendor/pages/PickupLocations"));
-const VendorReports = lazy(() => import("./modules/Vendor/pages/Reports"));
 const VendorLanguageSettings = lazy(() => import("./modules/Vendor/pages/LanguageSettings"));
 
 const VendorOfflineSales = lazy(() => import("./modules/Vendor/pages/stock/OfflineSales"));
@@ -246,6 +242,7 @@ const AppRoutes = () => {
           <Route path="delivery/cash-collection" element={<CashCollection />} />
           <Route path="delivery/assign-delivery" element={<AssignDelivery />} />
           <Route path="delivery/withdrawals" element={<Withdrawals />} />
+          <Route path="delivery/rider-settlements" element={<RiderSettlements />} />
           <Route path="vendors" element={<Vendors />} />
           <Route path="vendors/manage-vendors" element={<ManageVendors />} />
           <Route
@@ -259,6 +256,7 @@ const AppRoutes = () => {
           />
           <Route path="vendors/explorer" element={<VendorExplorer />} />
           <Route path="vendors/register" element={<RegisterVendor />} />
+          <Route path="vendors/settlements" element={<Settlements />} />
           <Route path="vendors/:id" element={<VendorDetail />} />
 
           <Route path="attributes" element={<Attributes />} />
@@ -302,7 +300,6 @@ const AppRoutes = () => {
           </Route>
           <Route path="finance" element={<RevenueOverview />} />
           <Route path="finance/revenue-overview" element={<RevenueOverview />} />
-          <Route path="finance/settlements" element={<Settlements />} />
           <Route path="finance/profit-loss" element={<ProfitLoss />} />
           <Route path="finance/order-trends" element={<OrderTrends />} />
           <Route
@@ -386,24 +383,14 @@ const AppRoutes = () => {
           <Route path="orders/all-orders" element={<VendorAllOrders />} />
           <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
           <Route path="orders/:id" element={<VendorOrderDetail />} />
-          <Route path="analytics" element={<VendorAnalytics />} />
-          <Route path="reports" element={<VendorReports />} />
-          <Route path="earnings" element={<VendorEarnings />} />
-          <Route path="earnings/overview" element={<VendorEarnings />} />
-          <Route
-            path="earnings/commission-history"
-            element={<VendorEarnings />}
-          />
-          <Route
-            path="earnings/settlement-history"
-            element={<VendorEarnings />}
-          />
+          <Route path="settlements" element={<VendorSettlements />} />
+          <Route path="settlements/earnings-ledger" element={<VendorSettlements />} />
+          <Route path="settlements/payout-history" element={<VendorSettlements />} />
           <Route path="stock-management">
             <Route index element={<VendorStockManagement />} />
             <Route path="manage" element={<VendorStockManagement />} />
             <Route path="offline-sales" element={<VendorOfflineSales />} />
           </Route>
-          <Route path="wallet-history" element={<VendorWalletHistory />} />
           <Route path="help" element={<VendorHelp />} />
           <Route path="notifications" element={<VendorNotifications />} />
           <Route path="return-requests" element={<VendorReturnRequests />} />
@@ -414,11 +401,6 @@ const AppRoutes = () => {
           <Route path="product-reviews" element={<VendorProductReviews />} />
           <Route path="pickup-locations" element={<VendorPickupLocations />} />
           <Route path="support-tickets" element={<VendorSupportTickets />} />
-          <Route path="inventory-reports" element={<VendorInventoryReports />} />
-          <Route
-            path="performance-metrics"
-            element={<VendorPerformanceMetrics />}
-          />
           <Route path="documents" element={<VendorDocuments />} />
           <Route path="language-settings" element={<VendorLanguageSettings />} />
           <Route path="settings" element={<VendorSettings />} />

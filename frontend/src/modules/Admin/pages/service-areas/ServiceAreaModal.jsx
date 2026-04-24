@@ -24,6 +24,7 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
     },
     displayMessage: '',
     estimatedLaunchDate: '',
+    isStrictBoundary: false,
     notes: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,6 +45,7 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
         displayMessage: serviceArea.displayMessage || '',
         estimatedLaunchDate: serviceArea.estimatedLaunchDate ? 
           new Date(serviceArea.estimatedLaunchDate).toISOString().split('T')[0] : '',
+        isStrictBoundary: serviceArea.isStrictBoundary || false,
         notes: serviceArea.notes || ''
       });
       
@@ -73,6 +75,7 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
         },
         displayMessage: '',
         estimatedLaunchDate: '',
+        isStrictBoundary: false,
         notes: ''
       });
       setSelectedLocation(null);
@@ -214,6 +217,21 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
                     </select>
                   </div>
 
+                  <div className="flex items-center gap-4 bg-red-50 p-3 rounded-xl border border-red-100">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isStrictBoundary}
+                        onChange={(e) => setFormData({...formData, isStrictBoundary: e.target.checked})}
+                        className="w-5 h-5 text-red-600 rounded focus:ring-2 focus:ring-red-500"
+                      />
+                      <div>
+                        <span className="block text-sm font-bold text-red-700">Strict City Boundary</span>
+                        <span className="text-[10px] text-red-600 leading-tight">Restrict app access ONLY to this city's limits</span>
+                      </div>
+                    </label>
+                  </div>
+
                   {formData.serviceType === 'coming_soon' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -243,92 +261,34 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
                 />
               </div>
 
-              {/* Delivery Settings */}
+              {/* Delivery Settings - Simplified */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Delivery Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Service Radius</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Minimum Order Amount (₹)
+                      Max Delivery Radius (km) *
                     </label>
-                    <input
-                      type="number"
-                      value={formData.deliverySettings.minOrderAmount}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        deliverySettings: {...formData.deliverySettings, minOrderAmount: e.target.value}
-                      })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      min="0"
-                    />
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={formData.deliverySettings.maxDeliveryRadius}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          deliverySettings: {...formData.deliverySettings, maxDeliveryRadius: e.target.value}
+                        })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        min="1"
+                        placeholder="e.g., 10"
+                        required
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">km</span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1">Users within this distance from the center will be allowed access.</p>
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Delivery Fee (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.deliverySettings.deliveryFee}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        deliverySettings: {...formData.deliverySettings, deliveryFee: e.target.value}
-                      })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      min="0"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Free Delivery Threshold (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.deliverySettings.freeDeliveryThreshold}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        deliverySettings: {...formData.deliverySettings, freeDeliveryThreshold: e.target.value}
-                      })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      min="0"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Average Delivery Time
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.deliverySettings.averageDeliveryTime}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        deliverySettings: {...formData.deliverySettings, averageDeliveryTime: e.target.value}
-                      })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      placeholder="e.g., 30-45 mins"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Max Delivery Radius (km)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.deliverySettings.maxDeliveryRadius}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        deliverySettings: {...formData.deliverySettings, maxDeliveryRadius: e.target.value}
-                      })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      min="1"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="flex items-end pb-2">
+                    <label className="flex items-center gap-2 cursor-pointer bg-gray-50 p-2 rounded-lg border border-gray-200 w-full">
                       <input
                         type="checkbox"
                         checked={formData.deliverySettings.codAvailable}
@@ -338,7 +298,7 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
                         })}
                         className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                       />
-                      <span className="text-sm text-gray-700">COD Available</span>
+                      <span className="text-sm text-gray-700">Allow COD in this area</span>
                     </label>
                   </div>
                 </div>

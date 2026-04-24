@@ -1,6 +1,8 @@
+import { cacheInvalidate } from './order.controller.js';
 import mongoose from 'mongoose';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import Order from '../../../models/Order.model.js';
+import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import asyncHandler from '../../../utils/asyncHandler.js';
@@ -274,6 +276,23 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
         idFilter.push({ _id: orderId });
     }
 
+    // ── BLOCKER: Ensure rider doesn't already have an active mission (Order or Return) ──
+    const [hasActiveOrder, hasActiveReturn] = await Promise.all([
+        Order.exists({
+            deliveryBoyId: deliveryBoyId,
+            isDeleted: { $ne: true },
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
+        }),
+        ReturnRequest.exists({
+            deliveryBoyId: deliveryBoyId,
+            status: 'processing'
+        })
+    ]);
+
+    if (hasActiveOrder || hasActiveReturn) {
+        throw new ApiError(400, 'Mission in progress: You must complete your current task before accepting another.');
+    }
+
     // Atomic update to prevent double assignment
     const order = await Order.findOneAndUpdate(
         {
@@ -307,6 +326,8 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
         orderId: order.orderId,
         id: order._id
     });
+
+    await cacheInvalidate(`dash:${deliveryBoyId}`, `profile:${deliveryBoyId}`);
 
     res.status(200).json(new ApiResponse(200, order, 'Order assigned successfully.'));
 });

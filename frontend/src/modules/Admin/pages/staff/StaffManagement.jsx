@@ -15,7 +15,9 @@ import {
     FiHeadphones,
     FiPieChart,
     FiStar,
-    FiX
+    FiX,
+    FiEye,
+    FiEyeOff
 } from "react-icons/fi";
 import api from "../../../../shared/utils/api";
 import { API_BASE_URL } from "../../../../shared/utils/constants";
@@ -49,6 +51,7 @@ const StaffManagement = () => {
     const [editingEmployee, setEditingEmployee] = useState(null);
     const [editingRole, setEditingRole] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
     const [roleFormData, setRoleFormData] = useState({
         name: "",
@@ -483,12 +486,29 @@ const StaffManagement = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
-                                    <input required type="email" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800" placeholder="john@example.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                                    <input required type="email" autoComplete="off" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800" placeholder="john@example.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
                                 </div>
                                 {!editingEmployee && (
                                     <div>
                                         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
-                                        <input required type="password" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                                        <div className="relative">
+                                            <input
+                                                required
+                                                type={showPassword ? "text" : "password"}
+                                                autoComplete="new-password"
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800 pr-10"
+                                                placeholder="••••••••"
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-600 transition-colors"
+                                            >
+                                                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                                 <div className="grid grid-cols-2 gap-4">
@@ -506,25 +526,43 @@ const StaffManagement = () => {
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="flex flex-col justify-end pb-1.5">
+                                    <div className="md:col-span-2 flex items-center justify-between p-3.5 bg-white border border-gray-200 rounded-xl mt-2">
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-700">Active Account</p>
+                                            <p className="text-[10px] text-gray-500 font-medium italic">Disable to revoke all platform access immediately.</p>
+                                        </div>
                                         <label className="flex items-center gap-2 cursor-pointer">
                                             <div className="relative">
                                                 <input type="checkbox" className="peer sr-only" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} />
-                                                <div className="w-10 h-5 bg-gray-200 rounded-full peer-checked:bg-primary-500 transition-all" />
-                                                <div className="absolute left-[2px] top-[2px] w-4 h-4 bg-white rounded-full transition-all peer-checked:translate-x-5 shadow-sm" />
+                                                <div className="w-11 h-6 bg-gray-200 rounded-full peer-checked:bg-emerald-500 transition-all" />
+                                                <div className="absolute left-[2px] top-[2px] w-5 h-5 bg-white rounded-full transition-all peer-checked:translate-x-5 shadow-md" />
                                             </div>
-                                            <span className="text-sm font-medium text-gray-700">Active Account</span>
                                         </label>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1.5">Employee Documents (PDF/Image)</label>
-                                        <input
-                                            type="file"
-                                            multiple
-                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                                            onChange={(e) => setFormData({ ...formData, documents: e.target.files })}
-                                        />
-                                        <p className="text-[10px] text-gray-400 mt-1">You can select multiple files.</p>
+                                    <div className="md:col-span-2 mt-2 flex flex-col md:flex-row md:items-center gap-4 p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                        <div className="md:w-1/3">
+                                            <label className="block text-sm font-bold text-gray-700">Employee Documents</label>
+                                            <p className="text-[10px] text-gray-500 uppercase font-semibold mt-0.5">(PDF/Image/Identity)</p>
+                                        </div>
+                                        <div className="flex-1">
+                                            <input
+                                                type="file"
+                                                multiple
+                                                className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-primary-600 file:text-white hover:file:bg-primary-700 file:cursor-pointer file:transition-all"
+                                                onChange={(e) => setFormData({ ...formData, documents: e.target.files })}
+                                            />
+                                            {formData.documents && formData.documents.length > 0 && (
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {Array.from(formData.documents).map((file, i) => (
+                                                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[10px] font-bold">
+                                                            <FiCheckCircle size={12} />
+                                                            <span className="truncate max-w-[200px]" title={file.name}>{file.name}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <p className="text-[10px] text-gray-400 mt-2 font-medium tracking-wide italic">Click 'Choose Files' to select multiple documents for verification.</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -559,7 +597,7 @@ const StaffManagement = () => {
                                                     {formData.permissions.includes(cap.id) && <FiCheckCircle className="text-white w-3 h-3" />}
                                                 </div>
                                             </div>
-                                            <span className={`text-xs font-medium truncate ${formData.permissions.includes(cap.id) ? 'text-primary-800' : 'text-gray-600'}`}>
+                                            <span className={`text-xs font-medium ${formData.permissions.includes(cap.id) ? 'text-primary-800' : 'text-gray-600'}`}>
                                                 {cap.label}
                                             </span>
                                         </label>
@@ -625,7 +663,7 @@ const StaffManagement = () => {
                                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${editingRole?._id === role._id ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-500'}`}>
                                                         <FiShield size={16} />
                                                     </div>
-                                                    <span className="text-sm font-semibold uppercase ">{role.name}</span>
+                                                    <span className="text-sm font-semibold uppercase leading-tight break-words">{role.name}</span>
                                                 </div>
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteRole(role._id); }}

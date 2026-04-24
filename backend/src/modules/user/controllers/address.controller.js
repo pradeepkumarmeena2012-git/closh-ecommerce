@@ -28,6 +28,15 @@ export const getAddresses = asyncHandler(async (req, res) => {
 export const addAddress = asyncHandler(async (req, res) => {
     const { isDefault } = req.body;
     const payload = buildAddressPayload(req.body);
+
+    if (payload.phone && !/^[6-9]\d{9}$/.test(payload.phone)) {
+        throw new ApiError(400, 'Invalid phone number format. Must be exactly 10 digits starting with 6-9.');
+    }
+
+    if (payload.zipCode && !/^\d{6}$/.test(payload.zipCode)) {
+        throw new ApiError(400, 'Invalid pincode format. Must be exactly 6 numeric digits.');
+    }
+
     const existingCount = await Address.countDocuments({ userId: req.user.id });
     const makeDefault = existingCount === 0 || Boolean(isDefault);
 
@@ -57,8 +66,20 @@ export const updateAddress = asyncHandler(async (req, res) => {
     const allowedFields = ['name', 'fullName', 'phone', 'address', 'city', 'state', 'zipCode', 'country', 'isDefault', 'coordinates'];
     allowedFields.forEach((field) => {
         if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+            if (field === 'zipCode') {
+                const z = toTrimmed(req.body.zipCode);
+                if (z && !/^\d{6}$/.test(z)) {
+                    throw new ApiError(400, 'Invalid pincode format. Must be exactly 6 numeric digits.');
+                }
+                payload.zipCode = z;
+                return;
+            }
             if (field === 'phone') {
-                payload.phone = toPhone(req.body.phone);
+                const p = toPhone(req.body.phone);
+                if (p && !/^[6-9]\d{9}$/.test(p)) {
+                    throw new ApiError(400, 'Invalid phone number format. Must be exactly 10 digits starting with 6-9.');
+                }
+                payload.phone = p;
                 return;
             }
             if (field === 'isDefault') {

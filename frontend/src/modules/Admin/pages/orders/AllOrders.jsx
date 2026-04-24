@@ -579,7 +579,11 @@ const AllOrders = () => {
       key: "id",
       label: "Order ID",
       sortable: true,
-      render: (value) => <span className="font-semibold">{value}</span>,
+      render: (value) => (
+        <span className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-sm whitespace-nowrap tracking-tight">
+          #{String(value || "").replace(/^ORD-/, "").replace(/^#/, "")}
+        </span>
+      ),
     },
     {
       key: "customer",
@@ -602,7 +606,7 @@ const AllOrders = () => {
     },
     {
       key: "total",
-      label: "Total ($)",
+      label: "Total (₹)",
       sortable: true,
       render: (value) => (
         <span className="font-bold text-gray-800">{formatCurrency(value)}</span>
@@ -610,7 +614,7 @@ const AllOrders = () => {
     },
     {
       key: "finalTotal",
-      label: "Final Total ($)",
+      label: "Final Total (₹)",
       sortable: true,
       render: (value, row) => {
         const finalTotal = calculateFinalTotal(row);

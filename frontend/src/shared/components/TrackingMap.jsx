@@ -102,7 +102,13 @@ const TrackingMap = ({
   followMode = true,
   isLoaded: isLoadedProp
 }) => {
-  const isLoaded = isLoadedProp;
+  const { isLoaded: localIsLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+    libraries: ['places', 'geometry', 'drawing']
+  });
+
+  const isLoaded = isLoadedProp !== undefined ? isLoadedProp : localIsLoaded;
 
   const [map, setMap] = useState(null);
   const [customerLocation, setCustomerLocation] = useState(initialCustomerLocation);

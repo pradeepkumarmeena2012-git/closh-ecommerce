@@ -122,7 +122,7 @@ const DeliveryNotifications = () => {
                   <div className="flex items-center gap-2 shrink-0">
                     {!notification?.isRead && (
                       <button
-                        onClick={() => markAsRead(notification?._id)}
+                        onClick={(e) => { e.stopPropagation(); markAsRead(notification?._id); }}
                         className="p-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-white hover:text-black"
                         title="Mark as read"
                         type="button"
@@ -131,7 +131,7 @@ const DeliveryNotifications = () => {
                       </button>
                     )}
                     <button
-                      onClick={() => removeNotification(notification?._id)}
+                      onClick={(e) => { e.stopPropagation(); removeNotification(notification?._id); }}
                       className="p-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
                       title="Delete notification"
                       type="button"

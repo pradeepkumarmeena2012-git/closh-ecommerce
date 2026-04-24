@@ -47,25 +47,47 @@ const OrderStatusPieChart = ({ data = [] }) => {
     return null;
   };
 
-  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+  const renderCustomLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+    index,
+  }) => {
     const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    const sx = cx + (outerRadius + 5) * cos;
+    const sy = cy + (outerRadius + 5) * sin;
+    const mx = cx + (outerRadius + 15) * cos;
+    const my = cy + (outerRadius + 15) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 15;
+    const ey = my;
+    const textAnchor = cos >= 0 ? 'start' : 'end';
 
-    if (percent < 0.05) return null; // Don't show label for very small slices
+    if (percent < 0.02) return null;
 
     return (
-      <text
-        x={x}
-        y={y}
-        fill="white"
-        textAnchor={x > cx ? 'start' : 'end'}
-        dominantBaseline="central"
-        className="text-xs font-semibold"
-      >
-        {`${(percent * 100).toFixed(0)}%`}
-      </text>
+      <g>
+        <path
+          d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`}
+          stroke="#94a3b8"
+          fill="none"
+        />
+        <circle cx={ex} cy={ey} r={2} fill="#94a3b8" stroke="none" />
+        <text
+          x={ex + (cos >= 0 ? 1 : -1) * 5}
+          y={ey}
+          textAnchor={textAnchor}
+          dominantBaseline="central"
+          fill="#475569"
+          style={{ fontSize: '11px', fontWeight: 600 }}
+        >
+          {`${(percent * 100).toFixed(0)}%`}
+        </text>
+      </g>
     );
   };
 
@@ -88,7 +110,7 @@ const OrderStatusPieChart = ({ data = [] }) => {
             cy="50%"
             labelLine={false}
             label={renderCustomLabel}
-            outerRadius={80}
+            outerRadius={70}
             innerRadius={50}
             fill="#8884d8"
             dataKey="value"

@@ -16,6 +16,7 @@ import { OrderNotificationService } from '../../../services/orderNotification.se
 import { sendDeliveryOtpSms } from '../../../services/sms.service.js';
 import * as DeliveryOtpService from '../../../services/deliveryOtp.service.js';
 import redisConnection from '../../../config/redis.js';
+import { WalletService } from '../../../services/wallet.service.js';
 
 const DELIVERY_OTP_TTL_MS = 10 * 60 * 1000;
 const DELIVERY_OTP_MAX_ATTEMPTS = 5;
@@ -24,20 +25,20 @@ const IS_PRODUCTION = String(process.env.NODE_ENV || '').toLowerCase() === 'prod
 const CACHE_TTL_SECONDS = 90; // 1.5 min cache for summary endpoints
 
 /** Lightweight Redis cache helpers — silently fall back if Redis is down */
-const cacheGet = async (key) => {
+export const cacheGet = async (key) => {
     try {
         if (redisConnection?.status !== 'ready') return null;
         const data = await redisConnection.get(key);
         return data ? JSON.parse(data) : null;
     } catch { return null; }
 };
-const cacheSet = async (key, value, ttl = CACHE_TTL_SECONDS) => {
+export const cacheSet = async (key, value, ttl = CACHE_TTL_SECONDS) => {
     try {
         if (redisConnection?.status !== 'ready') return;
         await redisConnection.set(key, JSON.stringify(value), 'EX', ttl);
     } catch { /* silent */ }
 };
-const cacheInvalidate = async (...keys) => {
+export const cacheInvalidate = async (...keys) => {
     try {
         if (redisConnection?.status !== 'ready') return;
         await redisConnection.del(...keys);
@@ -138,6 +139,32 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
     const rider = await DeliveryBoy.findById(req.user.id);
     const riderCoords = rider?.currentLocation?.coordinates;
 
+    // ── BLOCKER: check if rider already has an active mission (Order or Return) ──
+    const [hasActiveOrder, hasActiveReturn] = await Promise.all([
+        Order.exists({
+            deliveryBoyId: req.user.id,
+            isDeleted: { $ne: true },
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
+        }),
+        ReturnRequest.exists({
+            deliveryBoyId: req.user.id,
+            status: 'processing'
+        })
+    ]);
+
+    if (hasActiveOrder || hasActiveReturn) {
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    orders: [],
+                    pagination: { total: 0, page: numericPage, limit: numericLimit, pages: 1 },
+                },
+                'Mission in progress: Finish your current task to see more orders.'
+            )
+        );
+    }
+
     const filter = {
         status: 'ready_for_pickup',
         deliveryBoyId: { $exists: false },
@@ -198,7 +225,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [statusStats, completedTodayCount, earningsStats, recentOrders] = await Promise.all([
+    const [statusStats, completedTodayCount, earningsStats, recentOrders, activeReturns] = await Promise.all([
         Order.aggregate([
             { $match: { deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId), isDeleted: { $ne: true } } },
             {
@@ -236,13 +263,21 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         Order.find({
             deliveryBoyId,
             isDeleted: { $ne: true },
-            status: { $in: ['assigned', 'picked_up', 'out_for_delivery'] }
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
         })
         .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase createdAt updatedAt')
         .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
         .sort({ updatedAt: -1 })
         .limit(10)
         .lean(),
+        ReturnRequest.find({
+            deliveryBoyId,
+            status: 'processing'
+        })
+        .populate('orderId', 'orderId total shippingAddress')
+        .populate('userId', 'name email phone')
+        .populate('vendorId', 'storeName shopAddress shopLocation')
+        .lean()
     ]);
 
     const countByStatus = statusStats.reduce((acc, row) => {
@@ -297,6 +332,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         cashInHand: Number(cashRow.cashInHand || 0),
         totalCashCollected: Number(cashRow.totalCashCollected || 0),
         recentOrders: augmentedOrders,
+        activeReturns,
     };
 
     await cacheSet(cacheKey, summary);
@@ -356,33 +392,45 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
         {
             $group: {
                 _id: null,
-                cashInHand: { $sum: { $cond: [{ $ne: ['$isCashSettled', true] }, '$total', 0] } },
-                totalCashCollected: { $sum: '$total' }
+                cashInHand: { 
+                    $sum: { 
+                        $cond: [
+                            { $ne: ['$isCashSettled', true] }, 
+                            { $ifNull: ['$deliveryFlow.finalAmount', '$total'] }, 
+                            0
+                        ] 
+                    } 
+                },
+                totalCashCollected: { $sum: { $ifNull: ['$deliveryFlow.finalAmount', '$total'] } }
             }
         }
     ]);
-    const rider = await DeliveryBoy.findById(deliveryBoyId).select('totalEarnings availableBalance');
+    const rider = await DeliveryBoy.findById(deliveryBoyId);
     const row = deliveredStats?.[0] || {};
     const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
+
+    // Cache and return result
+    // We include existing rider profile fields to avoid UI data loss on frontend merge
+    const profileData = { 
+        ...rider.toObject(),
+        totalDeliveries: Number(row.totalDeliveries || 0), 
+        completedToday: Number(completedTodayCount || 0), 
+        earnings: Number(row.earnings || 0), 
+        totalEarnings: Number(rider.totalEarnings || 0), 
+        availableBalance: Number(rider.availableBalance || 0), 
+        cashInHand: Number(cashRow.cashInHand || 0), 
+        totalCashCollected: Number(cashRow.totalCashCollected || 0) 
+    };
+    
+    await cacheSet(profileCacheKey, profileData);
 
     return res.status(200).json(
         new ApiResponse(
             200,
-            {
-                totalDeliveries: Number(row.totalDeliveries || 0),
-                completedToday: Number(completedTodayCount || 0),
-                earnings: Number(row.earnings || 0),
-                totalEarnings: Number(rider.totalEarnings || 0),
-                availableBalance: Number(rider.availableBalance || 0),
-                cashInHand: Number(cashRow.cashInHand || 0),
-                totalCashCollected: Number(cashRow.totalCashCollected || 0),
-            },
+            profileData,
             'Profile summary fetched.'
         )
     );
-    // Cache the result
-    const profileData = { totalDeliveries: Number(row.totalDeliveries || 0), completedToday: Number(completedTodayCount || 0), earnings: Number(row.earnings || 0), totalEarnings: Number(rider.totalEarnings || 0), availableBalance: Number(rider.availableBalance || 0), cashInHand: Number(cashRow.cashInHand || 0), totalCashCollected: Number(cashRow.totalCashCollected || 0) };
-    await cacheSet(profileCacheKey, profileData);
 });
 
 // GET /api/delivery/orders/:id
@@ -411,11 +459,49 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
         ]
     };
 
-    const order = await Order.findOne(query)
+    let order = await Order.findOne(query)
         .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation phone')
         .populate('deliveryBoyId', 'name phone currentLocation')
         .select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpSentAt +deliveryOtpAttempts');
-    if (!order) throw new ApiError(404, 'Order not found.');
+
+    if (!order) {
+        // Try searching in ReturnRequest
+        const returnReq = await ReturnRequest.findOne({
+            $or: idFilter,
+            $or: [
+                { deliveryBoyId: deliveryBoyId },
+                { deliveryBoyId: { $exists: false }, status: 'approved' }
+            ]
+        }).populate('userId', 'name phone').populate('vendorId', 'storeName shopAddress shopLocation phone').populate('orderId', 'orderId total shippingAddress');
+
+        if (!returnReq) throw new ApiError(404, 'Task not found.');
+
+        // Normalize ReturnRequest to Order-like structure for the detail page
+        return res.status(200).json(new ApiResponse(200, {
+            _id: returnReq._id,
+            id: returnReq._id,
+            orderId: returnReq.orderId?.orderId || 'RETURN',
+            status: returnReq.status === 'approved' ? 'ready_for_pickup' : (returnReq.status === 'processing' ? 'assigned' : returnReq.status),
+            rawStatus: returnReq.status,
+            type: 'return',
+            customer: returnReq.userId?.name || 'Customer',
+            phone: returnReq.userId?.phone || '',
+            address: returnReq.orderId?.shippingAddress?.address || 'Pickup Point',
+            pickupLocation: returnReq.pickupLocation,
+            dropoffLocation: returnReq.dropoffLocation,
+            total: returnReq.refundAmount || 0,
+            items: returnReq.items || [],
+            vendorName: returnReq.vendorId?.storeName || 'Vendor',
+            vendorAddress: returnReq.vendorId?.shopAddress || 'Vendor Address',
+            vendorLatitude: returnReq.vendorId?.shopLocation?.coordinates?.[1],
+            vendorLongitude: returnReq.vendorId?.shopLocation?.coordinates?.[0],
+            latitude: returnReq.pickupLocation?.coordinates?.[1], // For returns, pickup is from customer
+            longitude: returnReq.pickupLocation?.coordinates?.[0],
+            deliveryBoyId: returnReq.deliveryBoyId,
+            createdAt: returnReq.createdAt,
+            updatedAt: returnReq.updatedAt
+        }, 'Return detail fetched.'));
+    }
 
     // Attach batch context if exists
     const delivery = await Delivery.findOne({ orderId: order._id, status: { $ne: 'delivered' } }).populate('batchId');
@@ -573,11 +659,15 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             status: 'delivered',
         });
 
+        const updatedRider = await DeliveryBoy.findById(req.user.id).select('name availableBalance totalEarnings totalDeliveries');
+        
         await OrderNotificationService.notifyOrderUpdate(order._id, status, {
             excludeRecipientId: req.user.id,
             title: `Order #${order.orderId} Delivered`,
-            message: `Order ${order.orderId} has been successfully delivered by ${updatedRider.name}.`
+            message: `Order ${order.orderId} has been successfully delivered by ${updatedRider?.name || 'Partner'}.`
         });
+
+        await cacheInvalidate(`dash:${req.user.id}`, `profile:${req.user.id}`);
 
         return res.status(200).json(
             new ApiResponse(
@@ -585,9 +675,9 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
                 {
                     order,
                     rider: {
-                        availableBalance: updatedRider.availableBalance,
-                        totalEarnings: updatedRider.totalEarnings,
-                        totalDeliveries: updatedRider.totalDeliveries,
+                        availableBalance: updatedRider?.availableBalance || 0,
+                        totalEarnings: updatedRider?.totalEarnings || 0,
+                        totalDeliveries: updatedRider?.totalDeliveries || 0,
                     },
                 },
                 'Delivery status updated.'
@@ -1126,11 +1216,15 @@ export const handlePayment = asyncHandler(async (req, res) => {
     const order = await findOrderForRider(req.params.id, req.user.id);
     const flow = ensureDeliveryFlow(order);
 
-    const validFrom = order.orderType === 'try_and_buy'
+    const isTryAndBuyFlow = order.orderType === 'try_and_buy';
+    const isCheckAndBuyFlow = order.orderType === 'check_and_buy';
+    
+    const validFrom = (isTryAndBuyFlow)
         ? ['try_and_buy', 'payment_pending']
         : ['arrived', 'payment_pending'];
+    
     if (!validFrom.includes(flow.phase)) {
-        throw new ApiError(409, `Cannot set payment from phase "${flow.phase}".`);
+        throw new ApiError(409, `Cannot set payment from phase "${flow.phase}". Valid phases: ${validFrom.join(', ')}`);
     }
 
     flow.paymentMethod = method;
@@ -1165,10 +1259,20 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     const flow = ensureDeliveryFlow(order);
 
     const isCodOrder = order.paymentMethod === 'cod' || order.paymentMethod === 'cash';
+    const isTryAndBuy = order.orderType === 'try_and_buy' || order.orderType === 'check_and_buy';
+
     if (!deliveryProofPhoto) throw new ApiError(400, 'Delivery proof photo is required.');
     if (isCodOrder && !openBoxPhoto) throw new ApiError(400, 'Open box photo (item verification) is required for COD orders.');
-    if (flow.phase !== 'payment_pending') {
-        throw new ApiError(409, `Cannot complete from phase "${flow.phase}". Expected: payment_pending.`);
+
+    const validPhases = ['payment_pending'];
+    // For prepaid orders, we don't force a separate payment method selection step
+    if (!isCodOrder) {
+        validPhases.push('arrived');
+        if (isTryAndBuy) validPhases.push('try_and_buy');
+    }
+
+    if (!validPhases.includes(flow.phase)) {
+        throw new ApiError(409, `Cannot complete from phase "${flow.phase}". Expected: ${validPhases.join(' or ')}.`);
     }
 
     // Verify OTP (Check both flow and top-level legacy fields as fallback)
@@ -1221,29 +1325,12 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     await order.save();
     await cacheInvalidate(`dash:${req.user.id}`, `profile:${req.user.id}`);
 
-    // Credit rider earnings
-    const riderEarnings = Number(order.shipping || 0);
-    const updatedRider = await DeliveryBoy.findByIdAndUpdate(
-        order.deliveryBoyId,
-        { $inc: { totalDeliveries: 1, totalEarnings: riderEarnings, availableBalance: riderEarnings } },
-        { new: true }
-    );
+    // Process financial earnings (Rider + Vendor) and ledger entries
+    await WalletService.processOrderCompletion(order).catch(err => {
+        console.error(`[Wallet] Error processing earnings for order ${order._id}:`, err);
+    });
 
-    // Credit vendor earnings (adjusted for Try & Buy)
-    const finalAmount = flow.finalAmount || order.total;
-    const ratio = order.total > 0 ? finalAmount / order.total : 1;
-    const vendorUpdates = (order.vendorItems || []).map(group => {
-        if (group.vendorId && group.vendorEarnings > 0) {
-            const adjusted = Math.round(Number(group.vendorEarnings) * ratio);
-            if (adjusted > 0) {
-                return mongoose.model('Vendor').findByIdAndUpdate(group.vendorId, {
-                    $inc: { availableBalance: adjusted },
-                });
-            }
-        }
-        return null;
-    }).filter(Boolean);
-    if (vendorUpdates.length) await Promise.all(vendorUpdates);
+    const updatedRider = await DeliveryBoy.findById(order.deliveryBoyId).select('availableBalance totalEarnings totalDeliveries');
 
     // Notify everyone
     await OrderNotificationService.notifyOrderUpdate(order._id, 'delivered', {
@@ -1367,6 +1454,23 @@ export const acceptReturnAssignment = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const deliveryBoyId = req.user.id;
 
+    // ── BLOCKER: Ensure rider doesn't already have an active mission (Order or Return) ──
+    const [hasActiveOrder, hasActiveReturn] = await Promise.all([
+        Order.exists({
+            deliveryBoyId: deliveryBoyId,
+            isDeleted: { $ne: true },
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
+        }),
+        ReturnRequest.exists({
+            deliveryBoyId: deliveryBoyId,
+            status: 'processing'
+        })
+    ]);
+
+    if (hasActiveOrder || hasActiveReturn) {
+        throw new ApiError(400, 'Mission in progress: You must complete your current task before accepting another.');
+    }
+
     const returnReq = await ReturnRequest.findOneAndUpdate(
         {
             _id: id,
@@ -1401,6 +1505,8 @@ export const acceptReturnAssignment = asyncHandler(async (req, res) => {
             deliveryBoyId
         });
     }
+
+    await cacheInvalidate(`dash:${deliveryBoyId}`, `profile:${deliveryBoyId}`);
 
     res.status(200).json(new ApiResponse(200, returnReq, 'Return assignment accepted.'));
 });

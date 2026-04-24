@@ -16,8 +16,8 @@ export const getAdminProfile = () =>
     api.get('/admin/auth/profile');
 
 // ─── Analytics / Dashboard ────────────────────────────────────────────────────
-export const getDashboardStats = () =>
-    api.get('/admin/analytics/dashboard');
+export const getDashboardStats = (params = {}) =>
+    api.get('/admin/analytics/dashboard', { params });
 
 export const getRevenueData = (period = 'monthly', params = {}) =>
     api.get('/admin/analytics/revenue', { params: { period, ...params } });
@@ -28,8 +28,8 @@ export const getOrderStatusBreakdown = () =>
 export const getTopProducts = () =>
     api.get('/admin/analytics/top-products');
 
-export const getCustomerGrowth = (period = 'monthly') =>
-    api.get('/admin/analytics/customer-growth', { params: { period } });
+export const getCustomerGrowth = (period = 'monthly', params = {}) =>
+    api.get('/admin/analytics/customer-growth', { params: { period, ...params } });
 
 export const getRecentOrders = () =>
     api.get('/admin/analytics/recent-orders');
@@ -48,6 +48,9 @@ export const getAdminEarningsSummary = (params = {}) =>
 
 export const getDetailedEarningsReport = (params = {}) =>
     api.get('/admin/analytics/earnings-report', { params });
+
+export const getVendorPerformance = () =>
+    api.get('/admin/analytics/vendor-performance');
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 export const getAllOrders = (params = {}) =>
@@ -233,8 +236,8 @@ export const updateDeliveryBoyApplicationStatus = (id, applicationStatus, reason
 export const updateKycStatus = (id, kycStatus, reason = '') =>
     api.patch(`/admin/delivery-boys/${id}/kyc-status`, { kycStatus, reason });
 
-export const settleCash = (id, amount) =>
-    api.post(`/admin/delivery-boys/${id}/settle-cash`, { amount });
+export const settleCash = (id, amount, notes = '') =>
+    api.post(`/admin/delivery-boys/${id}/settle-cash`, { amount, notes });
 
 export const getCashHistory = (id) =>
     api.get(`/admin/delivery-boys/${id}/cash-history`);

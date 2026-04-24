@@ -10,6 +10,7 @@ import {
 import PageTransition from '../../../shared/components/PageTransition';
 import toast from 'react-hot-toast';
 import { formatPrice } from '../../../shared/utils/helpers';
+import CashSettlementModal from '../components/CashSettlementModal';
 
 import { useRef } from 'react';
 
@@ -21,6 +22,8 @@ const DeliveryProfile = () => {
   const [activeTab, setActiveTab] = useState('personal'); // 'personal' or 'banking'
   const [isEditing, setIsEditing] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
+  const [settlementHistory, setSettlementHistory] = useState([]);
   
   const [profileMetrics, setProfileMetrics] = useState({
     totalDeliveries: 0,
@@ -75,9 +78,19 @@ const DeliveryProfile = () => {
     }
   }, [fetchProfile, fetchProfileSummary]);
 
+  const loadSettlements = useCallback(async () => {
+    try {
+      const history = await useDeliveryAuthStore.getState().fetchSettlementHistory();
+      setSettlementHistory(Array.isArray(history) ? history : (history.data || []));
+    } catch (err) {
+      console.error("Settlement history fetch failed:", err);
+    }
+  }, []);
+
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
+    loadSettlements();
+  }, [loadProfile, loadSettlements]);
 
   useEffect(() => {
     if (deliveryBoy) {
@@ -117,6 +130,43 @@ const DeliveryProfile = () => {
     if (!formData.name?.trim()) return toast.error('Name is required');
     if (!formData.email?.trim()) return toast.error('Email is required');
     
+    // Plate Number Validation
+    if (formData.vehicleNumber) {
+      const normalizedPlate = formData.vehicleNumber.replace(/[-\s]/g, '').toUpperCase();
+      const plateRegex = /^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/;
+      if (!plateRegex.test(normalizedPlate)) {
+        return toast.error('Invalid Plate Number! Example: MH12AB1234');
+      }
+      formData.vehicleNumber = normalizedPlate; // Save normalized version
+    }
+
+    // Account Holder Name Validation
+    if (formData.bankDetails?.accountHolderName) {
+      if (!/^[a-zA-Z\s]+$/.test(formData.bankDetails.accountHolderName)) {
+        return toast.error('Invalid Account Holder Name! Only letters and spaces are allowed.');
+      }
+    }
+
+    if (formData.bankDetails?.bankName) {
+      if (!/^[a-zA-Z\s]+$/.test(formData.bankDetails.bankName)) {
+        return toast.error('Invalid Bank Name! Only letters and spaces are allowed.');
+      }
+    }
+
+    if (formData.bankDetails?.accountNumber) {
+      if (!/^[0-9]{9,18}$/.test(formData.bankDetails.accountNumber)) {
+        return toast.error('Invalid Account Number! Must be 9-18 digits.');
+      }
+    }
+
+    if (formData.bankDetails?.ifscCode) {
+      const normalizedIfsc = formData.bankDetails.ifscCode.trim().toUpperCase();
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(normalizedIfsc)) {
+        return toast.error('Invalid IFSC Code! Format: ABCD0123456');
+      }
+      formData.bankDetails.ifscCode = normalizedIfsc;
+    }
+
     try {
       await updateProfile({
         ...formData,
@@ -183,9 +233,9 @@ const DeliveryProfile = () => {
   const stats = [
     { label: 'Total Earnings', value: formatPrice(Number(deliveryBoy?.totalEarnings || 0)), icon: FiCreditCard, bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100' },
     { label: 'Available Payout', value: formatPrice(Number(deliveryBoy?.availableBalance || 0)), icon: FiDollarSign, bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100' },
+    { label: 'Cash in Hand', value: formatPrice(Number(profileMetrics.cashInHand || 0)), icon: FiActivity, bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' },
     { label: 'Total Deliveries', value: Number(deliveryBoy?.totalDeliveries || 0), icon: FiTruck, bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100' },
     { label: 'Completed Today', value: Number(profileMetrics.completedToday || 0), icon: FiCheckCircle, bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100' },
-    { label: 'Cash in Hand', value: formatPrice(Number(profileMetrics.cashInHand || 0)), icon: FiActivity, bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' },
     { label: 'Avg Rating', value: Number(deliveryBoy?.rating || 0).toFixed(1), icon: FiUser, bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100' },
   ];
 
@@ -361,6 +411,20 @@ const DeliveryProfile = () => {
                     <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Settlement Vault</h2>
                   </div>
 
+                  {/* Cash in Hand Section */}
+                  <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-[9px] font-bold text-amber-600 uppercase tracking-widest leading-none mb-1">Cash in Hand</p>
+                      <h3 className="text-xl font-bold text-slate-800">{formatPrice(profileMetrics.cashInHand)}</h3>
+                    </div>
+                    <button 
+                      onClick={() => setIsSettlementModalOpen(true)}
+                      className="px-4 py-2 bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all"
+                    >
+                      Settle Now
+                    </button>
+                  </div>
+
                   <div className="space-y-4">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Account Holder</label>
@@ -400,6 +464,39 @@ const DeliveryProfile = () => {
                       </div>
                   </div>
                 </div>
+
+                {/* Settlement History */}
+                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-0.5 h-3 bg-indigo-600 rounded-full" />
+                    <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Settlement History</h2>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {settlementHistory.length > 0 ? (
+                      settlementHistory.map((item) => (
+                        <div key={item._id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-800 mb-0.5">₹{item.amount}</p>
+                            <p className="text-[8px] text-slate-400 font-medium italic">
+                              {new Date(item.settledAt || item.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                              Completed
+                            </span>
+                            <p className="text-[7px] text-slate-400 mt-1">ID: {item.razorpayPaymentId?.slice(-8) || 'N/A'}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-8 text-center">
+                        <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No settlement history</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -416,6 +513,16 @@ const DeliveryProfile = () => {
             </div>
           )}
         </div>
+
+        <CashSettlementModal 
+          isOpen={isSettlementModalOpen}
+          onClose={() => setIsSettlementModalOpen(false)}
+          cashInHand={profileMetrics.cashInHand}
+          onSettlementComplete={() => {
+            loadProfile();
+            loadSettlements();
+          }}
+        />
       </div>
   );
 };
