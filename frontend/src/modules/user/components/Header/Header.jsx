@@ -41,7 +41,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
     const { settings } = useSettingsStore();
     const { wishlistItems } = useWishlist();
     const { activeCategory, setActiveCategory, activeSubCategory, setActiveSubCategory, getCategoryColor } = useCategory();
-    const { activeAddress } = useUserLocation();
+    const { activeAddress, serviceability } = useUserLocation();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
     const [isDiscoverOpen, setIsDiscoverOpen] = useState(false);
@@ -260,6 +260,13 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
             transition={{ duration: 0.8, ease: "easeInOut" }}
             className={`w-full sticky top-0 left-0 z-[999] shadow-sm font-sans transition-all duration-300 ease-in-out ${['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) ? 'hidden lg:block' : ''}`}
         >
+            {/* Serviceability Banner */}
+            {!serviceability?.loading && !serviceability?.isServiceable && activeAddress && (
+                <div className="w-full bg-red-600 text-white text-[12px] md:text-[14px] font-bold text-center py-2 px-4 shadow-md z-[1000] relative animate-fadeIn">
+                    {serviceability?.message || "This service is not available in your city"}
+                </div>
+            )}
+
             {/* Top Colored Section - Premium Frosted Background */}
             <div className={`relative z-[60] ${variant === 'shop' ? 'border-b border-black/5' : ''}`}>
 

@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import SearchBar from "../../../../shared/components/SearchBar";
 import { categories } from "../../../../data/categories";
+import { useUserLocation } from "../../context/LocationContext";
 
 const MobileHeader = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -39,6 +40,7 @@ const MobileHeader = () => {
     (state) => state.cartAnimationTrigger
   );
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { activeAddress, serviceability } = useUserLocation();
 
   const [homeCategoryId, setHomeCategoryId] = useState(null);
 
@@ -163,6 +165,12 @@ const MobileHeader = () => {
       }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
+      {/* Serviceability Banner */}
+      {!serviceability?.loading && !serviceability?.isServiceable && activeAddress && (
+          <div className="w-full bg-red-600 text-white text-[11px] font-bold text-center py-1.5 px-3 shadow-md z-[1000] relative animate-fadeIn">
+              {serviceability?.message || "This service is not available in your city"}
+          </div>
+      )}
       <div className="flex flex-col">
         {/* Row 1: Location and User */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-gray-50/50" ref={topRowRef}>

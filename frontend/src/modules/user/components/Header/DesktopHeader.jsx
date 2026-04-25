@@ -10,6 +10,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUserNotificationStore } from "../../store/userNotificationStore";
 import { categories } from "../../../../data/categories";
+import { useUserLocation } from "../../context/LocationContext";
 
 const DesktopHeader = () => {
     const navigate = useNavigate();
@@ -22,6 +23,7 @@ const DesktopHeader = () => {
 
     const [showUserMenu, setShowUserMenu] = useState(false);
     const userMenuRef = useRef(null);
+    const { activeAddress, serviceability } = useUserLocation();
 
     useEffect(() => {
         ensureHydrated();
@@ -69,6 +71,12 @@ const NavItem = ({ to, icon: Icon, label, badgeCount, onClick }) => {
 
     return (
         <header className="hidden md:block sticky top-0 z-[999] bg-white border-b border-gray-100 shadow-sm">
+            {/* Serviceability Banner */}
+            {!serviceability?.loading && !serviceability?.isServiceable && activeAddress && (
+                <div className="w-full bg-red-600 text-white text-[12px] md:text-[14px] font-bold text-center py-2 px-4 shadow-md z-[1000] relative animate-fadeIn">
+                    {serviceability?.message || "This service is not available in your city"}
+                </div>
+            )}
             {/* Main Header Row - Based on Image 1 */}
             <div className="container mx-auto px-4 md:px-6 lg:px-8 h-20 flex items-center justify-between gap-4 lg:gap-8">
                 
