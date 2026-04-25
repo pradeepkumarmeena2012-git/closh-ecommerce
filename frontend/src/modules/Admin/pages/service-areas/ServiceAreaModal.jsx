@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiMapPin, FiSave, FiClock } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
-import GoogleMapPicker from '../../../../shared/components/GoogleMapPicker';
+import GoogleMapZoneDrawer from '../../../../shared/components/GoogleMapZoneDrawer';
 
 const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -11,6 +11,7 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
     state: '',
     country: 'India',
     coordinates: { type: 'Point', coordinates: [0, 0] },
+    boundaries: { type: 'Polygon', coordinates: [] },
     serviceType: 'full',
     deliverySettings: {
       minOrderAmount: 0,
@@ -37,6 +38,7 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
         state: serviceArea.state || '',
         country: serviceArea.country || 'India',
         coordinates: serviceArea.coordinates || { type: 'Point', coordinates: [0, 0] },
+        boundaries: serviceArea.boundaries || { type: 'Polygon', coordinates: [] },
         serviceType: serviceArea.serviceType || 'full',
         deliverySettings: {
           ...formData.deliverySettings,
@@ -62,6 +64,7 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
         state: '',
         country: 'India',
         coordinates: { type: 'Point', coordinates: [0, 0] },
+        boundaries: { type: 'Polygon', coordinates: [] },
         serviceType: 'full',
         deliverySettings: {
           minOrderAmount: 0,
@@ -90,6 +93,13 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
         type: 'Point',
         coordinates: [location.lng, location.lat]
       }
+    }));
+  }, []);
+
+  const handlePolygonComplete = useCallback((polygon) => {
+    setFormData(prev => ({
+      ...prev,
+      boundaries: polygon || { type: 'Polygon', coordinates: [] }
     }));
   }, []);
 
@@ -250,14 +260,16 @@ const ServiceAreaModal = ({ isOpen, onClose, serviceArea, onSuccess }) => {
 
               {/* Location on Map */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Location</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Location & Zone</h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  Click on the map to set the center point of this service area
+                  Set the center point and draw the delivery zone boundaries on the map
                 </p>
-                <GoogleMapPicker
+                <GoogleMapZoneDrawer
                   onLocationSelect={handleLocationSelect}
+                  onPolygonComplete={handlePolygonComplete}
                   initialLocation={selectedLocation}
-                  height="300px"
+                  initialPolygon={formData.boundaries}
+                  height="400px"
                 />
               </div>
 

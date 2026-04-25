@@ -25,7 +25,7 @@ const PincodeModal = ({ isOpen, onClose, serviceArea }) => {
     setIsLoading(true);
     try {
       const response = await api.get(`/admin/service-areas/${serviceArea._id}/pincodes`);
-      setPincodes(response.data.data || []);
+      setPincodes(response.data || []);
     } catch (error) {
       toast.error('Failed to load pincodes');
     } finally {

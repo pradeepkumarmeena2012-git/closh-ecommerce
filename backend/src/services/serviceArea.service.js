@@ -61,21 +61,54 @@ export const checkServiceAvailability = async ({ pincode, coordinates, city }) =
     // Method 2: Check by Coordinates (Geospatial)
     if (coordinates && Array.isArray(coordinates) && coordinates.length === 2 && coordinates[0] !== 0) {
         try {
+            const pointGeometry = { type: 'Point', coordinates: coordinates };
+            
+            // First try strict boundary check (Polygon intersection)
+            const strictArea = await ServiceArea.findOne({
+                isActive: true,
+                isStrictBoundary: true,
+                boundaries: {
+                    $geoIntersects: {
+                        $geometry: pointGeometry
+                    }
+                }
+            });
+
+            if (strictArea) {
+                return {
+                    isServiceable: true,
+                    serviceArea: strictArea,
+                    deliverySettings: strictArea.deliverySettings,
+                    message: `We deliver to your location in ${strictArea.name}!`,
+                    method: 'coordinates'
+                };
+            }
+
             // Find nearest active service area
             const nearestArea = await ServiceArea.findOne({
                 isActive: true,
                 coordinates: {
                     $near: {
-                        $geometry: {
-                            type: 'Point',
-                            coordinates: coordinates // [lng, lat]
-                        },
+                        $geometry: pointGeometry,
                         $maxDistance: 50000 // 50km radius
                     }
                 }
             });
             
             if (nearestArea) {
+                // If the nearest area enforces strict boundaries but we didn't intersect, it's not serviceable
+                if (nearestArea.isStrictBoundary && nearestArea.boundaries && nearestArea.boundaries.coordinates && nearestArea.boundaries.coordinates.length > 0) {
+                    return {
+                        isServiceable: false,
+                        nearestArea: {
+                            name: nearestArea.name,
+                            message: nearestArea.displayMessage || `Sorry, your location is outside the service zone for ${nearestArea.name}.`
+                        },
+                        message: `Sorry, we don't deliver to your specific location yet.`,
+                        method: 'coordinates'
+                    };
+                }
+
                 const distance = calculateDistance(coordinates, nearestArea.coordinates.coordinates);
                 
                 // Check if within delivery radius

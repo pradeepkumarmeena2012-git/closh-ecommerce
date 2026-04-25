@@ -1,144 +1,81 @@
-import { useEffect, useRef, useState } from 'react';
-import { Loader } from '@googlemaps/js-api-loader';
+import React, { useState, useCallback, useEffect } from 'react';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+
+const containerStyle = {
+  width: '100%',
+  height: '100%'
+};
+
+const libraries = ['places'];
 
 const GoogleMapPicker = ({ onLocationSelect, initialLocation, height = '400px', zoom = 12 }) => {
-  const mapRef = useRef(null);
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+    libraries
+  });
+
   const [map, setMap] = useState(null);
-  const [marker, setMarker] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // Google Maps API Key
-  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const initMap = async () => {
-      try {
-        const loader = new Loader({
-          apiKey: GOOGLE_MAPS_API_KEY,
-          version: 'weekly'
-        });
-
-        const [{ Map }, { Marker }] = await Promise.all([
-          loader.importLibrary('maps'),
-          loader.importLibrary('marker')
-        ]);
-
-        if (!isMounted) return;
-
-        const defaultLocation = initialLocation || { lat: 26.9124, lng: 75.7873 }; // Jaipur
-
-        const mapInstance = new Map(mapRef.current, {
-          center: defaultLocation,
-          zoom: zoom,
-          mapId: 'DEMO_MAP_ID', // Required for advanced markers if needed
-          mapTypeControl: true,
-          streetViewControl: false,
-          fullscreenControl: true,
-        });
-
-        const markerInstance = new Marker({
-          position: defaultLocation,
-          map: mapInstance,
-          draggable: true,
-          title: 'Service Area Center'
-        });
-
-        // Click event
-        mapInstance.addListener('click', (event) => {
-          const location = {
-            lat: event.latLng.lat(),
-            lng: event.latLng.lng()
-          };
-          markerInstance.setPosition(location);
-          if (onLocationSelect) onLocationSelect(location);
-        });
-
-        // Drag event
-        markerInstance.addListener('dragend', (event) => {
-          const location = {
-            lat: event.latLng.lat(),
-            lng: event.latLng.lng()
-          };
-          if (onLocationSelect) onLocationSelect(location);
-        });
-
-        setMap(mapInstance);
-        setMarker(markerInstance);
-        setIsLoading(false);
-
-        if (onLocationSelect && defaultLocation) {
-          onLocationSelect(defaultLocation);
-        }
-      } catch (err) {
-        console.error('Error loading Google Maps:', err);
-        if (isMounted) {
-          setError('Failed to load Google Maps. Please check your API key.');
-          setIsLoading(false);
-        }
-      }
-    };
-
-    initMap();
-
-    return () => {
-      isMounted = false;
-      if (marker) marker.setMap(null);
-    };
-  }, []);
-
-  // Update marker position when initialLocation changes
-  useEffect(() => {
-    if (marker && initialLocation && map) {
-      marker.setPosition(initialLocation);
-      map.panTo(initialLocation);
+  const onMapLoad = useCallback((mapInstance) => {
+    setMap(mapInstance);
+    if (initialLocation) {
+        mapInstance.panTo(initialLocation);
     }
-  }, [initialLocation, marker, map]);
+  }, [initialLocation]);
 
-  if (error) {
+  const onMapClick = useCallback((e) => {
+    const location = {
+      lat: e.latLng.lat(),
+      lng: e.latLng.lng()
+    };
+    if (onLocationSelect) onLocationSelect(location);
+  }, [onLocationSelect]);
+
+  const onMarkerDragEnd = useCallback((e) => {
+    const location = {
+      lat: e.latLng.lat(),
+      lng: e.latLng.lng()
+    };
+    if (onLocationSelect) onLocationSelect(location);
+  }, [onLocationSelect]);
+
+  if (!isLoaded) {
     return (
-      <div 
-        className="flex items-center justify-center bg-gray-100 rounded-lg border-2 border-dashed border-gray-300"
-        style={{ height }}
-      >
-        <div className="text-center p-6">
-          <p className="text-red-600 font-medium mb-2">⚠️ {error}</p>
-          <p className="text-gray-600 text-sm">
-            Please configure your Google Maps API key in environment variables.
-          </p>
-          <p className="text-gray-500 text-xs mt-2">
-            Set VITE_GOOGLE_MAPS_API_KEY in your .env file
-          </p>
-        </div>
+      <div className="flex items-center justify-center bg-gray-100 rounded-lg animate-pulse" style={{ height }}>
+        <p className="text-gray-500 font-medium">Loading map...</p>
       </div>
     );
   }
 
+  const center = initialLocation || { lat: 26.9124, lng: 75.7873 };
+
   return (
-    <div className="relative rounded-lg overflow-hidden border border-gray-300">
-      {isLoading && (
-        <div 
-          className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10"
-          style={{ height }}
-        >
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading map...</p>
-          </div>
-        </div>
-      )}
-      <div 
-        ref={mapRef} 
-        style={{ height, width: '100%' }}
-        className="rounded-lg"
-      />
-      <div className="absolute top-4 left-4 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-700">
+    <div className="relative rounded-lg overflow-hidden border border-gray-300" style={{ height }}>
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={center}
+        zoom={zoom}
+        onLoad={onMapLoad}
+        onClick={onMapClick}
+        options={{
+          mapTypeControl: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+        }}
+      >
+        <Marker
+          position={center}
+          draggable={true}
+          onDragEnd={onMarkerDragEnd}
+          title="Service Area Center"
+        />
+      </GoogleMap>
+      <div className="absolute top-4 left-4 bg-white px-3 py-2 rounded-lg shadow-md text-sm text-gray-700 z-10">
         📍 Click or drag marker to set location
       </div>
     </div>
   );
 };
 
-export default GoogleMapPicker;
+export default React.memo(GoogleMapPicker);
