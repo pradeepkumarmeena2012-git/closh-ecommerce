@@ -219,4 +219,4 @@ const GoogleMapZoneDrawer = ({
   );
 };
 
-export default React.memo(GoogleMapZoneDrawer);wer;
+export default React.memo(GoogleMapZoneDrawer);
