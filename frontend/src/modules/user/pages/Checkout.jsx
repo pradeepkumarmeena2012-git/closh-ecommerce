@@ -139,7 +139,7 @@ const MobileCheckout = () => {
   const discount = appliedCoupon ? appliedDiscount : 0;
   const platformFee = 20;
   const taxableAmount = Math.max(0, total - discount);
-  const tax = taxableAmount * 0.18;
+  const tax = 0; // GST removed as per user request
   const finalTotal = Math.max(0, total + shipping + tax + platformFee - discount);
 
   useEffect(() => {

@@ -11,6 +11,7 @@ import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import Product from '../../../models/Product.model.js';
 import { OrderWorkflowService } from '../../../services/orderWorkflow.service.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 import { sendDeliveryOtpSms } from '../../../services/sms.service.js';
@@ -1137,13 +1138,15 @@ export const handleArrivedAtCustomer = asyncHandler(async (req, res) => {
         order.deliveryOtpDebug = otp;
     }
 
-    // For try_and_buy orders, populate checklist from order items
-    if (order.orderType === 'try_and_buy' && (!flow.tryAndBuyItems || flow.tryAndBuyItems.length === 0)) {
+    // For specialized orders, populate checklist from order items
+    const isSpecializedOrder = order.orderType === 'try_and_buy' || order.orderType === 'check_and_buy';
+    if (isSpecializedOrder && (!flow.tryAndBuyItems || flow.tryAndBuyItems.length === 0)) {
         flow.tryAndBuyItems = (order.items || []).map(item => ({
             productId: item.productId,
             name: item.name,
             image: item.image,
             price: item.price,
+            originalPrice: item.originalPrice || item.price,
             quantity: item.quantity,
             variant: item.variant,
             decision: 'pending',
@@ -1175,12 +1178,14 @@ export const handleTryAndBuy = asyncHandler(async (req, res) => {
     }
 
     const order = await findOrderForRider(req.params.id, req.user.id);
-    if (order.orderType !== 'try_and_buy') {
-        throw new ApiError(400, 'This order is not a Try & Buy order.');
+    const isSpecializedOrder = order.orderType === 'try_and_buy' || order.orderType === 'check_and_buy';
+    
+    if (!isSpecializedOrder) {
+        throw new ApiError(400, 'This order type does not support item selection.');
     }
     const flow = ensureDeliveryFlow(order);
     if (flow.phase !== 'arrived') {
-        throw new ApiError(409, `Try & Buy requires phase "arrived", current: "${flow.phase}".`);
+        throw new ApiError(409, `Item selection requires phase "arrived", current: "${flow.phase}".`);
     }
 
     const tryItems = flow.tryAndBuyItems || [];
@@ -1194,16 +1199,49 @@ export const handleTryAndBuy = asyncHandler(async (req, res) => {
     flow.tryAndBuyItems = tryItems;
     flow.tryAndBuyCompletedAt = new Date();
     flow.phase = 'try_and_buy';
-
-    // Recalculate final amount from accepted items only
+    
     const acceptedItems = tryItems.filter(i => i.decision === 'accepted');
-    if (acceptedItems.length === 0) {
-        throw new ApiError(400, 'At least one item must be accepted.');
-    }
-    flow.finalAmount = acceptedItems.reduce((sum, i) => sum + ((i.price || 0) * (i.quantity || 1)), 0);
+
+    // Recalculate final amount from accepted items plus fixed fees (shipping, platform fee)
+const acceptedSubtotal = acceptedItems.reduce((sum, i) => sum + ((i.price || 0) * (i.quantity || 1)), 0);
+    const originalSubtotal = order.subtotal || acceptedSubtotal;
+    const subtotalRatio = originalSubtotal > 0 ? (acceptedSubtotal / originalSubtotal) : 1;
+
+    // Fixed fees are preserved; tax and discount are scaled by the acceptance ratio
+    const shipping = order.shipping || 0;
+    const platformFee = order.platformFee || 0;
+    const adjustedTax = Math.round((order.tax || 0) * subtotalRatio);
+    const adjustedDiscount = Math.round((order.discount || 0) * subtotalRatio);
+
+    flow.finalAmount = acceptedSubtotal + shipping + platformFee + adjustedTax - adjustedDiscount;
+    if (flow.finalAmount < 0) flow.finalAmount = 0;
 
     await order.save();
-    res.status(200).json(new ApiResponse(200, order, 'Try & Buy decisions recorded. Proceed to payment.'));
+
+    // Restore stock for rejected items
+    const rejectedItems = tryItems.filter(i => i.decision === 'rejected');
+    for (const item of rejectedItems) {
+        const qty = Number(item.quantity || 1);
+        const variantKey = item.variantKey;
+        
+        const incUpdate = { stockQuantity: qty };
+        if (variantKey) {
+            incUpdate[`variants.stockMap.${variantKey}`] = qty;
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(
+            item.productId,
+            { $inc: incUpdate },
+            { new: true }
+        );
+
+        if (updatedProduct) {
+            const nextStockState = updatedProduct.stockQuantity <= 0 ? 'out_of_stock' : (updatedProduct.stockQuantity <= (updatedProduct.lowStockThreshold || 10) ? 'low_stock' : 'in_stock');
+            await Product.updateOne({ _id: updatedProduct._id }, { $set: { stock: nextStockState } });
+        }
+    }
+
+    res.status(200).json(new ApiResponse(200, order, 'Item decisions recorded. Proceed to payment.'));
 });
 
 // PATCH /api/delivery/orders/:id/payment
@@ -1219,7 +1257,8 @@ export const handlePayment = asyncHandler(async (req, res) => {
     const isTryAndBuyFlow = order.orderType === 'try_and_buy';
     const isCheckAndBuyFlow = order.orderType === 'check_and_buy';
     
-    const validFrom = (isTryAndBuyFlow)
+    // Now both types can go through the selection flow which sets the phase to 'try_and_buy'
+    const validFrom = (isTryAndBuyFlow || isCheckAndBuyFlow)
         ? ['try_and_buy', 'payment_pending']
         : ['arrived', 'payment_pending'];
     
@@ -1537,8 +1576,16 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
         if (deliveryPhoto) {
             returnReq.deliveryPhoto = deliveryPhoto;
         }
+        returnReq.status = 'completed';
+        
+        // Update associated order status to reflect completion of return
+        const order = await Order.findById(returnReq.orderId);
+        if (order) {
+            order.status = 'returned';
+            await order.save();
+        }
 
-        // On completion, vendor might need to verify before refunding, but standard is marked completed
+        // Notify user and vendor
         emitEvent(`user_${returnReq.userId?._id}`, 'return_completed', { returnId: returnReq._id });
         emitEvent(`vendor_${returnReq.vendorId}`, 'return_completed', { returnId: returnReq._id });
     } else {

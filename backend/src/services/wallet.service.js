@@ -24,8 +24,23 @@ export const WalletService = {
             }
 
             const flow = order.deliveryFlow || {};
-            const finalAmount = flow.finalAmount || order.total;
-            const ratio = order.total > 0 ? (finalAmount / order.total) : 1;
+            const isTryAndBuy = order.orderType === 'try_and_buy' || order.orderType === 'check_and_buy';
+            
+            // For vendor earnings, we should use the ratio of accepted subtotal vs original subtotal
+            // rather than the total final amount, because shipping/platform fees are fixed.
+            let subtotalRatio = 1;
+            if (isTryAndBuy && flow.tryAndBuyItems) {
+                const originalSubtotal = order.subtotal || 1;
+                const acceptedSubtotal = flow.tryAndBuyItems
+                    .filter(i => i.decision === 'accepted')
+                    .reduce((sum, i) => sum + ((i.price || 0) * (i.quantity || 1)), 0);
+                subtotalRatio = originalSubtotal > 0 ? (acceptedSubtotal / originalSubtotal) : 1;
+            } else if (flow.finalAmount !== undefined && order.total > 0) {
+                // Fallback for other flows that might have a finalAmount
+                subtotalRatio = flow.finalAmount / order.total;
+            }
+
+            const finalAmount = flow.finalAmount !== undefined ? flow.finalAmount : order.total;
             const isCod = order.paymentMethod === 'cash' || order.paymentMethod === 'cod';
 
             // 1. Credit Delivery Boy
@@ -55,8 +70,7 @@ export const WalletService = {
             for (const group of vendorItems) {
                 if (group.vendorId) {
                     const originalEarnings = Number(group.vendorEarnings || 0);
-                    // Adjust vendor earnings by the same ratio (Try & Buy / Rejections)
-                    const adjustedEarnings = Math.round(originalEarnings * ratio);
+                    const adjustedEarnings = Math.round(originalEarnings * subtotalRatio);
 
                     if (adjustedEarnings > 0) {
                         // Update Vendor balance
@@ -66,7 +80,7 @@ export const WalletService = {
                                 $inc: {
                                     totalEarnings: adjustedEarnings,
                                     availableBalance: adjustedEarnings,
-                                    totalSales: Math.round((group.subtotal || 0) * ratio)
+                                    totalSales: Math.round((group.subtotal || 0) * subtotalRatio)
                                 }
                             },
                             { session }
@@ -80,7 +94,7 @@ export const WalletService = {
                             subtotal: group.subtotal,
                             basePrice: group.basePrice || 0,
                             commissionRate: group.commissionRate || 0,
-                            commission: Math.round((group.commissionAmount || 0) * ratio),
+                            commission: Math.round((group.commissionAmount || 0) * subtotalRatio),
                             vendorEarnings: adjustedEarnings,
                             status: 'pending'
                         }], { session });

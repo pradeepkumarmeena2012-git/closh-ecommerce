@@ -53,6 +53,8 @@ const PaymentPage = () => {
     const [expandedOption, setExpandedOption] = useState('');
     const isNavigatingToSuccess = useRef(false);
 
+    const isTryAndBuy = deliveryType === 'try_and_buy';
+
     // Promo Code States
     const [promoCode, setPromoCode] = useState('');
     const [appliedPromo, setAppliedPromo] = useState(null);
@@ -246,6 +248,8 @@ const PaymentPage = () => {
                 normalizedPaymentMethod = 'wallet';
             } else if (lowerPm.includes('bank')) {
                 normalizedPaymentMethod = 'bank';
+            } else if (lowerPm.includes('digital_at_door')) {
+                normalizedPaymentMethod = 'digital_at_door';
             }
 
             const orderPayload = {
@@ -424,37 +428,62 @@ const PaymentPage = () => {
                     </div>
 
                     <div className="space-y-0">
-                        <PaymentOption id="upi" icon={Smartphone} title="UPI (GPay / PhonePe / Paytm)" subtitle="Secure & Instant Payments" offers="NEWPROMO">
-                            <div className="space-y-4 pt-4">
-                                <div
-                                    className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer ${paymentMethod === 'GPay' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}
-                                    onClick={() => setPaymentMethod('GPay')}
-                                >
-                                    <span className="text-[13px] font-bold">Google Pay</span>
-                                    {paymentMethod === 'GPay' && <div className="w-2 h-2 rounded-full bg-[#e53e70]" />}
-                                </div>
-                                <div
-                                    className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer ${paymentMethod === 'PhonePe' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}
-                                    onClick={() => setPaymentMethod('PhonePe')}
-                                >
-                                    <span className="text-[13px] font-bold">PhonePe</span>
-                                    {paymentMethod === 'PhonePe' && <div className="w-2 h-2 rounded-full bg-[#e53e70]" />}
-                                </div>
-                            </div>
-                        </PaymentOption>
-
-                        <PaymentOption id="card" icon={CreditCard} title="Credit / Debit Cards" subtitle="All major cards supported" offers="10% OFF ON CARDS">
-                            <div className="pt-4 space-y-3">
-                                <div className="bg-gray-50 p-4 rounded-xl text-center">
-                                    <CreditCard size={32} className="mx-auto text-gray-300 mb-2" />
-                                    <p className="text-[11px] font-bold text-gray-500">Add logic to integrate Stripe or Razorpay here</p>
-                                    <button
-                                        onClick={() => setPaymentMethod('Credit/Debit Card')}
-                                        className={`mt-3 w-full py-2.5 rounded-xl text-[12px] font-bold uppercase border-2 transition-all ${paymentMethod === 'Credit/Debit Card' ? 'bg-[#e53e70] text-white border-[#e53e70]' : 'border-gray-200 text-gray-600'}`}
+                        {!isTryAndBuy && (
+                            <PaymentOption id="upi" icon={Smartphone} title="UPI (GPay / PhonePe / Paytm)" subtitle="Secure & Instant Payments" offers="NEWPROMO">
+                                <div className="space-y-4 pt-4">
+                                    <div
+                                        className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer ${paymentMethod === 'GPay' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}
+                                        onClick={() => setPaymentMethod('GPay')}
                                     >
-                                        Use Card
-                                    </button>
+                                        <span className="text-[13px] font-bold">Google Pay</span>
+                                        {paymentMethod === 'GPay' && <div className="w-2 h-2 rounded-full bg-[#e53e70]" />}
+                                    </div>
+                                    <div
+                                        className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer ${paymentMethod === 'PhonePe' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}
+                                        onClick={() => setPaymentMethod('PhonePe')}
+                                    >
+                                        <span className="text-[13px] font-bold">PhonePe</span>
+                                        {paymentMethod === 'PhonePe' && <div className="w-2 h-2 rounded-full bg-[#e53e70]" />}
+                                    </div>
                                 </div>
+                            </PaymentOption>
+                        )}
+
+                        {!isTryAndBuy && (
+                            <PaymentOption id="card" icon={CreditCard} title="Credit / Debit Cards" subtitle="All major cards supported" offers="10% OFF ON CARDS">
+                                <div className="pt-4 space-y-3">
+                                    <div className="bg-gray-50 p-4 rounded-xl text-center">
+                                        <CreditCard size={32} className="mx-auto text-gray-300 mb-2" />
+                                        <p className="text-[11px] font-bold text-gray-500">Add logic to integrate Stripe or Razorpay here</p>
+                                        <button
+                                            onClick={() => setPaymentMethod('Credit/Debit Card')}
+                                            className={`mt-3 w-full py-2.5 rounded-xl text-[12px] font-bold uppercase border-2 transition-all ${paymentMethod === 'Credit/Debit Card' ? 'bg-[#e53e70] text-white border-[#e53e70]' : 'border-gray-200 text-gray-600'}`}
+                                        >
+                                            Use Card
+                                        </button>
+                                    </div>
+                                </div>
+                            </PaymentOption>
+                        )}
+
+                        <PaymentOption id="digital_at_door" icon={Smartphone} title="Pay Digital at Door" subtitle="Pay via UPI QR when package arrives" offers="POPULAR">
+                            <div className="pt-4">
+                                <label className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === 'digital_at_door' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <Smartphone size={20} className={paymentMethod === 'digital_at_door' ? "text-[#e53e70]" : "text-gray-400"} />
+                                        <span className="text-[13px] font-bold">Pay via QR at Doorstep</span>
+                                    </div>
+                                    <input
+                                        type="radio"
+                                        name="payment"
+                                        className="hidden"
+                                        checked={paymentMethod === 'digital_at_door'}
+                                        onChange={() => setPaymentMethod('digital_at_door')}
+                                    />
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'digital_at_door' ? 'border-[#e53e70] bg-[#e53e70]' : 'border-gray-200'}`}>
+                                        {paymentMethod === 'digital_at_door' && <div className="w-2 h-2 rounded-full bg-white" />}
+                                    </div>
+                                </label>
                             </div>
                         </PaymentOption>
 
@@ -472,7 +501,7 @@ const PaymentPage = () => {
                                         checked={paymentMethod === 'COD'}
                                         onChange={() => setPaymentMethod('COD')}
                                     />
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'COD' ? 'border-[#e53e70] bg-[#e53e70]' : 'border-gray-200'}`}>
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'COD' ? 'border-[#e53e70] bg-[#e53e70]' : 'border-gray-100'}`}>
                                         {paymentMethod === 'COD' && <div className="w-2 h-2 rounded-full bg-white" />}
                                     </div>
                                 </label>

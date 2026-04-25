@@ -26,6 +26,7 @@ const VendorLayout = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
   const buzzerRef = useRef(null);
+  const lastNotifiedOrderId = useRef(null);
 
   // Initialize Buzzer on first interaction to bypass browser policies
   const initBuzzer = useCallback(() => {
@@ -108,12 +109,18 @@ const VendorLayout = () => {
 
     // Listen for new orders globally
     const handleNewOrder = async (orderData) => {
+      const orderId = orderData.orderId || orderData.id || (orderData.data?.orderId);
+      
+      // Prevent duplicate popups for the same order within a short window
+      if (orderId && lastNotifiedOrderId.current === orderId) {
+        console.log(`🚫 [VENDOR] Skipping duplicate notification for Order: ${orderId}`);
+        return;
+      }
+      
       console.log('🍕 New order event received:', orderData);
+      lastNotifiedOrderId.current = orderId;
 
       let fullOrder = orderData;
-
-      // If we only have a summary (e.g. from a general notification), fetch the full details
-      const orderId = orderData.orderId || orderData.id || (orderData.data?.orderId);
       const hasItems = (orderData.items && orderData.items.length > 0) || (orderData.vendorItems);
 
       if (orderId && !hasItems) {
@@ -142,6 +149,14 @@ const VendorLayout = () => {
       });
 
       window.dispatchEvent(new CustomEvent('vendor-new-order', { detail: fullOrder }));
+      
+      // Clear the ID after 30 seconds to allow re-notification if something changes, 
+      // but prevents the immediate socket/push double-trigger
+      setTimeout(() => {
+        if (lastNotifiedOrderId.current === orderId) {
+          lastNotifiedOrderId.current = null;
+        }
+      }, 30000);
     };
 
     socketService.on("order_created", handleNewOrder);

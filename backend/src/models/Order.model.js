@@ -6,6 +6,7 @@ const orderItemSchema = new mongoose.Schema({
     name: String,
     image: String,
     price: Number,
+    originalPrice: Number,
     quantity: Number,
     vendorPrice: { type: Number, default: 0 }, // Snapshot of product.vendorPrice
     commissionRate: { type: Number, default: 0 }, // Snapshot of vendor.commissionRate or category commission
@@ -41,6 +42,7 @@ const deliveryFlowItemSchema = new mongoose.Schema({
     name: String,
     image: String,
     price: Number,
+    originalPrice: Number,
     quantity: Number,
     variant: mongoose.Schema.Types.Mixed,
     decision: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
@@ -103,7 +105,7 @@ const orderSchema = new mongoose.Schema(
             zipCode: String,
             country: String,
         },
-        paymentMethod: { type: String, enum: ['card', 'cash', 'bank', 'wallet', 'upi', 'cod'] },
+        paymentMethod: { type: String, enum: ['card', 'cash', 'bank', 'wallet', 'upi', 'cod', 'digital_at_door'] },
         paymentStatus: {
             type: String,
             enum: ['pending', 'paid', 'failed', 'refunded'],

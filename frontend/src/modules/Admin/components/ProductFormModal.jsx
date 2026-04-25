@@ -1107,7 +1107,28 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           type="number"
                           name="price"
                           value={formData.price}
-                          onChange={handleChange}
+                          onChange={(e) => {
+                            const newPrice = e.target.value;
+                            const oldPrice = formData.price;
+                            setFormData(prev => {
+                              const next = { ...prev, price: newPrice };
+                              if (prev.variants?.prices) {
+                                const nextPrices = { ...prev.variants.prices };
+                                let hasVariants = false;
+                                Object.keys(nextPrices).forEach(key => {
+                                  hasVariants = true;
+                                  // Sync if it was matching the old price or if it's empty
+                                  if (nextPrices[key] === Number(oldPrice) || nextPrices[key] === oldPrice || nextPrices[key] === "" || nextPrices[key] === undefined) {
+                                    nextPrices[key] = newPrice === "" ? "" : Number(newPrice);
+                                  }
+                                });
+                                if (hasVariants) {
+                                  next.variants = { ...prev.variants, prices: nextPrices };
+                                }
+                              }
+                              return next;
+                            });
+                          }}
                           required
                           min="0"
                           step="0.01"

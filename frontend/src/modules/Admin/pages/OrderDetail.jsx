@@ -27,7 +27,7 @@ import { IMAGE_BASE_URL } from '../../../shared/utils/constants';
 
 const getFullImageUrl = (image) => {
     if (!image) return null;
-    if (image.startsWith('http')) return image;
+    if (image.startsWith('http') || image.startsWith('data:')) return image;
     const cleanImage = image.startsWith('/') ? image : `/${image}`;
     return `${IMAGE_BASE_URL}${cleanImage}`;
 };
@@ -243,9 +243,59 @@ const OrderDetail = () => {
                     </Badge>
                   </div>
                 )}
+                <div>
+                  <p className="text-xs text-gray-500 mb-0.5">Vendor Settlement</p>
+                  {(() => {
+                    const commissions = order.commissions || [];
+                    if (commissions.length === 0) return <span className="text-[10px] font-bold text-gray-400">N/A</span>;
+                    const allPaid = commissions.every(c => c.status === 'paid');
+                    const somePaid = commissions.some(c => c.status === 'paid');
+                    const anyCancelled = commissions.some(c => c.status === 'cancelled');
+                    
+                    if (allPaid) return <Badge variant="delivered" className="text-[10px] font-bold uppercase">Settled</Badge>;
+                    if (anyCancelled) return <Badge variant="cancelled" className="text-[10px] font-bold uppercase">Cancelled</Badge>;
+                    if (somePaid) return <Badge variant="pending" className="text-[10px] font-bold uppercase">Partially Settled</Badge>;
+                    return <Badge variant="pending" className="text-[10px] font-bold uppercase">Pending Settlement</Badge>;
+                  })()}
+                </div>
               </div>
             )}
           </div>
+
+          {/* Return Requests Section */}
+          {order.returnRequests && order.returnRequests.length > 0 && (
+            <div className="bg-rose-50 rounded-lg p-4 shadow-sm border border-rose-100 mb-6">
+              <h2 className="text-sm font-bold text-rose-800 mb-3 flex items-center gap-1.5">
+                <FiPackage className="text-rose-600 text-base" />
+                Return Requests
+              </h2>
+              <div className="space-y-3">
+                {order.returnRequests.map((req) => (
+                  <div key={req._id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-rose-100">
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">
+                        Request #{String(req._id).slice(-6).toUpperCase()} - {req.reason}
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        Requested on {new Date(req.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge variant={req.status === 'completed' ? 'delivered' : req.status === 'rejected' ? 'cancelled' : 'pending'} className="text-[10px] font-bold uppercase">
+                        {req.status}
+                      </Badge>
+                      <button
+                        onClick={() => navigate(`/admin/return-requests/${req._id}`)}
+                        className="text-xs font-bold text-rose-600 hover:underline"
+                      >
+                        View Detail
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Order Items */}
           {itemsArray.length > 0 && (
@@ -399,7 +449,8 @@ const OrderDetail = () => {
           )}
 
           {/* Proof & Verification Gallery */}
-          {(order.readyPhoto || order.pickupPhoto || order.deliveryPhoto || order.openBoxPhoto) && (
+          {(order.readyPhoto || order.pickupPhoto || order.deliveryPhoto || order.openBoxPhoto || 
+            order.deliveryFlow?.pickupPhoto || order.deliveryFlow?.deliveryProofPhoto || order.deliveryFlow?.openBoxPhoto) && (
             <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
               <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
                 <FiCamera className="text-primary-600 text-base" />
@@ -419,41 +470,41 @@ const OrderDetail = () => {
                     </div>
                   </div>
                 )}
-                {order.pickupPhoto && (
+                {(order.pickupPhoto || order.deliveryFlow?.pickupPhoto) && (
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold text-gray-400 uppercase">Pickup Proof</p>
                     <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden border border-gray-200 group">
                       <img
-                        src={getFullImageUrl(order.pickupPhoto)}
+                        src={getFullImageUrl(order.pickupPhoto || order.deliveryFlow?.pickupPhoto)}
                         alt="Pickup Proof"
                         className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                        onClick={() => window.open(getFullImageUrl(order.pickupPhoto), '_blank')}
+                        onClick={() => window.open(getFullImageUrl(order.pickupPhoto || order.deliveryFlow?.pickupPhoto), '_blank')}
                       />
                     </div>
                   </div>
                 )}
-                {order.deliveryPhoto && (
+                {(order.deliveryPhoto || order.deliveryFlow?.deliveryProofPhoto) && (
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold text-gray-400 uppercase">Delivery Proof</p>
                     <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden border border-gray-200 group">
                       <img
-                        src={getFullImageUrl(order.deliveryPhoto)}
+                        src={getFullImageUrl(order.deliveryPhoto || order.deliveryFlow?.deliveryProofPhoto)}
                         alt="Delivery Proof"
                         className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                        onClick={() => window.open(getFullImageUrl(order.deliveryPhoto), '_blank')}
+                        onClick={() => window.open(getFullImageUrl(order.deliveryPhoto || order.deliveryFlow?.deliveryProofPhoto), '_blank')}
                       />
                     </div>
                   </div>
                 )}
-                {order.openBoxPhoto && (
+                {(order.openBoxPhoto || order.deliveryFlow?.openBoxPhoto) && (
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold text-gray-400 uppercase">Open Box Proof</p>
                     <div className="relative aspect-video bg-gray-50 rounded-lg overflow-hidden border border-gray-200 group">
                       <img
-                        src={getFullImageUrl(order.openBoxPhoto)}
+                        src={getFullImageUrl(order.openBoxPhoto || order.deliveryFlow?.openBoxPhoto)}
                         alt="Open Box Proof"
                         className="w-full h-full object-cover cursor-pointer transition-transform group-hover:scale-105"
-                        onClick={() => window.open(getFullImageUrl(order.openBoxPhoto), '_blank')}
+                        onClick={() => window.open(getFullImageUrl(order.openBoxPhoto || order.deliveryFlow?.openBoxPhoto), '_blank')}
                       />
                     </div>
                   </div>

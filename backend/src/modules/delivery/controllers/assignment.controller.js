@@ -194,7 +194,7 @@ export const notifyNearbyDeliveryBoys = async (order) => {
  */
 export const notifyNearbyDeliveryBoysForReturn = async (returnRequest) => {
     const nearbyBoys = await findNearbyDeliveryBoysForReturn(returnRequest);
-    if (!nearbyBoys.length) return 0;
+    // REMOVED early exit to allow global broadcast fallback if no one is nearby
 
     const orderId = returnRequest.orderId?.orderId || 'Order';
 
@@ -256,12 +256,17 @@ export const notifyNearbyDeliveryBoysForReturn = async (returnRequest) => {
         type: 'return'
     };
 
-    nearbyBoys.forEach(boy => {
-        emitEvent(`delivery_${boy._id}`, 'return_ready_for_pickup', returnPayload);
-    });
-
-    await Promise.allSettled(notificationPromises);
-    return nearbyBoys.length;
+    if (nearbyBoys.length > 0) {
+        nearbyBoys.forEach(boy => {
+            emitEvent(`delivery_${boy._id}`, 'return_ready_for_pickup', returnPayload);
+        });
+        await Promise.allSettled(notificationPromises);
+        return nearbyBoys.length;
+    } else {
+        console.log(`⚠️ [Return Assignment] No nearby boys (8km). Broadcasting return globally to 'delivery_partners' room.`);
+        emitEvent('delivery_partners', 'return_ready_for_pickup', returnPayload);
+        return 0;
+    }
 };
 
 /**

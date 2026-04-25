@@ -162,9 +162,25 @@ const MobileOrderDetail = () => {
     }
   };
 
+  const isWithinReturnWindow = () => {
+    if (!order?.deliveredAt) return true; // Fallback
+    const deliveredDate = new Date(order.deliveredAt);
+    const now = new Date();
+    const diffInHours = (now - deliveredDate) / (1000 * 60 * 60);
+    return diffInHours <= 24;
+  };
+
   const openReturnModal = () => {
     if (order.status !== 'delivered') {
       toast.error('Return can only be requested for delivered orders');
+      return;
+    }
+    if (order.orderType !== 'check_and_buy') {
+      toast.error('Returns are only available for Check & Buy orders');
+      return;
+    }
+    if (!isWithinReturnWindow()) {
+      toast.error('Return window (24 hours) has expired');
       return;
     }
     if (vendorOptions.length === 1) {
@@ -289,6 +305,9 @@ const MobileOrderDetail = () => {
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-semibold text-gray-800 text-sm mb-1">{item.name}</h3>
                                 <p className="text-xs text-gray-600">
+                                  {item.originalPrice && item.originalPrice > item.price && (
+                                    <span className="line-through mr-1 text-gray-400">{formatPrice(item.originalPrice)}</span>
+                                  )}
                                   {formatPrice(item.price)} x {item.quantity}
                                 </p>
                                 {formatVariantLabel(item?.variant) && (
@@ -320,6 +339,9 @@ const MobileOrderDetail = () => {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-800 text-sm mb-1">{item.name}</h3>
                           <p className="text-xs text-gray-600">
+                            {item.originalPrice && item.originalPrice > item.price && (
+                              <span className="line-through mr-1 text-gray-400">{formatPrice(item.originalPrice)}</span>
+                            )}
                             {formatPrice(item.price)} x {item.quantity}
                           </p>
                           {formatVariantLabel(item?.variant) && (
@@ -427,7 +449,7 @@ const MobileOrderDetail = () => {
                   <FiRotateCw className="text-lg" />
                   Reorder
                 </button>
-                {order.status === 'delivered' && (
+                {order.status === 'delivered' && order.orderType === 'check_and_buy' && isWithinReturnWindow() && (
                   <button
                     onClick={openReturnModal}
                     className="w-full py-3 bg-amber-50 text-amber-700 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors"

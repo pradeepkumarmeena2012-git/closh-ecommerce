@@ -266,6 +266,7 @@ export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
     let totalRevenue = 0;
     let totalCommission = 0;
     let totalMargin = 0;
+    let totalPlatformFees = 0;
     let totalVendorCost = 0;
     let totalDeliveryPayout = 0;
     let orderCount = orders.length;
@@ -273,6 +274,7 @@ export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
     orders.forEach(order => {
         totalRevenue += (order.total || 0);
         totalDeliveryPayout += (order.shipping || 0);
+        totalPlatformFees += (order.platformFee || 0);
 
         // Calculate Commission with fallback
         const commission = order.vendorItems?.reduce((sum, v) => {
@@ -286,21 +288,24 @@ export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
         // Calculate Margin with robust fallback
         const margin = order.items?.reduce((sum, i) => {
             const vPrice = i.vendorPrice || i.productId?.vendorPrice || 0;
-            totalVendorCost += (vPrice * i.quantity);
-            return sum + ((i.price - vPrice) * i.quantity);
+            totalVendorCost += (vPrice * (i.quantity || 1));
+            return sum + (((i.price || 0) - vPrice) * (i.quantity || 1));
         }, 0) || 0;
         totalMargin += margin;
     });
+
+    const totalAdminEarnings = totalCommission + totalMargin + totalPlatformFees;
 
     res.status(200).json(new ApiResponse(200, {
         totalRevenue,
         totalCommission,
         totalMargin,
+        totalPlatformFees,
+        totalAdminEarnings,
         totalVendorCost,
         totalDeliveryPayout,
-        adminNetProfit: (totalCommission + totalMargin) - totalDeliveryPayout,
         orderCount
-    }, 'Admin earnings summary fetched.'));
+    }, 'Earnings summary fetched.'));
 });
 
 // GET /api/admin/analytics/earnings-report

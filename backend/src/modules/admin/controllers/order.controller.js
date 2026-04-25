@@ -9,6 +9,7 @@ import Product from '../../../models/Product.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
+import ReturnRequest from '../../../models/ReturnRequest.model.js';
 
 // GET /api/admin/orders
 export const getAllOrders = asyncHandler(async (req, res) => {
@@ -82,7 +83,20 @@ export const getOrderById = asyncHandler(async (req, res) => {
         .lean();
 
     if (!order) throw new ApiError(404, 'Order not found.');
-    res.status(200).json(new ApiResponse(200, order, 'Order fetched.'));
+
+    // Fetch related commissions (vendor settlements)
+    const commissions = await Commission.find({ orderId: order._id }).lean();
+    
+    // Fetch related return requests
+    const returnRequests = await ReturnRequest.find({ orderId: order._id }).lean();
+
+    const responseData = {
+        ...order,
+        commissions,
+        returnRequests,
+    };
+
+    res.status(200).json(new ApiResponse(200, responseData, 'Order fetched.'));
 });
 
 // PATCH /api/admin/orders/:id/status

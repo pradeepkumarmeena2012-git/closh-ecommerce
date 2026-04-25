@@ -71,48 +71,19 @@ const deliveryBoySchema = new mongoose.Schema(
         bankDetails: {
             accountHolderName: { 
                 type: String, 
-                trim: true,
-                validate: {
-                    validator: function(v) {
-                        if (!v) return true; // Allow empty if not required yet
-                        return /^[a-zA-Z\s]+$/.test(v);
-                    },
-                    message: props => `${props.value} is not a valid account holder name! Only letters and spaces are allowed.`
-                }
+                trim: true
             },
             accountNumber: { 
                 type: String, 
-                trim: true,
-                validate: {
-                    validator: function(v) {
-                        if (!v) return true;
-                        return /^[0-9]{9,18}$/.test(v);
-                    },
-                    message: props => `${props.value} is not a valid account number! Must be 9-18 digits.`
-                }
+                trim: true
             },
             ifscCode: { 
                 type: String, 
-                trim: true,
-                validate: {
-                    validator: function(v) {
-                        if (!v) return true;
-                        // Standard IFSC format: 4 letters, 0, 6 digits/letters
-                        return /^[A-Z]{4}0[A-Z0-9]{6}$/.test(v.toUpperCase());
-                    },
-                    message: props => `${props.value} is not a valid IFSC code! Format: 4 letters, '0', then 6 characters (e.g., SBIN0012345).`
-                }
+                trim: true
             },
             bankName: { 
                 type: String, 
-                trim: true,
-                validate: {
-                    validator: function(v) {
-                        if (!v) return true;
-                        return /^[a-zA-Z\s]+$/.test(v);
-                    },
-                    message: props => `${props.value} is not a valid bank name! Only letters and spaces are allowed.`
-                }
+                trim: true
             },
         },
         upiId: { type: String, trim: true },

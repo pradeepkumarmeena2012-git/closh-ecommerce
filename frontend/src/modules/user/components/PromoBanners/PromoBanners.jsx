@@ -32,7 +32,7 @@ const PromoBanners = () => {
             brand: 'HIGH STAR',
             title: 'NEW Drop',
             subtitle: 'Style That Speaks You',
-            badge: 'UPTO 65% OFF',
+            badge: 'BEST SELLER',
             image: 'https://images.unsplash.com/photo-1539109132314-347596adf3f3?auto=format&fit=crop&q=80&w=2070',
             bg: 'bg-[#524432]'
         },
@@ -41,7 +41,7 @@ const PromoBanners = () => {
             brand: 'peach mode',
             title: 'NEW Drop',
             subtitle: 'Grace in Its Purest Form',
-            badge: 'UPTO 60% OFF',
+            badge: 'NEW SEASON',
             image: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&q=80&w=2070',
             bg: 'bg-[#D18697]'
         }

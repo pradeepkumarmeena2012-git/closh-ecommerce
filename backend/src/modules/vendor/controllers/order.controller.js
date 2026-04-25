@@ -125,7 +125,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     console.log(`[VendorUpdate] New Group Status: ${status}, Overall Order Status: ${oldStatus} -> ${order.status}`);
     await order.save();
 
-    if (status === 'ready_for_pickup' || status === 'accepted') {
+    if (status === 'ready_for_pickup') {
         if (vendor && vendor.shopLocation) {
             order.pickupLocation = vendor.shopLocation;
             await order.save();

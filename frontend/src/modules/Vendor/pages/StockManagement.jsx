@@ -620,20 +620,20 @@ const ManualSaleModal = ({ isOpen, product, type, onClose, onUpdate }) => {
     } else if (sizes.length > 0 && colors.length > 0) {
       sizes.forEach((s) => {
         colors.forEach((c) => {
-          const key = `${s.toLowerCase().trim()}|${c.toLowerCase().trim()}`;
+          const key = `color=${c.toLowerCase().trim()}|size=${s.toLowerCase().trim()}`;
           const stock = stockMap[key] || 0;
           if (stock > 0) combos.push({ key, label: `${s.toUpperCase()} / ${c.toUpperCase()}`, stock });
         });
       });
     } else if (sizes.length > 0) {
       sizes.forEach((s) => {
-        const key = `${s.toLowerCase().trim()}|`;
+        const key = `size=${s.toLowerCase().trim()}`;
         const stock = stockMap[key] || 0;
         if (stock > 0) combos.push({ key, label: `Size: ${s.toUpperCase()}`, stock });
       });
     } else if (colors.length > 0) {
       colors.forEach((c) => {
-        const key = `|${c.toLowerCase().trim()}`;
+        const key = `color=${c.toLowerCase().trim()}`;
         const stock = stockMap[key] || 0;
         if (stock > 0) combos.push({ key, label: `Color: ${c.toUpperCase()}`, stock });
       });
@@ -823,10 +823,38 @@ const ManualSaleModal = ({ isOpen, product, type, onClose, onUpdate }) => {
 export default StockManagement;
 
 // Variant Stock Drawer Component
-const VariantStockDrawer = ({ isOpen, product, onClose }) => {
-  const stockMap = product?.variants?.stockMap || {};
+const VariantStockDrawer = ({ isOpen, product, onClose, onUpdate }) => {
+  const [localStockMap, setLocalStockMap] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (product?.variants?.stockMap) {
+      setLocalStockMap(product.variants.stockMap);
+    } else {
+      setLocalStockMap({});
+    }
+  }, [product]);
 
   if (!isOpen || !product) return null;
+
+  const handleStockChange = (key, value) => {
+    setLocalStockMap(prev => ({
+      ...prev,
+      [key]: Math.max(0, parseInt(value) || 0)
+    }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onUpdate(product._id ?? product.id, localStockMap);
+      toast.success("Variant stock updated successfully");
+    } catch (error) {
+      toast.error("Failed to update variant stock");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Generate variant keys based on sizes, colors, or attributes
   const combinations = [];
@@ -841,7 +869,7 @@ const VariantStockDrawer = ({ isOpen, product, onClose }) => {
       const rest = combinationsList(attrs.slice(1));
       attrs[0].values.forEach((val) => {
         rest.forEach((r) => {
-          res.push({ [attrs[0].name.toLowerCase().replace(/\s+/g, '_')]: val.toLowerCase().trim(), ...r });
+          res.push({ [attrs[0].axisKey || attrs[0].name.toLowerCase().replace(/\s+/g, '_')]: val.toLowerCase().trim(), ...r });
         });
       });
       return res;
@@ -860,23 +888,26 @@ const VariantStockDrawer = ({ isOpen, product, onClose }) => {
 
       combinations.push({ key, label });
     });
-  } else if (sizes.length > 0 && colors.length > 0) {
-    sizes.forEach((s) => {
-      colors.forEach((c) => {
-        const key = `${s.toLowerCase().trim()}|${c.toLowerCase().trim()}`;
-        combinations.push({ key, label: `${s.toUpperCase()} / ${c.toUpperCase()}` });
+  } else {
+    // Standardize sizes and colors into dynamic key format
+    if (sizes.length > 0 && colors.length > 0) {
+      sizes.forEach((s) => {
+        colors.forEach((c) => {
+          const key = `color=${c.toLowerCase().trim()}|size=${s.toLowerCase().trim()}`;
+          combinations.push({ key, label: `${s.toUpperCase()} / ${c.toUpperCase()}` });
+        });
       });
-    });
-  } else if (sizes.length > 0) {
-    sizes.forEach((s) => {
-      const key = `${s.toLowerCase().trim()}|`;
-      combinations.push({ key, label: `Size: ${s.toUpperCase()}` });
-    });
-  } else if (colors.length > 0) {
-    colors.forEach((c) => {
-      const key = `|${c.toLowerCase().trim()}`;
-      combinations.push({ key, label: `Color: ${c.toUpperCase()}` });
-    });
+    } else if (sizes.length > 0) {
+      sizes.forEach((s) => {
+        const key = `size=${s.toLowerCase().trim()}`;
+        combinations.push({ key, label: `Size: ${s.toUpperCase()}` });
+      });
+    } else if (colors.length > 0) {
+      colors.forEach((c) => {
+        const key = `color=${c.toLowerCase().trim()}`;
+        combinations.push({ key, label: `Color: ${c.toUpperCase()}` });
+      });
+    }
   }
 
   const totalStock = product.stockQuantity || 0;
@@ -947,10 +978,14 @@ const VariantStockDrawer = ({ isOpen, product, onClose }) => {
                         <span className="font-semibold text-gray-600 group-hover:text-gray-900 transition-colors">
                           {combo.label}
                         </span>
-                        <div className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm">
-                          <span className="text-lg font-bold text-gray-800">
-                            {stockMap[combo.key] || 0}
-                          </span>
+                        <div className="w-24">
+                          <input
+                            type="number"
+                            min="0"
+                            value={localStockMap[combo.key] ?? 0}
+                            onChange={(e) => handleStockChange(combo.key, e.target.value)}
+                            className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm text-center font-bold text-gray-800 focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all"
+                          />
                         </div>
                       </div>
                     ))}
@@ -960,12 +995,19 @@ const VariantStockDrawer = ({ isOpen, product, onClose }) => {
             </div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-gray-100 bg-gray-50/50">
+            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
               <button
                 onClick={onClose}
-                className="w-full py-4 bg-gray-800 text-white font-bold rounded-xl shadow-lg hover:bg-gray-900 transition-all"
+                className="flex-1 py-4 bg-white text-gray-600 font-bold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all"
               >
-                Close Details
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex-1 py-4 gradient-green text-white font-bold rounded-xl shadow-lg hover:shadow-glow-green transition-all disabled:opacity-50"
+              >
+                {isSaving ? "Saving..." : "Update Variant Stock"}
               </button>
             </div>
           </motion.div>

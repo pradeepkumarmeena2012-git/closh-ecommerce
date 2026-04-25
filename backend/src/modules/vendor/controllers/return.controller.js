@@ -256,14 +256,24 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
                 if (status === 'completed') {
                     const stockRestores = (request.items || []).map(async (item) => {
                         const qty = Number(item?.quantity || 0);
+                        const variantKey = item?.variantKey;
                         if (!item?.productId || qty <= 0) return;
-                        const product = await Product.findById(item.productId);
-                        if (!product) return;
-                        product.stockQuantity += qty;
-                        if (product.stockQuantity <= 0) product.stock = 'out_of_stock';
-                        else if (product.stockQuantity <= product.lowStockThreshold) product.stock = 'low_stock';
-                        else product.stock = 'in_stock';
-                        await product.save();
+
+                        const incUpdate = { stockQuantity: qty };
+                        if (variantKey) {
+                            incUpdate[`variants.stockMap.${variantKey}`] = qty;
+                        }
+
+                        const updatedProduct = await Product.findByIdAndUpdate(
+                            item.productId,
+                            { $inc: incUpdate },
+                            { new: true }
+                        );
+
+                        if (updatedProduct) {
+                            const nextStockState = updatedProduct.stockQuantity <= 0 ? 'out_of_stock' : (updatedProduct.stockQuantity <= (updatedProduct.lowStockThreshold || 10) ? 'low_stock' : 'in_stock');
+                            await Product.updateOne({ _id: updatedProduct._id }, { $set: { stock: nextStockState } });
+                        }
                     });
                     await Promise.all(stockRestores);
 

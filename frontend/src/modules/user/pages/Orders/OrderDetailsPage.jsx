@@ -549,8 +549,9 @@ const OrderDetailsPage = () => {
                             const deliveredTime = order.deliveredAt ? new Date(order.deliveredAt).getTime() : 0;
                             const now = new Date().getTime();
                             const isWithin24h = deliveredTime && (now - deliveredTime) < (24 * 60 * 60 * 1000);
+                            const isTryAndBuy = order.orderType === 'try_and_buy';
 
-                            if (isDelivered && isWithin24h) {
+                            if (isDelivered && isWithin24h && !isTryAndBuy) {
                                 return (
                                     <button
                                         onClick={() => setShowReturnModal(true)}
