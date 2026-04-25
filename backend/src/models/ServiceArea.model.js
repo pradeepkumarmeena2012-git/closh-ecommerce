@@ -35,11 +35,9 @@ const serviceAreaSchema = new mongoose.Schema(
             type: {
                 type: String,
                 enum: ['Polygon'],
-                default: 'Polygon',
             },
             coordinates: {
                 type: [[[Number]]], // Array of points [lng, lat]
-                default: [],
             },
         },
         isStrictBoundary: { type: Boolean, default: false },
@@ -92,6 +90,35 @@ const serviceAreaSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Middleware to remove empty boundaries before saving
+const cleanEmptyBoundaries = function(next) {
+    const doc = this._update || this;
+    
+    // Check for boundaries in updates or document
+    if (doc.boundaries) {
+        if (!doc.boundaries.coordinates || 
+            doc.boundaries.coordinates.length === 0 || 
+            (Array.isArray(doc.boundaries.coordinates[0]) && doc.boundaries.coordinates[0].length === 0)) {
+            
+            if (this._update) {
+                // For findOneAndUpdate
+                this._update.$unset = this._update.$unset || {};
+                this._update.$unset.boundaries = "";
+                delete this._update.boundaries;
+            } else {
+                // For save
+                this.boundaries = undefined;
+            }
+        }
+    }
+    next();
+};
+
+serviceAreaSchema.pre('save', cleanEmptyBoundaries);
+serviceAreaSchema.pre('findOneAndUpdate', cleanEmptyBoundaries);
+serviceAreaSchema.pre('updateMany', cleanEmptyBoundaries);
+serviceAreaSchema.pre('updateOne', cleanEmptyBoundaries);
 
 // Create 2dsphere index for geospatial queries
 serviceAreaSchema.index({ coordinates: '2dsphere' });
