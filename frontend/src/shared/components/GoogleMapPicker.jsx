@@ -21,9 +21,8 @@ const GoogleMapPicker = ({ onLocationSelect, initialLocation, height = '400px', 
           version: 'weekly'
         });
 
-        const [{ Map }, { Marker }] = await Promise.all([
-          importLibrary('maps'),
-          importLibrary('marker')
+        const [{ Map, Marker }] = await Promise.all([
+          importLibrary('maps')
         ]);
 
         if (!isMounted) return;

@@ -39,15 +39,11 @@ const GoogleMapZoneDrawer = ({
         });
 
         const [
-          { Map }, 
-          { Marker }, 
-          { DrawingManager, OverlayType },
-          { Polygon }
+          { Map, Marker, Polygon }, 
+          { DrawingManager, OverlayType }
         ] = await Promise.all([
           importLibrary('maps'),
-          importLibrary('marker'),
-          importLibrary('drawing'),
-          importLibrary('maps') // Polygon is in maps library too
+          importLibrary('drawing')
         ]);
 
         if (!isMounted) return;
@@ -57,7 +53,6 @@ const GoogleMapZoneDrawer = ({
         const mapInstance = new Map(mapRef.current, {
           center: defaultLocation,
           zoom: zoom,
-          mapId: 'SERVICE_AREA_MAP',
           mapTypeControl: true,
           streetViewControl: false,
           fullscreenControl: true,
@@ -67,16 +62,7 @@ const GoogleMapZoneDrawer = ({
           position: defaultLocation,
           map: mapInstance,
           draggable: true,
-          title: 'Center Point',
-          icon: {
-             path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
-             fillColor: "#e11d48",
-             fillOpacity: 1,
-             strokeWeight: 1,
-             strokeColor: "#ffffff",
-             scale: 2,
-             anchor: { x: 12, y: 24 }
-          }
+          title: 'Center Point'
         });
 
         const drawingManagerInstance = new DrawingManager({
@@ -102,11 +88,11 @@ const GoogleMapZoneDrawer = ({
         // Handle Polygon Completion
         drawingManagerInstance.addListener('polygoncomplete', (newPolygon) => {
           // If we already have a polygon, remove it
-          if (polygon) {
-            polygon.setMap(null);
-          }
+          setPolygon(prev => {
+            if (prev) prev.setMap(null);
+            return newPolygon;
+          });
           
-          setPolygon(newPolygon);
           drawingManagerInstance.setDrawingMode(null); // Switch back to navigation mode
 
           const updatePolygonCoords = () => {
@@ -118,7 +104,11 @@ const GoogleMapZoneDrawer = ({
             }
             // Close the loop for GeoJSON
             if (coords.length > 0) {
-              coords.push(coords[0]);
+              const first = coords[0];
+              const last = coords[coords.length - 1];
+              if (first[0] !== last[0] || first[1] !== last[1]) {
+                coords.push([...first]);
+              }
             }
             
             if (onPolygonComplete) {
@@ -139,7 +129,7 @@ const GoogleMapZoneDrawer = ({
 
         // Click on map to set center
         mapInstance.addListener('click', (event) => {
-          if (drawingManagerInstance.getDrawingMode()) return; // Don't move marker while drawing
+          if (drawingManagerInstance.getDrawingMode()) return;
 
           const location = {
             lat: event.latLng.lat(),
@@ -158,47 +148,56 @@ const GoogleMapZoneDrawer = ({
         });
 
         // Initialize with existing polygon if any
-        if (initialPolygon && initialPolygon.coordinates && initialPolygon.coordinates[0]) {
-          const coords = initialPolygon.coordinates[0].map(c => ({ lng: c[0], lat: c[1] }));
-          // Remove the closing point for Google Maps Polygon
-          if (coords.length > 1 && coords[0].lat === coords[coords.length-1].lat && coords[0].lng === coords[coords.length-1].lng) {
-            coords.pop();
+        if (initialPolygon && initialPolygon.coordinates && initialPolygon.coordinates[0] && initialPolygon.coordinates[0].length > 0) {
+          try {
+            const coords = initialPolygon.coordinates[0].map(c => ({ lng: c[0], lat: c[1] }));
+            
+            // Remove redundant closing point for Google Maps Polygon display
+            if (coords.length > 1) {
+              const first = coords[0];
+              const last = coords[coords.length - 1];
+              if (first.lat === last.lat && first.lng === last.lng) {
+                coords.pop();
+              }
+            }
+
+            const existingPolygon = new Polygon({
+              paths: coords,
+              fillColor: "#3b82f6",
+              fillOpacity: 0.3,
+              strokeWeight: 2,
+              strokeColor: "#2563eb",
+              clickable: true,
+              editable: true,
+              map: mapInstance
+            });
+
+            setPolygon(existingPolygon);
+
+            const updateExistingPolygonCoords = () => {
+              const path = existingPolygon.getPath();
+              const newCoords = [];
+              for (let i = 0; i < path.getLength(); i++) {
+                const point = path.getAt(i);
+                newCoords.push([point.lng(), point.lat()]);
+              }
+              if (newCoords.length > 0) {
+                newCoords.push([...newCoords[0]]);
+              }
+              if (onPolygonComplete) {
+                onPolygonComplete({
+                  type: 'Polygon',
+                  coordinates: [newCoords]
+                });
+              }
+            };
+
+            existingPolygon.getPath().addListener('set_at', updateExistingPolygonCoords);
+            existingPolygon.getPath().addListener('insert_at', updateExistingPolygonCoords);
+            existingPolygon.getPath().addListener('remove_at', updateExistingPolygonCoords);
+          } catch (e) {
+            console.error('Error rendering initial polygon:', e);
           }
-
-          const existingPolygon = new Polygon({
-            paths: coords,
-            fillColor: "#3b82f6",
-            fillOpacity: 0.3,
-            strokeWeight: 2,
-            strokeColor: "#2563eb",
-            clickable: true,
-            editable: true,
-            map: mapInstance
-          });
-
-          setPolygon(existingPolygon);
-
-          const updatePolygonCoords = () => {
-            const path = existingPolygon.getPath();
-            const newCoords = [];
-            for (let i = 0; i < path.getLength(); i++) {
-              const point = path.getAt(i);
-              newCoords.push([point.lng(), point.lat()]);
-            }
-            if (newCoords.length > 0) {
-              newCoords.push(newCoords[0]);
-            }
-            if (onPolygonComplete) {
-              onPolygonComplete({
-                type: 'Polygon',
-                coordinates: [newCoords]
-              });
-            }
-          };
-
-          existingPolygon.getPath().addListener('set_at', updatePolygonCoords);
-          existingPolygon.getPath().addListener('insert_at', updatePolygonCoords);
-          existingPolygon.getPath().addListener('remove_at', updatePolygonCoords);
         }
 
         setMap(mapInstance);
