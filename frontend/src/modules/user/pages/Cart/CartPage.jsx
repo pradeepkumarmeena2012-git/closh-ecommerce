@@ -152,10 +152,10 @@ const CartPage = () => {
                                             <div className="flex items-center gap-2.5">
                                                 <div className="flex flex-col items-end leading-none">
                                                     {(Number(item.originalPrice) > Number(item.price)) && (
-                                                        <span className="text-[10px] font-bold text-gray-300 line-through mb-1">₹{Number(item.originalPrice) * item.quantity}</span>
+                                                        <span className="text-[10px] font-bold text-gray-300 line-through mb-1">₹{(Number(item.originalPrice) * item.quantity).toFixed(2)}</span>
                                                     )}
                                                     <span className="text-[16px] font-black text-gray-900">
-                                                        ₹{(Number(item.price) * item.quantity).toFixed(0)}
+                                                        ₹{(Number(item.price) * item.quantity).toFixed(2)}
                                                     </span>
                                                 </div>
                                                 
@@ -193,11 +193,11 @@ const CartPage = () => {
                                 <div className="space-y-6">
                                     <div className="flex justify-between text-[13px] font-bold">
                                         <span className="text-gray-400 uppercase ">Total MRP</span>
-                                        <span className="text-gray-900 font-bold ">₹{totalMRP}</span>
+                                        <span className="text-gray-900 font-bold ">₹{totalMRP.toFixed(2)}</span>
                                     </div>
                                     <div className="flex justify-between text-[13px] font-bold">
                                         <span className="text-gray-400 uppercase ">Cart Discount</span>
-                                        <span className="text-black font-bold ">-₹{totalDiscount}</span>
+                                        <span className="text-black font-bold ">-₹{totalDiscount.toFixed(2)}</span>
                                     </div>
                                     <div className="flex justify-between text-[13px] font-bold">
                                         <span className="text-gray-400 uppercase ">Convenience Fee</span>
@@ -209,10 +209,10 @@ const CartPage = () => {
                                     <div className="flex justify-between items-end py-2">
                                         <div>
                                             <p className="text-[10px] font-bold text-gray-500 uppercase  mb-1">Total Amount</p>
-                                            <p className="text-2xl font-bold text-gray-900 ">₹{getCartTotal()}</p>
+                                            <p className="text-2xl font-bold text-gray-900 ">₹{getCartTotal().toFixed(2)}</p>
                                         </div>
                                          <div className="text-right">
-                                             <p className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">You saved ₹{totalDiscount}</p>
+                                             <p className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">You saved ₹{totalDiscount.toFixed(2)}</p>
                                          </div>
                                     </div>
 
@@ -239,7 +239,7 @@ const CartPage = () => {
              <div className="lg:hidden fixed bottom-16 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 px-6 py-4 z-50 flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.06)]">
                 <div>
                     <p className="text-[10px] font-bold text-gray-500 uppercase ">Total to Pay</p>
-                    <p className="text-xl font-bold text-gray-900 ">₹{getCartTotal()}</p>
+                    <p className="text-xl font-bold text-gray-900 ">₹{getCartTotal().toFixed(2)}</p>
                 </div>
                  <button
                     onClick={() => navigate('/checkout')}

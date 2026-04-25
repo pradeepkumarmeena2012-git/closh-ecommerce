@@ -532,6 +532,41 @@ const ProductForm = () => {
       return;
     }
 
+    if (parsedPrice < 0) {
+      toast.error("Price cannot be negative");
+      return;
+    }
+
+    if (parsedOriginalPrice !== null && parsedOriginalPrice < 0) {
+      toast.error("Original price cannot be negative");
+      return;
+    }
+
+    if (parsedStockQuantity < 0) {
+      toast.error("Stock quantity cannot be negative");
+      return;
+    }
+
+    // Validate Variant Prices and Stocks
+    if (formData.variants) {
+      const variantPrices = formData.variants.prices || {};
+      const variantStocks = formData.variants.stockMap || {};
+
+      for (const [key, price] of Object.entries(variantPrices)) {
+        if (price !== "" && Number(price) < 0) {
+          toast.error(`Variant price for ${key} cannot be negative`);
+          return;
+        }
+      }
+
+      for (const [key, stock] of Object.entries(variantStocks)) {
+        if (stock !== "" && Number(stock) < 0) {
+          toast.error(`Variant stock for ${key} cannot be negative`);
+          return;
+        }
+      }
+    }
+
     const hasInvalidFaq = (formData.faqs || []).some((faq) => {
       const question = String(faq?.question || "").trim();
       const answer = String(faq?.answer || "").trim();

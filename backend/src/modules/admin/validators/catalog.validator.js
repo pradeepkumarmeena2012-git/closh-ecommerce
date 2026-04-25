@@ -9,7 +9,6 @@ const faqSchema = Joi.object({
 
 const variantSchema = Joi.object({
     sizes: Joi.array().items(Joi.string().trim()).optional(),
-    colors: Joi.array().items(Joi.string().trim()).optional(),
     materials: Joi.array().items(Joi.string().trim()).optional(),
     attributes: Joi.array().items(
         Joi.object({
@@ -22,7 +21,6 @@ const variantSchema = Joi.object({
     imageMap: Joi.object().pattern(Joi.string(), Joi.string().allow('')).optional(),
     defaultVariant: Joi.object({
         size: Joi.string().trim().allow('').optional(),
-        color: Joi.string().trim().allow('').optional(),
     }).optional(),
     defaultSelection: Joi.object().optional(),
 }).optional();

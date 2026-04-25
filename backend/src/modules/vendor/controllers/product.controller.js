@@ -97,30 +97,24 @@ const buildCombinationsFromAttributes = (attributes = []) => {
 
 const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
     if (!rawVariants || typeof rawVariants !== 'object') {
-        return { sizes: [], colors: [], attributes: [], prices: {}, stockMap: {}, imageMap: {}, defaultVariant: {}, defaultSelection: {} };
+        return { sizes: [], attributes: [], prices: {}, stockMap: {}, imageMap: {}, defaultVariant: {}, defaultSelection: {} };
     }
 
     const sizes = uniqueAxisValues(rawVariants.sizes || []);
-    const colors = uniqueAxisValues(rawVariants.colors || []);
     const attributes = normalizeAttributes(rawVariants.attributes || []);
     const hasSizeAxis = sizes.length > 0;
-    const hasColorAxis = colors.length > 0;
     const hasDynamicAxes = attributes.length > 0;
-    const hasAnyAxis = hasDynamicAxes || hasSizeAxis || hasColorAxis;
+    const hasAnyAxis = hasDynamicAxes || hasSizeAxis;
 
     if (!hasAnyAxis) {
-        return { sizes: [], colors: [], attributes: [], prices: {}, stockMap: {}, imageMap: {}, defaultVariant: {}, defaultSelection: {} };
+        return { sizes: [], attributes: [], prices: {}, stockMap: {}, imageMap: {}, defaultVariant: {}, defaultSelection: {} };
     }
 
     const combinations = [];
     if (hasDynamicAxes) {
         buildCombinationsFromAttributes(attributes).forEach((selection) => combinations.push({ selection }));
-    } else if (hasSizeAxis && hasColorAxis) {
-        sizes.forEach((size) => colors.forEach((color) => combinations.push({ selection: { size, color } })));
     } else if (hasSizeAxis) {
         sizes.forEach((size) => combinations.push({ selection: { size } }));
-    } else {
-        colors.forEach((color) => combinations.push({ selection: { color } }));
     }
 
     const pricesSource = Object.fromEntries(toObjectEntries(rawVariants.prices));
@@ -132,10 +126,9 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
 
     combinations.forEach(({ selection }) => {
         const size = String(selection?.size || '');
-        const color = String(selection?.color || '');
         const key = hasDynamicAxes
             ? createDynamicVariantKey(selection)
-            : createVariantKey(size, color);
+            : createVariantKey(size, '');
         const rawPrice = pricesSource[key];
         const parsedPrice = Number(rawPrice);
         if (Number.isFinite(parsedPrice) && parsedPrice >= 0) {
@@ -159,14 +152,11 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
     });
 
     const defaultSize = String(rawVariants?.defaultVariant?.size || '').trim();
-    const defaultColor = String(rawVariants?.defaultVariant?.color || '').trim();
     const normalizedDefaultSize = hasSizeAxis ? defaultSize : '';
-    const normalizedDefaultColor = hasColorAxis ? defaultColor : '';
     const hasValidDefaultSize = !normalizedDefaultSize || sizes.some((s) => normalizeVariantPart(s) === normalizeVariantPart(normalizedDefaultSize));
-    const hasValidDefaultColor = !normalizedDefaultColor || colors.some((c) => normalizeVariantPart(c) === normalizeVariantPart(normalizedDefaultColor));
 
-    if (!hasValidDefaultSize || !hasValidDefaultColor) {
-        throw new ApiError(400, 'Default variant must exist in provided sizes/colors.');
+    if (!hasValidDefaultSize) {
+        throw new ApiError(400, 'Default variant size must exist in provided sizes.');
     }
 
     const defaultSelection = {};
@@ -186,14 +176,12 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
 
     return {
         sizes,
-        colors,
         attributes: attributes.map((attr) => ({ name: attr.name, values: attr.values })),
         prices,
         stockMap,
         imageMap,
         defaultVariant: {
             size: normalizedDefaultSize,
-            color: normalizedDefaultColor,
         },
         defaultSelection,
     };

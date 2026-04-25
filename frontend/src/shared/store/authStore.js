@@ -325,6 +325,19 @@ export const useAuthStore = create(
         }
       },
 
+      // Delete account
+      deleteAccount: async () => {
+        set({ isLoading: true });
+        try {
+          await api.delete('/user/auth/profile');
+          get().setUnauthenticated();
+          return { success: true };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
       // Upload profile avatar
       uploadProfileAvatar: async (file) => {
         if (!file) {

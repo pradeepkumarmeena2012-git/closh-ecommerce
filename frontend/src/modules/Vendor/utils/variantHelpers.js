@@ -23,7 +23,7 @@ export const parseVariantAxis = (text) =>
   uniqueClean(String(text || "").split(","));
 
 export const createVariantKey = (size, color) =>
-  `${normalizePart(size)}|${normalizePart(color)}`;
+  `${normalizePart(size)}|${normalizePart("")}`;
 
 export const createDynamicVariantKey = (selection = {}) => {
   const entries = Object.entries(selection || {})
@@ -69,7 +69,6 @@ export const buildVariantCombinations = (sizes = [], colors = [], attributes = [
     return buildCombinationsFromAttributes(normalizedAttributes).map((selection) => ({
       selection,
       size: selection.size || "",
-      color: selection.color || "",
       key: createDynamicVariantKey(selection),
       label: normalizedAttributes
         .map((attr) => `${attr.name}: ${selection[attr.axisKey] || "-"}`)
@@ -78,35 +77,13 @@ export const buildVariantCombinations = (sizes = [], colors = [], attributes = [
   }
 
   const cleanSizes = uniqueClean(sizes);
-  const cleanColors = uniqueClean(colors);
 
-  if (cleanSizes.length > 0 && cleanColors.length > 0) {
-    return cleanSizes.flatMap((size) =>
-      cleanColors.map((color) => ({
-        size,
-        color,
-        selection: { size, color },
-        key: createVariantKey(size, color),
-        label: `${size || "Any Size"} / ${color || "Any Color"}`,
-      }))
-    );
-  }
   if (cleanSizes.length > 0) {
     return cleanSizes.map((size) => ({
       size,
-      color: "",
       selection: { size },
       key: createVariantKey(size, ""),
-      label: `${size || "Any Size"} / Any Color`,
-    }));
-  }
-  if (cleanColors.length > 0) {
-    return cleanColors.map((color) => ({
-      size: "",
-      color,
-      selection: { color },
-      key: createVariantKey("", color),
-      label: `Any Size / ${color || "Any Color"}`,
+      label: `${size || "Any Size"}`,
     }));
   }
   return [];
@@ -129,14 +106,8 @@ const resolveCombinationPrice = (rawPrices, size, color) => {
   if (!entries.length) return null;
 
   const sizePart = normalizePart(size);
-  const colorPart = normalizePart(color);
   const candidates = [
-    `${sizePart}|${colorPart}`,
-    `${sizePart}-${colorPart}`,
-    `${sizePart}_${colorPart}`,
-    `${sizePart}:${colorPart}`,
-    sizePart && !colorPart ? sizePart : null,
-    colorPart && !sizePart ? colorPart : null,
+    sizePart,
   ].filter(Boolean);
 
   for (const candidate of candidates) {
@@ -156,19 +127,18 @@ const resolveCombinationPrice = (rawPrices, size, color) => {
 
 export const normalizeVariantStateForForm = (rawVariants = {}, basePrice = "") => {
   const sizes = uniqueClean(rawVariants?.sizes || []);
-  const colors = uniqueClean(rawVariants?.colors || []);
   const attributes = normalizeAttributes(rawVariants?.attributes || []).map((attr) => ({
     name: attr.name,
     values: attr.values,
   }));
-  const combinations = buildVariantCombinations(sizes, colors, attributes);
+  const combinations = buildVariantCombinations(sizes, [], attributes);
   const fallbackPrice = parsePriceValue(basePrice);
 
   const prices = {};
   const stockMap = {};
   const imageMap = {};
-  combinations.forEach(({ size, color, key }) => {
-    const resolved = resolveCombinationPrice(rawVariants?.prices, size, color);
+  combinations.forEach(({ size, key }) => {
+    const resolved = resolveCombinationPrice(rawVariants?.prices, size, "");
     if (resolved !== null) prices[key] = resolved;
     else if (fallbackPrice !== null) prices[key] = fallbackPrice;
 
@@ -181,7 +151,6 @@ export const normalizeVariantStateForForm = (rawVariants = {}, basePrice = "") =
 
   const defaultVariant = {
     size: String(rawVariants?.defaultVariant?.size || "").trim(),
-    color: String(rawVariants?.defaultVariant?.color || "").trim(),
   };
   const defaultSelection = rawVariants?.defaultSelection && typeof rawVariants.defaultSelection === "object"
     ? Object.entries(rawVariants.defaultSelection).reduce((acc, [key, value]) => {
@@ -192,7 +161,7 @@ export const normalizeVariantStateForForm = (rawVariants = {}, basePrice = "") =
     }, {})
     : {};
 
-  return { sizes, colors, attributes, prices, stockMap, imageMap, defaultVariant, defaultSelection };
+  return { sizes, attributes, prices, stockMap, imageMap, defaultVariant, defaultSelection };
 };
 
 export const syncVariantPricesWithAxes = (
@@ -204,7 +173,7 @@ export const syncVariantPricesWithAxes = (
   attributes = [],
   fallbackPrice = ""
 ) => {
-  const combinations = buildVariantCombinations(sizes, colors, attributes);
+  const combinations = buildVariantCombinations(sizes, [], attributes);
   const nextPrices = {};
   const nextStockMap = {};
   const nextImageMap = {};
@@ -237,12 +206,11 @@ export const syncVariantPricesWithAxes = (
 
 export const buildVariantPayload = (rawVariants = {}) => {
   const sizes = uniqueClean(rawVariants?.sizes || []);
-  const colors = uniqueClean(rawVariants?.colors || []);
   const attributes = normalizeAttributes(rawVariants?.attributes || []).map((attr) => ({
     name: attr.name,
     values: attr.values,
   }));
-  const combinations = buildVariantCombinations(sizes, colors, attributes);
+  const combinations = buildVariantCombinations(sizes, [], attributes);
   const prices = {};
   const stockMap = {};
   const imageMap = {};
@@ -266,7 +234,6 @@ export const buildVariantPayload = (rawVariants = {}) => {
 
   const defaultVariant = {
     size: String(rawVariants?.defaultVariant?.size || "").trim(),
-    color: String(rawVariants?.defaultVariant?.color || "").trim(),
   };
   const defaultSelection = rawVariants?.defaultSelection && typeof rawVariants.defaultSelection === "object"
     ? Object.entries(rawVariants.defaultSelection).reduce((acc, [key, value]) => {
@@ -277,12 +244,11 @@ export const buildVariantPayload = (rawVariants = {}) => {
     }, {})
     : {};
 
-  const hasVariants = attributes.length > 0 || sizes.length > 0 || colors.length > 0;
-  if (!hasVariants) return { sizes: [], colors: [], attributes: [], prices: {}, stockMap: {}, imageMap: {}, defaultVariant: {}, defaultSelection: {} };
+  const hasVariants = attributes.length > 0 || sizes.length > 0;
+  if (!hasVariants) return { sizes: [], attributes: [], prices: {}, stockMap: {}, imageMap: {}, defaultVariant: {}, defaultSelection: {} };
 
   return {
     sizes,
-    colors,
     attributes,
     prices,
     stockMap,

@@ -838,6 +838,16 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       return;
     }
 
+    if (formData.originalPrice !== "" && formData.originalPrice !== null && Number(formData.originalPrice) < 0) {
+      toast.error("Original price cannot be negative");
+      return;
+    }
+
+    if (formData.vendorPrice !== "" && formData.vendorPrice !== null && Number(formData.vendorPrice) < 0) {
+      toast.error("Vendor price cannot be negative");
+      return;
+    }
+
     const finalCategoryId = formData.subcategoryId || formData.categoryId || null;
     if (!finalCategoryId) {
       toast.error("Please select a category before approving");

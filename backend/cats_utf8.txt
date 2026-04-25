@@ -1,0 +1,22 @@
+﻿[
+  {
+    name: 'Womens',
+    image: 'https://res.cloudinary.com/dfe2xogxj/image/upload/v1773473381/categories/chaddk183apqzo0pvlth.jpg'
+  },
+  {
+    name: 'Kids',
+    image: 'https://res.cloudinary.com/dfe2xogxj/image/upload/v1773473176/categories/hoczcfplvp7dpb3tdyw2.jpg'
+  },
+  {
+    name: 'Accessories',
+    image: 'https://res.cloudinary.com/dfe2xogxj/image/upload/v1773473199/categories/mkvziqcvg0ocxfjqk1if.jpg'
+  },
+  {
+    name: 'Luxe',
+    image: 'https://res.cloudinary.com/dfe2xogxj/image/upload/v1773473224/categories/cyopkjwhds72w0wzlsad.jpg'
+  },
+  {
+    name: "Men's Fashion",
+    image: 'https://res.cloudinary.com/dfe2xogxj/image/upload/v1773473055/categories/pfwgkksngntibnjx46xr.jpg'
+  }
+]

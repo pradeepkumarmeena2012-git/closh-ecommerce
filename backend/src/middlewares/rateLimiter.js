@@ -6,38 +6,38 @@ const IS_DEV = String(process.env.NODE_ENV || '').toLowerCase() !== 'production'
 
 // Helper to create a store with a unique prefix
 const createStore = (prefix) => {
-    const useRedis = !!(redisClient && (process.env.REDIS_URL || process.env.REDIS_HOST));
+    // In Dev, only use Redis if it's actually ready to avoid connection timeout crashes
+    const isReady = redisClient && redisClient.status === 'ready';
+    const hasConfig = !!(process.env.REDIS_URL || process.env.REDIS_HOST);
     
-    if (!useRedis) {
-        if (IS_DEV) {
-            console.log(`ℹ️  Redis not configured for ${prefix}. Using default MemoryStore.`);
-        }
-        return undefined; // Falls back to express-rate-limit's default MemoryStore
+    // If not ready and we are in dev, fallback to MemoryStore immediately to prevent startup crash
+    if (IS_DEV && !isReady) {
+        return undefined;
+    }
+
+    // In production, if we have config but not ready yet, we might want to wait or fail
+    // but for now, let's just check if it's possible to use it
+    if (!redisClient || !hasConfig) {
+        return undefined;
     }
 
     try {
         return new RedisStore({
             sendCommand: async (...args) => {
-                // Wait for Redis to be ready (up to 15 seconds)
-                let retries = 0;
-                while (redisClient?.status !== 'ready' && retries < 150) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    retries++;
-                }
-
-                if (redisClient?.status !== 'ready') {
-                    // Log once to avoid spamming
-                    if (retries === 1) {
-                        console.error(`❌ Redis unavailable for ${prefix}. Status: ${redisClient?.status}`);
-                    }
-                    // Return a fake value to skip rate limiting for this request
+                // If Redis is not ready, we skip the command to prevent hanging/crashing
+                if (redisClient.status !== 'ready') {
+                    // Return a fake value that won't crash rate-limit-redis
+                    // 0 for INCR/GET, or empty array for others
                     return 0; 
                 }
 
-                // ioredis sendCommand expects ([cmd, ...args]) or just (cmd)
-                // rate-limit-redis sends (cmd, ...args)
-                const [command, ...params] = args;
-                return redisClient.call(command, params);
+                try {
+                    const [command, ...params] = args;
+                    return await redisClient.call(command, params);
+                } catch (err) {
+                    console.warn(`⚠️ Redis command failed in ${prefix}:`, err.message);
+                    return 0;
+                }
             },
             prefix: prefix,
         });

@@ -43,7 +43,6 @@ const ProductDetailsPage = () => {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedSize, setSelectedSize] = useState('');
-    const [selectedColor, setSelectedColor] = useState('');
     const [activeImg, setActiveImg] = useState(0);
     const [openAccordion, setOpenAccordion] = useState('description');
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
@@ -57,11 +56,6 @@ const ProductDetailsPage = () => {
     const sizes = useMemo(() => {
         const s = product?.variants?.sizes || [];
         return s.filter(val => val && val.trim?.() !== '');
-    }, [product]);
-
-    const colors = useMemo(() => {
-        const c = product?.variants?.colors || [];
-        return c.filter(val => val && val.trim?.() !== '');
     }, [product]);
 
     useEffect(() => {
@@ -89,14 +83,6 @@ const ProductDetailsPage = () => {
                 } else {
                     setSelectedSize(null);
                 }
-
-                if (data.variants?.defaultVariant?.color) {
-                    setSelectedColor(data.variants.defaultVariant.color);
-                } else if (data.variants?.colors && data.variants.colors.length > 0) {
-                    setSelectedColor(data.variants.colors[0]);
-                } else {
-                    setSelectedColor(null);
-                }
             }
             setLoading(false);
         };
@@ -111,7 +97,7 @@ const ProductDetailsPage = () => {
         let finalPrice = product.discountedPrice !== undefined ? product.discountedPrice : product.price;
 
         if (product.variants?.prices) {
-            const signature = getVariantSignature({ size: selectedSize, color: selectedColor });
+            const signature = getVariantSignature({ size: selectedSize });
             const entries = Object.entries(product.variants.prices || {});
             
             // 1. Exact match with standardized signature
@@ -122,11 +108,10 @@ const ProductDetailsPage = () => {
                 match = entries.find(([k]) => String(k).trim().toLowerCase() === signature.toLowerCase());
             }
 
-            // 3. Legacy legacy format (size|color)
+            // 3. Legacy legacy format (size)
             if (!match) {
                 const s = String(selectedSize || "").trim().toLowerCase();
-                const c = String(selectedColor || "").trim().toLowerCase();
-                const candidates = [`${s}|${c}`, `${s}-${c}`, s && !c ? s : null, c && !s ? c : null].filter(Boolean);
+                const candidates = [s].filter(Boolean);
                 for (const cand of candidates) {
                     match = entries.find(([k]) => String(k).trim().toLowerCase() === cand);
                     if (match) break;
@@ -141,29 +126,29 @@ const ProductDetailsPage = () => {
             }
         }
         return finalPrice;
-    }, [product, selectedSize, selectedColor]);
+    }, [product, selectedSize]);
 
     const currentStock = useMemo(() => {
         if (!product) return 0;
-        // Check variant-specific stock if size and color are selected
-        if (selectedSize && selectedColor && product.variants?.stockMap) {
-            const variantKey = `${selectedSize}|${selectedColor}`;
+        // Check variant-specific stock if size is selected
+        if (selectedSize && product.variants?.stockMap) {
+            const variantKey = `${selectedSize}|`;
             const variantStock = product.variants.stockMap[variantKey];
             if (variantStock !== undefined) return Number(variantStock);
         }
         // Fallback to overall stock quantity
         return Number(product.stockQuantity || 0);
-    }, [product, selectedSize, selectedColor]);
+    }, [product, selectedSize]);
 
     const isOutOfStock = useMemo(() => {
         if (!product) return true;
         if (product.stock === 'out_of_stock') return true;
         // If variants exist but none selected, we don't know yet, so check total
-        if ((sizes.length > 0 || colors.length > 0) && (!selectedSize && !selectedColor)) {
+        if ((sizes.length > 0) && (!selectedSize)) {
             return Number(product.stockQuantity || 0) <= 0;
         }
         return currentStock <= 0;
-    }, [product, currentStock, sizes.length, colors.length, selectedSize, selectedColor]);
+    }, [product, currentStock, sizes.length, selectedSize]);
 
     const isVendorOffline = useMemo(() => {
         return product?.vendorId?.isOnline === false;
@@ -196,7 +181,6 @@ const ProductDetailsPage = () => {
             ...product, 
             price: currentPrice,
             selectedSize, 
-            selectedColor 
         });
         
         setShowAddedToast(true);
@@ -213,7 +197,7 @@ const ProductDetailsPage = () => {
 
         let variantImage = null;
         if (product.variants?.imageMap) {
-            const signature = getVariantSignature({ size: selectedSize, color: selectedColor });
+            const signature = getVariantSignature({ size: selectedSize });
             const entries = Object.entries(product.variants.imageMap || {});
             
             // 1. Exact match
@@ -227,8 +211,7 @@ const ProductDetailsPage = () => {
             // 3. Legacy Candidates
             if (!match) {
                 const s = String(selectedSize || "").trim().toLowerCase();
-                const c = String(selectedColor || "").trim().toLowerCase();
-                const candidates = [`${s}|${c}`, `${s}-${c}`, s && !c ? s : null, c && !s ? c : null].filter(Boolean);
+                const candidates = [s].filter(Boolean);
                 for (const cand of candidates) {
                     match = entries.find(([k]) => String(k).trim().toLowerCase() === cand);
                     if (match) break;
@@ -246,7 +229,7 @@ const ProductDetailsPage = () => {
             return [variantImage, ...baseImages.filter(img => img !== variantImage)];
         }
         return baseImages;
-    }, [product, selectedSize, selectedColor]);
+    }, [product, selectedSize]);
 
     if (loading) return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-white">

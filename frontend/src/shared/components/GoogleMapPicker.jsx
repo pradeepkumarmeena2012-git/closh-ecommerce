@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
+import { Loader } from '@googlemaps/js-api-loader';
 
 const GoogleMapPicker = ({ onLocationSelect, initialLocation, height = '400px', zoom = 12 }) => {
   const mapRef = useRef(null);
@@ -16,14 +16,14 @@ const GoogleMapPicker = ({ onLocationSelect, initialLocation, height = '400px', 
 
     const initMap = async () => {
       try {
-        setOptions({
+        const loader = new Loader({
           apiKey: GOOGLE_MAPS_API_KEY,
           version: 'weekly'
         });
 
         const [{ Map }, { Marker }] = await Promise.all([
-          importLibrary('maps'),
-          importLibrary('marker')
+          loader.importLibrary('maps'),
+          loader.importLibrary('marker')
         ]);
 
         if (!isMounted) return;

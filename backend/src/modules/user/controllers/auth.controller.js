@@ -507,3 +507,24 @@ export const uploadProfileAvatar = asyncHandler(async (req, res) => {
         throw error;
     }
 });
+// DELETE /api/user/auth/profile
+export const deleteAccount = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id).select('avatar');
+    if (!user) throw new ApiError(404, 'User not found.');
+
+    // Cleanup avatar if exists on Cloudinary
+    const publicId = extractCloudinaryPublicId(user.avatar);
+    if (publicId) {
+        await deleteFromCloudinary(publicId).catch((err) => {
+            console.error(`[DeleteAccount] Cloudinary cleanup failed for ${publicId}:`, err.message);
+        });
+    }
+
+    // Delete associated addresses
+    await Address.deleteMany({ userId: user._id });
+
+    // Delete the user record
+    await User.findByIdAndDelete(user._id);
+
+    res.status(200).json(new ApiResponse(200, null, 'Account deleted successfully.'));
+});
