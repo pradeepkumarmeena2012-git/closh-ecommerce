@@ -43,13 +43,14 @@ const GoogleMapZoneDrawer = ({
           version: 'weekly'
         });
 
-        const [
-          { Map, Marker, Polygon }, 
-          { DrawingManager, OverlayType }
-        ] = await Promise.all([
-          importLibrary('maps'),
-          importLibrary('drawing')
-        ]);
+        const mapsLib = await importLibrary('maps');
+        const drawingLib = await importLibrary('drawing');
+
+        const Map = mapsLib.Map;
+        const Marker = mapsLib.Marker;
+        const Polygon = mapsLib.Polygon;
+        const DrawingManager = drawingLib.DrawingManager;
+        const OverlayType = drawingLib.OverlayType;
 
         if (!isMounted) return;
 
