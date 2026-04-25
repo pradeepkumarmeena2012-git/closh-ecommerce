@@ -695,16 +695,34 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.price || !formData.categoryId) {
-      toast.error("Please fill in all required fields (Name, Price, Category)");
-      return;
-    }
-    if (!formData.vendorId) {
-      toast.error("Please select a vendor");
+    if (!formData.name || !formData.price) {
+      toast.error("Please fill in Name and Price");
       return;
     }
 
-    if (!formData.categoryId && !formData.subcategoryId) {
+    if (Number(formData.price) < 0) {
+      toast.error("Price cannot be negative");
+      return;
+    }
+
+    if (formData.originalPrice !== "" && Number(formData.originalPrice) < 0) {
+      toast.error("Original price cannot be negative");
+      return;
+    }
+
+    if (formData.vendorPrice !== "" && Number(formData.vendorPrice) < 0) {
+      toast.error("Vendor price cannot be negative");
+      return;
+    }
+
+    if (formData.stockQuantity !== "" && Number(formData.stockQuantity) < 0) {
+      toast.error("Stock quantity cannot be negative");
+      return;
+    }
+
+    const finalCategoryId = formData.subcategoryId || formData.categoryId || null;
+
+    if (!finalCategoryId) {
       toast.error("Please select a category");
       return;
     }
@@ -719,22 +737,39 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       return;
     }
 
-    // Determine final categoryId - use subcategoryId if selected, otherwise categoryId
-    const finalCategoryId = formData.subcategoryId || formData.categoryId || null;
-
-    if (!finalCategoryId) {
-      toast.error("Please select a valid category");
+    if (!formData.vendorId) {
+      toast.error("Please select a vendor");
       return;
     }
 
-    // Validate Variant Stock
+    // Validate Variant Prices and Stocks
+    if (formData.variants) {
+      const variantPrices = formData.variants.prices || {};
+      const variantStocks = formData.variants.stockMap || {};
+
+      for (const [key, price] of Object.entries(variantPrices)) {
+        if (price !== "" && Number(price) < 0) {
+          toast.error(`Variant price for ${key} cannot be negative`);
+          return;
+        }
+      }
+
+      for (const [key, stock] of Object.entries(variantStocks)) {
+        if (stock !== "" && Number(stock) < 0) {
+          toast.error(`Variant stock for ${key} cannot be negative`);
+          return;
+        }
+      }
+    }
+
+    // Validate Variant Stock aggregate
     const mainStock = parseInt(formData.stockQuantity || 0, 10);
     if (variantCombinations.length > 0) {
       let totalVariantStock = 0;
       let hasVariantsWithStock = false;
       Object.entries(formData.variants?.stockMap || {}).forEach(([key, stock]) => {
         const isValidCombination = variantCombinations.some(c => c.key === key);
-        if (isValidCombination && stock !== undefined && stock !== "") {
+        if (isValidCombination && stock !== undefined && stock !== "" && Number(stock) > 0) {
           totalVariantStock += Number(stock);
           hasVariantsWithStock = true;
         }
@@ -793,9 +828,40 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
   };
 
   const handleApprove = async () => {
-    if (!formData.price || !formData.stockQuantity) {
-      toast.error("Please fill in price and stock before approving");
+    if (!formData.name || !formData.price || !formData.stockQuantity) {
+      toast.error("Please fill in name, price and stock before approving");
       return;
+    }
+
+    if (Number(formData.price) < 0 || Number(formData.stockQuantity) < 0) {
+      toast.error("Price and Stock cannot be negative");
+      return;
+    }
+
+    const finalCategoryId = formData.subcategoryId || formData.categoryId || null;
+    if (!finalCategoryId) {
+      toast.error("Please select a category before approving");
+      return;
+    }
+
+    // Validate Variant Prices and Stocks before approval
+    if (formData.variants) {
+      const variantPrices = formData.variants.prices || {};
+      const variantStocks = formData.variants.stockMap || {};
+
+      for (const [key, price] of Object.entries(variantPrices)) {
+        if (price !== "" && Number(price) < 0) {
+          toast.error(`Variant price for ${key} cannot be negative`);
+          return;
+        }
+      }
+
+      for (const [key, stock] of Object.entries(variantStocks)) {
+        if (stock !== "" && Number(stock) < 0) {
+          toast.error(`Variant stock for ${key} cannot be negative`);
+          return;
+        }
+      }
     }
 
     try {

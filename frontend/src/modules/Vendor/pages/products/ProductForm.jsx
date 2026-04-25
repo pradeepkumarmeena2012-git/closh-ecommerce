@@ -479,7 +479,7 @@ const ProductForm = () => {
       return;
     }
 
-    const finalCategoryId = formData.subcategoryId ?? formData.categoryId ?? null;
+    const finalCategoryId = formData.subcategoryId || formData.categoryId || null;
 
     const parsedPrice = parseFloat(formData.price || 0);
     const parsedOriginalPrice = (formData.originalPrice === "" || formData.originalPrice === null)
