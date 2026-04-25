@@ -28,8 +28,8 @@ const ServiceAreas = () => {
         api.get('/admin/service-areas/stats')
       ]);
       
-      setServiceAreas(areasRes.data.data || []);
-      setStats(statsRes.data.data || {});
+      setServiceAreas(areasRes.data || []);
+      setStats(statsRes.data || {});
     } catch (error) {
       toast.error('Failed to load service areas');
       console.error(error);
