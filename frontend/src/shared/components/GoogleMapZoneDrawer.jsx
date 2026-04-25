@@ -18,8 +18,6 @@ const GoogleMapZoneDrawer = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
-
   const clearPolygon = useCallback(() => {
     if (polygon) {
       polygon.setMap(null);
@@ -32,9 +30,16 @@ const GoogleMapZoneDrawer = ({
     let isMounted = true;
 
     const initMap = async () => {
+      const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!key) {
+        console.warn('[GoogleMapZone] API Key is MISSING! Check your environment variables.');
+      } else {
+        console.log(`[GoogleMapZone] API Key detected (Length: ${key.length}, Format: ${key.startsWith('AIza') ? 'Valid' : 'Unexpected'}).`);
+      }
+
       try {
         setOptions({
-          apiKey: GOOGLE_MAPS_API_KEY,
+          apiKey: key || '',
           version: 'weekly'
         });
 

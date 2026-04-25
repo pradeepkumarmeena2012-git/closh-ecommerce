@@ -8,16 +8,20 @@ const GoogleMapPicker = ({ onLocationSelect, initialLocation, height = '400px', 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Google Maps API Key
-  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
-
   useEffect(() => {
     let isMounted = true;
 
     const initMap = async () => {
+      const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      if (!key) {
+        console.warn('[GoogleMapPicker] API Key is MISSING! Check your environment variables.');
+      } else {
+        console.log(`[GoogleMapPicker] API Key detected (Length: ${key.length}, Format: ${key.startsWith('AIza') ? 'Valid' : 'Unexpected'}).`);
+      }
+
       try {
         setOptions({
-          apiKey: GOOGLE_MAPS_API_KEY,
+          apiKey: key || '',
           version: 'weekly'
         });
 
