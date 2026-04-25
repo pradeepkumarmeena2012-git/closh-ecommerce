@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
@@ -105,7 +106,10 @@ export const getAllCustomers = asyncHandler(async (req, res) => {
  * @access  Private (Admin)
  */
 export const getCustomerById = asyncHandler(async (req, res) => {
-    const customer = await User.findOne({ _id: req.params.id, role: 'customer' })
+    const { id } = req.params;
+    const customerObjectId = new mongoose.Types.ObjectId(id);
+
+    const customer = await User.findOne({ _id: customerObjectId, role: 'customer' })
         .select('-password -otp -otpExpiry');
 
     if (!customer) {
@@ -114,7 +118,7 @@ export const getCustomerById = asyncHandler(async (req, res) => {
 
     const [orderStats, addresses] = await Promise.all([
         Order.aggregate([
-            { $match: { userId: customer._id } },
+            { $match: { userId: customerObjectId } },
             {
                 $group: {
                     _id: null,
@@ -124,7 +128,7 @@ export const getCustomerById = asyncHandler(async (req, res) => {
                 }
             }
         ]),
-        Address.find({ userId: customer._id })
+        Address.find({ userId: customerObjectId })
             .sort({ isDefault: -1, createdAt: -1 })
             .lean(),
     ]);
@@ -137,11 +141,11 @@ export const getCustomerById = asyncHandler(async (req, res) => {
 
     res.status(200).json(
         new ApiResponse(200, {
-            ...customer._doc,
+            ...customer.toObject(),
             orders: stats.totalOrders,
             totalSpent: stats.totalSpent,
             lastOrderDate: stats.lastOrderDate,
-            addresses
+            addresses: addresses || []
         }, 'Customer details fetched successfully')
     );
 });

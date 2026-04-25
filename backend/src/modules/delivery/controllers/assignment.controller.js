@@ -1,6 +1,8 @@
+import { cacheInvalidate } from './order.controller.js';
 import mongoose from 'mongoose';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import Order from '../../../models/Order.model.js';
+import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import asyncHandler from '../../../utils/asyncHandler.js';
@@ -192,7 +194,7 @@ export const notifyNearbyDeliveryBoys = async (order) => {
  */
 export const notifyNearbyDeliveryBoysForReturn = async (returnRequest) => {
     const nearbyBoys = await findNearbyDeliveryBoysForReturn(returnRequest);
-    if (!nearbyBoys.length) return 0;
+    // REMOVED early exit to allow global broadcast fallback if no one is nearby
 
     const orderId = returnRequest.orderId?.orderId || 'Order';
 
@@ -254,12 +256,17 @@ export const notifyNearbyDeliveryBoysForReturn = async (returnRequest) => {
         type: 'return'
     };
 
-    nearbyBoys.forEach(boy => {
-        emitEvent(`delivery_${boy._id}`, 'return_ready_for_pickup', returnPayload);
-    });
-
-    await Promise.allSettled(notificationPromises);
-    return nearbyBoys.length;
+    if (nearbyBoys.length > 0) {
+        nearbyBoys.forEach(boy => {
+            emitEvent(`delivery_${boy._id}`, 'return_ready_for_pickup', returnPayload);
+        });
+        await Promise.allSettled(notificationPromises);
+        return nearbyBoys.length;
+    } else {
+        console.log(`⚠️ [Return Assignment] No nearby boys (8km). Broadcasting return globally to 'delivery_partners' room.`);
+        emitEvent('delivery_partners', 'return_ready_for_pickup', returnPayload);
+        return 0;
+    }
 };
 
 /**
@@ -272,6 +279,23 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
     const idFilter = [{ orderId }];
     if (mongoose.isValidObjectId(orderId)) {
         idFilter.push({ _id: orderId });
+    }
+
+    // ── BLOCKER: Ensure rider doesn't already have an active mission (Order or Return) ──
+    const [hasActiveOrder, hasActiveReturn] = await Promise.all([
+        Order.exists({
+            deliveryBoyId: deliveryBoyId,
+            isDeleted: { $ne: true },
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
+        }),
+        ReturnRequest.exists({
+            deliveryBoyId: deliveryBoyId,
+            status: 'processing'
+        })
+    ]);
+
+    if (hasActiveOrder || hasActiveReturn) {
+        throw new ApiError(400, 'Mission in progress: You must complete your current task before accepting another.');
     }
 
     // Atomic update to prevent double assignment
@@ -307,6 +331,8 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
         orderId: order.orderId,
         id: order._id
     });
+
+    await cacheInvalidate(`dash:${deliveryBoyId}`, `profile:${deliveryBoyId}`);
 
     res.status(200).json(new ApiResponse(200, order, 'Order assigned successfully.'));
 });

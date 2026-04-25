@@ -83,6 +83,7 @@ const CheckoutPage = () => {
     const totalPrice = getCartTotal();
     const shipping = totalPrice > 500 ? 0 : 40;
     const tax = 0; // GST removed as per user request
+    const platformFee = 20; // Convenience / Platform fee
     
     let promoDiscount = 0;
     if (appliedPromo) {
@@ -96,7 +97,7 @@ const CheckoutPage = () => {
         }
     }
 
-    const finalTotal = totalPrice + shipping + tax - promoDiscount;
+    const finalTotal = totalPrice + shipping + tax + platformFee - promoDiscount;
 
     const handleApplyPromo = (codeToApply) => {
         const finalCode = (typeof codeToApply === 'string' ? codeToApply : promoCode).trim();
@@ -307,7 +308,7 @@ const CheckoutPage = () => {
                                         <span className="text-base font-bold text-black">₹{item.price}</span>
                                         <span className="text-[11px] text-gray-400 line-through font-bold">₹{item.originalPrice}</span>
                                         <span className="text-[11px] font-bold text-[#F97316] uppercase er">
-                                            {item.discount || '65% Off'}
+                                            {item.discount || (item.originalPrice > item.price ? `${Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% Off` : '')}
                                         </span>
                                     </div>
                                 </div>
@@ -539,6 +540,10 @@ const CheckoutPage = () => {
                             <div className="flex justify-between text-[13px] font-bold text-gray-500 uppercase ">
                                 <span>Shipping Fee</span>
                                 <span>{shipping === 0 ? <span className="text-[#10B981]">FREE</span> : `₹${shipping}`}</span>
+                            </div>
+                            <div className="flex justify-between text-[13px] font-bold text-gray-500 uppercase ">
+                                <span>Platform Fee</span>
+                                <span className="text-black">₹{platformFee}</span>
                             </div>
                         </div>
 

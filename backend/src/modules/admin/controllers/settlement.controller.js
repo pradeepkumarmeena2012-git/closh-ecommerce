@@ -5,7 +5,9 @@ import { Vendor } from '../../../models/Vendor.model.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import Order from '../../../models/Order.model.js';
 import Settlement from '../../../models/Settlement.model.js';
+import Commission from '../../../models/Commission.model.js';
 import mongoose from 'mongoose';
+import { createNotification } from '../../../services/notification.service.js';
 
 /**
  * GET /api/admin/settlements/riders
@@ -86,6 +88,21 @@ export const settleRiderCash = asyncHandler(async (req, res) => {
         );
 
         await session.commitTransaction();
+
+        // 4. Send notification to Rider (non-blocking)
+        try {
+            await createNotification({
+                recipientId: riderId,
+                recipientType: 'delivery',
+                title: 'Cash Collected by Admin',
+                message: `Admin has collected ₹${settledAmount} cash from you. Your cash-in-hand balance has been updated.`,
+                type: 'payment',
+                data: { settlementId: settlement[0]._id }
+            });
+        } catch (notifyError) {
+            console.error('[Notification Error] Failed to notify rider of cash collection:', notifyError.message);
+        }
+
         res.status(200).json(new ApiResponse(200, settlement[0], 'Rider cash settled successfully.'));
     } catch (error) {
         await session.abortTransaction();
@@ -157,7 +174,44 @@ export const processSettlement = asyncHandler(async (req, res) => {
             { session }
         );
 
+        // 3. Mark pending commissions as paid
+        // If commissionIds provided, only settle those. Otherwise, settle all pending for this vendor.
+        const settlementId = settlement[0]._id;
+        const commissionFilter = { vendorId, status: 'pending' };
+        
+        if (req.body.commissionIds && Array.isArray(req.body.commissionIds) && req.body.commissionIds.length > 0) {
+            commissionFilter._id = { $in: req.body.commissionIds };
+        }
+
+        await Commission.updateMany(
+            commissionFilter,
+            { 
+                $set: { 
+                    status: 'paid', 
+                    paidAt: new Date(),
+                    settlementId: settlementId
+                } 
+            },
+            { session }
+        );
+
         await session.commitTransaction();
+        
+        // 4. Send notification to Vendor (non-blocking)
+        const settledAmount = Number(amount);
+        try {
+            await createNotification({
+                recipient: vendorId,
+                recipientType: 'vendor',
+                title: 'Settlement Processed',
+                message: `Your amount of ${settledAmount} has been settled from the admin. Ref: ${referenceId || 'N/A'}`,
+                type: 'payment',
+                metadata: { settlementId: settlement[0]._id }
+            });
+        } catch (notifyError) {
+            console.error('[Notification Error] Failed to notify vendor of settlement:', notifyError.message);
+        }
+
         res.status(201).json(new ApiResponse(201, settlement[0], 'Settlement completed successfully.'));
     } catch (error) {
         await session.abortTransaction();
@@ -193,4 +247,33 @@ export const getSettlementHistory = asyncHandler(async (req, res) => {
         page: Number(page),
         pages: Math.ceil(total / limit)
     }, 'Settlement history fetched.'));
+});
+
+/**
+ * GET /api/admin/settlements/vendor/:vendorId/pending-commissions
+ * Fetch all delivered but unpaid commissions for a specific vendor
+ */
+export const getPendingCommissions = asyncHandler(async (req, res) => {
+    const { vendorId } = req.params;
+
+    if (!vendorId) throw new ApiError(400, 'Vendor ID is required.');
+
+    const commissions = await Commission.find({ 
+        vendorId, 
+        status: 'pending' 
+    })
+    .populate({
+        path: 'orderId',
+        select: 'orderId createdAt status paymentMethod codCollectionMethod deliveryBoyId',
+        populate: {
+            path: 'deliveryBoyId',
+            select: 'name phone'
+        }
+    })
+    .sort({ createdAt: -1 });
+
+    // Ensure we only return commissions for orders that are actually 'delivered'
+    const deliveredCommissions = commissions.filter(comm => comm.orderId?.status === 'delivered');
+
+    res.status(200).json(new ApiResponse(200, deliveredCommissions, 'Pending commissions fetched.'));
 });

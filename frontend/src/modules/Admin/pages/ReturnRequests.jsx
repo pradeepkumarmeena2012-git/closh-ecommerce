@@ -116,15 +116,25 @@ const ReturnRequests = () => {
       key: 'id',
       label: 'Return ID',
       sortable: true,
-      render: (value) => <span className="font-semibold">{value}</span>,
+      render: (value) => (
+        <span className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-orange-50 text-orange-700 border border-orange-100 shadow-sm whitespace-nowrap tracking-tight">
+          #{String(value || "").replace(/^RET-/, "").replace(/^#/, "")}
+        </span>
+      ),
     },
     {
       key: 'orderId',
       label: 'Order ID',
       sortable: true,
       render: (value) => (
-        <span className="text-blue-600 hover:text-blue-800 cursor-pointer" onClick={() => navigate(`/admin/orders/${value}`)}>
-          {value}
+        <span
+          className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-sm whitespace-nowrap tracking-tight cursor-pointer hover:bg-indigo-100 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/admin/orders/${value}`);
+          }}
+        >
+          #{String(value || "").replace(/^ORD-/, "").replace(/^#/, "")}
         </span>
       ),
     },

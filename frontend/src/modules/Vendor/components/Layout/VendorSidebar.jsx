@@ -48,7 +48,7 @@ const iconMap = {
   "Performance Metrics": FiTrendingUp,
   Documents: FiFile,
   Analytics: FiBarChart2,
-  Earnings: FiDollarSign,
+  Settlements: FiDollarSign,
   Settings: FiSettings,
   Profile: FiUser,
 };
@@ -64,9 +64,9 @@ const getChildRoute = (parentRoute, childName) => {
       "All Orders": "/vendor/orders/all-orders",
       "Order Tracking": "/vendor/orders/order-tracking",
     },
-    "/vendor/earnings": {
-      "Earnings Overview": "/vendor/earnings/overview",
-      "Commission History": "/vendor/earnings/commission-history",
+    "/vendor/settlements": {
+      "Earnings Ledger": "/vendor/settlements/earnings-ledger",
+      "Payout History": "/vendor/settlements/payout-history",
     },
     "/vendor/settings": {
       "Store Settings": "/vendor/settings/store",

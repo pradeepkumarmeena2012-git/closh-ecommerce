@@ -225,8 +225,41 @@ export const useDeliveryAuthStore = create(
       fetchProfileSummary: async () => {
         try {
           const res = await api.get('/delivery/orders/profile-summary');
-          const merged = normalizeDeliveryBoy({ ...get().deliveryBoy, ...(res.data || res) });
-          set({ deliveryBoy: merged }); return merged;
+          const data = res.data || res;
+          if (data) {
+            const current = get().deliveryBoy || {};
+            const merged = normalizeDeliveryBoy({ ...current, ...data });
+            set({ deliveryBoy: merged });
+            return merged;
+          }
+        } catch (e) {
+          console.error('[DeliveryStore] fetchProfileSummary failed:', e);
+          throw e;
+        }
+      },
+      // --- SETTLEMENT ACTIONS ---
+      createSettlementOrder: async (amount) => {
+        set({ isLoading: true });
+        try {
+          const res = await api.post('/delivery/settlements', { amount });
+          set({ isLoading: false });
+          return res.data || res;
+        } catch (e) { set({ isLoading: false }); throw e; }
+      },
+      verifySettlement: async (data) => {
+        set({ isLoading: true });
+        try {
+          const res = await api.post('/delivery/settlements/verify', data);
+          const payload = res.data || res;
+          if (payload.rider) set({ deliveryBoy: normalizeDeliveryBoy({ ...get().deliveryBoy, ...payload.rider }) });
+          set({ isLoading: false });
+          return payload;
+        } catch (e) { set({ isLoading: false }); throw e; }
+      },
+      fetchSettlementHistory: async () => {
+        try {
+          const res = await api.get('/delivery/settlements');
+          return res.data || res;
         } catch (e) { throw e; }
       },
       updateProfile: async (data) => {
@@ -284,7 +317,11 @@ export const useDeliveryAuthStore = create(
         try {
           const res = await api.get('/delivery/orders/dashboard-summary');
           const p = res.data || res || {};
-          return { ...p, recentOrders: (p.recentOrders || []).map(normalizeOrder) };
+          const recent = (p.recentOrders || []).map(normalizeOrder);
+          const activeReturns = (p.activeReturns || []).map(normalizeReturn);
+          // Sync with global store for consistent tracking across pages
+          set({ orders: recent, returns: activeReturns });
+          return { ...p, recentOrders: recent, activeReturns };
         } catch (e) { throw e; }
       },
       fetchAvailableOrders: async (opt = {}) => {

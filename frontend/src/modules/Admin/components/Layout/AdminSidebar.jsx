@@ -50,6 +50,7 @@ const iconMap = {
   Policies: FiShield,
   "Staff Management": FiUsers,
   "Attribute Management": FiGrid,
+  "Service Areas": FiGlobe,
 };
 
 // Helper function to convert child name to route path
@@ -82,6 +83,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Cash Collection": "/admin/delivery/cash-collection",
       "Assign Delivery": "/admin/delivery/assign-delivery",
       "Payout Requests": "/admin/delivery/withdrawals",
+      "Online Settlements": "/admin/delivery/rider-settlements",
     },
     "/admin/attributes": {
       "Attribute Sets": "/admin/attributes/sets",
@@ -95,6 +97,7 @@ const getChildRoute = (parentRoute, childName) => {
       "Commission Rates": "/admin/vendors/commission-rates",
       "Vendor Analytics": "/admin/vendors/vendor-analytics",
       "Vendor Registration": "/admin/vendors/register",
+      "Vendor Settlements": "/admin/vendors/settlements",
     },
     "/admin/offers": {
       "Home Sliders": "/admin/offers/home-sliders",
@@ -119,7 +122,6 @@ const getChildRoute = (parentRoute, childName) => {
     },
     "/admin/finance": {
       "Revenue Overview": "/admin/finance/revenue-overview",
-      "Vendor Settlements": "/admin/finance/settlements",
       "Profit & Loss": "/admin/finance/profit-loss",
       "Order Trends": "/admin/finance/order-trends",
       "Payment Breakdown": "/admin/finance/payment-breakdown",

@@ -305,7 +305,7 @@ const OrderDetail = () => {
                                                 </div>
                                                 <p className="font-semibold text-gray-800">
                                                     {formatPrice(
-                                                        (item.price ?? 0) * (item.quantity ?? 1)
+                                                        (item.vendorPrice ?? item.price ?? 0) * (item.quantity ?? 1)
                                                     )}
                                                 </p>
                                             </div>
@@ -322,11 +322,21 @@ const OrderDetail = () => {
                             <div className="p-4 border-t border-gray-200 flex justify-end">
                                 <div className="text-right">
                                     <p className="text-sm text-gray-500">
-                                        Your subtotal
+                                        Your Total Base Price
                                     </p>
                                     <p className="text-lg font-bold text-gray-800">
-                                        {formatPrice(vendorSubtotal)}
+                                        {formatPrice(vendorItem?.basePrice || vendorItem?.subtotal || 0)}
                                     </p>
+                                    <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Platform Commission</span>
+                                            <span className="text-red-500">-{formatPrice(vendorItem?.commissionAmount || 0)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm font-bold pt-1 border-t border-dashed border-gray-100">
+                                            <span className="text-gray-800">Your Net Earning</span>
+                                            <span className="text-emerald-600">{formatPrice(vendorItem?.vendorEarnings || 0)}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}

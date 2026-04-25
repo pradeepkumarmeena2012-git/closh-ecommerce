@@ -8,6 +8,7 @@ import Commission from '../../../models/Commission.model.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import Admin from '../../../models/Admin.model.js';
 import { generateOrderId } from '../../../utils/generateOrderId.js';
+import { generateReturnId } from '../../../utils/generateReturnId.js';
 import { generateTrackingNumber } from '../../../utils/generateTrackingNumber.js';
 import mongoose from 'mongoose';
 import { createNotification } from '../../../services/notification.service.js';
@@ -54,104 +55,30 @@ const resolveVariantSelection = (product, selectedVariant) => {
         throw new ApiError(400, `Invalid price configured for product ${product?.name || product?._id || ''}.`);
     }
 
-    const entries = toVariantPriceEntries(product?.variants?.prices);
-    const attributeAxes = Array.isArray(product?.variants?.attributes)
-        ? product.variants.attributes
-            .map((attr) => ({
-                axisKey: normalizeAxisName(attr?.name),
-                values: Array.isArray(attr?.values) ? attr.values : [],
-            }))
-            .filter((attr) => attr.axisKey && attr.values.length > 0)
-        : [];
-    const hasDynamicAxes = attributeAxes.length > 0;
-
-    if (hasDynamicAxes) {
-        const normalizedSelection = {};
-        Object.entries(selectedVariant || {}).forEach(([axis, value]) => {
-            const axisKey = normalizeAxisName(axis);
-            const selectedValue = String(value || '').trim();
-            if (axisKey && selectedValue) normalizedSelection[axisKey] = selectedValue;
-        });
-
-        const missingAxis = attributeAxes.find((attr) => !String(normalizedSelection[attr.axisKey] || '').trim());
-        if (missingAxis) {
-            throw new ApiError(400, `Please select ${missingAxis.axisKey.replace(/_/g, ' ')} for ${product?.name || 'product'}.`);
-        }
-
-        const selectionKey = createDynamicVariantKey(normalizedSelection);
-        if (!selectionKey) {
-            throw new ApiError(400, `Please select a variant for ${product?.name || 'product'}.`);
-        }
-        if (!entries.length) {
-            return { price: basePrice, variantKey: selectionKey, hasVariantAxes: true };
-        }
-
-        const exact = entries.find(([rawKey]) => String(rawKey).trim() === selectionKey);
-        if (exact) {
-            const price = Number(exact[1]);
-            if (Number.isFinite(price) && price >= 0) {
-                return { price, variantKey: String(exact[0]).trim(), hasVariantAxes: true };
-            }
-        }
-        const normalized = entries.find(
-            ([rawKey]) => normalizeVariantPart(rawKey) === normalizeVariantPart(selectionKey)
-        );
-        if (normalized) {
-            const price = Number(normalized[1]);
-            if (Number.isFinite(price) && price >= 0) {
-                return { price, variantKey: String(normalized[0]).trim(), hasVariantAxes: true };
-            }
-        }
-        throw new ApiError(400, `Selected variant is not available for ${product?.name || 'product'}.`);
-    }
-
+    const priceEntries = toVariantPriceEntries(product?.variants?.prices);
+    const stockEntries = toVariantStockEntries(product?.variants?.stockMap);
+    
+    // Resolve the best matching key from both Price and Stock maps
+    const variantKey = resolveOrderItemVariantKey(product, { variant: selectedVariant });
+    
     const sizes = Array.isArray(product?.variants?.sizes) ? product.variants.sizes : [];
     const colors = Array.isArray(product?.variants?.colors) ? product.variants.colors : [];
-    const hasVariantAxes = sizes.length > 0 || colors.length > 0;
+    const attributes = Array.isArray(product?.variants?.attributes) ? product.variants.attributes : [];
+    const hasVariantAxes = sizes.length > 0 || colors.length > 0 || attributes.length > 0;
 
-    const size = normalizeVariantPart(selectedVariant?.size);
-    const color = normalizeVariantPart(selectedVariant?.color);
-    if (hasVariantAxes && !size && !color) {
-        throw new ApiError(400, `Please select a variant for ${product?.name || 'product'}.`);
-    }
-    if (!entries.length || (!size && !color)) {
-        return { price: basePrice, variantKey: null, hasVariantAxes };
-    }
-
-    const candidateKeys = [
-        [size && `size=${size}`, color && `color=${color}`].filter(Boolean).sort().join('|'),
-        `${size}|${color}`,
-        `${size}-${color}`,
-        `${size}_${color}`,
-        `${size}:${color}`,
-        size && !color ? size : null,
-        color && !size ? color : null,
-    ].filter(Boolean);
-
-    for (const candidate of candidateKeys) {
-        const exact = entries.find(([rawKey]) => String(rawKey).trim() === candidate);
-        if (exact) {
-            const price = Number(exact[1]);
-            if (Number.isFinite(price) && price >= 0) {
-                return { price, variantKey: String(exact[0]).trim(), hasVariantAxes };
-            }
-        }
-
-        const normalized = entries.find(
-            ([rawKey]) => normalizeVariantPart(rawKey) === normalizeVariantPart(candidate)
-        );
-        if (normalized) {
-            const price = Number(normalized[1]);
-            if (Number.isFinite(price) && price >= 0) {
-                return { price, variantKey: String(normalized[0]).trim(), hasVariantAxes };
-            }
-        }
+    if (variantKey) {
+        // Try to find price for this key
+        const priceMatch = priceEntries.find(([k]) => String(k).trim() === variantKey);
+        const price = priceMatch ? Number(priceMatch[1]) : basePrice;
+        
+        return { 
+            price: (Number.isFinite(price) && price >= 0) ? price : basePrice, 
+            variantKey, 
+            hasVariantAxes 
+        };
     }
 
-    if (hasVariantAxes) {
-        // Fallback to base price if specific variant price is not mapped
-        return { price: basePrice, variantKey: null, hasVariantAxes };
-    }
+    // Fallback if no variant key resolved but product has variant axes
     return { price: basePrice, variantKey: null, hasVariantAxes };
 };
 
@@ -187,6 +114,8 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
     const candidates = [
         [size && `size=${size}`, color && `color=${color}`].filter(Boolean).sort().join('|'),
         `${size}|${color}`,
+        `${size}|`,
+        `|${color}`,
         `${size}-${color}`,
         `${size}_${color}`,
         `${size}:${color}`,
@@ -205,8 +134,8 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
 
 // POST /api/user/orders
 export const placeOrder = asyncHandler(async (req, res) => {
-    const { items, shippingAddress, paymentMethod, couponCode, shippingOption, orderType, deliveryType, deviceToken } = req.body;
-    console.log("STEP 3 - req.body.customerLocation:", req.body.dropoffLocation);
+    const { items, shippingAddress, paymentMethod, couponCode, shippingOption, orderType, deliveryType, deviceToken, dropoffLocation } = req.body;
+    console.log("STEP 3 - Received dropoffLocation:", dropoffLocation);
 
     // Validate order type
     const allowedOrderTypes = ['check_and_buy', 'try_and_buy'];
@@ -272,7 +201,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
         const { price: itemPrice, variantKey, hasVariantAxes } = resolveVariantSelection(product, item.variant);
         const variantStockValue = variantKey ? Number(product?.variants?.stockMap?.get?.(variantKey) ?? product?.variants?.stockMap?.[variantKey]) : null;
         if (hasVariantAxes && variantKey && Number.isFinite(variantStockValue) && variantStockValue < item.quantity) {
-            throw new ApiError(400, `Only ${variantStockValue} units available for selected variant of ${product.name}.`);
+            throw new ApiError(400, `Only ${variantStockValue} units available for variant [${variantKey}] of ${product.name}. Please check stock in variants section.`);
         }
         const itemSubtotal = itemPrice * item.quantity;
         subtotal += itemSubtotal;
@@ -282,8 +211,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 ? String((product?.variants?.imageMap?.get?.(variantKey) ?? product?.variants?.imageMap?.[variantKey]) || '').trim()
                 : '';
         const itemCommissionRate = product.vendorId.commissionRate || 0;
-        const itemCommissionAmount = (itemPrice * item.quantity * itemCommissionRate) / 100;
         const itemVendorPrice = product.vendorPrice || 0;
+        const itemCommissionAmount = (itemVendorPrice * item.quantity * itemCommissionRate) / 100;
         const itemMarginAmount = (itemPrice - itemVendorPrice) * item.quantity;
 
         const enriched = {
@@ -292,6 +221,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             name: product.name,
             image: variantImage || product.image,
             price: itemPrice,
+            originalPrice: product.originalPrice || itemPrice,
             quantity: item.quantity,
             vendorPrice: itemVendorPrice,
             commissionRate: itemCommissionRate,
@@ -314,10 +244,12 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 freeShippingThreshold: product.vendorId.freeShippingThreshold,
                 items: [],
                 subtotal: 0,
+                basePrice: 0,
             };
         }
         vendorMap[vid].items.push(enriched);
         vendorMap[vid].subtotal += itemSubtotal;
+        vendorMap[vid].basePrice += (itemVendorPrice * item.quantity);
         vendorMap[vid].shopLocation = product.vendorId.shopLocation;
     }
     console.log(`[OrderCalc] Subtotal: ₹${subtotal}, Vendors: ${Object.keys(vendorMap).length}`);
@@ -359,54 +291,34 @@ export const placeOrder = asyncHandler(async (req, res) => {
         }
     }
 
-    const shippingByVendor = {};
-    let totalShipping = 0;
-    let maxDistanceToCustomer = 0;
+    // 3. Calculate Shipping using centralized service
+    const { totalShipping, shippingByVendor, distanceByVendor } = await calculateVendorShippingForGroups({
+        vendorGroups: Object.values(vendorMap).map(v => ({
+            vendorId: v.vendorId,
+            subtotal: v.subtotal,
+            shippingEnabled: v.shippingEnabled,
+            defaultShippingRate: v.defaultShippingRate,
+            freeShippingThreshold: v.freeShippingThreshold,
+            shopLocation: v.shopLocation
+        })),
+        shippingAddress: {
+            ...shippingAddress,
+            coordinates: dropoffCoords
+        },
+        shippingOption: 'online',
+        couponType: appliedCoupon?.type
+    });
 
-    for (const vid in vendorMap) {
-        const v = vendorMap[vid];
-        if (!v.shippingEnabled) {
-            shippingByVendor[vid] = 0;
-            continue;
-        }
-
-        const vendorCoords = v.shopLocation?.coordinates || [0, 0];
-        let distKm = 0;
-
-        // Try Google Distance Matrix first for accuracy
-        const matrixResult = await getDistanceMatrix(vendorCoords, dropoffCoords);
-        if (matrixResult) {
-            distKm = matrixResult.distance;
-        } else {
-            // Fallback to Haversine
-            distKm = calculateDistance(vendorCoords, dropoffCoords);
-        }
-        v.distance = distKm;
-        if (distKm > maxDistanceToCustomer) maxDistanceToCustomer = distKm;
-
-        // Formula: 0-3km = 25, then 9 per additional km
-        let fee = 25;
-        if (distKm > 3) {
-            const extraKm = Math.ceil(distKm - 3);
-            fee += extraKm * 9;
-        }
-
-        // Apply free shipping threshold if any
-        if (v.freeShippingThreshold > 0 && v.subtotal >= v.freeShippingThreshold) {
-            fee = 0;
-        }
-
-        shippingByVendor[vid] = fee;
-        totalShipping += fee;
-        console.log(`🚚 [SHIPPING] Vendor: ${v.vendorName}, Dist: ${distKm}km, Fee: ₹${fee}`);
-    }
     const shipping = totalShipping;
+    const maxDistanceToCustomer = Math.max(...Object.values(distanceByVendor || { default: 0 }));
 
-    // 4. Calculate tax (GST removed as per user request)
-    const tax = 0;
-    const platformFee = 20; // Matches frontend PaymentPage.jsx
+    // 4. Calculate final totals
+    const tax = 0; // Tax is currently 0 as per user requirements
+    const platformFee = 20; // Standard platform fee
     const total = parseFloat((subtotal - couponDiscount + shipping + tax + platformFee).toFixed(2));
-    console.log(`💰 [TOTALS] Shipping: ₹${shipping}, Tax: ₹${tax}, Grand Total: ₹${total}`);
+    
+    console.log(`💰 [TOTALS] Subtotal: ₹${subtotal}, Shipping: ₹${shipping}, Discount: ₹${couponDiscount}, Tax: ₹${tax}, Grand Total: ₹${total}`);
+
 
     // 5. Build vendor item groups
     const vendorItems = Object.values(vendorMap).map((v) => {
@@ -418,6 +330,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             vendorName: v.vendorName,
             items: v.items,
             subtotal: v.subtotal,
+            basePrice: v.basePrice,
             shipping: Number(shippingByVendor[String(v.vendorId)] || 0),
             distance: v.distance || 0,
             tax: 0,
@@ -489,11 +402,24 @@ export const placeOrder = asyncHandler(async (req, res) => {
                     incUpdate[`variants.stockMap.${variantKey}`] = -quantity;
                 }
 
-                const updatedProduct = await Product.findByIdAndUpdate(
-                    item.productId,
+                const queryFilter = { _id: item.productId, stockQuantity: { $gte: quantity } };
+                if (variantKey) {
+                    queryFilter[`variants.stockMap.${variantKey}`] = { $gte: quantity };
+                }
+
+                const updatedProduct = await Product.findOneAndUpdate(
+                    queryFilter,
                     { $inc: incUpdate },
                     { new: true, session }
                 );
+
+                if (!updatedProduct) {
+                    const currentProduct = await Product.findById(item.productId).session(session);
+                    const availableTotal = currentProduct?.stockQuantity || 0;
+                    const availableVariant = variantKey ? (currentProduct?.variants?.stockMap?.get?.(variantKey) ?? currentProduct?.variants?.stockMap?.[variantKey]) : 'N/A';
+                    
+                    throw new ApiError(400, `Stock changed for ${item.name}. Requested: ${quantity}, Available Total: ${availableTotal}, Available Variant [${variantKey || 'None'}]: ${availableVariant}. Please refresh and try again.`);
+                }
 
                 if (updatedProduct) {
                     const nextStockState =
@@ -683,7 +609,7 @@ const normalizeReturnRequest = (requestDoc) => {
     const orderRefId = request?.orderId?._id || request?.orderId || null;
     return {
         ...request,
-        id: String(request?._id || ''),
+        id: request.returnId || String(request?._id || ''),
         orderId: orderOrderId || String(orderRefId || ''),
         orderRefId: orderRefId ? String(orderRefId) : null,
         requestDate: request?.createdAt,
@@ -707,8 +633,31 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
 
     const orderStatusNormalized = String(order.status || '').toLowerCase();
     if (orderStatusNormalized !== 'delivered') {
-        console.log('Order is not in delivered status', { orderId: order.orderId, status: order.status });
         throw new ApiError(400, 'Return can only be requested for delivered orders.');
+    }
+
+    // New Requirement: Only allow returns for check_and_buy order type
+    if (order.orderType !== 'check_and_buy') {
+        throw new ApiError(400, 'Returns are only permitted for "Check & Buy" orders. "Try & Buy" orders are non-returnable after delivery.');
+    }
+
+    // Check 24-hour validity
+    if (order.deliveredAt) {
+        const deliveredDate = new Date(order.deliveredAt);
+        const now = new Date();
+        const diffInHours = (now - deliveredDate) / (1000 * 60 * 60);
+        
+        if (diffInHours > 24) {
+            throw new ApiError(400, 'Return validity has expired. Returns must be requested within 24 hours of delivery.');
+        }
+    } else {
+        // Fallback if deliveredAt is missing (unlikely but safe)
+        const updatedDate = new Date(order.updatedAt);
+        const now = new Date();
+        const diffInHours = (now - updatedDate) / (1000 * 60 * 60);
+        if (diffInHours > 24) {
+             throw new ApiError(400, 'Return validity has expired. Returns must be requested within 24 hours of delivery.');
+        }
     }
 
     const requestedVendorId = String(req.body.vendorId || '').trim();
@@ -782,6 +731,7 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
 
     const request = await ReturnRequest.create({
         orderId: order._id,
+        returnId: generateReturnId(),
         userId: req.user.id,
         vendorId,
         items: normalizedItems,

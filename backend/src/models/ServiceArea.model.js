@@ -29,6 +29,20 @@ const serviceAreaSchema = new mongoose.Schema(
                 default: [0, 0],
             },
         },
+
+        // Geofencing boundaries (Polygon)
+        boundaries: {
+            type: {
+                type: String,
+                enum: ['Polygon'],
+                default: 'Polygon',
+            },
+            coordinates: {
+                type: [[[Number]]], // Array of points [lng, lat]
+                default: [],
+            },
+        },
+        isStrictBoundary: { type: Boolean, default: false },
         
         // Service configuration
         isActive: { type: Boolean, default: true, index: true },

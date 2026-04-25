@@ -17,7 +17,7 @@ const DeliveryDashboard = () => {
   const navigate = useNavigate();
   const {
     deliveryBoy, updateStatus, fetchProfile, fetchDashboardSummary,
-    isUpdatingStatus, orders
+    isUpdatingStatus, orders, returns
   } = useDeliveryAuthStore();
 
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
@@ -28,9 +28,15 @@ const DeliveryDashboard = () => {
   const [isAccepting, setIsAccepting] = useState(false);
 
   // --- Real-time Delivery Tracking ---
-  const activeTasks = (orders || []).filter(o => 
-    ['assigned', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery', 'arrived'].includes(o.status?.toLowerCase())
+  const activeOrders = (orders || []).filter(o => 
+    ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase())
   );
+  
+  const activeReturns = (returns || []).filter(r => 
+    ['processing', 'accepted'].includes(r.status?.toLowerCase())
+  );
+
+  const activeTasks = [...activeOrders, ...activeReturns];
   
   // Prioritize "on-going" tasks for the map focus
   const primaryOrder = activeTasks.find(o => ['picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery', 'arrived'].includes(o.status?.toLowerCase())) || activeTasks[0];
@@ -65,6 +71,9 @@ const DeliveryDashboard = () => {
     const handleNewOrder = (data) => {
       console.log("🔔 [SOCKET] New Order Request Recieved:", data);
       
+      // BLOCKER: Do not show or alert for new orders if already on a mission
+      if (activeTasks.length > 0) return;
+
       // Play Buzzer Sound
       try {
         const audio = new Audio('/sounds/buzzer.mp3');

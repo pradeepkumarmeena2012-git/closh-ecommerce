@@ -11,7 +11,20 @@ const deliveryBoySchema = new mongoose.Schema(
         aadharNumber: { type: String, trim: true },
         address: { type: String, trim: true },
         vehicleType: { type: String, trim: true },
-        vehicleNumber: { type: String, trim: true, unique: true, sparse: true },
+        vehicleNumber: { 
+            type: String, 
+            trim: true, 
+            unique: true, 
+            sparse: true,
+            validate: {
+                validator: function(v) {
+                    if (!v) return true; // Allow empty if not required
+                    // Standard Indian vehicle number format: MH12AB1234
+                    return /^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/.test(v.replace(/[-\s]/g, '').toUpperCase());
+                },
+                message: props => `${props.value} is not a valid vehicle number!`
+            }
+        },
         avatar: { type: String },
         applicationStatus: {
             type: String,
@@ -51,14 +64,27 @@ const deliveryBoySchema = new mongoose.Schema(
         },
         totalDeliveries: { type: Number, default: 0 },
         rating: { type: Number, default: 0 },
-        cashCollected: { type: Number, default: 0 },
+        cashInHand: { type: Number, default: 0 },
+        cashCollected: { type: Number, default: 0 }, // keeping for compatibility, will update logic to sync both
         totalEarnings: { type: Number, default: 0 },
         availableBalance: { type: Number, default: 0 },
         bankDetails: {
-            accountHolderName: { type: String, trim: true },
-            accountNumber: { type: String, trim: true },
-            ifscCode: { type: String, trim: true },
-            bankName: { type: String, trim: true },
+            accountHolderName: { 
+                type: String, 
+                trim: true
+            },
+            accountNumber: { 
+                type: String, 
+                trim: true
+            },
+            ifscCode: { 
+                type: String, 
+                trim: true
+            },
+            bankName: { 
+                type: String, 
+                trim: true
+            },
         },
         upiId: { type: String, trim: true },
         kycStatus: {

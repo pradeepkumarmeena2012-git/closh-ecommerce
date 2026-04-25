@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const returnRequestSchema = new mongoose.Schema(
     {
         orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true, index: true },
+        returnId: { type: String, required: true, unique: true, index: true },
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', index: true },
         items: [

@@ -210,10 +210,44 @@ const ProductForm = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    const isCheckbox = type === "checkbox";
+    const val = isCheckbox ? checked : value;
+
+    setFormData((prev) => {
+      const next = { ...prev, [name]: val };
+
+      // Synchronization Logic for Inventory
+      if (name === "stockQuantity") {
+        const qty = parseInt(val || 0, 10);
+        if (qty === 0) {
+          next.stock = "out_of_stock";
+        } else if (qty > 0 && (prev.stock === "out_of_stock" || !prev.stock)) {
+          next.stock = "in_stock";
+        }
+      }
+
+      if (name === "stock") {
+        const hasVariants = variantCombinations.length > 0;
+        if (val === "out_of_stock") {
+          if (!hasVariants) next.stockQuantity = 0;
+          // If variants exist, stockQuantity is auto-calculated from variant stockMap
+          // which the user must edit manually or we could clear it here.
+          if (next.variants?.stockMap) {
+            const clearedStockMap = {};
+            Object.keys(next.variants.stockMap).forEach(k => clearedStockMap[k] = 0);
+            next.variants = { ...next.variants, stockMap: clearedStockMap };
+            next.stockQuantity = 0;
+          }
+        } else if (val === "in_stock") {
+           const currentQty = parseInt(prev.stockQuantity || 0, 10);
+           if (!hasVariants && currentQty === 0) {
+             next.stockQuantity = 1; // Default to 1 to enable 'In Stock' state
+           }
+        }
+      }
+
+      return next;
+    });
   };
 
   const handleImageUpload = async (e) => {
@@ -849,6 +883,11 @@ const ProductForm = () => {
                 }`}
                 placeholder="0"
               />
+              {variantCombinations.length > 0 && (
+                <p className="mt-1 text-[10px] font-bold text-primary-600 uppercase tracking-tighter">
+                  Sum of all variant stocks (Update variants below)
+                </p>
+              )}
             </div>
 
             <div>

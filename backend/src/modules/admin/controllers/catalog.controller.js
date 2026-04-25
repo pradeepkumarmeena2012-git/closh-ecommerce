@@ -516,15 +516,26 @@ export const deleteCategory = asyncHandler(async (req, res) => {
 
 // PATCH /api/admin/categories/reorder
 export const reorderCategories = asyncHandler(async (req, res) => {
-    const uniqueIds = Array.from(new Set(req.body.categoryIds.map((id) => String(id))));
+    const { categoryIds } = req.body;
+    if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+        throw new ApiError(400, 'categoryIds array is required.');
+    }
 
-    const rootCategories = await Category.find({
+    const uniqueIds = Array.from(new Set(categoryIds.map((id) => String(id))));
+
+    // Fetch categories to verify existence and check if they share the same parent
+    const foundCategories = await Category.find({
         _id: { $in: uniqueIds },
-        parentId: null,
-    }).select('_id');
+    }).select('_id parentId');
 
-    if (rootCategories.length !== uniqueIds.length) {
-        throw new ApiError(400, 'Only root categories can be reordered.');
+    if (foundCategories.length !== uniqueIds.length) {
+        throw new ApiError(400, 'One or more category IDs are invalid or do not exist.');
+    }
+
+    // Verify all categories belong to the same parent level to prevent hierarchy mess-up
+    const parentIds = new Set(foundCategories.map(c => String(c.parentId || 'null')));
+    if (parentIds.size > 1) {
+        throw new ApiError(400, 'Only categories within the same level/parent can be reordered at once.');
     }
 
     const bulkUpdates = uniqueIds.map((id, index) => ({
@@ -538,8 +549,10 @@ export const reorderCategories = asyncHandler(async (req, res) => {
         await Category.bulkWrite(bulkUpdates);
     }
 
+    // Clear public cache
     await deleteCache('categories:all');
 
+    // Return updated list for admin
     const categories = await Category.find().sort({ order: 1, name: 1 });
     res.status(200).json(new ApiResponse(200, categories, 'Category order updated.'));
 });

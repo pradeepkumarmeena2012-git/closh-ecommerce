@@ -73,7 +73,7 @@ const AllOrders = () => {
     const vendorItem = order.vendorItems?.find(
       (vi) => vi.vendorId?.toString() === vendorId?.toString()
     );
-    return vendorItem?.subtotal ?? order.total ?? order.totalAmount ?? 0;
+    return vendorItem?.basePrice ?? vendorItem?.subtotal ?? order.total ?? order.totalAmount ?? 0;
   };
 
   const getOrderStatus = (order) => {

@@ -46,6 +46,9 @@ const DeliveryOrderDetail = () => {
     completeDeliveryFlow,
     cancelOrder,
     deliveryBoy,
+    orders,
+    acceptReturn,
+    acceptOrder,
   } = useDeliveryAuthStore();
   
   const [order, setOrder] = useState(null);
@@ -71,7 +74,7 @@ const DeliveryOrderDetail = () => {
   const openBoxGalleryRef = useRef(null);
   
   const isReturn = order?.type === 'return';
-  const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
+  const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash' || order?.paymentMethod === 'digital_at_door';
 
   const getPhase = () => {
     if (!order) return null;
@@ -99,7 +102,13 @@ const DeliveryOrderDetail = () => {
     (order.deliveryBoyId === deliveryBoy?._id)
   );
 
-  const isAvailableTask = order && !order.deliveryBoyId && (order.rawStatus === 'ready_for_pickup' || order.status === 'pending');
+  const isAvailableTask = order && !order.deliveryBoyId && (order.rawStatus === 'ready_for_pickup' || order.status === 'pending' || order.rawStatus === 'approved');
+  
+  const hasActiveTask = (orders || []).some(o => 
+    ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing'].includes(o.status?.toLowerCase()) || 
+    ['accepted', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase()) ||
+    o.rawStatus === 'processing'
+  );
   
   useEffect(() => {
     if (liveLocation) setCurrentLocation(liveLocation);
@@ -143,11 +152,19 @@ const DeliveryOrderDetail = () => {
   }, [id, loadOrder, navigate]);
 
   const handleAcceptMission = async () => {
+    if (hasActiveTask) {
+        return toast.error('You must complete your current task first!');
+    }
     try {
       // Use stable id from useParams
-      const updated = await useDeliveryAuthStore.getState().acceptOrder(id);
+      let updated;
+      if (order?.type === 'return') {
+          updated = await acceptReturn(id);
+      } else {
+          updated = await acceptOrder(id);
+      }
       setOrder(updated);
-      toast.success('MISSION ACCEPTED! GO TO PICKUP');
+      toast.success('MISSION ACCEPTED! GET STARTED');
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to accept mission');
       navigate('/delivery/dashboard');
@@ -231,7 +248,7 @@ const DeliveryOrderDetail = () => {
     }
   };
 
-  const calculatedTotal = order?.isTryAndBuy 
+  const calculatedTotal = (order?.isTryAndBuy || order?.isCheckAndBuy) 
     ? order.items.reduce((sum, item) => selectedItemIds.has(item.productId || item._id) ? sum + (item.price * item.quantity) : sum, 0)
     : order?.total;
 
@@ -363,12 +380,17 @@ const DeliveryOrderDetail = () => {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2 w-full">
-                    <button onClick={handleArrival} className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-50 active:scale-95 transition-transform">
-                      <FiZap size={16} className="animate-pulse" /> GENERATE OTP (I HAVE ARRIVED)
+                    <button 
+                      onClick={handleArrival} 
+                      disabled={isUpdatingOrderStatus}
+                      className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-50 active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                      {isUpdatingOrderStatus ? 'PROCESSING...' : <><FiZap size={16} className="animate-pulse" /> GENERATE OTP (I HAVE ARRIVED)</>}
                     </button>
                     <button 
                       onClick={handleCancelOrder}
-                      className="w-full h-11 border-2 border-rose-200 text-rose-500 bg-rose-50/30 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 active:bg-rose-100 transition-colors"
+                      disabled={isUpdatingOrderStatus}
+                      className="w-full h-11 border-2 border-rose-200 text-rose-500 bg-rose-50/30 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 active:bg-rose-100 transition-colors disabled:opacity-50"
                     >
                       <FiX size={16}/> Cancel Order (Customer Refused)
                     </button>
@@ -402,21 +424,26 @@ const DeliveryOrderDetail = () => {
                    <div className="space-y-2">
                       {order.items?.map((item, idx) => {
                         const isPicked = selectedItemIds.has(item.productId || item._id);
-                        const isTryMode = order.isTryAndBuy && hasArrived;
+                        const isSelectionMode = (order.isTryAndBuy || order.isCheckAndBuy) && hasArrived;
                         return (
                           <div 
                             key={idx} 
-                            onClick={() => isTryMode && toggleItem(item.productId || item._id)}
-                            className={`flex gap-3 p-2 rounded-xl border transition-all ${isTryMode ? (isPicked ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-transparent opacity-60') : 'bg-slate-50 border-transparent'}`}
+                            onClick={() => isSelectionMode && toggleItem(item.productId || item._id)}
+                            className={`flex gap-3 p-2 rounded-xl border transition-all ${isSelectionMode ? (isPicked ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-transparent opacity-60') : 'bg-slate-50 border-transparent'}`}
                           >
                              <div className="w-10 h-10 bg-white rounded-lg overflow-hidden border border-slate-100 shrink-0">
                                 {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <FiPackage className="text-slate-200 mt-2.5 mx-auto" size={16} />}
                              </div>
                              <div className="flex-1 min-w-0 flex flex-col justify-center">
                                 <p className="text-[11px] font-bold text-slate-800 truncate">{item.productName || item.name}</p>
-                                <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-tighter">Qty: {item.quantity} • {formatPrice(item.price)}</p>
+                                <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-tighter">
+                                  Qty: {item.quantity} • {item.originalPrice && item.originalPrice > item.price && (
+                                    <span className="line-through mr-1 opacity-50">{formatPrice(item.originalPrice)}</span>
+                                  )}
+                                  {formatPrice(item.price)}
+                                </p>
                              </div>
-                             {isTryMode && (
+                             {isSelectionMode && (
                                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 my-auto ${isPicked ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-200'}`}>
                                   {isPicked ? <FiCheckCircle size={12}/> : <div className="w-2.5 h-2.5 border border-slate-300 rounded-full" />}
                                </div>
@@ -425,8 +452,12 @@ const DeliveryOrderDetail = () => {
                         );
                       })}
                    </div>
-                   {order.isTryAndBuy && hasArrived && !order.tryAndBuyCompleted && (
-                     <button onClick={handleItemConfirmation} className="w-full mt-4 h-10 bg-slate-900 text-white font-bold rounded-2xl text-[10px] uppercase tracking-[0.1em]">Confirm Selection</button>
+                   {(order.isTryAndBuy || order.isCheckAndBuy) && hasArrived && !order.tryAndBuyCompleted && (
+                     <button onClick={handleItemConfirmation} 
+                        disabled={isUpdatingOrderStatus}
+                        className="w-full mt-4 h-10 bg-slate-900 text-white font-bold rounded-2xl text-[10px] uppercase tracking-[0.1em] disabled:opacity-50"
+                      >
+                        {isUpdatingOrderStatus ? 'CONFIRMING...' : 'Confirm Selection'}</button>
                    )}
                 </div>
               </div>
@@ -520,14 +551,15 @@ const DeliveryOrderDetail = () => {
                         
                         <button 
                           onClick={handleCancelOrder}
-                          className="w-full mt-4 py-2 flex items-center justify-center gap-2 text-[8px] font-black text-rose-500 bg-rose-50/50 rounded-xl active:bg-rose-100 transition-all uppercase tracking-[0.1em]"
+                          disabled={isUpdatingOrderStatus}
+                          className="w-full mt-4 py-2 flex items-center justify-center gap-2 text-[8px] font-black text-rose-500 bg-rose-50/50 rounded-xl active:bg-rose-100 transition-all uppercase tracking-[0.1em] disabled:opacity-50"
                         >
                            <FiAlertTriangle size={10} /> CUSTOMER REFUSED / CANCEL MISSION
                         </button>
                       </div>
 
                       {/* PAYMENT OPTIONS */}
-                      {isCod && (
+                      {isCod && (!order.isTryAndBuy || order.tryAndBuyCompleted) && (
                         <div className="mt-6 pt-5 border-t border-slate-50 text-left">
                            <div className="flex items-center justify-between mb-4">
                               <div className="min-w-0">
@@ -576,10 +608,10 @@ const DeliveryOrderDetail = () => {
               </button>
               <button 
                   onClick={handleAcceptMission}
-                  disabled={isUpdatingOrderStatus}
-                  className="flex-[2] h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-200 active:scale-95 transition-all"
+                  disabled={isUpdatingOrderStatus || hasActiveTask}
+                  className={`flex-[2] h-12 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all ${hasActiveTask ? 'bg-slate-200 text-slate-400 shadow-none' : 'bg-indigo-600 text-white shadow-indigo-200'}`}
               >
-                  {isUpdatingOrderStatus ? 'ACCEPTING MISSION...' : 'ACCEPT TASK TO START'}
+                  {isUpdatingOrderStatus ? 'ACCEPTING MISSION...' : hasActiveTask ? 'MISSION IN PROGRESS' : 'ACCEPT TASK TO START'}
               </button>
             </div>
           ) : isAssignedToMe ? (

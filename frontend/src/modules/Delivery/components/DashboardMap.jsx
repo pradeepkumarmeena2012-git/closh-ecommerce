@@ -138,7 +138,7 @@ const DashboardMap = ({ currentLocation, activeOrder, isOnline, isLoaded, height
 
         {/* Custom Mini Info Overlay */}
         <AnimatePresence>
-          {(isOnline || showDebug) && currentLocation && (
+          {((isOnline && !hideHeader) || showDebug) && currentLocation && (
             <motion.div 
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}

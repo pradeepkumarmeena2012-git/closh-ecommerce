@@ -72,26 +72,38 @@ const DeliveryOrders = () => {
     const interval = setInterval(() => loadOrders(currentPage, filter), 120000);
 
     // Socket listeners (connection managed by DeliveryLayout)
-    socketService.on('order_ready_for_pickup', (data) => {
+    const handleInboundOrder = (data, type = 'order') => {
       const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
-      if (currentStatus === 'available') {
-        // Show popup modal with the new order
-        if (data && (data.orderId || data.id)) {
+      const currentOrders = useDeliveryAuthStore.getState().orders || [];
+      const hasActiveTask = currentOrders.some(o => 
+        ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing'].includes(o.status?.toLowerCase()) || 
+        ['accepted', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase()) ||
+        o.rawStatus === 'processing'
+      );
+
+      if (currentStatus === 'available' && !hasActiveTask) {
+        // Show popup modal with the new task
+        if (data && (data.orderId || data.id || data.returnId)) {
           setSelectedNewOrder({
-            id: data.orderId || data.id,
-            orderId: data.orderId || data.id,
+            id: data.id || data.orderId || data.returnId,
+            orderId: data.orderId || data.returnId || data.id,
             total: data.total || 0,
             deliveryFee: data.deliveryFee || 0,
-            customer: data.pickupName || 'Vendor',
-            address: data.address || 'Address available in details',
+            customer: data.customerName || data.pickupName || 'User',
+            address: data.address || data.pickupAddress || 'Address in details',
             distance: data.distance || '-',
             estimatedTime: data.estimatedTime || '15 min',
+            type: data.type || type,
+            isReturn: (data.type === 'return' || type === 'return')
           });
           setShowNewOrderModal(true);
         }
         if (filter === 'available') loadOrders(currentPage, filter);
       }
-    });
+    };
+
+    socketService.on('order_ready_for_pickup', (data) => handleInboundOrder(data, 'order'));
+    socketService.on('return_ready_for_pickup', (data) => handleInboundOrder(data, 'return'));
 
     socketService.on('order_taken', (data) => {
       // Remove the order from local state immediately if another rider took it
@@ -105,6 +117,7 @@ const DeliveryOrders = () => {
     return () => {
       clearInterval(interval);
       socketService.off('order_ready_for_pickup');
+      socketService.off('return_ready_for_pickup');
       socketService.off('order_taken');
     };
   }, [currentPage, filter]);
@@ -117,13 +130,16 @@ const DeliveryOrders = () => {
     return 'bg-amber-100 text-amber-700 border-amber-200';
   };
 
-  const handleAcceptOrder = async (orderId) => {
+  const handleAcceptOrder = async (orderId, type = 'order') => {
     try {
-      await acceptOrder(orderId);
-      toast.success('Order assigned! Head to pickup.');
-      // Switch to Active Duty tab to see the new mission
-      setFilter('available');
-      setCurrentPage(1);
+      if (type === 'return') {
+        await useDeliveryAuthStore.getState().acceptReturn(orderId);
+      } else {
+        await acceptOrder(orderId);
+      }
+      toast.success('Mission assigned! Get started.');
+      // Directly redirect to the mission start page (Order Detail)
+      navigate(`/delivery/orders/${orderId}`);
     } catch(err) {}
   };
 
@@ -247,7 +263,10 @@ const DeliveryOrders = () => {
           order={selectedNewOrder}
           isAccepting={isUpdatingOrderStatus}
           onClose={() => !isUpdatingOrderStatus && setShowNewOrderModal(false)}
-          onAccept={async (id) => { await handleAcceptOrder(id); setShowNewOrderModal(false); }}
+          onAccept={async (id) => { 
+            await handleAcceptOrder(id, selectedNewOrder?.type); 
+            setShowNewOrderModal(false); 
+          }}
         />
       </div>
     </PageTransition>

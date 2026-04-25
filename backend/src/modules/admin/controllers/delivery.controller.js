@@ -465,6 +465,7 @@ export const deleteDeliveryBoy = asyncHandler(async (req, res) => {
  * @access  Private (Admin)
  */
 export const settleCash = asyncHandler(async (req, res) => {
+    const { amount, notes = '' } = req.body;
     const boy = await DeliveryBoy.findById(req.params.id);
     if (!boy) {
         throw new ApiError(404, 'Delivery boy not found');
@@ -514,7 +515,7 @@ export const settleCash = asyncHandler(async (req, res) => {
         type: 'rider',
         amount: settledAmount,
         method: 'cash',
-        notes: `Cash collected from rider for ${result.modifiedCount} orders`,
+        notes: notes || `Cash collected from rider for ${result.modifiedCount} orders`,
         processedBy: req.user._id,
         status: 'completed'
     });
@@ -527,6 +528,24 @@ export const settleCash = asyncHandler(async (req, res) => {
         await DeliveryBoy.findByIdAndUpdate(req.params.id, {
             $set: { cashCollected: newBalance },
         });
+
+        // 3. PUSH NOTIFICATION TO RIDER
+        try {
+            await createNotification({
+                recipientId: rider._id,
+                recipientType: 'delivery',
+                title: 'Cash Collection Confirmed',
+                message: `Admin has collected ₹${settledAmount} cash from you. Your balance has been updated.`,
+                type: 'transaction',
+                data: { 
+                    amount: settledAmount, 
+                    type: 'cash_collection',
+                    processedBy: req.user.name || 'Admin'
+                }
+            });
+        } catch (notifError) {
+            console.error('Failed to send cash collection notification:', notifError);
+        }
     }
 
     res.status(200).json(

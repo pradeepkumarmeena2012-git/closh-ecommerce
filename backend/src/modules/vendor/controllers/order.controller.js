@@ -9,6 +9,7 @@ import { createNotification } from '../../../services/notification.service.js';
 import { notifyNearbyDeliveryBoys } from '../../delivery/controllers/assignment.controller.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
+import { WalletService } from '../../../services/wallet.service.js';
 
 const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
     const statuses = (vendorItems || [])
@@ -124,7 +125,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     console.log(`[VendorUpdate] New Group Status: ${status}, Overall Order Status: ${oldStatus} -> ${order.status}`);
     await order.save();
 
-    if (status === 'ready_for_pickup' || status === 'accepted') {
+    if (status === 'ready_for_pickup') {
         if (vendor && vendor.shopLocation) {
             order.pickupLocation = vendor.shopLocation;
             await order.save();
@@ -144,6 +145,13 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         title: `Order #${order.orderId} ${status.replace(/_/g, ' ')}`,
         message: `Your order from ${storeName} is now ${status.replace(/_/g, ' ')}.`
     });
+
+    // If marked delivered by vendor, process financial earnings
+    if (status === 'delivered') {
+        await WalletService.processOrderCompletion(order).catch(err => {
+            console.error(`[Wallet] Error processing earnings for order ${order._id}:`, err);
+        });
+    }
 
     res.status(200).json(new ApiResponse(200, order, 'Order status updated.'));
 });
@@ -165,7 +173,7 @@ export const getEarnings = asyncHandler(async (req, res) => {
 
     const [commissionDocs, totalCommissions, settlements, totalSettlements, aggregationResult] = await Promise.all([
         Commission.find({ vendorId: req.user.id })
-            .select('orderId amount vendorEarnings commission status createdAt')
+            .select('orderId subtotal basePrice vendorEarnings commission commissionRate status createdAt')
             .populate('orderId', 'orderId status')
             .sort({ createdAt: -1 })
             .skip(commissionSkip)

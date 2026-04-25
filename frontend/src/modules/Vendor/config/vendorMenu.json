@@ -38,42 +38,22 @@
         ]
     },
     {
-        "title": "Wallet History",
-        "route": "/vendor/wallet-history",
-        "children": []
-    },
-    {
         "title": "Help",
         "route": "/vendor/help",
         "children": []
     },
     {
-        "title": "Inventory Reports",
-        "route": "/vendor/inventory-reports",
-        "children": []
-    },
-    {
-        "title": "Performance Metrics",
-        "route": "/vendor/performance-metrics",
-        "children": []
+        "title": "Settlements",
+        "route": "/vendor/settlements",
+        "children": [
+            "Earnings Ledger",
+            "Payout History"
+        ]
     },
     {
         "title": "Documents",
         "route": "/vendor/documents",
         "children": []
-    },
-    {
-        "title": "Analytics",
-        "route": "/vendor/analytics",
-        "children": []
-    },
-    {
-        "title": "Earnings",
-        "route": "/vendor/earnings",
-        "children": [
-            "Earnings Overview",
-            "Commission History"
-        ]
     },
     {
         "title": "Settings",
@@ -90,4 +70,4 @@
         "route": "/vendor/profile",
         "children": []
     }
-]
+]

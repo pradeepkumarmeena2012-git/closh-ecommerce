@@ -11,7 +11,7 @@ import TopProducts from "../components/Analytics/TopProducts";
 import RecentOrders from "../components/Analytics/RecentOrders";
 import TimePeriodFilter from "../components/Analytics/TimePeriodFilter";
 import ExportButton from "../components/ExportButton";
-import { formatCurrency } from "../utils/adminHelpers";
+import { formatCurrency, formatDate, getDateRange } from "../utils/adminHelpers";
 import {
   getDashboardStats,
   getRevenueData,
@@ -71,12 +71,31 @@ const Dashboard = () => {
   };
 
   const normalizeRevenueData = (data, apiPeriod) =>
-    (data || []).map((item) => ({
-      date: getDateFromBucket(item._id, apiPeriod).toISOString(),
-      bucket: item._id || "",
-      revenue: item.revenue || 0,
-      orders: item.orders || 0,
-    }));
+    (data || []).map((item) => {
+      const dateObj = getDateFromBucket(item._id, apiPeriod);
+      let periodLabel = item._id || "";
+
+      if (apiPeriod === "daily") {
+        periodLabel = formatDate(dateObj);
+        if (period === 'today') periodLabel = `Today, ${periodLabel}`;
+      } else if (apiPeriod === "weekly") {
+        const [year, week] = String(item._id).split("-");
+        periodLabel = `Week ${week}, ${year}`;
+      } else if (apiPeriod === "monthly") {
+        periodLabel = dateObj.toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        });
+      }
+
+      return {
+        date: dateObj.toISOString(),
+        bucket: item._id || "",
+        label: periodLabel || "Unknown",
+        revenue: Number(item.revenue || 0).toFixed(2),
+        orders: item.orders || 0,
+      };
+    });
 
   const [orderStatusData, setOrderStatusData] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
@@ -87,6 +106,11 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const apiPeriod = mapUiPeriodToApiPeriod(period);
+      const { start, end } = getDateRange(period);
+      const dateParams = { 
+        startDate: start.toISOString(), 
+        endDate: end.toISOString() 
+      };
 
       const [
         statsRes,
@@ -96,11 +120,11 @@ const Dashboard = () => {
         customerGrowthRes,
         recentOrdersRes,
       ] = await Promise.allSettled([
-        getDashboardStats(),
-        getRevenueData(apiPeriod),
+        getDashboardStats({ period }),
+        getRevenueData(apiPeriod, dateParams),
         getOrderStatusBreakdown(),
         getTopProducts(),
-        getCustomerGrowth(apiPeriod),
+        getCustomerGrowth(apiPeriod, dateParams),
         getRecentOrders(),
       ]);
 
@@ -190,9 +214,9 @@ const Dashboard = () => {
           <ExportButton
             data={revenueData}
             headers={[
-              { label: "Period", accessor: (row) => row.bucket || row.date },
-              { label: "Revenue", accessor: (row) => formatCurrency(row.revenue) },
-              { label: "Orders", accessor: (row) => row.orders },
+              { label: "Period", accessor: (row) => row.label },
+              { label: "Revenue (INR)", accessor: (row) => row.revenue },
+              { label: "Total Orders", accessor: (row) => row.orders },
             ]}
             filename="revenue_report"
           />

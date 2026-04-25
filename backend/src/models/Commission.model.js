@@ -6,6 +6,7 @@ const commissionSchema = new mongoose.Schema(
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor', required: true, index: true },
         vendorName: String,
         subtotal: { type: Number, required: true },
+        basePrice: { type: Number, required: true },
         commissionRate: { type: Number, required: true },
         commission: { type: Number, required: true },
         vendorEarnings: { type: Number, required: true },

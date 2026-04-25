@@ -82,8 +82,15 @@
       "Delivery Boys",
       "Cash Collection",
       "Assign Delivery",
-      "Payout Requests"
+      "Payout Requests",
+      "Online Settlements"
     ]
+  },
+  {
+    "title": "Service Areas",
+    "route": "/admin/service-areas",
+    "permission": "delivery_manage",
+    "children": []
   },
   {
     "title": "Vendors",
@@ -95,7 +102,8 @@
       "Pending Approvals",
       "Commission Rates",
       "Vendor Analytics",
-      "Vendor Registration"
+      "Vendor Registration",
+      "Vendor Settlements"
     ]
   },
   {
@@ -162,7 +170,6 @@
     "permission": "finance_view",
     "children": [
       "Revenue Overview",
-      "Vendor Settlements",
       "Profit & Loss",
       "Order Trends",
       "Payment Breakdown",

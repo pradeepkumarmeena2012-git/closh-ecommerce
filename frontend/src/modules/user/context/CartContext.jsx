@@ -36,9 +36,9 @@ export const CartProvider = ({ children }) => {
             vendorName: product.vendorId?.storeName || product.vendorName || 'Store',
             stockQuantity: product.stockQuantity || product.stock,
             variant: {
+                ...(product.variant || {}),
                 ...(product.selectedSize && { size: product.selectedSize }),
                 ...(product.selectedColor && { color: product.selectedColor }),
-                ...(!product.selectedSize && !product.selectedColor && product.variant ? product.variant : {})
             },
             quantity: product.quantity || 1,
         });

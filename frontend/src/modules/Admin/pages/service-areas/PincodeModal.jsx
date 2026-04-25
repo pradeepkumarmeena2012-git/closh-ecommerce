@@ -39,6 +39,11 @@ const PincodeModal = ({ isOpen, onClose, serviceArea }) => {
       return;
     }
 
+    if (!/^\d{6}$/.test(newPincode.pincode)) {
+      toast.error('Invalid Pincode. Must be exactly 6 digits.');
+      return;
+    }
+
     try {
       await api.post('/admin/pincodes', {
         serviceAreaId: serviceArea._id,

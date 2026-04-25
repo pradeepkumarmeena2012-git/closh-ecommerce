@@ -74,11 +74,25 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLoc
 
                     {/* Bottom Sheet Modal Content */}
                     <motion.div
+                        drag="y"
+                        dragConstraints={{ top: 0, bottom: 0 }}
+                        dragElastic={{ top: 0, bottom: 0.5 }}
+                        onDragEnd={(_, info) => {
+                            if (info.offset.y > 150 || info.velocity.y > 500) {
+                                onClose();
+                            }
+                        }}
                         initial={{ y: '100%' }}
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 0.8 }}
-                        className="relative bg-white rounded-t-[40px] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col z-[10000]"
+                        transition={{ 
+                            type: 'spring', 
+                            damping: 25, 
+                            stiffness: 200, 
+                            mass: 0.8,
+                            velocity: 2
+                        }}
+                        className="relative bg-white rounded-t-[40px] shadow-[0_-8px_40px_rgba(0,0,0,0.15)] overflow-hidden max-h-[94vh] flex flex-col z-[10000]"
                     >
                         {/* Drag Handle / Indicator */}
                         <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-4 mb-2 shrink-0" />

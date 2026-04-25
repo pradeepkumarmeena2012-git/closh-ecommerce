@@ -9,25 +9,65 @@ import ReturnRequest from '../../../models/ReturnRequest.model.js';
 
 // GET /api/admin/analytics/dashboard
 export const getDashboardStats = asyncHandler(async (req, res) => {
+    const { period = 'month' } = req.query;
+
+    const startOfPeriod = new Date();
+    startOfPeriod.setHours(0, 0, 0, 0);
+
+    if (period === 'today') {
+        // startOfPeriod is already today 00:00:00
+    } else if (period === 'week') {
+        const day = startOfPeriod.getDay();
+        const diff = startOfPeriod.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+        startOfPeriod.setDate(diff);
+    } else if (period === 'month') {
+        startOfPeriod.setDate(1);
+    } else if (period === 'year') {
+        startOfPeriod.setMonth(0, 1);
+    }
+
     const activeOrderFilter = { isDeleted: { $ne: true } };
-    const [totalOrders, totalUsers, totalVendors, totalProducts, revenueAgg, pendingOrders, pendingReturns] = await Promise.all([
+    const dateFilter = { createdAt: { $gte: startOfPeriod } };
+
+    const [
+        totalOrders,
+        periodOrders,
+        totalUsers,
+        totalVendors,
+        totalProducts,
+        revenueAgg,
+        periodRevenueAgg,
+        pendingOrders,
+        pendingReturns
+    ] = await Promise.all([
         Order.countDocuments(activeOrderFilter),
+        Order.countDocuments({ ...activeOrderFilter, ...dateFilter }),
         User.countDocuments({ role: 'customer' }),
         Vendor.countDocuments({ status: 'approved' }),
         Product.countDocuments({ isActive: true }),
-        Order.aggregate([{ $match: { ...activeOrderFilter, status: { $ne: 'cancelled' } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
+        Order.aggregate([
+            { $match: { ...activeOrderFilter, status: { $ne: 'cancelled' } } },
+            { $group: { _id: null, total: { $sum: '$total' } } }
+        ]),
+        Order.aggregate([
+            { $match: { ...activeOrderFilter, ...dateFilter, status: { $ne: 'cancelled' } } },
+            { $group: { _id: null, total: { $sum: '$total' } } }
+        ]),
         Order.countDocuments({ ...activeOrderFilter, status: 'pending' }),
         ReturnRequest.countDocuments({ status: 'pending' }),
     ]);
 
     res.status(200).json(new ApiResponse(200, {
-        totalOrders,
+        totalOrders: period === 'all' ? totalOrders : periodOrders,
         totalUsers,
         totalVendors,
         totalProducts,
-        totalRevenue: revenueAgg[0]?.total || 0,
+        totalRevenue: period === 'all' ? (revenueAgg[0]?.total || 0) : (periodRevenueAgg[0]?.total || 0),
         pendingOrders,
         pendingReturns,
+        // Optional: send lifetime stats too if needed
+        lifetimeOrders: totalOrders,
+        lifetimeRevenue: revenueAgg[0]?.total || 0
     }, 'Dashboard stats fetched.'));
 });
 
@@ -95,17 +135,26 @@ export const getTopProducts = asyncHandler(async (req, res) => {
 
 // GET /api/admin/analytics/customer-growth
 export const getCustomerGrowth = asyncHandler(async (req, res) => {
-    const { period = 'monthly' } = req.query;
+    const { period = 'monthly', startDate, endDate } = req.query;
     const groupFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%Y-%U' : '%Y-%m';
 
-    const growth = await User.aggregate([
-        { $match: { role: 'customer' } },
-        { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, newUsers: { $sum: 1 } } },
-        { $sort: { _id: -1 } },
-        { $limit: 12 },
-        { $sort: { _id: 1 } },
-    ]);
+    const match = { role: 'customer' };
+    if (startDate || endDate) {
+        match.createdAt = {};
+        if (startDate) match.createdAt.$gte = new Date(startDate);
+        if (endDate) match.createdAt.$lte = new Date(new Date(endDate).setHours(23, 59, 59, 999));
+    }
 
+    const pipeline = [
+        { $match: match },
+        { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, newUsers: { $sum: 1 } } },
+    ];
+    if (!startDate && !endDate) {
+        pipeline.push({ $sort: { _id: -1 } }, { $limit: 12 });
+    }
+    pipeline.push({ $sort: { _id: 1 } });
+
+    const growth = await User.aggregate(pipeline);
     res.status(200).json(new ApiResponse(200, growth, 'Customer growth fetched.'));
 });
 
@@ -217,6 +266,7 @@ export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
     let totalRevenue = 0;
     let totalCommission = 0;
     let totalMargin = 0;
+    let totalPlatformFees = 0;
     let totalVendorCost = 0;
     let totalDeliveryPayout = 0;
     let orderCount = orders.length;
@@ -224,6 +274,7 @@ export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
     orders.forEach(order => {
         totalRevenue += (order.total || 0);
         totalDeliveryPayout += (order.shipping || 0);
+        totalPlatformFees += (order.platformFee || 0);
 
         // Calculate Commission with fallback
         const commission = order.vendorItems?.reduce((sum, v) => {
@@ -237,21 +288,24 @@ export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
         // Calculate Margin with robust fallback
         const margin = order.items?.reduce((sum, i) => {
             const vPrice = i.vendorPrice || i.productId?.vendorPrice || 0;
-            totalVendorCost += (vPrice * i.quantity);
-            return sum + ((i.price - vPrice) * i.quantity);
+            totalVendorCost += (vPrice * (i.quantity || 1));
+            return sum + (((i.price || 0) - vPrice) * (i.quantity || 1));
         }, 0) || 0;
         totalMargin += margin;
     });
+
+    const totalAdminEarnings = totalCommission + totalMargin + totalPlatformFees;
 
     res.status(200).json(new ApiResponse(200, {
         totalRevenue,
         totalCommission,
         totalMargin,
+        totalPlatformFees,
+        totalAdminEarnings,
         totalVendorCost,
         totalDeliveryPayout,
-        adminNetProfit: (totalCommission + totalMargin) - totalDeliveryPayout,
         orderCount
-    }, 'Admin earnings summary fetched.'));
+    }, 'Earnings summary fetched.'));
 });
 
 // GET /api/admin/analytics/earnings-report
@@ -318,4 +372,66 @@ export const getDetailedEarningsReport = asyncHandler(async (req, res) => {
             pages: Math.ceil(total / numericLimit)
         }
     }, 'Detailed earnings report fetched.'));
+});
+// GET /api/admin/analytics/vendor-performance
+export const getVendorPerformance = asyncHandler(async (req, res) => {
+    const performance = await Vendor.aggregate([
+        { $match: { status: 'approved' } },
+        {
+            $lookup: {
+                from: 'commissions',
+                localField: '_id',
+                foreignField: 'vendorId',
+                as: 'commissions'
+            }
+        },
+        {
+            $project: {
+                id: '$_id',
+                name: 1,
+                storeName: 1,
+                email: 1,
+                totalOrders: { $size: '$commissions' },
+                totalRevenue: {
+                    $sum: {
+                        $map: {
+                            input: '$commissions',
+                            as: 'c',
+                            in: { $add: ['$$c.vendorEarnings', '$$c.commission'] }
+                        }
+                    }
+                },
+                totalEarnings: {
+                    $sum: {
+                        $map: {
+                            input: '$commissions',
+                            as: 'c',
+                            in: { $cond: [{ $ne: ['$$c.status', 'cancelled'] }, '$$c.vendorEarnings', 0] }
+                        }
+                    }
+                },
+                pendingEarnings: {
+                    $sum: {
+                        $map: {
+                            input: '$commissions',
+                            as: 'c',
+                            in: { $cond: [{ $eq: ['$$c.status', 'pending'] }, '$$c.vendorEarnings', 0] }
+                        }
+                    }
+                },
+                paidEarnings: {
+                    $sum: {
+                        $map: {
+                            input: '$commissions',
+                            as: 'c',
+                            in: { $cond: [{ $eq: ['$$c.status', 'paid'] }, '$$c.vendorEarnings', 0] }
+                        }
+                    }
+                }
+            }
+        },
+        { $sort: { totalRevenue: -1 } }
+    ]);
+
+    res.status(200).json(new ApiResponse(200, performance, 'Vendor performance fetched.'));
 });
