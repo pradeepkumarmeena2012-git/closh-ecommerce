@@ -51,6 +51,7 @@ router.post('/auth/refresh', validate(refreshTokenSchema), authController.refres
 router.post('/auth/logout', validate(logoutSchema), authController.logout);
 router.get('/auth/profile', ...customerAuth, authController.getProfile);
 router.put('/auth/profile', ...customerAuth, validate(updateProfileSchema), authController.updateProfile);
+router.delete('/auth/profile', ...customerAuth, authController.deleteAccount);
 router.post('/auth/profile/avatar', ...customerAuth, uploadSingle('avatar'), authController.uploadProfileAvatar);
 router.post('/auth/change-password', ...customerAuth, validate(changePasswordSchema), authController.changePassword);
 

@@ -85,6 +85,7 @@ const ProductsPage = () => {
     const category = searchParams.get('category');
     const subCategoryFromUrl = searchParams.get('subCategory') || searchParams.get('subcategory');
     const brandFromUrl = searchParams.get('brand');
+    const cidFromUrl = searchParams.get('cid'); // Direct category ObjectId — most reliable filter
 
     useEffect(() => {
         const searchFromUrl = searchParams.get('search');
@@ -113,14 +114,18 @@ const ProductsPage = () => {
     // Load admin products and attributes
     useEffect(() => {
         // Fetch products based on ALL active filters
-        // Priority: selectedGender maps to DB 'division' field
-        const divisionToFetch = division || (selectedGender !== 'All' ? selectedGender : undefined);
-        const categoryToFetch = category || undefined;
-        
+        // If a direct category ObjectId (cid) is in the URL, use it — most reliable
+        // Skip division filter when using cid because division field on products may not match
+        const hasCid = Boolean(cidFromUrl && /^[0-9a-fA-F]{24}$/.test(cidFromUrl));
+        const divisionToFetch = hasCid ? undefined : (division || (selectedGender !== 'All' ? selectedGender : undefined));
+        const categoryToFetch = hasCid ? undefined : (category || undefined);
+        const subCategoryToFetch = hasCid ? undefined : (selectedSubCategories.length > 0 ? selectedSubCategories[0] : (subCategoryFromUrl || undefined));
+
         fetchPublicProducts({
+            ...(hasCid ? { categoryId: cidFromUrl } : {}),
             division: divisionToFetch,
             category: categoryToFetch,
-            subCategory: (selectedSubCategories.length > 0 ? selectedSubCategories[0] : (subCategoryFromUrl || undefined)),
+            subCategory: subCategoryToFetch,
             brand: (selectedBrands.length > 0 ? selectedBrands[0] : undefined),
             sort: selectedSort === 'New Arrivals' ? 'newest' : (selectedSort === 'Price: Low to High' ? 'price-asc' : (selectedSort === 'Price: High to Low' ? 'price-desc' : 'popular')),
         });
@@ -141,7 +146,7 @@ const ProductsPage = () => {
 
             setFilterOptions(newOptions);
         }
-    }, [category, subCategoryFromUrl, division, selectedGender, selectedBrands, selectedSubCategories, selectedSort, fetchPublicProducts]);
+    }, [category, subCategoryFromUrl, cidFromUrl, division, selectedGender, selectedBrands, selectedSubCategories, selectedSort, fetchPublicProducts]);
 
     // Derived subcategories based on gender
     const subCategories = useMemo(() => {
@@ -184,9 +189,18 @@ const ProductsPage = () => {
     const filteredProducts = useMemo(() => {
         let result = [...(products || [])];
 
-        // 1. Gender Filter (Manual override)
-        if (selectedGender !== 'All') {
-            result = result.filter(p => p.division?.toLowerCase() === selectedGender.toLowerCase());
+        // 1. Gender Filter (Manual override) - Skip if filtering by direct CID
+        const hasCid = Boolean(cidFromUrl && /^[0-9a-fA-F]{24}$/.test(cidFromUrl));
+        if (selectedGender !== 'All' && !hasCid) {
+            const lowerGender = selectedGender.toLowerCase();
+            let mappedGender = lowerGender;
+            
+            if (lowerGender.includes("women") || lowerGender === "womens") mappedGender = "women";
+            else if (lowerGender.includes("men") || lowerGender === "mens") mappedGender = "men";
+            else if (lowerGender.includes("kids") || lowerGender.includes("boys")) mappedGender = "boys";
+            else if (lowerGender.includes("girls")) mappedGender = "girls";
+            
+            result = result.filter(p => (p.division || '').toLowerCase() === mappedGender);
         }
 
         // 4. Header Search Filter

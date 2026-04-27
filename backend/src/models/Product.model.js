@@ -33,7 +33,6 @@ const productSchema = new mongoose.Schema(
         lowStockThreshold: { type: Number, default: 10 },
         variants: {
             sizes: [String],
-            colors: [String],
             materials: [String],
             attributes: [{
                 name: String,
@@ -44,7 +43,6 @@ const productSchema = new mongoose.Schema(
             imageMap: { type: Map, of: String },
             defaultVariant: {
                 size: String,
-                color: String,
             },
             defaultSelection: {
                 type: Map,

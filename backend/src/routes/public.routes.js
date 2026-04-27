@@ -57,18 +57,13 @@ const resolveVariantPrice = (product, selectedVariant) => {
         : '';
 
     const size = normalizeVariantPart(selectedVariant?.size);
-    const color = normalizeVariantPart(selectedVariant?.color);
     const entries = toVariantPriceEntries(product?.variants?.prices);
-    if (!entries.length || (!dynamicKey && !size && !color)) return basePrice;
+    if (!entries.length || (!dynamicKey && !size)) return basePrice;
 
     const candidateKeys = [
         dynamicKey || null,
-        `${size}|${color}`,
-        `${size}-${color}`,
-        `${size}_${color}`,
-        `${size}:${color}`,
-        size && !color ? size : null,
-        color && !size ? color : null,
+        `${size}|`,
+        size || null,
     ].filter(Boolean);
 
     for (const candidate of candidateKeys) {
@@ -109,7 +104,8 @@ const listProducts = asyncHandler(async (req, res) => {
         minRating,
         subCategory,
         subcategory,
-        division
+        division,
+        categoryId
     } = req.query;
 
     // --- CACHE START ---
@@ -126,40 +122,86 @@ const listProducts = asyncHandler(async (req, res) => {
     const filter = { isActive: true };
 
     if (division && division !== 'All') {
-        filter.division = { $regex: new RegExp(`^${division}$`, 'i') };
-    }
+        // Map common aliases to match Product model enum: ['Men', 'Women', 'Boys', 'Girls', 'Unisex']
+        let mappedDivision = division;
+        const lowerDiv = division.toLowerCase();
+        
+        if (lowerDiv.includes("men's fashion") || lowerDiv === "mens") {
+            mappedDivision = "Men";
+        } else if (lowerDiv.includes("women's fashion") || lowerDiv === "womens") {
+            mappedDivision = "Women";
+        } else if (lowerDiv.includes("boys") || lowerDiv.includes("kids")) {
+            mappedDivision = "Boys";
+        } else if (lowerDiv.includes("girls")) {
+            mappedDivision = "Girls";
+        }
 
-    const requestedCategory = subcategory || subCategory || category;
-
-    if (requestedCategory && requestedCategory !== 'All') {
-        let categoryId = String(requestedCategory);
-        const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(categoryId);
-
-        let shouldFilter = true;
-        if (!isValidObjectId) {
-            const catDoc = await Category.findOne({ name: { $regex: new RegExp(`^${requestedCategory}$`, 'i') }, isActive: true });
-            if (catDoc) {
-                categoryId = String(catDoc._id);
-            } else {
-                shouldFilter = false;
-                filter.categoryId = null;
+        // Only apply division filter if it matches the enum (case-insensitive)
+        const enumValues = ['Men', 'Women', 'Boys', 'Girls', 'Unisex'];
+        if (enumValues.some(v => v.toLowerCase() === mappedDivision.toLowerCase())) {
+            filter.division = { $regex: new RegExp(`^${mappedDivision}$`, 'i') };
+        } else {
+            // If not an enum, treat as category if no other category is provided
+            if (!category && !subCategory && !subcategory) {
+                category = division;
             }
         }
+    }
 
-        if (shouldFilter) {
-            const allDescendants = await Category.find({ isActive: true }).lean();
-            const getDescendantIds = (parentId) => {
-                let ids = [String(parentId)];
-                const children = allDescendants.filter(c => String(c.parentId) === String(parentId));
-                children.forEach(child => {
-                    ids = [...ids, ...getDescendantIds(child._id)];
-                });
-                return ids;
-            };
+    let finalCategoryId = categoryId || null;
+    let shouldFilterByCat = Boolean(categoryId);
 
-            const categoryIds = Array.from(new Set(getDescendantIds(categoryId)));
-            filter.categoryId = { $in: categoryIds };
+    if (!finalCategoryId) {
+        // Smart Category Resolution
+        // Try subcategory first, then fallback to category
+        const categoryToResolve = subcategory || subCategory;
+        const parentCategoryToResolve = category;
+
+    const resolveCategory = async (catName) => {
+        if (!catName || catName === 'All') return null;
+        if (/^[0-9a-fA-F]{24}$/.test(String(catName))) return String(catName);
+        
+        const catDoc = await Category.findOne({ 
+            name: { $regex: new RegExp(`^${catName}$`, 'i') }, 
+            isActive: true 
+        });
+        return catDoc ? String(catDoc._id) : null;
+    };
+
+    // Attempt resolution: subCategory -> category
+    let resolvedId = await resolveCategory(categoryToResolve);
+    if (!resolvedId && categoryToResolve) {
+        // If subcategory name not found, try the parent category name
+        resolvedId = await resolveCategory(parentCategoryToResolve);
+    } else if (!categoryToResolve) {
+        // No subcategory, resolve the main category
+        resolvedId = await resolveCategory(parentCategoryToResolve);
+    }
+
+        if (resolvedId) {
+            finalCategoryId = resolvedId;
+            shouldFilterByCat = true;
+        } else if (categoryToResolve || parentCategoryToResolve) {
+            // If names were provided but none found, we don't want to return 0 results
+            // unless it's a specific search. For now, let's just not filter by category
+            // if the requested one doesn't exist, to avoid empty pages.
+            shouldFilterByCat = false;
         }
+    }
+
+    if (shouldFilterByCat) {
+        const allDescendants = await Category.find({ isActive: true }).lean();
+        const getDescendantIds = (parentId) => {
+            let ids = [String(parentId)];
+            const children = allDescendants.filter(c => String(c.parentId) === String(parentId));
+            children.forEach(child => {
+                ids = [...ids, ...getDescendantIds(child._id)];
+            });
+            return ids;
+        };
+
+        const categoryIds = Array.from(new Set(getDescendantIds(finalCategoryId)));
+        filter.categoryId = { $in: categoryIds };
     }
 
     // Smart Brand Resolution: Resolve name to ID if needed

@@ -94,7 +94,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
         if (onClose) onClose();
     };
 
-    const [view, setView] = useState('list'); // 'list' | 'map' | 'form'
+    const [view, setView] = useState('list'); // 'list' | 'map' | 'form' | 'pre-location'
     const [selectedAddressId, setSelectedAddressId] = useState(null);
     const [position, setPosition] = useState(null);
     const [loadingLocation, setLoadingLocation] = useState(false);
@@ -126,13 +126,20 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
         }
     }, [isModalOpen, activeAddress, selectedAddressId]);
 
-    const handleAddNew = () => {
+    const requireLogin = () => {
         if (!user) {
             handleClose();
             window.dispatchEvent(new Event('openLoginModal'));
-        } else {
-            // Direct to form as requested
-            setFormData({
+            return true;
+        }
+        return false;
+    };
+
+    const handleAddNew = () => {
+        if (requireLogin()) return;
+        
+        // Direct to form as requested
+        setFormData({
                 name: user?.fullName || user?.name || '',
                 mobile: user?.phone || user?.mobile || '',
                 pincode: '',
@@ -151,35 +158,80 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
             }
             
             setView('map');
-        }
     };
 
     const handleUseCurrentLocation = () => {
+        if (requireLogin()) return;
+        setView('pre-location'); // Show professional alert first
+    };
+
+    const triggerActualLocationFlow = () => {
+        const toastId = toast.loading("Accessing GPS...");
         setLoadingLocation(true);
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                    const { latitude, longitude } = pos.coords;
-                    const addr = await getAddressFromCoords(latitude, longitude);
-                    if (addr) {
-                        setFetchedAddress(addr);
-                        setPosition({ lat: latitude, lng: longitude });
-                        setView('map'); // High precision mapping step
-                    }
-                    setLoadingLocation(false);
-                },
-                (err) => {
-                    toast.error("Location permission denied.");
-                    setLoadingLocation(false);
-                },
-                { enableHighAccuracy: true }
-            );
-        } else {
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        };
+
+        const success = async (pos) => {
+            toast.dismiss(toastId);
+            const { latitude, longitude } = pos.coords;
+            const addr = await getAddressFromCoords(latitude, longitude);
+            if (addr) {
+                setFetchedAddress(addr);
+                setPosition({ lat: latitude, lng: longitude });
+                
+                // Professional touch: Auto-confirm if address is found
+                // Update temporary session location if needed, or just let them see the map
+                toast.success("Location pinpointed!");
+                setView('map'); 
+            }
             setLoadingLocation(false);
+        };
+
+        const error = (err) => {
+            console.warn(`Geolocation error (${err.code}): ${err.message}`);
+            toast.dismiss(toastId);
+            
+            if (err.code === 1) { // PERMISSION_DENIED
+                toast.error("Location access was blocked. Please enable it in your browser settings to continue.", { 
+                    duration: 5000,
+                    icon: '🔒' 
+                });
+                setView('list');
+                setLoadingLocation(false);
+                return;
+            }
+
+            // Fallback for timeout
+            if (err.code === 3) {
+                toast.loading("GPS slow, using network location...");
+                navigator.geolocation.getCurrentPosition(success, (err2) => {
+                    toast.error("Could not determine location.");
+                    setLoadingLocation(false);
+                    setView('list');
+                }, { enableHighAccuracy: false, timeout: 5000 });
+                return;
+            }
+            
+            toast.error("Location unavailable. Please try again.");
+            setLoadingLocation(false);
+            setView('list');
+        };
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(success, error, options);
+        } else {
+            toast.error("Geolocation is not supported by your browser.");
+            setLoadingLocation(false);
+            setView('list');
         }
     };
 
     const handleConfirm = async () => {
+        if (requireLogin()) return;
         if (view === 'map') {
             if (!fetchedAddress) {
                 toast.error('Please wait, pin location is resolving...');
@@ -329,7 +381,10 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                     {addresses.map(addr => (
                                         <div
                                             key={addr.id || addr._id}
-                                            onClick={() => setSelectedAddressId(addr.id || addr._id)}
+                                            onClick={() => {
+                                                if (requireLogin()) return;
+                                                setSelectedAddressId(addr.id || addr._id);
+                                            }}
                                             className={`p-4 bg-white rounded-2xl border-2 transition-all cursor-pointer relative group ${String(selectedAddressId) === String(addr.id || addr._id) ? 'border-black' : 'border-transparent shadow-sm'}`}
                                         >
                                             <div className="flex justify-between items-start mb-2">
@@ -360,6 +415,38 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                 <p className="text-[12px] font-bold text-black line-clamp-3">
                                     {fetchedAddress ? fetchedAddress.formatted : 'Touch point on map to adjust...'}
                                 </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {view === 'pre-location' && (
+                        <div className="p-8 text-center animate-fadeIn">
+                            <div className="relative w-24 h-24 mx-auto mb-8">
+                                <div className="absolute inset-0 bg-black/5 rounded-full animate-ping scale-150" />
+                                <div className="absolute inset-0 bg-black/10 rounded-full animate-ping" />
+                                <div className="relative w-full h-full bg-black text-white rounded-full flex items-center justify-center shadow-2xl">
+                                    <MapPin size={40} strokeWidth={2.5} />
+                                </div>
+                            </div>
+                            
+                            <h2 className="text-[20px] font-black text-black mb-3 uppercase tracking-tight">Enable Location</h2>
+                            <p className="text-[14px] font-bold text-gray-500 mb-8 leading-relaxed px-4">
+                                Allow location access to see products available near you and get accurate delivery estimates.
+                            </p>
+
+                            <div className="space-y-4">
+                                <button
+                                    onClick={triggerActualLocationFlow}
+                                    className="w-full py-4 bg-black text-white rounded-2xl font-bold text-[15px] shadow-xl active:scale-[0.98] transition-all uppercase "
+                                >
+                                    Allow Location
+                                </button>
+                                <button
+                                    onClick={() => setView('list')}
+                                    className="w-full py-4 bg-white text-gray-400 rounded-2xl font-bold text-[13px] active:scale-[0.98] transition-all uppercase "
+                                >
+                                    Maybe Later
+                                </button>
                             </div>
                         </div>
                     )}
@@ -421,15 +508,17 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 bg-white border-t border-gray-100 sticky bottom-0 z-50">
-                    <button
-                        onClick={handleConfirm}
-                        disabled={view === 'list' && !selectedAddressId}
-                        className="w-full py-4 bg-black text-white rounded-2xl font-bold text-[15px] shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 uppercase "
-                    >
-                        {view === 'list' ? 'Confirm Selection' : view === 'map' ? 'Confirm Location' : 'Save & Select Address'}
-                    </button>
-                </div>
+                {view !== 'pre-location' && (
+                    <div className="p-6 bg-white border-t border-gray-100 sticky bottom-0 z-50">
+                        <button
+                            onClick={handleConfirm}
+                            disabled={view === 'list' && !selectedAddressId}
+                            className="w-full py-4 bg-black text-white rounded-2xl font-bold text-[15px] shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 uppercase "
+                        >
+                            {view === 'list' ? 'Confirm Selection' : view === 'map' ? 'Confirm Location' : 'Save & Select Address'}
+                        </button>
+                    </div>
+                )}
             </div>
         </div>,
         document.body

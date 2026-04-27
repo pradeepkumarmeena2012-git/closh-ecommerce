@@ -10,17 +10,31 @@ import {
     Users,
     LogOut,
     ChevronRight,
-    MessageSquare
+    MessageSquare,
+    Trash2
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const ProfileSidebar = () => {
-    const { logout } = useAuth();
+    const { logout, deleteAccount } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
     const handleLogout = () => {
         logout();
         navigate('/login');
+    };
+
+    const handleDeleteAccount = async () => {
+        if (window.confirm('Are you sure you want to delete your account? This action is permanent and cannot be undone.')) {
+            try {
+                await deleteAccount();
+                toast.success('Account deleted successfully');
+                navigate('/');
+            } catch (error) {
+                toast.error('Failed to delete account');
+            }
+        }
     };
 
     const sidebarLinks = [
@@ -70,6 +84,13 @@ const ProfileSidebar = () => {
                     >
                         <LogOut size={18} />
                         <span>Logout</span>
+                    </button>
+                    <button
+                        onClick={handleDeleteAccount}
+                        className="flex items-center gap-4 px-6 py-6 text-gray-400 font-bold hover:text-red-600 transition-colors hover:bg-red-50/50"
+                    >
+                        <Trash2 size={18} />
+                        <span>Delete Account</span>
                     </button>
                 </nav>
             </div>

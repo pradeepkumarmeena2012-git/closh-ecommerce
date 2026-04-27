@@ -513,7 +513,7 @@ const ProductForm = () => {
       return;
     }
 
-    const finalCategoryId = formData.subcategoryId ?? formData.categoryId ?? null;
+    const finalCategoryId = formData.subcategoryId || formData.categoryId || null;
 
     const parsedPrice = parseFloat(formData.price || 0);
     const parsedOriginalPrice = (formData.originalPrice === "" || formData.originalPrice === null)
@@ -530,6 +530,41 @@ const ProductForm = () => {
     if (!Number.isFinite(parsedPrice) || !Number.isFinite(parsedStockQuantity)) {
       toast.error("Please enter valid numeric values");
       return;
+    }
+
+    if (parsedPrice < 0) {
+      toast.error("Price cannot be negative");
+      return;
+    }
+
+    if (parsedOriginalPrice !== null && parsedOriginalPrice < 0) {
+      toast.error("Original price cannot be negative");
+      return;
+    }
+
+    if (parsedStockQuantity < 0) {
+      toast.error("Stock quantity cannot be negative");
+      return;
+    }
+
+    // Validate Variant Prices and Stocks
+    if (formData.variants) {
+      const variantPrices = formData.variants.prices || {};
+      const variantStocks = formData.variants.stockMap || {};
+
+      for (const [key, price] of Object.entries(variantPrices)) {
+        if (price !== "" && Number(price) < 0) {
+          toast.error(`Variant price for ${key} cannot be negative`);
+          return;
+        }
+      }
+
+      for (const [key, stock] of Object.entries(variantStocks)) {
+        if (stock !== "" && Number(stock) < 0) {
+          toast.error(`Variant stock for ${key} cannot be negative`);
+          return;
+        }
+      }
     }
 
     const hasInvalidFaq = (formData.faqs || []).some((faq) => {

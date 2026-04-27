@@ -17,7 +17,7 @@ const MobileCategories = () => {
   const { categoryId: paramCategoryId } = useParams();
   const { categories: allCategoriesInStore, initialize } = useCategoryStore();
   const { activeCategory, setActiveCategory } = useCategory();
-  
+
   // State for 3-level navigation
   const [selectedRootId, setSelectedRootId] = useState(null);
   const [selectedSubId, setSelectedSubId] = useState(null);
@@ -93,7 +93,7 @@ const MobileCategories = () => {
   const handleSubSelect = (id) => {
     setSelectedSubId(id);
     if (gridRef.current) gridRef.current.scrollTop = 0;
-    
+
     // Check if subcategory has children; if not, we can navigate directly
     const children = allCategories.filter(cat => cat.normParentId === id && cat.isActive !== false);
     if (children.length === 0) {
@@ -114,10 +114,10 @@ const MobileCategories = () => {
 
   return (
     <PageTransition>
-        <div className="flex flex-col w-full bg-white h-screen overflow-hidden">
-          
-          <div className="flex flex-1 overflow-hidden">
-          
+      <div className="flex flex-col w-full bg-white h-screen overflow-hidden">
+
+        <div className="flex flex-1 overflow-hidden">
+
           {/* SIDEBAR: Vertical Subcategories (Level 1) */}
           <div className="w-22 bg-[#F8F9FA] overflow-y-auto scrollbar-hide flex flex-col border-r border-gray-100 pb-32 pt-1">
             {subcategories.map((sub) => {
@@ -147,57 +147,58 @@ const MobileCategories = () => {
           </div>
 
           {/* MAIN AREA: Grid of Grand-subcategories (Level 2) */}
-          <div 
+          <div
             ref={gridRef}
             className="flex-1 overflow-y-auto bg-white p-3 pb-40"
           >
             <AnimatePresence mode="wait">
-                <motion.div
-                  key={selectedSubId || 'empty'}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                >
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-[12px] font-black text-gray-900 uppercase tracking-wider">
-                      Shop for {subcategories.find(s => s.normId === selectedSubId)?.name}
-                    </h2>
-                    <button 
-                      onClick={() => {
-                        const sub = allCategories.find(c => c.normId === selectedSubId);
-                        const root = allCategories.find(c => c.normId === selectedRootId);
-                        const url = `/products?division=${root?.name}&category=${sub?.name}&cid=${selectedSubId}`;
-                        navigate(url.replace(/\s+/g, '+'));
-                      }}
-                      className="text-[10px] font-bold text-[#FF5722] uppercase tracking-tight px-3 py-1 bg-[#FFF3EF] rounded-full"
-                    >
-                      View All
-                    </button>
-                  </div>
+              <motion.div
+                key={selectedSubId || 'empty'}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-[12px] font-black text-gray-900 uppercase tracking-wider">
+                    Shop for {subcategories.find(s => s.normId === selectedSubId)?.name || allCategories.find(c => c.normId === selectedRootId)?.name}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const activeId = selectedSubId || selectedRootId;
+                      const cat = allCategories.find(c => c.normId === activeId);
+                      const root = allCategories.find(c => c.normId === selectedRootId);
+                      const url = `/products?division=${root?.name || ''}&category=${cat?.name || ''}&cid=${activeId}`;
+                      navigate(url.replace(/\s+/g, '+'));
+                    }}
+                    className="text-[10px] font-bold text-[#FF5722] uppercase tracking-tight px-3 py-1 bg-[#FFF3EF] rounded-full"
+                  >
+                    View All
+                  </button>
+                </div>
 
-                  {grandSubcategories.length > 0 && (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-x-4 md:gap-x-8 gap-y-6 md:gap-y-10">
-                      {grandSubcategories.map((grand) => (
-                        <button
-                          key={grand.normId}
-                          onClick={() => handleGrandSubSelect(grand.normId)}
-                          className="flex flex-col items-center gap-1.5 group transition-transform active:scale-95"
-                        >
-                          <div className="w-20 h-20 md:w-24 md:h-24 bg-[#F8F9FA] rounded-[24px] overflow-hidden p-0 flex items-center justify-center border border-transparent transition-all group-hover:border-[#FF5722] shadow-sm">
-                            <img
-                              src={grand.image || "https://via.placeholder.com/150"}
-                              alt={grand.name}
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            />
-                          </div>
-                          <span className="text-[10px] md:text-[12px] font-bold text-gray-700 text-center leading-tight max-w-[80px] md:max-w-[100px] group-hover:text-[#FF5722] transition-colors py-1">
-                            {grand.name}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
+                {grandSubcategories.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-x-4 md:gap-x-8 gap-y-6 md:gap-y-10">
+                    {grandSubcategories.map((grand) => (
+                      <button
+                        key={grand.normId}
+                        onClick={() => handleGrandSubSelect(grand.normId)}
+                        className="flex flex-col items-center gap-1.5 group transition-transform active:scale-95"
+                      >
+                        <div className="w-20 h-20 md:w-24 md:h-24 bg-[#F8F9FA] rounded-[24px] overflow-hidden p-0 flex items-center justify-center border border-transparent transition-all group-hover:border-[#FF5722] shadow-sm">
+                          <img
+                            src={grand.image || "https://via.placeholder.com/150"}
+                            alt={grand.name}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                        </div>
+                        <span className="text-[10px] md:text-[12px] font-bold text-gray-700 text-center leading-tight max-w-[80px] md:max-w-[100px] group-hover:text-[#FF5722] transition-colors py-1">
+                          {grand.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
             </AnimatePresence>
           </div>
         </div>
