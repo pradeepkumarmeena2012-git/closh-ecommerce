@@ -69,9 +69,7 @@
     "route": "/admin/attributes",
     "permission": "attributes_manage",
     "children": [
-      "Attribute Sets",
-      "Attributes",
-      "Attribute Values"
+      "Attribute Sets"
     ]
   },
   {
@@ -81,7 +79,6 @@
     "children": [
       "Delivery Boys",
       "Cash Collection",
-      "Assign Delivery",
       "Payout Requests",
       "Online Settlements"
     ]

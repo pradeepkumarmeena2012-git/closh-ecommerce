@@ -1,12 +1,27 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { FiEye } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+import { useAdminAuthStore } from '../../store/adminStore';
 import { formatCurrency, getStatusColor } from '../../utils/adminHelpers';
 import Badge from '../../../../shared/components/Badge';
 import Pagination from '../Pagination';
 
 const TopProducts = ({ products }) => {
+  const navigate = useNavigate();
+  const { admin } = useAdminAuthStore();
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const getBasePrefix = (admin) => {
+    if (!admin) return "/admin";
+    const isPrivileged = admin.role === "superadmin" || admin.role === "admin";
+    if (isPrivileged) return "/admin";
+    const roleSlug = admin.role.toLowerCase().trim().replace(/\s+/g, "-");
+    return `/staff/${roleSlug}`;
+  };
+
+  const basePrefix = getBasePrefix(admin);
 
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -30,14 +45,15 @@ const TopProducts = ({ products }) => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="flex items-center justify-between p-4 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={() => navigate(`${basePrefix}/products/${product._id || product.id}`)}
+              className="flex items-center justify-between p-4 bg-white rounded-lg hover:bg-gray-100 hover:scale-[1.01] cursor-pointer transition-all group"
             >
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold flex-shrink-0">
                   {globalIndex + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-gray-800 truncate">{product.name}</h4>
+                  <h4 className="font-semibold text-gray-800 truncate group-hover:text-primary-600 transition-colors">{product.name}</h4>
                   <div className="flex items-center gap-4 mt-1">
                     <span className="text-sm text-gray-600">
                       {salesCount} sold

@@ -220,7 +220,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
             const timer = setTimeout(() => {
                 setIsLocationModalOpen(true);
                 sessionStorage.setItem('location-prompted', 'true');
-            }, 1500); // Small delay for better UX
+            }, 800); // reduced delay for faster interaction
             return () => clearTimeout(timer);
         }
     }, [activeAddress, location.pathname]);

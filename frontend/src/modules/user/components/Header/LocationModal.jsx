@@ -136,8 +136,6 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     };
 
     const handleAddNew = () => {
-        if (requireLogin()) return;
-        
         // Direct to form as requested
         setFormData({
                 name: user?.fullName || user?.name || '',
@@ -161,8 +159,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     };
 
     const handleUseCurrentLocation = () => {
-        if (requireLogin()) return;
-        setView('pre-location'); // Show professional alert first
+        triggerActualLocationFlow(); // Trigger directly for Zepto-like flow
     };
 
     const triggerActualLocationFlow = () => {
@@ -231,7 +228,6 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     };
 
     const handleConfirm = async () => {
-        if (requireLogin()) return;
         if (view === 'map') {
             if (!fetchedAddress) {
                 toast.error('Please wait, pin location is resolving...');
@@ -339,68 +335,80 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                     {view === 'list' && (
                         <div className="p-5 space-y-6 animate-fadeIn">
                             {/* Actions */}
-                            <div className="space-y-3">
+                            <div className="space-y-4">
                                 <button
                                     onClick={handleUseCurrentLocation}
                                     disabled={loadingLocation}
-                                    className="w-full bg-white p-4 rounded-2xl shadow-sm border border-emerald-50 flex items-center justify-between group active:scale-[0.98] transition-all hover:border-emerald-200"
+                                    className="w-full bg-white p-5 rounded-[24px] shadow-sm border-2 border-emerald-500/10 flex items-center justify-between group active:scale-[0.98] transition-all hover:bg-emerald-50/30 hover:border-emerald-500/30"
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                                            {loadingLocation ? <Loader2 size={18} className="animate-spin" /> : <Target size={20} />}
+                                        <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-inner">
+                                            {loadingLocation ? <Loader2 size={20} className="animate-spin" /> : <Target size={24} strokeWidth={2.5} />}
                                         </div>
                                         <div className="text-left">
-                                            <p className="text-[14px] font-bold text-black uppercase ">Current Location</p>
+                                            <p className="text-[15px] font-black text-black uppercase tracking-tight">Current Location</p>
                                             <p className="text-[11px] font-bold text-emerald-600/70">Using GPS / Precise location</p>
                                         </div>
                                     </div>
-                                    <ChevronLeft size={16} className="rotate-180 text-gray-300" />
+                                    <ChevronLeft size={18} className="rotate-180 text-emerald-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
                                 </button>
 
-                                <button
-                                    onClick={handleAddNew}
-                                    className="w-full bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.98] transition-all hover:border-black/10"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-black group-hover:bg-black group-hover:text-white transition-all">
-                                            <MapPin size={20} />
+                                {activeAddress ? (
+                                    <button
+                                        onClick={handleAddNew}
+                                        className="w-full bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.98] transition-all hover:border-black/10"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-black group-hover:bg-black group-hover:text-white transition-all">
+                                                <MapPin size={20} />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-[14px] font-bold text-black uppercase ">Add New Address</p>
+                                                <p className="text-[11px] font-bold text-gray-400">Manual building details</p>
+                                            </div>
                                         </div>
-                                        <div className="text-left">
-                                            <p className="text-[14px] font-bold text-black uppercase ">Add New Address</p>
-                                            <p className="text-[11px] font-bold text-gray-400">Manual building details</p>
-                                        </div>
+                                        <span className="text-[11px] font-bold text-black uppercase ">Add +</span>
+                                    </button>
+                                ) : (
+                                    <div className="pt-2 text-center">
+                                        <button 
+                                            onClick={handleAddNew}
+                                            className="text-[11px] font-black text-gray-400 uppercase tracking-widest hover:text-black transition-colors"
+                                        >
+                                            Enter address manually
+                                        </button>
                                     </div>
-                                    <span className="text-[11px] font-bold text-black uppercase ">Add +</span>
-                                </button>
+                                )}
                             </div>
 
                             {/* Saved List */}
-                            <div className="space-y-4">
-                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Your Addresses</h3>
-                                <div className="space-y-3">
-                                    {addresses.map(addr => (
-                                        <div
-                                            key={addr.id || addr._id}
-                                            onClick={() => {
-                                                if (requireLogin()) return;
-                                                setSelectedAddressId(addr.id || addr._id);
-                                            }}
-                                            className={`p-4 bg-white rounded-2xl border-2 transition-all cursor-pointer relative group ${String(selectedAddressId) === String(addr.id || addr._id) ? 'border-black' : 'border-transparent shadow-sm'}`}
-                                        >
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`w-2 h-2 rounded-full ${String(selectedAddressId) === String(addr.id || addr._id) ? 'bg-black' : 'bg-gray-200'}`} />
-                                                    <span className="text-[11px] font-bold uppercase text-gray-400">{addr.type}</span>
+                            {activeAddress && (
+                                <div className="space-y-4">
+                                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Your Addresses</h3>
+                                    <div className="space-y-3">
+                                        {addresses.map(addr => (
+                                            <div
+                                                key={addr.id || addr._id}
+                                                onClick={() => {
+                                                    setSelectedAddressId(addr.id || addr._id);
+                                                }}
+                                                className={`p-4 bg-white rounded-2xl border-2 transition-all cursor-pointer relative group ${String(selectedAddressId) === String(addr.id || addr._id) ? 'border-black' : 'border-transparent shadow-sm'}`}
+                                            >
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-2 h-2 rounded-full ${String(selectedAddressId) === String(addr.id || addr._id) ? 'bg-black' : 'bg-gray-200'}`} />
+                                                        <span className="text-[11px] font-bold uppercase text-gray-400">{addr.type}</span>
+                                                    </div>
+                                                    {addr.isDefault && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase ">Default</span>}
                                                 </div>
-                                                {addr.isDefault && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase ">Default</span>}
+                                                <p className="text-[14px] font-bold text-black mb-1">{addr.fullName}</p>
+                                                <p className="text-[12px] text-gray-500 line-clamp-1 italic ">{addr.address}</p>
+                                                <p className="text-[12px] font-bold text-black mt-2">{addr.city}, {addr.zipCode}</p>
                                             </div>
-                                            <p className="text-[14px] font-bold text-black mb-1">{addr.fullName}</p>
-                                            <p className="text-[12px] text-gray-500 line-clamp-1 italic ">{addr.address}</p>
-                                            <p className="text-[12px] font-bold text-black mt-2">{addr.city}, {addr.zipCode}</p>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     )}
 

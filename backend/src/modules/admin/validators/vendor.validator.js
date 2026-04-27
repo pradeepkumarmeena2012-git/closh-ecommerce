@@ -31,12 +31,20 @@ export const vendorCommissionsQuerySchema = Joi.object({
 export const registerVendorSchema = Joi.object({
     name: Joi.string().trim().min(2).max(100).required(),
     storeName: Joi.string().trim().min(2).max(100).required(),
-    phone: Joi.string().trim().min(10).max(15).required(),
+    phone: Joi.string().trim().min(10).max(15).required().messages({
+        "string.min": "Wrong phone number. Min 10 digits",
+        "string.max": "Wrong phone number. Max 15 digits",
+        "any.required": "Phone number is required"
+    }),
     gstNumber: Joi.string().trim().min(15).max(15).required(), // GST is usually 15 chars
     shopAddress: Joi.string().trim().min(5).max(500).required(),
     email: Joi.string().trim().lowercase().email().required().messages({
-        "string.email": "Invalid mail",
+        "string.email": "Wrong email format",
+        "any.required": "Email is required"
     }),
-    password: Joi.string().trim().min(6).required(),
+    password: Joi.string().trim().min(6).required().messages({
+        "string.min": "Password must be at least 6 characters",
+        "any.required": "Password is required"
+    }),
 });
 

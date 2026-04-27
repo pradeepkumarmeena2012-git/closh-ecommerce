@@ -37,7 +37,7 @@ const OrderDetail = () => {
     const [loading, setLoading] = useState(true);
     const [updatingStatus, setUpdatingStatus] = useState(false);
 
-    const vendorId = vendor?.id;
+    const vendorId = vendor?.id || vendor?._id;
     const shippingAddress = order?.shippingAddress ?? order?.address ?? null;
     const customerName =
         order?.customer?.name ??

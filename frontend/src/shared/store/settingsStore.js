@@ -24,6 +24,10 @@ const defaultSettings = {
     },
     accentColor: "#FFE11B",
     storeDescription: "",
+    customerSupportEmail: "support@clouse.com",
+    customerSupportPhone: "+91 (800) 111-2222",
+    vendorSupportEmail: "vendorsupport@clouse.com",
+    vendorSupportPhone: "+91 (800) 123-4567",
   },
   payment: {
     paymentMethods: ["cod", "card", "wallet"],

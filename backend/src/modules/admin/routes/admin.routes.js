@@ -97,12 +97,12 @@ router.delete('/roles/:id', ...adminManager, checkPermission('staff_manage'), ro
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
 router.get('/analytics/dashboard', ...adminAuth, checkPermission('dashboard_view'), analyticsController.getDashboardStats);
-router.get('/analytics/revenue', ...adminAuth, checkPermission('finance_view'), analyticsController.getRevenueData);
+router.get('/analytics/revenue', ...adminAuth, checkPermission(['finance_view', 'dashboard_view']), analyticsController.getRevenueData);
 router.get('/analytics/order-status', ...adminAuth, checkPermission('dashboard_view'), analyticsController.getOrderStatusBreakdown);
 router.get('/analytics/top-products', ...adminAuth, checkPermission('dashboard_view'), analyticsController.getTopProducts);
 router.get('/analytics/customer-growth', ...adminAuth, checkPermission('dashboard_view'), analyticsController.getCustomerGrowth);
 router.get('/analytics/recent-orders', ...adminAuth, checkPermission('dashboard_view'), analyticsController.getRecentOrders);
-router.get('/analytics/sales', ...adminAuth, checkPermission('finance_view'), analyticsController.getSalesData);
+router.get('/analytics/sales', ...adminAuth, checkPermission(['finance_view', 'dashboard_view']), analyticsController.getSalesData);
 router.get('/analytics/finance-summary', ...adminAuth, checkPermission('finance_view'), analyticsController.getFinancialSummary);
 router.get('/analytics/inventory-stats', ...adminAuth, checkPermission('dashboard_view'), analyticsController.getInventoryStats);
 router.get('/analytics/earnings-summary', ...adminAuth, checkPermission('finance_view'), analyticsController.getAdminEarningsSummary);

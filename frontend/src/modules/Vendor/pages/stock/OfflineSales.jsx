@@ -24,6 +24,8 @@ import ExportButton from "../../../Admin/components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import MultiSelect from "../../../Admin/components/MultiSelect";
+import { PRODUCT_SIZES } from "../../../../shared/utils/constants";
 import toast from "react-hot-toast";
 
 const OfflineSales = () => {
@@ -65,7 +67,6 @@ const OfflineSales = () => {
   });
 
   const [currentColor, setCurrentColor] = useState("");
-  const [currentSize, setCurrentSize] = useState("");
 
   const filteredSales = useMemo(() => {
     return sales.filter(sale => 
@@ -121,19 +122,12 @@ const OfflineSales = () => {
         setFormData({ ...formData, colors: [...formData.colors, currentColor.trim()] });
       }
       setCurrentColor("");
-    } else if (type === "size" && currentSize.trim()) {
-      if (!formData.sizes.includes(currentSize.trim())) {
-        setFormData({ ...formData, sizes: [...formData.sizes, currentSize.trim()] });
-      }
-      setCurrentSize("");
     }
   };
 
   const handleRemoveTag = (type, value) => {
     if (type === "color") {
       setFormData({ ...formData, colors: formData.colors.filter(c => c !== value) });
-    } else {
-      setFormData({ ...formData, sizes: formData.sizes.filter(s => s !== value) });
     }
   };
 
@@ -501,29 +495,24 @@ const OfflineSales = () => {
                        <div className="relative w-full sm:w-32">
                           <input 
                             placeholder="Add..." 
-                            value={currentSize} 
-                            onChange={(e) => setCurrentSize(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag('size'))}
-                            className="w-full pl-2 pr-7 py-1.5 bg-white border border-emerald-100 rounded-lg focus:ring-1 focus:ring-emerald-500 text-xs font-bold" 
-                          />
-                          <button type="button" onClick={() => handleAddTag('size')} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 bg-[#003d29] text-white rounded-md">
-                            <FiPlus size={12} />
-                          </button>
-                       </div>
-                     </div>
-                     <div className="flex flex-wrap gap-1.5 min-h-[28px]">
-                       <AnimatePresence>
-                         {formData.sizes.map(size => (
-                           <motion.span key={size} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="px-3 py-1 bg-white text-[#003d29] rounded-lg text-[10px] md:text-xs font-black border border-emerald-100 flex items-center gap-2 shadow-sm">
-                             {size.toUpperCase()} <FiX className="cursor-pointer text-red-400" size={12} onClick={() => handleRemoveTag('size', size)} />
-                           </motion.span>
-                         ))}
-                       </AnimatePresence>
-                     </div>
-                  </div>
+                  <div className="bg-emerald-50/10 p-3 md:p-5 rounded-2xl border border-emerald-50 space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                        <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase flex items-center gap-1 shrink-0">
+                          <FiMaximize className="text-emerald-500" size={12} /> Sizes
+                        </label>
+                      </div>
+                      <div className="mt-1">
+                        <MultiSelect
+                          value={formData.sizes || []}
+                          onChange={(e) => setFormData({ ...formData, sizes: e.target.value })}
+                          options={PRODUCT_SIZES}
+                          placeholder="Select sizes..."
+                          searchable={true}
+                        />
+                      </div>
+                   </div>
                 </div>
 
-                {/* 3. Pricing & Inventory */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
                    <div className="space-y-1">
                       <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Price *</label>

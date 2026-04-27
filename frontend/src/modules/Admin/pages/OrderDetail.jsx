@@ -147,7 +147,7 @@ const OrderDetail = () => {
             <FiArrowLeft className="text-lg text-gray-600" />
           </button>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 lg:hidden">
               <h1 className="text-xl sm:text-2xl font-bold text-gray-800">{order.id}</h1>
               {order.orderType && order.orderType !== 'standard' && (
                 <span className={`px-2 py-0.5 ${order.orderType === 'try_and_buy' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-blue-50 text-blue-700 border-blue-100'} text-[10px] font-bold rounded-lg border uppercase er shadow-sm animate-pulse`}>

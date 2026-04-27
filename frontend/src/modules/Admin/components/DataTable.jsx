@@ -124,8 +124,8 @@ const DataTable = ({
       </div>
 
       {/* Desktop Table View - Hide on mobile, show on desktop */}
-      <div className="hidden md:block overflow-x-auto scrollbar-admin">
-        <table className="w-full">
+      <div className="hidden md:block w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <table className="w-full min-w-[1000px] border-collapse">
           <thead className="bg-white border-b border-gray-200">
             <tr>
               {columns.map((column) => (

@@ -53,93 +53,100 @@ const iconMap = {
   "Service Areas": FiGlobe,
 };
 
+const getBasePrefix = (admin) => {
+  if (!admin) return "/admin";
+  const isPrivileged = admin.role === "superadmin" || admin.role === "admin";
+  if (isPrivileged) return "/admin";
+  // Convert role name to URL friendly format (e.g. "Content Manager" -> "content-manager")
+  const roleSlug = admin.role.toLowerCase().trim().replace(/\s+/g, "-");
+  return `/staff/${roleSlug}`;
+};
+
 // Helper function to convert child name to route path
-const getChildRoute = (parentRoute, childName) => {
+const getChildRoute = (parentRoute, childName, admin) => {
+  const basePrefix = getBasePrefix(admin);
   const routeMap = {
-    "/admin/orders": {
-      "All Orders": "/admin/orders/all-orders",
-      "Order Tracking": "/admin/orders/order-tracking",
+    [`${basePrefix}/orders`]: {
+      "All Orders": `${basePrefix}/orders/all-orders`,
+      "Order Tracking": `${basePrefix}/orders/order-tracking`,
     },
-    "/admin/products": {
-      "Manage Products": "/admin/products/manage-products",
-      "Product Approvals": "/admin/products/pending",
-      "Tax & Pricing": "/admin/products/tax-pricing",
-      "Product Ratings": "/admin/products/product-ratings",
+    [`${basePrefix}/products`]: {
+      "Manage Products": `${basePrefix}/products/manage-products`,
+      "Product Approvals": `${basePrefix}/products/pending`,
+      "Tax & Pricing": `${basePrefix}/products/tax-pricing`,
+      "Product Ratings": `${basePrefix}/products/product-ratings`,
     },
-    "/admin/categories": {
-      "Manage Categories": "/admin/categories/manage-categories",
-      "Category Order": "/admin/categories/category-order",
+    [`${basePrefix}/categories`]: {
+      "Manage Categories": `${basePrefix}/categories/manage-categories`,
+      "Category Order": `${basePrefix}/categories/category-order`,
     },
-    "/admin/brands": {
-      "Manage Brands": "/admin/brands/manage-brands",
+    [`${basePrefix}/brands`]: {
+      "Manage Brands": `${basePrefix}/brands/manage-brands`,
     },
-    "/admin/customers": {
-      "View Customers": "/admin/customers/view-customers",
-      Addresses: "/admin/customers/addresses",
-      Transactions: "/admin/customers/transactions",
+    [`${basePrefix}/customers`]: {
+      "View Customers": `${basePrefix}/customers/view-customers`,
+      Addresses: `${basePrefix}/customers/addresses`,
+      Transactions: `${basePrefix}/customers/transactions`,
     },
-    "/admin/delivery": {
-      "Delivery Boys": "/admin/delivery/delivery-boys",
-      "Cash Collection": "/admin/delivery/cash-collection",
-      "Assign Delivery": "/admin/delivery/assign-delivery",
-      "Payout Requests": "/admin/delivery/withdrawals",
-      "Online Settlements": "/admin/delivery/rider-settlements",
+    [`${basePrefix}/delivery`]: {
+      "Delivery Boys": `${basePrefix}/delivery/delivery-boys`,
+      "Cash Collection": `${basePrefix}/delivery/cash-collection`,
+      "Payout Requests": `${basePrefix}/delivery/withdrawals`,
+      "Online Settlements": `${basePrefix}/delivery/rider-settlements`,
     },
-    "/admin/attributes": {
-      "Attribute Sets": "/admin/attributes/sets",
-      "Attributes": "/admin/attributes/list",
-      "Attribute Values": "/admin/attributes/values",
+    [`${basePrefix}/attributes`]: {
+      "Attribute Sets": `${basePrefix}/attributes/sets`,
     },
-    "/admin/vendors": {
-      "Manage Vendors": "/admin/vendors/manage-vendors",
-      "Vendor Explorer": "/admin/vendors/explorer",
-      "Pending Approvals": "/admin/vendors/pending-approvals",
-      "Commission Rates": "/admin/vendors/commission-rates",
-      "Vendor Analytics": "/admin/vendors/vendor-analytics",
-      "Vendor Registration": "/admin/vendors/register",
-      "Vendor Settlements": "/admin/vendors/settlements",
+    [`${basePrefix}/vendors`]: {
+      "Manage Vendors": `${basePrefix}/vendors/manage-vendors`,
+      "Vendor Explorer": `${basePrefix}/vendors/explorer`,
+      "Pending Approvals": `${basePrefix}/vendors/pending-approvals`,
+      "Commission Rates": `${basePrefix}/vendors/commission-rates`,
+      "Vendor Analytics": `${basePrefix}/vendors/vendor-analytics`,
+      "Vendor Registration": `${basePrefix}/vendors/register`,
+      "Vendor Settlements": `${basePrefix}/vendors/settlements`,
     },
-    "/admin/offers": {
-      "Home Sliders": "/admin/offers/home-sliders",
-      "Festival Offers": "/admin/offers/festival-offers",
+    [`${basePrefix}/offers`]: {
+      "Home Sliders": `${basePrefix}/offers/home-sliders`,
+      "Festival Offers": `${basePrefix}/offers/festival-offers`,
     },
-    "/admin/notifications": {
-      "All Notifications": "/admin/notifications",
-      "Push Notifications": "/admin/notifications/push-notifications",
+    [`${basePrefix}/notifications`]: {
+      "All Notifications": `${basePrefix}/notifications`,
+      "Push Notifications": `${basePrefix}/notifications/push-notifications`,
     },
-    "/admin/customer-support": {
-      "Live Chat": "/admin/customer-support/live-chat",
-      "Tickets": "/admin/customer-support/tickets",
+    [`${basePrefix}/customer-support`]: {
+      "Live Chat": `${basePrefix}/customer-support/live-chat`,
+      "Tickets": `${basePrefix}/customer-support/tickets`,
     },
-    "/admin/vendor-support": {
-      "Live Chat": "/admin/vendor-support/live-chat",
-      "Tickets": "/admin/vendor-support/tickets",
+    [`${basePrefix}/vendor-support`]: {
+      "Live Chat": `${basePrefix}/vendor-support/live-chat`,
+      "Tickets": `${basePrefix}/vendor-support/tickets`,
     },
-    "/admin/reports": {
-      "Sales Report": "/admin/reports/sales-report",
-      "Inventory Report": "/admin/reports/inventory-report",
-      "Earnings Report": "/admin/reports/earnings-report",
+    [`${basePrefix}/reports`]: {
+      "Sales Report": `${basePrefix}/reports/sales-report`,
+      "Inventory Report": `${basePrefix}/reports/inventory-report`,
+      "Earnings Report": `${basePrefix}/reports/earnings-report`,
     },
-    "/admin/finance": {
-      "Revenue Overview": "/admin/finance/revenue-overview",
-      "Profit & Loss": "/admin/finance/profit-loss",
-      "Order Trends": "/admin/finance/order-trends",
-      "Payment Breakdown": "/admin/finance/payment-breakdown",
-      "Tax Reports": "/admin/finance/tax-reports",
-      "Refund Reports": "/admin/finance/refund-reports",
+    [`${basePrefix}/finance`]: {
+      "Revenue Overview": `${basePrefix}/finance/revenue-overview`,
+      "Profit & Loss": `${basePrefix}/finance/profit-loss`,
+      "Order Trends": `${basePrefix}/finance/order-trends`,
+      "Payment Breakdown": `${basePrefix}/finance/payment-breakdown`,
+      "Tax Reports": `${basePrefix}/finance/tax-reports`,
+      "Refund Reports": `${basePrefix}/finance/refund-reports`,
     },
-    "/admin/settings": {
-      General: "/admin/settings/general",
-      "Payment & Shipping": "/admin/settings/payment-shipping",
-      "Orders & Customers": "/admin/settings/orders-customers",
-      "Products & Inventory": "/admin/settings/products-inventory",
-      "Content & Features": "/admin/settings/content-features",
-      "Notifications & SEO": "/admin/settings/notifications-seo",
+    [`${basePrefix}/settings`]: {
+      General: `${basePrefix}/settings/general`,
+      "Payment & Shipping": `${basePrefix}/settings/payment-shipping`,
+      "Orders & Customers": `${basePrefix}/settings/orders-customers`,
+      "Products & Inventory": `${basePrefix}/settings/products-inventory`,
+      "Content & Features": `${basePrefix}/settings/content-features`,
+      "Notifications & SEO": `${basePrefix}/settings/notifications-seo`,
     },
-    "/admin/policies": {
-      "Privacy Policy": "/admin/policies/privacy-policy",
-      "Refund Policy": "/admin/policies/refund-policy",
-      "Terms & Conditions": "/admin/policies/terms-conditions",
+    [`${basePrefix}/policies`]: {
+      "Privacy Policy": `${basePrefix}/policies/privacy-policy`,
+      "Refund Policy": `${basePrefix}/policies/refund-policy`,
+      "Terms & Conditions": `${basePrefix}/policies/terms-conditions`,
     },
   };
 
@@ -202,10 +209,12 @@ const AdminSidebar = ({ isOpen, onClose }) => {
       // If not on a child route, check if we should close expanded items
       // Only close if we're navigating to a completely different parent route
       const currentParent = adminMenu.find((item) => {
-        if (item.route === "/admin/dashboard") {
-          return location.pathname === "/admin/dashboard";
+        const basePrefix = getBasePrefix(admin);
+        const dynamicRoute = item.route.replace("/admin", basePrefix);
+        if (dynamicRoute === `${basePrefix}/dashboard`) {
+          return location.pathname === `${basePrefix}/dashboard`;
         }
-        return location.pathname.startsWith(item.route);
+        return location.pathname.startsWith(dynamicRoute);
       });
       // If we're on a parent route without children, close all expanded items
       if (
@@ -220,10 +229,12 @@ const AdminSidebar = ({ isOpen, onClose }) => {
 
   // Check if a menu item is active
   const isActive = (route) => {
-    if (route === "/admin/dashboard") {
-      return location.pathname === "/admin/dashboard";
+    const basePrefix = getBasePrefix(admin);
+    const dynamicRoute = route.replace("/admin", basePrefix);
+    if (dynamicRoute === `${basePrefix}/dashboard`) {
+      return location.pathname === `${basePrefix}/dashboard`;
     }
-    return location.pathname.startsWith(route);
+    return location.pathname.startsWith(dynamicRoute);
   };
 
   // Toggle expanded state for menu items with children
@@ -326,10 +337,12 @@ const AdminSidebar = ({ isOpen, onClose }) => {
               className="overflow-hidden">
               <div className="ml-4 mt-1 pl-4 border-l-2 border-slate-600 space-y-1">
                 {item.children.map((child, index) => {
-                  const childRoute = getChildRoute(item.route, child);
+                  const basePrefix = getBasePrefix(admin);
+                  const dynamicParentRoute = item.route.replace("/admin", basePrefix);
+                  const childRoute = getChildRoute(dynamicParentRoute, child, admin);
                   const isChildActive =
                     location.pathname === childRoute ||
-                    (childRoute !== item.route &&
+                    (childRoute !== dynamicParentRoute &&
                       location.pathname.startsWith(childRoute));
 
                   return (
@@ -398,7 +411,14 @@ const AdminSidebar = ({ isOpen, onClose }) => {
             const itemPerms = Array.isArray(item.permission) ? item.permission : [item.permission];
             return itemPerms.some(p => admin?.permissions?.includes(p));
           })
-          .map((item) => renderMenuItem(item))}
+          .map((item) => {
+            const basePrefix = getBasePrefix(admin);
+            const dynamicItem = {
+              ...item,
+              route: item.route.replace("/admin", basePrefix)
+            };
+            return renderMenuItem(dynamicItem);
+          })}
       </nav>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useAdminAuthStore } from "../store/adminStore";
 import StatsCards from "../components/Analytics/StatsCards";
 import RevenueLineChart from "../components/Analytics/RevenueLineChart";
 import SalesBarChart from "../components/Analytics/SalesBarChart";
@@ -23,8 +24,19 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { admin } = useAdminAuthStore();
   const [period, setPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
+
+  const getBasePrefix = (admin) => {
+    if (!admin) return "/admin";
+    const isPrivileged = admin.role === "superadmin" || admin.role === "admin";
+    if (isPrivileged) return "/admin";
+    const roleSlug = admin.role.toLowerCase().trim().replace(/\s+/g, "-");
+    return `/staff/${roleSlug}`;
+  };
+
+  const basePrefix = getBasePrefix(admin);
 
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -248,7 +260,7 @@ const Dashboard = () => {
         <TopProducts products={topProducts} />
         <RecentOrders
           orders={recentOrders}
-          onViewOrder={(order) => navigate(`/admin/orders/${order._id || order.orderId}`)}
+          onViewOrder={(order) => navigate(`${basePrefix}/orders/${order._id || order.orderId}`)}
         />
       </div>
     </motion.div>

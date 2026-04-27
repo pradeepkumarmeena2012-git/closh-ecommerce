@@ -17,9 +17,19 @@ export const deliveryBoyIdParamSchema = Joi.object({
 
 export const createDeliveryBoySchema = Joi.object({
     name: Joi.string().trim().min(1).max(100).required(),
-    email: Joi.string().trim().email().required(),
-    password: Joi.string().min(6).required(),
-    phone: Joi.string().trim().min(6).max(30).required(),
+    email: Joi.string().trim().email().required().messages({
+        "string.email": "Wrong email format",
+        "any.required": "Email is required"
+    }),
+    password: Joi.string().min(6).required().messages({
+        "string.min": "Password must be at least 6 characters",
+        "any.required": "Password is required"
+    }),
+    phone: Joi.string().trim().min(10).max(15).required().messages({
+        "string.min": "Wrong phone number. Min 10 digits",
+        "string.max": "Wrong phone number. Max 15 digits",
+        "any.required": "Phone number is required"
+    }),
     address: Joi.string().trim().allow('').optional(),
     vehicleType: Joi.string().trim().allow('').optional(),
     vehicleNumber: Joi.string().trim().allow('').optional(),

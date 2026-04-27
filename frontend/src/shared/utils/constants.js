@@ -42,3 +42,13 @@ export const BREAKPOINTS = {
   '2xl': 1536,
 };
 
+
+// Product Sizes
+export const PRODUCT_SIZES = [
+  "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL",
+  "28", "30", "32", "34", "36", "38", "40", "42", "44", "46", "48", "50",
+  "Free Size",
+  "UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11", "UK 12",
+  "US 4", "US 5", "US 6", "US 7", "US 8", "US 9", "US 10", "US 11", "US 12",
+  "EU 36", "EU 37", "EU 38", "EU 39", "EU 40", "EU 41", "EU 42", "EU 43", "EU 44", "EU 45"
+];

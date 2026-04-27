@@ -127,7 +127,10 @@ const ProductsPage = () => {
             category: categoryToFetch,
             subCategory: subCategoryToFetch,
             brand: (selectedBrands.length > 0 ? selectedBrands[0] : undefined),
-            sort: selectedSort === 'New Arrivals' ? 'newest' : (selectedSort === 'Price: Low to High' ? 'price-asc' : (selectedSort === 'Price: High to Low' ? 'price-desc' : 'popular')),
+            sort: selectedSort === 'New Arrivals' ? 'newest' : 
+                  selectedSort === 'Price: Low to High' ? 'price-asc' : 
+                  selectedSort === 'Price: High to Low' ? 'price-desc' : 
+                  selectedSort === 'Discount' ? 'discount' : 'popular',
         });
 
         // Load attribute sets from admin side
@@ -280,8 +283,18 @@ const ProductsPage = () => {
                 result.sort((a, b) => Number(b.price) - Number(a.price));
                 break;
             case 'Discount':
+                result = result.filter(p => {
+                    const getDisc = (s) => {
+                        if (typeof s === 'number') return s;
+                        return parseInt(String(s || '').split('%')[0]) || 0;
+                    };
+                    return getDisc(p.discount) > 0;
+                });
                 result.sort((a, b) => {
-                    const getDisc = (s) => parseInt(s.split('%')[0]) || 0;
+                    const getDisc = (s) => {
+                        if (typeof s === 'number') return s;
+                        return parseInt(String(s || '').split('%')[0]) || 0;
+                    };
                     return getDisc(b.discount) - getDisc(a.discount);
                 });
                 break;
@@ -775,6 +788,18 @@ const ProductsPage = () => {
                                                 <span className={`text-[12px] font-semibold uppercase transition-colors ${selectedFits.includes(fit) ? 'text-gray-900' : 'text-gray-400 group-hover:text-gray-900'}`}>{fit}</span>
                                             </label>
                                         ))}
+                                    </div>
+                                </FilterSection>
+
+                                <FilterSection title="Deals & Offers" id="discount">
+                                    <div className="space-y-3 pt-2">
+                                        <button
+                                            onClick={() => setSelectedSort('Discount')}
+                                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-[11px] font-bold uppercase transition-all ${selectedSort === 'Discount' ? 'bg-black border-black text-white shadow-lg' : 'bg-white border-gray-100 text-gray-500'}`}
+                                        >
+                                            Show Discounted Products
+                                            {selectedSort === 'Discount' && <Check size={14} />}
+                                        </button>
                                     </div>
                                 </FilterSection>
 

@@ -22,6 +22,16 @@ export const useVendorAuthStore = create(
       _hasHydrated: false,
       setHasHydrated: (val) => set({ _hasHydrated: val }),
 
+      _normalizeVendor: (vendor) => {
+        if (!vendor) return null;
+        const id = vendor.id || vendor._id;
+        return {
+          ...vendor,
+          id,
+          _id: id
+        };
+      },
+
       // Vendor login action
       login: async (email, password, rememberMe = false) => {
         set({ isLoading: true });
@@ -30,7 +40,8 @@ export const useVendorAuthStore = create(
             email,
             password,
           });
-          const authData = response?.data || {};
+          const body = response?.data || response || {};
+          const authData = body.data || body;
           const vendor = authData.vendor;
           const accessToken = authData.accessToken;
           const refreshToken = authData.refreshToken;
@@ -39,19 +50,22 @@ export const useVendorAuthStore = create(
             throw new Error("Invalid login response");
           }
 
+          // Normalize vendor object
+          const normalizedVendor = get()._normalizeVendor(vendor);
+
           set({
-            vendor,
+            vendor: normalizedVendor,
             token: accessToken,
             refreshToken,
             isAuthenticated: true,
             isLoading: false,
           });
 
-          // Store token for vendor API requests
+          // Store tokens for vendor API requests
           localStorage.setItem("vendor-token", accessToken);
           localStorage.setItem("vendor-refresh-token", refreshToken);
 
-          return { success: true, vendor };
+          return { success: true, vendor: normalizedVendor };
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -144,12 +158,12 @@ export const useVendorAuthStore = create(
         set({ isLoading: true });
         try {
           const response = await updateVendorProfile(profileData);
-          const data = response?.data ?? response;
+          const body = response?.data || response || {};
+          const data = body.data || body;
+          
           // Merge returned vendor data back into state so UI stays in sync
-          const updatedVendor =
-            data && (data._id || data.id)
-              ? data
-              : (data?.vendor ?? { ...get().vendor, ...profileData });
+          const rawVendor = data && (data._id || data.id) ? data : (data?.vendor || profileData);
+          const updatedVendor = get()._normalizeVendor({ ...get().vendor, ...rawVendor });
 
           set({
             vendor: updatedVendor,
@@ -185,8 +199,12 @@ export const useVendorAuthStore = create(
             latitude,
             longitude,
           });
-          const data = response?.data ?? response;
-          const updatedVendor = data && data.id ? data : (data?.vendor || get().vendor);
+          const body = response?.data || response || {};
+          const data = body.data || body;
+          
+          const rawVendor = data && (data._id || data.id) ? data : (data?.vendor || get().vendor);
+          const updatedVendor = get()._normalizeVendor({ ...get().vendor, ...rawVendor });
+          
           set({
             vendor: updatedVendor,
             isLoading: false,
@@ -202,14 +220,22 @@ export const useVendorAuthStore = create(
         try {
           const { updateVendorOnlineStatus } = await import("../services/vendorService");
           const response = await updateVendorOnlineStatus(isOnline);
-          const data = response?.data ?? response;
-          // Result might be in data.data or just data depending on ApiResponse structure
-          const updatedVendor = data?.data || data;
+          const body = response?.data || response || {};
+          const data = body.data || body;
+          
+          // data should be the vendor object or have an isOnline property
+          const nextOnlineStatus = typeof data?.isOnline === 'boolean' ? data.isOnline : isOnline;
+          
+          const updatedVendor = get()._normalizeVendor({ 
+            ...get().vendor, 
+            isOnline: nextOnlineStatus 
+          });
+          
           set({
-            vendor: { ...get().vendor, isOnline: updatedVendor.isOnline },
+            vendor: updatedVendor,
             isLoading: false,
           });
-          return { success: true, isOnline: updatedVendor.isOnline };
+          return { success: true, isOnline: nextOnlineStatus };
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -243,8 +269,10 @@ export const useVendorAuthStore = create(
           const refreshToken = localStorage.getItem("vendor-refresh-token");
 
           if (persistedVendor) {
+            const normalizedVendor = get()._normalizeVendor(persistedVendor);
+            
             set({
-              vendor: persistedVendor,
+              vendor: normalizedVendor,
               token,
               refreshToken: refreshToken || null,
               isAuthenticated: true,

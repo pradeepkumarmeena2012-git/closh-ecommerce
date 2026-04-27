@@ -272,6 +272,70 @@ const GeneralSettings = () => {
                     ]}
                   />
                 </div>
+
+                <div className="md:col-span-2 border-t border-gray-100 pt-6">
+                  <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Customer Support Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Customer Support Email
+                      </label>
+                      <input
+                        type="email"
+                        name="customerSupportEmail"
+                        value={formData.customerSupportEmail || ""}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="support@clouse.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Customer Support Phone
+                      </label>
+                      <input
+                        type="tel"
+                        name="customerSupportPhone"
+                        value={formData.customerSupportPhone || ""}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="+91 (800) 111-2222"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 border-t border-gray-100 pt-6">
+                  <h3 className="text-sm font-bold text-gray-800 mb-4 uppercase tracking-wider">Vendor Support Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Vendor Support Email
+                      </label>
+                      <input
+                        type="email"
+                        name="vendorSupportEmail"
+                        value={formData.vendorSupportEmail || ""}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="vendorsupport@clouse.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Vendor Support Phone
+                      </label>
+                      <input
+                        type="tel"
+                        name="vendorSupportPhone"
+                        value={formData.vendorSupportPhone || ""}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="+91 (800) 123-4567"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="border-t border-gray-200 pt-6">

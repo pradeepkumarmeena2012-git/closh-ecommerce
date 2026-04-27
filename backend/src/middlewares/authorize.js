@@ -43,7 +43,7 @@ export const checkPermission = (permission) => async (req, res, next) => {
         if (!req.user) return next(new ApiError(401, 'Authentication required.'));
 
         // Only Superadmin bypasses all permission checks
-        if (req.user.role === 'superadmin') return next();
+        if (req.user.role && String(req.user.role).toLowerCase() === 'superadmin') return next();
 
         const admin = await Admin.findById(req.user.id).select('permissions role isActive').lean();
         if (!admin || !admin.isActive) return next(new ApiError(403, 'Account inactive or not found.'));

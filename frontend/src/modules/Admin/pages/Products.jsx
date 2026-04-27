@@ -49,7 +49,7 @@ const Products = () => {
       className="space-y-5 sm:space-y-6"
     >
       {/* Header */}
-      <div className="px-1">
+      <div className="px-1 lg:hidden">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1.5">
           Products
         </h1>

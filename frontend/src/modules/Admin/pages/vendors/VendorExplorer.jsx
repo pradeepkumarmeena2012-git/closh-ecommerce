@@ -318,7 +318,7 @@ const VendorExplorer = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
         >
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 lg:hidden">
                 <h1 className="text-3xl font-bold text-gray-900 ">Vendor Management</h1>
                 <p className="text-gray-500 font-medium text-sm">Explore and manage products by vendor.</p>
             </div>

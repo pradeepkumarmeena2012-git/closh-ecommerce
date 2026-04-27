@@ -12,13 +12,20 @@ export const loginOtpSchema = Joi.object({
 });
 
 export const registerOtpSchema = Joi.object({
-    phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+    phone: Joi.string().pattern(/^[0-9]{10}$/).required().messages({
+        'string.pattern.base': 'Invalid phone number.',
+    }),
     name: Joi.string().trim().min(2).max(50).required(),
-    email: Joi.string().email().lowercase().required(),
+    email: Joi.string().email().lowercase().required().messages({
+        'string.email': 'Invalid email address.',
+    }),
 });
 
 export const checkPhoneSchema = Joi.object({
-    phone: Joi.string().pattern(/^[0-9]{10}$/).required(),
+    phone: Joi.string().pattern(/^[0-9]{10}$/).required().messages({
+        'string.pattern.base': 'Invalid phone number. Must be 10 digits.',
+        'any.required': 'Phone number is required.'
+    }),
 });
 
 export const loginSchema = Joi.object({

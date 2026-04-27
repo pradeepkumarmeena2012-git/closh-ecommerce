@@ -54,7 +54,7 @@ const VendorHeader = () => {
     return (
         <div className="space-y-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
+                <div className="lg:hidden">
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
                         Vendor Management
                     </h1>

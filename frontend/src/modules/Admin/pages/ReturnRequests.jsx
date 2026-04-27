@@ -143,9 +143,9 @@ const ReturnRequests = () => {
       label: 'Customer',
       sortable: true,
       render: (value) => (
-        <div>
-          <p className="font-medium text-gray-800">{value.name}</p>
-          <p className="text-xs text-gray-500">{value.email}</p>
+        <div className="max-w-[180px]">
+          <p className="font-medium text-gray-800 truncate" title={value.name}>{value.name}</p>
+          <p className="text-xs text-gray-500 truncate" title={value.email}>{value.email}</p>
         </div>
       ),
     },
@@ -169,7 +169,7 @@ const ReturnRequests = () => {
       label: 'Reason',
       sortable: true,
       render: (value) => (
-        <span className="text-sm text-gray-700">{value}</span>
+        <span className="text-sm text-gray-700 line-clamp-1 max-w-[150px]" title={value}>{value}</span>
       ),
     },
     {

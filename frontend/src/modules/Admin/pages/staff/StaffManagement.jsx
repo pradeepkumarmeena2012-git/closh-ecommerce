@@ -294,7 +294,7 @@ const StaffManagement = () => {
         <div className="p-6 max-w-7xl mx-auto space-y-6">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
+                <div className="lg:hidden">
                     <h1 className="text-2xl font-bold text-gray-800">Staff Management</h1>
                     <p className="text-sm text-gray-500 mt-1">Manage employee access levels and platform security protocols.</p>
                 </div>

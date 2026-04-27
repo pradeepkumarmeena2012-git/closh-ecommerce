@@ -742,6 +742,7 @@ const ProductDetailsPage = () => {
             <SizeChartModal
                 isOpen={isSizeChartOpen}
                 onClose={() => setIsSizeChartOpen(false)}
+                product={product}
             />
 
             {/* Added to Cart Success Popup */}
@@ -769,17 +770,72 @@ const ProductDetailsPage = () => {
     );
 };
 
-const SizeChartModal = ({ isOpen, onClose }) => {
+const SizeChartModal = ({ isOpen, onClose, product }) => {
     if (!isOpen) return null;
 
-    const sizeData = [
-        { size: 'XS', chest: '37', length: '24.5', shoulder: '16.5', sleeves: '24' },
-        { size: 'S', chest: '39', length: '25', shoulder: '17', sleeves: '24.5' },
-        { size: 'M', chest: '41', length: '26', shoulder: '17.5', sleeves: '24.5' },
-        { size: 'L', chest: '43', length: '26.5', shoulder: '18', sleeves: '25' },
-        { size: 'XL', chest: '44', length: '27', shoulder: '18.5', sleeves: '25' },
-        { size: 'XXL', chest: '46', length: '27.5', shoulder: '19.5', sleeves: '25.5' },
-    ];
+    const getChartData = () => {
+        const category = (product?.category || '').toLowerCase();
+        const division = (product?.division || '').toLowerCase();
+
+        // Size Chart Definitions
+        const charts = {
+            tops: {
+                men: [
+                    { size: 'S', chest: '38', length: '27', shoulder: '17', sleeves: '24' },
+                    { size: 'M', chest: '40', length: '28', shoulder: '18', sleeves: '24.5' },
+                    { size: 'L', chest: '42', length: '29', shoulder: '19', sleeves: '25' },
+                    { size: 'XL', chest: '44', length: '30', shoulder: '20', sleeves: '25.5' },
+                    { size: 'XXL', chest: '46', length: '31', shoulder: '21', sleeves: '26' },
+                ],
+                women: [
+                    { size: 'XS', bust: '32', length: '22', shoulder: '14', sleeves: '22' },
+                    { size: 'S', bust: '34', length: '23', shoulder: '15', sleeves: '22.5' },
+                    { size: 'M', bust: '36', length: '24', shoulder: '16', sleeves: '23' },
+                    { size: 'L', bust: '38', length: '25', shoulder: '17', sleeves: '23.5' },
+                    { size: 'XL', bust: '40', length: '26', shoulder: '18', sleeves: '24' },
+                ]
+            },
+            bottoms: {
+                men: [
+                    { size: '30', waist: '30', length: '40', hip: '38' },
+                    { size: '32', waist: '32', length: '41', hip: '40' },
+                    { size: '34', waist: '34', length: '41', hip: '42' },
+                    { size: '36', waist: '36', length: '42', hip: '44' },
+                    { size: '38', waist: '38', length: '42', hip: '46' },
+                ],
+                women: [
+                    { size: '26', waist: '26', length: '38', hip: '36' },
+                    { size: '28', waist: '28', length: '39', hip: '38' },
+                    { size: '30', waist: '30', length: '39', hip: '40' },
+                    { size: '32', waist: '32', length: '40', hip: '42' },
+                    { size: '34', waist: '34', length: '40', hip: '44' },
+                ]
+            },
+            footwear: {
+                unisex: [
+                    { size: 'UK 6', us: '7', eu: '40', cm: '25' },
+                    { size: 'UK 7', us: '8', eu: '41', cm: '26' },
+                    { size: 'UK 8', us: '9', eu: '42', cm: '27' },
+                    { size: 'UK 9', us: '10', eu: '43', cm: '28' },
+                    { size: 'UK 10', us: '11', eu: '44', cm: '29' },
+                ]
+            }
+        };
+
+        // Matching Logic
+        const isBottom = /pant|pent|jeans|trouser|short|skirt|legging|pajama|jogger|bottom|lower|cargo|track|bagi/i.test(category + ' ' + (product?.name || ''));
+        const isFootwear = /shoe|footwear|sandal|sneaker|flip flop|boot|heel|slipper/i.test(category + ' ' + (product?.name || ''));
+        const isWomen = /women|girl|female/i.test(division + ' ' + category);
+
+        if (isFootwear) return charts.footwear.unisex;
+        if (isBottom) return isWomen ? charts.bottoms.women : charts.bottoms.men;
+        
+        // Default to Tops
+        return isWomen ? charts.tops.women : charts.tops.men;
+    };
+
+    const sizeData = getChartData();
+    const headers = Object.keys(sizeData[0] || {}).map(k => k.charAt(0).toUpperCase() + k.slice(1));
 
     return createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-[5px] animate-fadeIn">
@@ -788,7 +844,9 @@ const SizeChartModal = ({ isOpen, onClose }) => {
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
                     <div>
                         <h2 className="text-lg font-bold uppercase  text-gray-900">Size Guide</h2>
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase ">Measurements in inches</p>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase ">
+                            {product?.division} {product?.category} • Measurements in inches
+                        </p>
                     </div>
                     <button
                         onClick={onClose}
@@ -804,21 +862,21 @@ const SizeChartModal = ({ isOpen, onClose }) => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-gray-50">
-                                    <th className="px-4 py-3 text-[10px] font-bold uppercase  text-black border-b border-gray-200 italic">Size</th>
-                                    <th className="px-4 py-3 text-[10px] font-bold uppercase  text-gray-500 border-b border-gray-200">Chest</th>
-                                    <th className="px-4 py-3 text-[10px] font-bold uppercase  text-gray-500 border-b border-gray-200">Length</th>
-                                    <th className="px-4 py-3 text-[10px] font-bold uppercase  text-gray-500 border-b border-gray-200">Shoulder</th>
-                                    <th className="px-4 py-3 text-[10px] font-bold uppercase  text-gray-500 border-b border-gray-200">Sleeves</th>
+                                    {headers.map((header, idx) => (
+                                        <th key={header} className={`px-4 py-3 text-[10px] font-bold uppercase border-b border-gray-200 ${idx === 0 ? 'text-black italic' : 'text-gray-500'}`}>
+                                            {header}
+                                        </th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/10">
-                                {sizeData.map((row) => (
-                                    <tr key={row.size} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-4 py-4 text-[12px] font-bold text-gray-900 italic bg-gray-50">{row.size}</td>
-                                        <td className="px-4 py-4 text-[13px] font-bold text-gray-600">{row.chest}</td>
-                                        <td className="px-4 py-4 text-[13px] font-bold text-gray-600">{row.length}</td>
-                                        <td className="px-4 py-4 text-[13px] font-bold text-gray-600">{row.shoulder}</td>
-                                        <td className="px-4 py-4 text-[13px] font-bold text-gray-600">{row.sleeves}</td>
+                                {sizeData.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                        {Object.values(row).map((val, vIdx) => (
+                                            <td key={vIdx} className={`px-4 py-4 text-[13px] font-bold ${vIdx === 0 ? 'text-gray-900 italic bg-gray-50' : 'text-gray-600'}`}>
+                                                {val}
+                                            </td>
+                                        ))}
                                     </tr>
                                 ))}
                             </tbody>

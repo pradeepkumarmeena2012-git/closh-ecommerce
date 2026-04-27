@@ -61,14 +61,35 @@ const ROUTE_PERMISSION_MAP = [
   { prefix: '/admin/more', permission: null },
 ];
 
+const normalizePath = (pathname) => {
+  if (pathname.startsWith('/staff/')) {
+    // Replace /staff/[role]/ with /admin/
+    const parts = pathname.split('/');
+    if (parts.length >= 3) {
+      return '/admin/' + parts.slice(3).join('/');
+    }
+    return '/admin/dashboard';
+  }
+  return pathname;
+};
+
+const getBasePrefix = (admin) => {
+  if (!admin) return '/admin';
+  const isPrivileged = admin.role === 'superadmin' || admin.role === 'admin';
+  if (isPrivileged) return '/admin';
+  const roleSlug = admin.role.toLowerCase().trim().replace(/\s+/g, '-');
+  return `/staff/${roleSlug}`;
+};
+
 /**
  * Find the required permission for a given pathname.
  * Returns the permission string, null (meaning no specific permission needed),
  * or undefined (no mapping found — allow by default).
  */
 const getRequiredPermission = (pathname) => {
+  const normalizedPath = normalizePath(pathname);
   const match = ROUTE_PERMISSION_MAP.find((entry) =>
-    pathname.startsWith(entry.prefix)
+    normalizedPath.startsWith(entry.prefix)
   );
   return match ? match.permission : undefined;
 };
@@ -79,22 +100,17 @@ const getRequiredPermission = (pathname) => {
  */
 const getFirstAccessibleRoute = (admin) => {
   if (!admin) return '/admin/dashboard';
+  const basePrefix = getBasePrefix(admin);
   const isPrivileged = admin.role === 'superadmin' || admin.role === 'admin';
   if (isPrivileged) return '/admin/dashboard';
 
   for (const item of adminMenu) {
     if (!item.permission || admin.permissions?.includes(item.permission)) {
-      // If the item has children, navigate to the first child's route if possible
-      if (item.children && item.children.length > 0) {
-        // This is a bit complex as we need to map child names to routes
-        // For simplicity, we navigate to the parent; App.jsx redirects will handle it
-        // BUT we must ensure the parent route has an element or a redirect in App.jsx
-        return item.route;
-      }
-      return item.route;
+      const route = item.route.replace('/admin', basePrefix);
+      return route;
     }
   }
-  return '/admin/more'; // Fallback to 'more' page if nothing else is accessible
+  return `${basePrefix}/more`; // Fallback to 'more' page if nothing else is accessible
 };
 
 /**

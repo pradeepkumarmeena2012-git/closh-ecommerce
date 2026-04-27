@@ -94,6 +94,7 @@ router.post('/support/help-request', ...vendorAuth, supportController.submitHelp
 router.get('/support/tickets', ...vendorAuth, supportController.getVendorTickets);
 router.get('/support/tickets/:id', ...vendorAuth, supportController.getVendorTicketById);
 router.post('/support/tickets/:id/messages', ...vendorAuth, supportController.addVendorTicketMessage);
+router.get('/support/ticket-types', ...vendorAuth, supportController.getTicketTypes);
 
 // Notifications
 router.get('/notifications', ...vendorAuth, notificationController.getVendorNotifications);

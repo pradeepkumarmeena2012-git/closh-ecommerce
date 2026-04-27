@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { FiSave, FiX, FiUpload } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,6 +14,8 @@ import {
 } from "../services/adminService";
 import CategorySelector from "./CategorySelector";
 import AnimatedSelect from "./AnimatedSelect";
+import MultiSelect from "./MultiSelect";
+import { PRODUCT_SIZES } from "../../../shared/utils/constants";
 import toast from "react-hot-toast";
 import Button from "./Button";
 import { formatPrice } from "../../../shared/utils/helpers";
@@ -30,7 +32,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
   const [isUploadingMainImage, setIsUploadingMainImage] = useState(false);
   const [isUploadingGallery, setIsUploadingGallery] = useState(false);
   const [variantAxisInput, setVariantAxisInput] = useState({
-    sizes: "",
     colors: "",
   });
   const [tagInput, setTagInput] = useState("");
@@ -248,21 +249,28 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     }));
   };
 
-  const [marginPercent, setMarginPercent] = useState(0);
+  const [marginInput, setMarginInput] = useState("0");
+  const marginInputRef = useRef(null);
 
   useEffect(() => {
-    if (formData.price && formData.vendorPrice) {
-      const price = parseFloat(formData.price) || 0;
-      const cost = parseFloat(formData.vendorPrice) || 0;
-      if (cost > 0) {
-        setMarginPercent(((price - cost) / cost) * 100);
+    // Sync margin input with price changes, but only if not currently typing in it
+    if (document.activeElement !== marginInputRef.current) {
+      if (formData.price && formData.vendorPrice) {
+        const price = parseFloat(formData.price) || 0;
+        const cost = parseFloat(formData.vendorPrice) || 0;
+        if (cost > 0) {
+          const calculated = ((price - cost) / cost) * 100;
+          setMarginInput(calculated.toFixed(2));
+        }
       }
     }
   }, [formData.vendorPrice, formData.price]);
 
   const handleMarginChange = (e) => {
-    const margin = parseFloat(e.target.value) || 0;
-    setMarginPercent(margin);
+    const val = e.target.value;
+    setMarginInput(val);
+    
+    const margin = parseFloat(val) || 0;
     const cost = parseFloat(formData.vendorPrice) || 0;
     if (cost > 0) {
       const newPrice = cost + (cost * margin) / 100;
@@ -1162,8 +1170,9 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                         </label>
                         <div className="relative">
                           <input
+                            ref={marginInputRef}
                             type="number"
-                            value={marginPercent.toFixed(2)}
+                            value={marginInput}
                             onChange={handleMarginChange}
                             step="0.1"
                             className="w-full pl-3 pr-8 py-2 text-sm border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white font-bold text-purple-900 no-spinner"
@@ -1505,44 +1514,14 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                           Sizes
                         </label>
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap gap-2">
-                            {(formData.variants?.sizes || []).map((size) => (
-                              <span
-                                key={size}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs border border-blue-200"
-                              >
-                                {size}
-                                <button
-                                  type="button"
-                                  onClick={() => removeVariantAxisValue("sizes", size)}
-                                  className="text-blue-700 hover:text-blue-900"
-                                >
-                                  <FiX className="w-3 h-3" />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={variantAxisInput.sizes}
-                              onChange={(e) =>
-                                setVariantAxisInput((prev) => ({ ...prev, sizes: e.target.value }))
-                              }
-                              onKeyDown={(e) => handleVariantAxisInputKeyDown("sizes", e)}
-                              onBlur={() => addVariantAxisValues("sizes", variantAxisInput.sizes)}
-                              placeholder="Type size and press Enter (e.g. S, M, L)"
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => addVariantAxisValues("sizes", variantAxisInput.sizes)}
-                              className="px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg hover:bg-white hover:text-black"
-                            >
-                              Add
-                            </button>
-                          </div>
+                        <div className="mt-2">
+                          <MultiSelect
+                            value={formData.variants?.sizes || []}
+                            onChange={(e) => updateVariantAxes('sizes', e.target.value.join(', '))}
+                            options={PRODUCT_SIZES}
+                            placeholder="Select or search sizes..."
+                            searchable={true}
+                          />
                         </div>
                       </div>
 

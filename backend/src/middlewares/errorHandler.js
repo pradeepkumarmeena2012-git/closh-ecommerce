@@ -23,7 +23,7 @@ const errorHandler = (err, req, res, next) => {
             field: e.path,
             message: e.message,
         }));
-        error = new ApiError(400, 'Validation failed', errors);
+        error = new ApiError(400, errors[0]?.message || 'Validation failed', errors);
     }
 
     // Mongoose cast error (invalid ObjectId)

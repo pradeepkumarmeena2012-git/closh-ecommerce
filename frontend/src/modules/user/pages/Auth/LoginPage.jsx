@@ -4,6 +4,7 @@ import { useAuthStore } from '../../../../shared/store/authStore';
 import { Phone, ArrowRight, ShieldCheck, ChevronLeft, Timer, X, User as UserIcon, Mail } from 'lucide-react';
 import { isValidEmail } from '../../../../shared/utils/helpers';
 import PolicyModal from '../../../../shared/components/PolicyModal';
+import logo from '../../../../assets/animations/lottie/logo-removebg.png';
 
 const LoginPage = () => {
     const [step, setStep] = useState(1); // 1: Mobile, 2: Name/Email (New User), 3: OTP
@@ -65,8 +66,7 @@ const LoginPage = () => {
                 setStep(2); // Ask for details
             }
         } catch (err) {
-            let message = err.response?.data?.message || err.message || 'Verification failed.';
-            if (message === 'Validation failed') message = 'Wrong Email Address';
+            const message = err.response?.data?.message || err.message || 'Verification failed.';
             setError(message);
         } finally {
             setIsLoading(false);
@@ -93,8 +93,7 @@ const LoginPage = () => {
             setStep(3);
             setResendTimer(30);
         } catch (err) {
-            let message = err.response?.data?.message || err.message || 'Registration failed.';
-            if (message === 'Validation failed') message = 'Wrong Email Address';
+            const message = err.response?.data?.message || err.message || 'Registration failed.';
             setError(message);
         } finally {
             setIsLoading(false);
@@ -172,8 +171,8 @@ const LoginPage = () => {
                 )}
 
                 <div className="text-center mb-10">
-                    <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl transform -rotate-3 group-hover:rotate-0 transition-transform">
-                        <Phone className="text-[#ffcc00]" size={28} />
+                    <div className="w-20 h-20 bg-white border border-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl transform -rotate-3 hover:rotate-0 transition-all p-3">
+                        <img src={logo} alt="CLOSH" className="w-full h-full object-contain" />
                     </div>
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">
                         {step === 1 ? 'Login / Signup' : step === 2 ? 'Welcome to Closh' : 'Verify OTP'}

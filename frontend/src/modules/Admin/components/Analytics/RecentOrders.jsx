@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { FiEye } from 'react-icons/fi';
 import { formatCurrency, formatDateTime, getStatusColor } from '../../utils/adminHelpers';
 import Badge from '../../../../shared/components/Badge';
-import { FiEye } from 'react-icons/fi';
-import { motion } from 'framer-motion';
 import Pagination from '../Pagination';
 
 const RecentOrders = ({ orders, onViewOrder }) => {
@@ -33,11 +33,12 @@ const RecentOrders = ({ orders, onViewOrder }) => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="flex items-center justify-between p-4 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={() => onViewOrder(order)}
+              className="flex items-center justify-between p-4 bg-white rounded-lg hover:bg-gray-100 hover:scale-[1.01] cursor-pointer transition-all group"
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-2">
-                  <h4 className="font-semibold text-gray-800 truncate">{orderId}</h4>
+                  <h4 className="font-semibold text-gray-800 truncate group-hover:text-primary-600 transition-colors">{orderId}</h4>
                   <Badge variant={order.status}>{order.status}</Badge>
                 </div>
                 <p className="text-sm text-gray-600 truncate">{customerName}</p>

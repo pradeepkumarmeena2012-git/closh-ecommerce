@@ -269,7 +269,7 @@ const VendorDetail = () => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+      <div className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-gray-200 lg:hidden">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}

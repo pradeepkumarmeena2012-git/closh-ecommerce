@@ -31,10 +31,19 @@ export const LocationProvider = ({ children }) => {
         data: null
     });
 
+    const [guestAddress, setGuestAddress] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('clouse-guest-address'));
+        } catch (e) {
+            return null;
+        }
+    });
+
     const activeAddress = useMemo(() => {
+        if (guestAddress) return guestAddress;
         if (!addresses || addresses.length === 0) return null;
         return addresses.find(a => a.isDefault) || addresses[0] || null;
-    }, [addresses]);
+    }, [addresses, guestAddress]);
 
     useEffect(() => {
         if (!activeAddress) return;
@@ -82,10 +91,15 @@ export const LocationProvider = ({ children }) => {
     }, [activeAddress]);
 
     const updateActiveAddress = useCallback((address) => {
-        if (address?.id || address?._id) {
+        if (isAuthenticated && (address?.id || address?._id)) {
+            setGuestAddress(null);
+            localStorage.removeItem('clouse-guest-address');
             storeSetDefaultAddress(address.id || address._id).catch(() => { });
+        } else {
+            setGuestAddress(address);
+            localStorage.setItem('clouse-guest-address', JSON.stringify(address));
         }
-    }, [storeSetDefaultAddress]);
+    }, [storeSetDefaultAddress, isAuthenticated]);
 
     const refreshAddresses = useCallback(() => {
         storeFetchAddresses().catch(() => { });

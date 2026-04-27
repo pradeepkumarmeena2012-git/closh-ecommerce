@@ -99,7 +99,7 @@ const ServiceAreas = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex  items-center justify-between">
+      <div className="flex items-center justify-between lg:hidden">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Service Areas</h1>
           <p className="text-gray-600 text-sm mt-1">Manage delivery zones and serviceability</p>

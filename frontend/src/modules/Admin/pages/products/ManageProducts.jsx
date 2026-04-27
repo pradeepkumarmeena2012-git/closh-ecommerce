@@ -300,7 +300,7 @@ const ManageProducts = () => {
     >
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+        <div className="lg:hidden">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1">
             Product Management
           </h1>

@@ -21,11 +21,13 @@ export const useWithdrawStore = create((set) => ({
     updateRequestStatus: async (id, status, data = {}) => {
         set({ isLoading: true });
         try {
-            await api.patch(`/admin/withdrawals/${id}/status`, { status, ...data });
+            const response = await api.patch(`/admin/withdrawals/${id}/status`, { status, ...data });
+            const updatedRequest = response?.data?.data || response?.data || response;
+            
             toast.success(`Withdrawal ${status} successfully.`);
             set((state) => ({
                 requests: state.requests.map((r) => 
-                    r._id === id ? { ...r, status, processedAt: new Date(), ...data } : r
+                    r._id === id ? { ...r, ...updatedRequest } : r
                 ),
                 isLoading: false
             }));

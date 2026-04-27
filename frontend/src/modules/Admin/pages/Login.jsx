@@ -14,14 +14,24 @@ const AdminLogin = () => {
 
   const getRedirectPath = (adminData) => {
     if (!adminData) return '/admin/dashboard';
-    if (adminData.role === 'superadmin') return '/admin/dashboard';
-    if (adminData.permissions?.includes('dashboard_view')) return '/admin/dashboard';
+    const isPrivileged = adminData.role === 'superadmin' || adminData.role === 'admin';
+    
+    let basePrefix = '/admin';
+    if (!isPrivileged) {
+      const roleSlug = adminData.role.toLowerCase().trim().replace(/\s+/g, '-');
+      basePrefix = `/staff/${roleSlug}`;
+    }
+
+    if (isPrivileged || adminData.permissions?.includes('dashboard_view')) {
+      return `${basePrefix}/dashboard`;
+    }
+
     for (const item of adminMenu) {
       if (!item.permission || adminData.permissions?.includes(item.permission)) {
-        return item.route;
+        return item.route.replace('/admin', basePrefix);
       }
     }
-    return '/admin/dashboard';
+    return `${basePrefix}/dashboard`;
   };
 
   useEffect(() => {

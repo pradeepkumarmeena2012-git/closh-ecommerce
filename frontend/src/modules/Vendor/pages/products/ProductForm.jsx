@@ -10,6 +10,8 @@ import { uploadVendorImage, uploadVendorImages } from "../../services/vendorServ
 import CategorySelector from "../../../Admin/components/CategorySelector";
 import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import toast from "react-hot-toast";
+import MultiSelect from "../../../Admin/components/MultiSelect";
+import { PRODUCT_SIZES } from "../../../../shared/utils/constants";
 import {
   parseVariantAxis,
   buildVariantCombinations,
@@ -58,7 +60,7 @@ const ProductForm = () => {
     cancelable: true,
     taxIncluded: false,
     description: "",
-    discount: 0,
+    discount: "",
     tags: [],
     variants: {
       sizes: [],
@@ -78,7 +80,6 @@ const ProductForm = () => {
   });
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [variantAxisInput, setVariantAxisInput] = useState({
-    sizes: "",
     colors: "",
   });
   const [tagInput, setTagInput] = useState("");
@@ -765,7 +766,7 @@ const ProductForm = () => {
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Discount Percentage (%)
+                Discount
               </label>
               <input
                 type="number"
@@ -775,7 +776,7 @@ const ProductForm = () => {
                 min="0"
                 max="100"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                placeholder="0"
+                placeholder="number"
               />
             </div>
           </div>
@@ -943,6 +944,90 @@ const ProductForm = () => {
           </div>
         </div>
 
+        {/* Additional Information */}
+        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100">
+          <h2 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
+            Additional Information
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 ml-1">
+                Total Allowed Quantity
+              </label>
+              <input
+                type="number"
+                name="totalAllowedQuantity"
+                value={formData.totalAllowedQuantity}
+                onChange={handleChange}
+                min="0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="Limit per user"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 ml-1">
+                Minimum Order Quantity
+              </label>
+              <input
+                type="number"
+                name="minimumOrderQuantity"
+                value={formData.minimumOrderQuantity}
+                onChange={handleChange}
+                min="1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="1"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 ml-1">
+                HSN Code
+              </label>
+              <input
+                type="text"
+                name="hsnCode"
+                value={formData.hsnCode}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  handleChange({ target: { name: "hsnCode", value: val } });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="Enter HSN Code"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 ml-1">
+                Warranty Period
+              </label>
+              <input
+                type="text"
+                name="warrantyPeriod"
+                value={formData.warrantyPeriod}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="e.g. 1 Year"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 ml-1">
+                Guarantee Period
+              </label>
+              <input
+                type="text"
+                name="guaranteePeriod"
+                value={formData.guaranteePeriod}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="e.g. 6 Months"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Product Variants */}
         <div>
           <h2 className="text-base font-bold text-gray-800 mb-2">
@@ -953,44 +1038,14 @@ const ProductForm = () => {
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Sizes
               </label>
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  {(formData.variants?.sizes || []).map((size) => (
-                    <span
-                      key={size}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs border border-blue-200"
-                    >
-                      {size}
-                      <button
-                        type="button"
-                        onClick={() => removeVariantAxisValue("sizes", size)}
-                        className="text-blue-700 hover:text-blue-900"
-                      >
-                        <FiX className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={variantAxisInput.sizes}
-                    onChange={(e) =>
-                      setVariantAxisInput((prev) => ({ ...prev, sizes: e.target.value }))
-                    }
-                    onKeyDown={(e) => handleVariantAxisInputKeyDown("sizes", e)}
-                    onBlur={() => addVariantAxisValues("sizes", variantAxisInput.sizes)}
-                    placeholder="Type size and press Enter (e.g. S, M, L)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => addVariantAxisValues("sizes", variantAxisInput.sizes)}
-                    className="px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg hover:bg-white hover:text-black"
-                  >
-                    Add
-                  </button>
-                </div>
+              <div className="mt-2">
+                <MultiSelect
+                  value={formData.variants?.sizes || []}
+                  onChange={(e) => updateVariantAxes('sizes', e.target.value.join(', '))}
+                  options={PRODUCT_SIZES}
+                  placeholder="Select or search sizes..."
+                  searchable={true}
+                />
               </div>
             </div>
 

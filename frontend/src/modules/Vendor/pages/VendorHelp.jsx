@@ -3,14 +3,20 @@ import { FiMessageSquare, FiSend, FiMail, FiPhoneCall, FiClock, FiPlus, FiX } fr
 import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
 import socketService from '../../../shared/utils/socket';
+import { useSettingsStore } from '../../../shared/store/settingsStore';
 
 const VendorHelp = () => {
+    const { settings, initializePublic } = useSettingsStore();
     const [tickets, setTickets] = useState([]);
+    const [ticketTypes, setTicketTypes] = useState([]);
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const messagesEndRef = useRef(null);
+
+    const vendorEmail = settings?.general?.vendorSupportEmail || "vendorsupport@clouse.com";
+    const vendorPhone = settings?.general?.vendorSupportPhone || "+91 (800) 123-4567";
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -18,13 +24,18 @@ const VendorHelp = () => {
 
     const [formData, setFormData] = useState({
         subject: '',
-        message: ''
+        message: '',
+        categoryId: '',
+        priority: 'medium',
+        status: 'open'
     });
     const [replyMessage, setReplyMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
+        initializePublic();
         fetchTickets();
+        fetchTicketTypes();
     }, []);
 
     // Scroll to bottom when messages change
@@ -92,6 +103,15 @@ const VendorHelp = () => {
         };
     }, [selectedTicket?._id]);
 
+    const fetchTicketTypes = async () => {
+        try {
+            const response = await api.get('/vendor/support/ticket-types');
+            setTicketTypes(response.data || []);
+        } catch (error) {
+            console.error('Failed to fetch ticket types:', error);
+        }
+    };
+
     const fetchTickets = async () => {
         setIsLoading(true);
         try {
@@ -117,11 +137,13 @@ const VendorHelp = () => {
         try {
             const response = await api.post('/vendor/support/help-request', {
                 subject: formData.subject,
-                message: formData.message
+                message: formData.message,
+                categoryId: formData.categoryId,
+                priority: formData.priority
             });
 
             toast.success('Help request submitted successfully!');
-            setFormData({ subject: '', message: '' });
+            setFormData({ subject: '', message: '', categoryId: '', priority: 'medium', status: 'open' });
             setIsCreating(false);
 
             // Refresh tickets and select the new one
@@ -241,19 +263,67 @@ const VendorHelp = () => {
                             </div>
 
                             <form onSubmit={handleCreateSubmit} className="space-y-6">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Subject / Topic
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="subject"
-                                        value={formData.subject}
-                                        onChange={handleChange}
-                                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800 transition-colors"
-                                        placeholder="e.g. Issue with payout"
-                                        required
-                                    />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Subject / Topic
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="subject"
+                                            value={formData.subject}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800 transition-colors"
+                                            placeholder="e.g. Issue with payout"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Category
+                                        </label>
+                                        <select
+                                            name="categoryId"
+                                            value={formData.categoryId}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800 transition-colors"
+                                            required
+                                        >
+                                            <option value="">Select Category</option>
+                                            {ticketTypes.map(type => (
+                                                <option key={type.id} value={type.id}>{type.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Priority
+                                        </label>
+                                        <select
+                                            name="priority"
+                                            value={formData.priority}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800 transition-colors"
+                                        >
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Status
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value="Open"
+                                            readOnly
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed font-medium uppercase text-xs tracking-wider"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div>
@@ -288,6 +358,11 @@ const VendorHelp = () => {
                                     <div className="flex items-center gap-3">
                                         <h2 className="text-lg font-bold text-gray-900">{selectedTicket.subject}</h2>
                                         {getStatusBadge(selectedTicket.status)}
+                                        {selectedTicket.ticketTypeId?.name && (
+                                            <span className="px-2 py-1 bg-primary-50 text-primary-700 text-[10px] uppercase font-bold rounded-md">
+                                                {selectedTicket.ticketTypeId.name}
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-xs text-gray-400 mt-1">Ticket ID: {selectedTicket._id}</p>
                                 </div>
@@ -360,6 +435,11 @@ const VendorHelp = () => {
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <h3 className="font-semibold text-gray-900 truncate">{ticket.subject}</h3>
                                                     {getStatusBadge(ticket.status)}
+                                                    {ticket.ticketTypeId?.name && (
+                                                        <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                                                            {ticket.ticketTypeId.name}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <p className="text-sm text-gray-500 truncate">
                                                     {ticket.messages[ticket.messages.length - 1]?.message}
@@ -381,18 +461,24 @@ const VendorHelp = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                         <h3 className="font-bold text-gray-900 mb-4">Other Ways to Reach Us</h3>
                         <div className="space-y-4">
-                            <div className="flex items-start gap-4 p-4 rounded-xl bg-white hover:bg-primary-50 transition cursor-pointer">
+                            <div 
+                                onClick={() => window.location.href = `mailto:${vendorEmail}?subject=Vendor%20Support%20Request`}
+                                className="flex items-start gap-4 p-4 rounded-xl bg-white hover:bg-primary-50 transition cursor-pointer"
+                            >
                                 <div className="mt-1 text-primary-600"><FiMail size={20} /></div>
                                 <div>
                                     <p className="text-sm font-bold text-gray-900">Email Support</p>
-                                    <p className="text-sm text-gray-500 mt-1">vendorsupport@clouse.com</p>
+                                    <p className="text-sm text-gray-500 mt-1">{vendorEmail}</p>
                                 </div>
                             </div>
-                            <div className="flex items-start gap-4 p-4 rounded-xl bg-white hover:bg-primary-50 transition cursor-pointer">
+                            <div 
+                                onClick={() => window.location.href = `tel:${vendorPhone.replace(/[^0-9+]/g, '')}`}
+                                className="flex items-start gap-4 p-4 rounded-xl bg-white hover:bg-primary-50 transition cursor-pointer"
+                            >
                                 <div className="mt-1 text-primary-600"><FiPhoneCall size={20} /></div>
                                 <div>
                                     <p className="text-sm font-bold text-gray-900">Partner Helpline</p>
-                                    <p className="text-sm text-gray-500 mt-1">+91 (800) 123-4567</p>
+                                    <p className="text-sm text-gray-500 mt-1">{vendorPhone}</p>
                                 </div>
                             </div>
                         </div>

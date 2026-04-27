@@ -233,7 +233,37 @@ const listProducts = asyncHandler(async (req, res) => {
         ];
     }
 
-    const sortMap = { newest: { createdAt: -1 }, oldest: { createdAt: 1 }, 'price-asc': { price: 1 }, 'price-desc': { price: -1 }, popular: { reviewCount: -1 }, rating: { rating: -1 } };
+    const sortMap = { 
+        newest: { createdAt: -1 }, 
+        oldest: { createdAt: 1 }, 
+        'price-asc': { price: 1 }, 
+        'price-desc': { price: -1 }, 
+        popular: { reviewCount: -1 }, 
+        rating: { rating: -1 },
+        discount: { discount: -1 }
+    };
+
+    if (sort === 'discount') {
+        const now = new Date();
+        const activeCampaigns = await Campaign.find({
+            isActive: true,
+            $and: [
+                { $or: [{ startDate: null }, { startDate: { $exists: false } }, { startDate: { $lte: now } }] },
+                { $or: [{ endDate: null }, { endDate: { $exists: false } }, { endDate: { $gte: now } }] }
+            ]
+        }).select('productIds').lean();
+
+        const campaignProductIds = activeCampaigns.reduce((acc, c) => {
+            if (!c.productIds) return acc;
+            return [...acc, ...c.productIds.map(id => String(id))];
+        }, []);
+
+        // Use $or to find products that either have a manual discount OR are in a campaign
+        filter.$or = [
+            { discount: { $gt: 0 } },
+            { _id: { $in: campaignProductIds } }
+        ];
+    }
 
     const products = await Product.find(filter)
         .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount variants division')

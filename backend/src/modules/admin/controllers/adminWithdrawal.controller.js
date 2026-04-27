@@ -120,5 +120,5 @@ export const updateWithdrawalStatus = asyncHandler(async (req, res) => {
         await session.endSession();
     }
 
-    res.status(200).json(new ApiResponse(200, null, `Withdrawal request ${status}.`));
+    res.status(200).json(new ApiResponse(200, request, `Withdrawal request ${status}.`));
 });

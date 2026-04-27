@@ -16,8 +16,26 @@ import {
 } from "../services/adminService";
 import toast from "react-hot-toast";
 
+import { useLocation, useNavigate } from "react-router-dom";
+
 const Attributes = () => {
-    const [activeTab, setActiveTab] = useState("sets"); // "attributes" | "sets"
+    const location = useLocation();
+    
+    // Determine initial tab based on URL path
+    const getInitialTab = () => {
+        const path = location.pathname;
+        if (path.includes('/sets')) return "sets";
+        if (path.includes('/list')) return "attributes";
+        if (path.includes('/values')) return "attributes"; 
+        return "sets"; // Default to sets for /admin/attributes
+    };
+
+    const [activeTab, setActiveTab] = useState(getInitialTab());
+
+    // Sync activeTab if URL changes (e.g. via sidebar clicks)
+    useEffect(() => {
+        setActiveTab(getInitialTab());
+    }, [location.pathname]);
 
     // --- Attributes State ---
     const [attributes, setAttributes] = useState([]);
@@ -237,6 +255,8 @@ const Attributes = () => {
         }
     ];
 
+    const navigate = useNavigate();
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -244,22 +264,22 @@ const Attributes = () => {
             className="space-y-6 pb-12"
         >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
+                <div className="lg:hidden">
                     <h1 className="text-3xl font-bold text-gray-900 mb-1 font-premium ">Attribute Management</h1>
                     <p className="text-sm text-gray-500 font-medium whitespace-nowrap">Manage product attributes and organize them into sets.</p>
                 </div>
             </div>
-
+ 
             {/* Custom Tabs */}
             <div className="flex items-center gap-2 border-b border-gray-200">
                 <button
-                    onClick={() => setActiveTab('sets')}
+                    onClick={() => navigate('/admin/attributes/sets')}
                     className={`px-6 py-3 font-semibold text-sm transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'sets' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
                 >
                     <FiLayers /> Attribute Sets
                 </button>
                 <button
-                    onClick={() => setActiveTab('attributes')}
+                    onClick={() => navigate('/admin/attributes/list')}
                     className={`px-6 py-3 font-semibold text-sm transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'attributes' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
                 >
                     <FiList /> Master Attributes

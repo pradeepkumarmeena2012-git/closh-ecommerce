@@ -1,6 +1,7 @@
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import SupportTicket from '../../../models/SupportTicket.model.js';
+import TicketType from '../../../models/TicketType.model.js';
 import Admin from '../../../models/Admin.model.js';
 import Vendor from '../../../models/Vendor.model.js';
 import { createNotification } from '../../../services/notification.service.js';
@@ -8,7 +9,7 @@ import { emitEvent } from '../../../services/socket.service.js';
 
 // POST /api/vendor/support/help-request
 export const submitHelpRequest = asyncHandler(async (req, res) => {
-    const { subject, message } = req.body;
+    const { subject, message, categoryId, priority } = req.body;
     const vendorId = req.user.id;
 
     if (!subject || !message) {
@@ -22,8 +23,9 @@ export const submitHelpRequest = asyncHandler(async (req, res) => {
     const ticket = await SupportTicket.create({
         vendorId,
         subject,
+        ticketTypeId: categoryId || null,
         status: 'open',
-        priority: 'medium',
+        priority: priority || 'medium',
         isReadByAdmin: false,
         isReadByUser: true,
         lastMessageAt: new Date(),
@@ -79,6 +81,7 @@ export const submitHelpRequest = asyncHandler(async (req, res) => {
 export const getVendorTickets = asyncHandler(async (req, res) => {
     const vendorId = req.user.id;
     const tickets = await SupportTicket.find({ vendorId })
+        .populate('ticketTypeId', 'name')
         .sort({ updatedAt: -1 });
     res.status(200).json(new ApiResponse(200, tickets, 'Tickets fetched successfully.'));
 });
@@ -88,7 +91,8 @@ export const getVendorTicketById = asyncHandler(async (req, res) => {
     const vendorId = req.user.id;
     const ticketId = req.params.id;
 
-    const ticket = await SupportTicket.findOne({ _id: ticketId, vendorId });
+    const ticket = await SupportTicket.findOne({ _id: ticketId, vendorId })
+        .populate('ticketTypeId', 'name');
     if (!ticket) {
         return res.status(404).json(new ApiResponse(404, null, 'Ticket not found.'));
     }
@@ -134,4 +138,14 @@ export const addVendorTicketMessage = asyncHandler(async (req, res) => {
     emitEvent(`ticket_${ticket._id}`, 'new_support_message', newMessageObj);
 
     res.status(200).json(new ApiResponse(200, newMessageObj, 'Message added successfully.'));
+});
+
+// GET /api/vendor/support/ticket-types
+export const getTicketTypes = asyncHandler(async (req, res) => {
+    const ticketTypes = await TicketType.find({ isActive: true }).sort({ name: 1 });
+    const normalized = ticketTypes.map(t => ({
+        ...t._doc,
+        id: t._id
+    }));
+    res.status(200).json(new ApiResponse(200, normalized, 'Ticket types fetched successfully.'));
 });
