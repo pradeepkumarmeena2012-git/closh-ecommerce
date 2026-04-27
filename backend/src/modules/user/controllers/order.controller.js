@@ -22,6 +22,7 @@ import Vendor from '../../../models/Vendor.model.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 import { geocodeAddress, getDistanceMatrix } from '../../../services/googleMaps.service.js';
 import { applyActiveCampaigns } from '../../../utils/productUtils.js';
+import { validateCoupon } from '../../../services/coupon.service.js';
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -289,20 +290,9 @@ export const placeOrder = asyncHandler(async (req, res) => {
     let couponDiscount = 0;
     let appliedCoupon = null;
     if (couponCode) {
-        const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), isActive: true });
-        if (!coupon) throw new ApiError(400, 'Invalid coupon code.');
-        if (coupon.startsAt && coupon.startsAt > Date.now()) throw new ApiError(400, 'Coupon is not active yet.');
-        if (coupon.expiresAt && coupon.expiresAt < Date.now()) throw new ApiError(400, 'Coupon has expired.');
-        if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) throw new ApiError(400, 'Coupon usage limit reached.');
-        if (subtotal < coupon.minOrderValue) throw new ApiError(400, `Minimum order value for this coupon is Rs.${coupon.minOrderValue}.`);
-
-        if (coupon.type === 'percentage') {
-            couponDiscount = (subtotal * coupon.value) / 100;
-            if (coupon.maxDiscount) couponDiscount = Math.min(couponDiscount, coupon.maxDiscount);
-        } else if (coupon.type === 'fixed') {
-            couponDiscount = coupon.value;
-        }
-        appliedCoupon = coupon;
+        const result = await validateCoupon(couponCode, subtotal, userId);
+        appliedCoupon = result.coupon;
+        couponDiscount = result.discount;
     }
 
     // 3. Resolve Dropoff Location & Calculate distance-based shipping

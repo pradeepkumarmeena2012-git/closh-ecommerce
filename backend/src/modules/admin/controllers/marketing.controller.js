@@ -155,6 +155,7 @@ const formatCoupon = (couponDoc) => {
         minPurchase: coupon.minOrderValue ?? 0,
         startDate: coupon.startsAt ?? null,
         endDate: coupon.expiresAt ?? null,
+        isFirstOrderOnly: coupon.isFirstOrderOnly ?? false,
         status: coupon.isActive ? 'active' : 'inactive',
     };
 };
@@ -219,6 +220,14 @@ const normalizeCouponPayload = (payload, { partial = false } = {}) => {
             if (!Number.isInteger(usageLimit)) throw new ApiError(400, 'Usage limit must be an integer');
             normalized.usageLimit = usageLimit < 0 ? null : usageLimit;
         }
+    }
+
+    if (payload.isFirstOrderOnly !== undefined) {
+        const isFirstOrderOnly = toBooleanOrNull(payload.isFirstOrderOnly);
+        if (isFirstOrderOnly === null) throw new ApiError(400, 'isFirstOrderOnly must be a boolean');
+        normalized.isFirstOrderOnly = isFirstOrderOnly;
+    } else if (!partial) {
+        normalized.isFirstOrderOnly = false;
     }
 
     if (payload.isActive !== undefined) {

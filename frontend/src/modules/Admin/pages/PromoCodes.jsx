@@ -377,6 +377,7 @@ const PromoCodes = () => {
                       startsAt: startDate,
                       expiresAt: endDate,
                       isActive: formData.get('status') === 'active',
+                      isFirstOrderOnly: formData.get('isFirstOrderOnly') === 'on',
                     });
                   }}
                   className="space-y-4"
@@ -517,6 +518,19 @@ const PromoCodes = () => {
                       ]}
                       required
                     />
+                  </div>
+
+                  <div className="flex items-center gap-2 py-2">
+                    <input
+                      type="checkbox"
+                      id="isFirstOrderOnly"
+                      name="isFirstOrderOnly"
+                      defaultChecked={editingCode.isFirstOrderOnly || false}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <label htmlFor="isFirstOrderOnly" className="text-sm font-medium text-gray-700">
+                      Only for First Order?
+                    </label>
                   </div>
 
                   <div className="flex items-center gap-2">
