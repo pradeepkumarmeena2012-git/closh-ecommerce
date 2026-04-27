@@ -79,7 +79,7 @@ const DeliveryOrderDetail = () => {
   const openBoxGalleryRef = useRef(null);
   
   const isReturn = order?.type === 'return';
-  const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash' || order?.paymentMethod === 'digital_at_door';
+  const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
   // Derived type flags from orderType string
   const isCheckAndBuy = order?.orderType === 'check_and_buy';
   const isTryAndBuy   = order?.orderType === 'try_and_buy';

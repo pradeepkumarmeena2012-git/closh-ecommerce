@@ -259,8 +259,7 @@ const PaymentPage = () => {
                 normalizedPaymentMethod = 'wallet';
             } else if (lowerPm.includes('bank')) {
                 normalizedPaymentMethod = 'bank';
-            } else if (lowerPm.includes('digital_at_door')) {
-                normalizedPaymentMethod = 'digital_at_door';
+
             } else if (lowerPm.includes('prepaid')) {
                 normalizedPaymentMethod = 'prepaid';
             }
@@ -419,7 +418,7 @@ const PaymentPage = () => {
                     toggleOption(id);
                     // Automatically select the method when expanding, for better UX
                     if (id === 'prepaid') setPaymentMethod('prepaid');
-                    if (id === 'digital_at_door') setPaymentMethod('digital_at_door');
+
                     if (id === 'cod') setPaymentMethod('COD');
                 }}
             >
@@ -544,26 +543,7 @@ const PaymentPage = () => {
                             </PaymentOption>
                         )}
 
-                        <PaymentOption id="digital_at_door" icon={Smartphone} title="Pay Digital at Door" subtitle="Pay via UPI QR when package arrives" offers="POPULAR">
-                            <div className="pt-4">
-                                <label className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === 'digital_at_door' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <Smartphone size={20} className={paymentMethod === 'digital_at_door' ? "text-[#e53e70]" : "text-gray-400"} />
-                                        <span className="text-[13px] font-bold">Pay via QR at Doorstep</span>
-                                    </div>
-                                    <input
-                                        type="radio"
-                                        name="payment"
-                                        className="hidden"
-                                        checked={paymentMethod === 'digital_at_door'}
-                                        onChange={() => setPaymentMethod('digital_at_door')}
-                                    />
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'digital_at_door' ? 'border-[#e53e70] bg-[#e53e70]' : 'border-gray-200'}`}>
-                                        {paymentMethod === 'digital_at_door' && <div className="w-2 h-2 rounded-full bg-white" />}
-                                    </div>
-                                </label>
-                            </div>
-                        </PaymentOption>
+
 
                         <PaymentOption id="cod" icon={Banknote} title="Cash On Delivery" subtitle="Pay when you receive the order" offers="SAFE">
                             <div className="pt-4">
