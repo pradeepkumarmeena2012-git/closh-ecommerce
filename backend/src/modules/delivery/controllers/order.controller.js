@@ -184,7 +184,7 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
 
     const [orders, total] = await Promise.all([
         Order.find(filter)
-            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType createdAt shippingAddress.city shippingAddress.state')
+            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType paymentMethod createdAt shippingAddress.city shippingAddress.state')
             .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -320,6 +320,15 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
 
     const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
 
+    // Source of truth: Use the bulk balance from the rider model
+    const finalCashInHand = (rider.cashInHand !== undefined && rider.cashInHand !== null) 
+        ? rider.cashInHand 
+        : Number(cashRow.cashInHand || 0);
+
+    const finalTotalCollected = (rider.cashCollected !== undefined && rider.cashCollected !== null)
+        ? rider.cashCollected
+        : Number(cashRow.totalCashCollected || 0);
+
     const summary = {
         totalOrders: statusStats.reduce((sum, row) => sum + Number(row?.count || 0), 0),
         completedToday: Number(completedTodayCount || 0),
@@ -330,11 +339,14 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         earnings: Number(earningsStats?.[0]?.totalDeliveryFees || 0),
         totalEarnings: Number(rider.totalEarnings || 0),
         availableBalance: Number(rider.availableBalance || 0),
-        cashInHand: Number(cashRow.cashInHand || 0),
-        totalCashCollected: Number(cashRow.totalCashCollected || 0),
+        cashInHand: finalCashInHand,
+        totalCashCollected: finalTotalCollected,
         recentOrders: augmentedOrders,
         activeReturns,
     };
+
+    // Note: We no longer sync from orders back to model here to avoid overwriting 
+    // settlement-adjusted balances. Financial integrity is maintained via WalletService.
 
     await cacheSet(cacheKey, summary);
     return res.status(200).json(new ApiResponse(200, summary, 'Dashboard summary fetched.'));
@@ -410,6 +422,16 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
     const row = deliveredStats?.[0] || {};
     const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
 
+    // Source of truth: Use the bulk balance from the rider model if it's been initialized/tracked.
+    // Otherwise fallback to the aggregate of unsettled orders (for backward compatibility).
+    const finalCashInHand = (rider.cashInHand !== undefined && rider.cashInHand !== null) 
+        ? rider.cashInHand 
+        : Number(cashRow.cashInHand || 0);
+
+    const finalTotalCollected = (rider.cashCollected !== undefined && rider.cashCollected !== null)
+        ? rider.cashCollected
+        : Number(cashRow.totalCashCollected || 0);
+
     // Cache and return result
     // We include existing rider profile fields to avoid UI data loss on frontend merge
     const profileData = { 
@@ -419,9 +441,12 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
         earnings: Number(row.earnings || 0), 
         totalEarnings: Number(rider.totalEarnings || 0), 
         availableBalance: Number(rider.availableBalance || 0), 
-        cashInHand: Number(cashRow.cashInHand || 0), 
-        totalCashCollected: Number(cashRow.totalCashCollected || 0) 
+        cashInHand: finalCashInHand, 
+        totalCashCollected: finalTotalCollected
     };
+
+    // Note: We no longer sync from orders back to model here to avoid overwriting 
+    // settlement-adjusted balances. Financial integrity is maintained via WalletService.
     
     await cacheSet(profileCacheKey, profileData);
 
@@ -1013,6 +1038,31 @@ export const getDeliveryFlow = asyncHandler(async (req, res) => {
     }, 'Delivery flow fetched.'));
 });
 
+// PATCH /api/delivery/orders/:id/arrived-vendor
+export const markArrivedAtVendor = asyncHandler(async (req, res) => {
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = ensureDeliveryFlow(order);
+
+    flow.arrivedAtVendor = new Date();
+    await order.save();
+
+    // Notify Vendor
+    (order.vendorItems || []).forEach(vi =>
+        emitEvent(`vendor_${vi.vendorId}`, 'rider_arrived_at_store', { 
+            orderId: order.orderId,
+            riderName: order.deliveryBoyId?.name || 'Delivery Partner'
+        })
+    );
+
+    OrderNotificationService.notifyOrderUpdate(order._id, 'arrived_at_store', {
+        excludeRecipientId: req.user.id,
+        title: `Partner Arrived`,
+        message: `Delivery partner has arrived at your store for order #${order.orderId}.`,
+    }).catch(() => {});
+
+    res.status(200).json(new ApiResponse(200, order, 'Marked as arrived at vendor.'));
+});
+
 // PATCH /api/delivery/orders/:id/pickup
 export const handlePickup = asyncHandler(async (req, res) => {
     const { pickupPhoto } = req.body;
@@ -1346,11 +1396,15 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     order.openBoxPhoto = openBoxPhoto;
     order.deliveryPhoto = deliveryProofPhoto;
     order.deliveryOtpVerifiedAt = new Date();
-    if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') {
+    if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash' || order.paymentMethod === 'prepaid') {
         order.paymentStatus = 'paid';
-        order.isCashSettled = false;
-        order.codCollectionMethod = flow.paymentMethod;
-        order.codCollectedAt = new Date();
+        
+        // For COD/Cash, we track settlement; for Prepaid, the platform already has the funds.
+        if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') {
+            order.isCashSettled = false;
+            order.codCollectionMethod = flow.paymentMethod;
+            order.codCollectedAt = new Date();
+        }
     }
 
     // Sync vendorItems statuses

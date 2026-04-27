@@ -152,6 +152,8 @@ export const notifyNearbyDeliveryBoys = async (order) => {
         vendorName,
         vendorAddress,
         total: order.total,
+        paymentMethod: order.paymentMethod,
+        orderType: order.orderType,
         distance: estimatedDistance,
         estimatedTime: estimatedTime,
         deliveryFee: deliveryFee,

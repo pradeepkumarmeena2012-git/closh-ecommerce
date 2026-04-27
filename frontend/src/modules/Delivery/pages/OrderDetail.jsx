@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom'; // stable imports
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiArrowLeft,
@@ -49,6 +49,7 @@ const DeliveryOrderDetail = () => {
     orders,
     acceptReturn,
     acceptOrder,
+    markArrivedAtVendor,
   } = useDeliveryAuthStore();
   
   const [order, setOrder] = useState(null);
@@ -56,7 +57,11 @@ const DeliveryOrderDetail = () => {
   const [deliveryPhoto, setDeliveryPhoto] = useState(null);
   const [openBoxPhoto, setOpenBoxPhoto] = useState(null);
   const [pickupPhoto, setPickupPhoto] = useState(null);
+  // Multi-photo support: extra photos beyond the first
+  const [extraPickupPhotos, setExtraPickupPhotos] = useState([]);
+  const [extraDeliveryPhotos, setExtraDeliveryPhotos] = useState([]);
   const [hasArrived, setHasArrived] = useState(false);
+  const [hasArrivedAtVendor, setHasArrivedAtVendor] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [paymentSelection, setPaymentSelection] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -75,6 +80,12 @@ const DeliveryOrderDetail = () => {
   
   const isReturn = order?.type === 'return';
   const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash' || order?.paymentMethod === 'digital_at_door';
+  // Derived type flags from orderType string
+  const isCheckAndBuy = order?.orderType === 'check_and_buy';
+  const isTryAndBuy   = order?.orderType === 'try_and_buy';
+  // Whether order needs multiple photos (qty > 1 or multiple items)
+  const totalQty = (order?.items || []).reduce((s, i) => s + (Number(i.quantity) || 1), 0);
+  const needsMultiPhoto = totalQty > 1;
 
   const getPhase = () => {
     if (!order) return null;
@@ -125,6 +136,9 @@ const DeliveryOrderDetail = () => {
           .map(i => i.productId || i._id);
         setSelectedItemIds(new Set(accepted));
         setPaymentSelection(response.paymentMethod);
+      }
+      if (response?.deliveryFlow?.arrivedAtVendor) {
+        setHasArrivedAtVendor(true);
       } else if (response?.items) {
         setSelectedItemIds(new Set(response.items.map(i => i.productId || i._id)));
       }
@@ -194,6 +208,18 @@ const DeliveryOrderDetail = () => {
       toast.error(err?.response?.data?.message || 'Failed to mark arrival');
     }
   };
+  
+  const handleReachedVendor = async () => {
+    if (!id) return;
+    try {
+      const updated = await markArrivedAtVendor(id);
+      setOrder(updated);
+      setHasArrivedAtVendor(true);
+      toast.success('Vendor notified of your arrival!');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to mark arrival at vendor');
+    }
+  };
 
   const handleOtpResend = async () => {
     if (isResending || !id) return;
@@ -248,9 +274,7 @@ const DeliveryOrderDetail = () => {
     }
   };
 
-  const calculatedTotal = (order?.isTryAndBuy || order?.isCheckAndBuy) 
-    ? order.items.reduce((sum, item) => selectedItemIds.has(item.productId || item._id) ? sum + (item.price * item.quantity) : sum, 0)
-    : order?.total;
+  const calculatedTotal = order?.deliveryFlow?.finalAmount || order?.total || 0;
 
   const handleCancelOrder = () => {
     setIsCancellationModalOpen(true);
@@ -277,12 +301,22 @@ const DeliveryOrderDetail = () => {
     if (!deliveryPhoto) return toast.error('Delivery photo required');
     if (isCod && !openBoxPhoto) return toast.error('Open box photo required');
 
+    // Combine all delivery photos
+    const allDeliveryPhotos = [deliveryPhoto, ...extraDeliveryPhotos].filter(Boolean);
+    const deliveryProofPhoto = allDeliveryPhotos.length > 1
+      ? allDeliveryPhotos.join('|||') // delimiter the backend can split on
+      : allDeliveryPhotos[0];
+
     try {
       // Use stable id from useParams
+      const allPickupPhotos = [pickupPhoto, ...extraPickupPhotos].filter(Boolean);
+      const pickupProofPhoto = allPickupPhotos.length > 1
+        ? allPickupPhotos.join('|||')
+        : allPickupPhotos[0];
       const updated = await completeDeliveryFlow(id, { 
         otp: otpValue.trim(), 
         openBoxPhoto, 
-        deliveryProofPhoto: deliveryPhoto 
+        deliveryProofPhoto 
       });
       setOrder(updated);
       setShowSuccess(true);
@@ -291,11 +325,24 @@ const DeliveryOrderDetail = () => {
     }
   };
 
+  // handleImage: set primary photo
   const handleImage = (file, setter) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setter(reader.result);
     reader.readAsDataURL(file);
+  };
+
+  // handleAddExtraPhoto: append to extras array
+  const handleAddExtraPhoto = (file, setExtra) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setExtra(prev => [...prev, reader.result]);
+    reader.readAsDataURL(file);
+  };
+
+  const removeExtraPhoto = (idx, setExtra) => {
+    setExtra(prev => prev.filter((_, i) => i !== idx));
   };
 
   if (isLoadingOrder || !isLoaded) {
@@ -318,19 +365,26 @@ const DeliveryOrderDetail = () => {
   }
 
   const getOrderTypeBadge = () => {
-    if (order.isCheckAndBuy) return <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-indigo-100 uppercase tracking-tighter">Check & Buy</span>;
-    if (order.isTryAndBuy) return <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-amber-100 uppercase tracking-tighter">Try & Buy</span>;
-    return <span className="bg-slate-50 text-slate-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-slate-100 uppercase tracking-tighter">Standard</span>;
+    return (
+      <div className="flex items-center gap-1.5">
+        {isCheckAndBuy && <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-indigo-100 uppercase tracking-tighter">Check & Buy</span>}
+        {isTryAndBuy  && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-amber-100 uppercase tracking-tighter">Try & Buy</span>}
+        {!isCheckAndBuy && !isTryAndBuy && <span className="bg-slate-50 text-slate-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-slate-100 uppercase tracking-tighter">Standard</span>}
+        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black border uppercase tracking-tighter ${order?.paymentMethod === 'prepaid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+          {order?.paymentMethod === 'prepaid' ? 'PREPAID' : 'COD'}
+        </span>
+      </div>
+    );
   };
 
   return (
     <PageTransition>
       <div className="min-h-screen bg-slate-50 pb-32 relative">
         {/* HEADER - FLOATING ON TOP */}
-        <header className="absolute top-0 left-0 right-0 z-50 px-3 py-3 flex items-center gap-3 bg-white/60 backdrop-blur-md border-b border-white/20">
-          <button onClick={() => navigate(-1)} className="p-2 bg-white/80 shadow-sm rounded-lg shrink-0 border border-white/50"><FiArrowLeft size={18}/></button>
+        <header className="sticky top-0 left-0 right-0 z-50 px-4 py-4 flex items-center gap-3 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">
+          <button onClick={() => navigate(-1)} className="p-2 bg-white shadow-sm rounded-lg shrink-0 border border-slate-100"><FiArrowLeft size={18}/></button>
           <div className="flex-1 min-w-0">
-            <h2 className="text-[11px] font-black text-slate-900 truncate leading-none mb-1">
+            <h2 className="text-[13px] font-black text-slate-900 leading-tight mb-0.5">
                {/* Use id from params as final fallback, and hunt for names in all possible places */}
                #{String(order.orderId || order.id || id).slice(-8).toUpperCase()} • {currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.storeName || order.vendorName || 'Pickup Location') : (order.customer || order.shippingAddress?.name || order.guestInfo?.name || 'Customer')}
             </h2>
@@ -342,7 +396,7 @@ const DeliveryOrderDetail = () => {
           <a href={`tel:${currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.phone || order.vendorPhone) : (order.phone || order.shippingAddress?.phone)}`} className="w-9 h-9 bg-indigo-600/90 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50 shrink-0"><FiPhone size={18}/></a>
         </header>
 
-        <div className="max-w-md mx-auto">
+        <div className="max-w-md mx-auto pt-4">
           {/* HERO MAP SECTION - AT TRUE TOP */}
           {(!hasArrived && currentPhase) && (
              <div className="w-full h-[540px] bg-white relative">
@@ -369,14 +423,25 @@ const DeliveryOrderDetail = () => {
             {/* ACTIONS SECTION */}
             {(!hasArrived && currentPhase === 'delivery') || (currentPhase === 'pickup' && !pickupPhoto) ? (
               <div className="space-y-3">
-               {currentPhase === 'pickup' ? (
-                  <div className="flex gap-2">
-                    <div className="flex-1 flex flex-col gap-2">
-                        <button onClick={() => pickupInputRef.current.click()} className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-50"><FiCamera size={16}/> TAKE PHOTO</button>
-                        <button onClick={() => pickupGalleryRef.current.click()} className="w-full h-10 bg-slate-100 text-slate-600 rounded-xl text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200"><FiImage size={14}/> GALLERY</button>
+                {currentPhase === 'pickup' ? (
+                  <div className="flex flex-col gap-3">
+                    {!hasArrivedAtVendor && (
+                      <button 
+                        onClick={handleReachedVendor}
+                        disabled={isUpdatingOrderStatus}
+                        className="w-full h-12 bg-amber-500 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-amber-50 active:scale-95 transition-transform disabled:opacity-50"
+                      >
+                         {isUpdatingOrderStatus ? 'NOTIFYING...' : <><FiMapPin size={16} /> I HAVE REACHED VENDOR</>}
+                      </button>
+                    )}
+                    <div className="flex gap-2">
+                        <div className="flex-1 flex flex-col gap-2">
+                            <button onClick={() => pickupInputRef.current.click()} className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-50"><FiCamera size={16}/> TAKE PICKUP PHOTO</button>
+                            <button onClick={() => pickupGalleryRef.current.click()} className="w-full h-10 bg-slate-100 text-slate-600 rounded-xl text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200"><FiImage size={14}/> GALLERY</button>
+                        </div>
+                        <input type="file" accept="image/*" capture="environment" ref={pickupInputRef} onChange={(e) => handleImage(e.target.files[0], setPickupPhoto)} className="hidden" />
+                        <input type="file" accept="image/*" ref={pickupGalleryRef} onChange={(e) => handleImage(e.target.files[0], setPickupPhoto)} className="hidden" />
                     </div>
-                    <input type="file" accept="image/*" capture="environment" ref={pickupInputRef} onChange={(e) => handleImage(e.target.files[0], setPickupPhoto)} className="hidden" />
-                    <input type="file" accept="image/*" ref={pickupGalleryRef} onChange={(e) => handleImage(e.target.files[0], setPickupPhoto)} className="hidden" />
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2 w-full">
@@ -404,7 +469,7 @@ const DeliveryOrderDetail = () => {
                 <div className="flex items-start justify-between gap-3 mb-4">
                    <div className="min-w-0">
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">{currentPhase === 'pickup' ? 'PICKUP FROM' : 'DELIVER TO'}</p>
-                      <h3 className="text-base font-bold text-slate-800 truncate">{currentPhase === 'pickup' ? order.vendorName : order.customer}</h3>
+                      <h3 className="text-base font-bold text-slate-800 leading-tight">{currentPhase === 'pickup' ? order.vendorName : order.customer}</h3>
                       <div className="flex items-start gap-1.5 mt-2 text-slate-500">
                         <FiMapPin className="shrink-0 mt-0.5" size={12}/>
                         <p className="text-[11px] font-medium leading-relaxed">{currentPhase === 'pickup' ? order.vendorAddress : order.address}</p>
@@ -435,7 +500,7 @@ const DeliveryOrderDetail = () => {
                                 {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <FiPackage className="text-slate-200 mt-2.5 mx-auto" size={16} />}
                              </div>
                              <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                <p className="text-[11px] font-bold text-slate-800 truncate">{item.productName || item.name}</p>
+                                <p className="text-[11px] font-bold text-slate-800 leading-tight">{item.productName || item.name}</p>
                                 <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-tighter">
                                   Qty: {item.quantity} • {item.originalPrice && item.originalPrice > item.price && (
                                     <span className="line-through mr-1 opacity-50">{formatPrice(item.originalPrice)}</span>
@@ -563,8 +628,8 @@ const DeliveryOrderDetail = () => {
                         <div className="mt-6 pt-5 border-t border-slate-50 text-left">
                            <div className="flex items-center justify-between mb-4">
                               <div className="min-w-0">
-                                 <p className="text-[9px] font-bold text-slate-400 uppercase leading-none mb-1 tracking-tighter">Amount Due</p>
-                                 <p className="text-xl font-black text-slate-900 leading-none">{formatPrice(calculatedTotal)}</p>
+                                 <p className="text-[9px] font-bold text-slate-400 uppercase leading-none mb-1 tracking-tighter">{isCod ? 'Amount Due' : 'Paid Online'}</p>
+                                 <p className={`text-xl font-black leading-none ${isCod ? 'text-slate-900' : 'text-emerald-600'}`}>{formatPrice(calculatedTotal)}</p>
                               </div>
                               <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
                                  <FiCreditCard size={18} className="text-indigo-600"/>

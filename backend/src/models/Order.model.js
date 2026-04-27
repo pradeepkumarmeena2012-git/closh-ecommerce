@@ -60,6 +60,7 @@ const deliveryFlowSchema = new mongoose.Schema({
     // Start / En-route
     startedAt: Date,
     // Arrived
+    arrivedAtVendor: Date,
     arrivedAt: Date,
     // Try & Buy
     tryAndBuyItems: [deliveryFlowItemSchema],
@@ -105,7 +106,7 @@ const orderSchema = new mongoose.Schema(
             zipCode: String,
             country: String,
         },
-        paymentMethod: { type: String, enum: ['card', 'cash', 'bank', 'wallet', 'upi', 'cod', 'digital_at_door'] },
+        paymentMethod: { type: String, enum: ['card', 'cash', 'bank', 'wallet', 'upi', 'cod', 'digital_at_door', 'prepaid'] },
         paymentStatus: {
             type: String,
             enum: ['pending', 'paid', 'failed', 'refunded'],

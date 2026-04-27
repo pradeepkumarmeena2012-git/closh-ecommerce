@@ -35,6 +35,8 @@ async function notifyEligibleRiders(order) {
         address: order.shippingAddress?.address || 'Address',
         vendorName,
         vendorAddress,
+        paymentMethod: order.paymentMethod,
+        orderType: order.orderType,
         distance: 'N/A',
         estimatedTime: 'Searching...',
         deliveryFee: 25,

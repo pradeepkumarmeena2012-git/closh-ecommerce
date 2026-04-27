@@ -492,7 +492,7 @@ const OrderDetail = () => {
                                         </span>
                                     ) : (
                                         <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded border border-emerald-100 uppercase er">
-                                            Prepaid ({order.paymentMethod?.toUpperCase()})
+                                            Prepaid
                                         </span>
                                     )}
                                 </div>

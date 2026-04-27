@@ -130,9 +130,13 @@ export const useOrderStore = create(
               "x-idempotency-key": idempotencyKey,
             },
           });
+          console.log("Order Store - API Raw Response:", response);
           const payloadData = response?.data || response;
+          console.log("Order Store - payloadData extracted:", payloadData);
+          
           // Support both flattened and wrapped response structures
           const createdOrderId = payloadData?.orderId || response?.orderId || response?.data?.orderId;
+          console.log("Order Store - createdOrderId identified:", createdOrderId);
           
           if (!createdOrderId) {
             throw new Error('Invalid order creation response from server.');
@@ -141,6 +145,14 @@ export const useOrderStore = create(
           const createdOrder = await get().fetchOrderById(createdOrderId);
           if (!createdOrder) {
             throw new Error('Order created but could not be fetched. Please check your orders.');
+          }
+
+          // Attach payment metadata if present in original POST response
+          if (payloadData?.razorpayOrderId) {
+            createdOrder.razorpayOrderId = payloadData.razorpayOrderId;
+            createdOrder.razorpayKeyId = payloadData.razorpayKeyId;
+            // Preserve exact server-computed amount (in paise) to avoid Razorpay 400 mismatch
+            createdOrder.razorpayAmount = Math.round(Number(payloadData.total) * 100);
           }
 
           set({ isLoading: false, lastError: null });

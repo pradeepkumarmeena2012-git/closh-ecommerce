@@ -19,14 +19,14 @@ const CashSettlementModal = ({ isOpen, onClose, cashInHand, onSettlementComplete
       
       // 1. Create Settlement Order
       const res = await api.post('/delivery/settlements', { amount });
-      const { orderId, keyId } = res.data.data;
+      const { orderId, keyId } = res.data;
 
       // 2. Open Razorpay Checkout
       const options = {
         key: keyId,
         amount: amount * 100,
         currency: 'INR',
-        name: 'CLOSH Logistics',
+        name: 'CLOSH',
         description: 'Cash Collection Settlement',
         order_id: orderId,
         handler: async (response) => {

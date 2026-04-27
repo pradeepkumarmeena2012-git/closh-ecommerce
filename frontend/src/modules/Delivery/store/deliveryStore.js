@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import api from '../../../shared/utils/api';
+import api from '@shared/utils/api';
 
 const normalizeDeliveryBoy = (input) => {
   if (!input) return null;
@@ -16,7 +16,8 @@ const normalizeDeliveryBoy = (input) => {
     status,
     bankDetails: raw.bankDetails || {},
     upiId: raw.upiId || '',
-    kycStatus: raw.kycStatus || 'none'
+    kycStatus: raw.kycStatus || 'none',
+    totalCashCollected: raw.totalCashCollected || raw.cashCollected || 0
   };
 };
 
@@ -428,6 +429,14 @@ export const useDeliveryAuthStore = create(
         set({ isUpdatingOrderStatus: true });
         try {
           const res = await api.patch(`/delivery/orders/${id}/try-buy`, { items });
+          const order = normalizeOrder(res.data?.data || res.data || res);
+          set({ isUpdatingOrderStatus: false, selectedOrder: order }); return order;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
+      },
+      markArrivedAtVendor: async (id) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const res = await api.patch(`/delivery/orders/${id}/arrived-vendor`);
           const order = normalizeOrder(res.data?.data || res.data || res);
           set({ isUpdatingOrderStatus: false, selectedOrder: order }); return order;
         } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }

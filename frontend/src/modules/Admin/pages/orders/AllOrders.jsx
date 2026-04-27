@@ -519,6 +519,7 @@ const AllOrders = () => {
       wallet: "Wallet",
       creditCard: "Credit Card",
       cash: "Cash on Delivery",
+      prepaid: "Prepaid",
     };
     return (
       methodMap[method.toLowerCase()] ||

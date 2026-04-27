@@ -46,7 +46,7 @@ const DesktopHeader = () => {
         navigate("/home");
     };
 
-const NavItem = ({ to, icon: Icon, label, badgeCount, onClick }) => {
+    const NavItem = ({ to, icon: Icon, label, badgeCount, onClick }) => {
         const Component = to ? Link : "button";
         return (
             <Component
@@ -79,11 +79,11 @@ const NavItem = ({ to, icon: Icon, label, badgeCount, onClick }) => {
             )}
             {/* Main Header Row - Based on Image 1 */}
             <div className="container mx-auto px-4 md:px-6 lg:px-8 h-20 flex items-center justify-between gap-4 lg:gap-8">
-                
+
                 {/* Left Section: Delivery Info (Matching Image 1 Exactly) */}
                 <div className="flex items-center gap-4 flex-shrink-0">
                     <Link to="/home" className="flex-shrink-0 mr-4 group no-underline">
-                        
+
                     </Link>
 
                     <div className="flex items-center gap-3">

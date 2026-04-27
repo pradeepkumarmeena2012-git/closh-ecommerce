@@ -34,16 +34,16 @@ const VendorLayout = () => {
     try {
       const audio = new Audio('/sounds/buzzer.mp3');
       audio.loop = true;
-      audio.volume = 0.8;
-      // Pre-load but don't play yet
+      audio.volume = 1.0;
       audio.load();
       buzzerRef.current = audio;
-      console.log('🔊 Buzzer audio initialized and ready.');
+      console.log('🔊 [VENDOR] Buzzer audio initialized.');
     } catch (err) {
       console.error('Failed to init buzzer:', err);
     }
   }, []);
 
+  // Audio Policy Unlock: User interaction required
   useEffect(() => {
     const unlock = () => {
       if (audioUnlockedRef.current) return;
@@ -56,14 +56,14 @@ const VendorLayout = () => {
         }).catch(() => { });
       }
       audioUnlockedRef.current = true;
-      window.removeEventListener('click', unlock);
-      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('click', unlock, true);
+      window.removeEventListener('touchstart', unlock, true);
     };
-    window.addEventListener('click', unlock);
-    window.addEventListener('touchstart', unlock);
+    window.addEventListener('click', unlock, true);
+    window.addEventListener('touchstart', unlock, true);
     return () => {
-      window.removeEventListener('click', unlock);
-      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('click', unlock, true);
+      window.removeEventListener('touchstart', unlock, true);
     };
   }, [initBuzzer]);
 
@@ -73,10 +73,13 @@ const VendorLayout = () => {
     }
 
     if (buzzerRef.current) {
-      buzzerRef.current.play().catch(err => {
-        console.warn('Buzzer playback blocked:', err);
-        toast.error('New Order! Please tap the screen to hear the alert.', { id: 'buzzer-block' });
-      });
+      console.log('🎵 [VENDOR] startBuzzer: Playing...');
+      buzzerRef.current.play()
+        .then(() => console.log('✅ [VENDOR] Buzzer playing successfully'))
+        .catch(err => {
+          console.warn('❌ [VENDOR] Buzzer playback blocked by browser:', err);
+          toast.error('New Order! Please tap the screen to hear the alert.', { id: 'buzzer-block' });
+        });
       setIsBuzzerActive(true);
     }
   }, [initBuzzer]);
@@ -134,6 +137,17 @@ const VendorLayout = () => {
         }
       }
 
+      // SAFETY CHECK: Only show modal if the vendor hasn't already accepted/processed it
+      const currentVendorId = (vendor?.id || vendor?._id)?.toString();
+      const vendorItem = fullOrder.vendorItems?.find(vi => vi.vendorId?.toString() === currentVendorId);
+      const vStatus = (vendorItem?.status || fullOrder.status || 'pending').toLowerCase();
+      
+      if (vStatus !== 'pending') {
+        console.log(`ℹ️ [VENDOR] Order ${orderId} is already in ${vStatus} state. Skipping modal.`);
+        return;
+      }
+
+      console.log(`🔊 [VENDOR] Attempting to play buzzer for Order: ${orderId}`);
       startBuzzer();
       setSelectedOrder(fullOrder);
       setShowOrderModal(true);
@@ -163,7 +177,7 @@ const VendorLayout = () => {
     socketService.on("new_notification", (notif) => {
       console.log('🔔 [VENDOR] Received general notification:', notif);
       const status = notif.data?.status?.toLowerCase();
-      const isNewOrderRequest = notif?.type === 'order' && (status === 'pending' || status === 'ready_for_pickup' || !status);
+      const isNewOrderRequest = notif?.type === 'order' && (status === 'pending' || !status);
 
       if (isNewOrderRequest && !showOrderModal) {
         handleNewOrder(notif.data || { orderId: notif.data?.orderId });
@@ -174,10 +188,16 @@ const VendorLayout = () => {
       window.dispatchEvent(new CustomEvent('vendor-order-updated', { detail: data }));
     });
 
+    socketService.on("rider_arrived_at_store", (data) => {
+      toast(`Rider has arrived for order #${data.orderId}`, { icon: '🛵' });
+      window.dispatchEvent(new CustomEvent('vendor-order-updated', { detail: data }));
+    });
+
     return () => {
       socketService.socket?.off('connect', registerVendor);
       socketService.off("order_created", handleNewOrder);
       socketService.off("order_status_updated");
+      socketService.off("rider_arrived_at_store");
       stopBuzzer();
     };
   }, [vendor?.id, vendor?._id, startBuzzer, stopBuzzer]);

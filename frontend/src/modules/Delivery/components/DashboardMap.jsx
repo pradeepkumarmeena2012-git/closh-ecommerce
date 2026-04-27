@@ -44,13 +44,17 @@ const DashboardMap = ({ currentLocation, activeOrder, isOnline, isLoaded, height
     }
   };
 
-  const vendorCoords = activeOrder?.vendorLatitude && activeOrder?.vendorLongitude 
-    ? { lat: Number(activeOrder.vendorLatitude), lng: Number(activeOrder.vendorLongitude) } 
-    : null;
+  const vendorCoords = activeOrder?.pickupLocation?.coordinates?.[1] && activeOrder?.pickupLocation?.coordinates?.[0] !== 0
+    ? { lat: Number(activeOrder.pickupLocation.coordinates[1]), lng: Number(activeOrder.pickupLocation.coordinates[0]) }
+    : (activeOrder?.vendorLatitude && activeOrder?.vendorLongitude 
+        ? { lat: Number(activeOrder.vendorLatitude), lng: Number(activeOrder.vendorLongitude) } 
+        : null);
     
-  const customerCoords = activeOrder?.latitude && activeOrder?.longitude 
-    ? { lat: Number(activeOrder.latitude), lng: Number(activeOrder.longitude) } 
-    : null;
+  const customerCoords = activeOrder?.dropoffLocation?.coordinates?.[1] && activeOrder?.dropoffLocation?.coordinates?.[0] !== 0
+    ? { lat: Number(activeOrder.dropoffLocation.coordinates[1]), lng: Number(activeOrder.dropoffLocation.coordinates[0]) }
+    : (activeOrder?.latitude && activeOrder?.longitude 
+        ? { lat: Number(activeOrder.latitude), lng: Number(activeOrder.longitude) } 
+        : null);
 
   return (
     <motion.div 

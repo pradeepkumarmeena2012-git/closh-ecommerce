@@ -73,6 +73,7 @@ router.post('/reviews/:id/helpful', reviewController.voteHelpful);
 
 // Order routes
 router.post('/orders', ...customerAuth, validate(placeOrderSchema), orderController.placeOrder);
+router.post('/orders/verify-payment', ...customerAuth, orderController.verifyPayment);
 router.get('/orders', ...customerAuth, orderController.getUserOrders);
 router.get('/orders/:id', ...customerAuth, orderController.getOrderDetail);
 router.patch('/orders/:id/cancel', ...customerAuth, orderController.cancelOrder);
