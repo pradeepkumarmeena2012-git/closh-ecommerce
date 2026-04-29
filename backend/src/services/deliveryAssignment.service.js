@@ -139,7 +139,11 @@ export const triggerDeliveryAssignment = async (order) => {
                     title: 'New Order Nearby',
                     message: `A new order #${order.orderId} is available for pickup near you.`,
                     type: 'order',
-                    data: { orderId: order.orderId, type: 'new_assignment_broadcast' }
+                    data: { 
+                        orderId: order.orderId, 
+                        type: 'new_assignment_broadcast',
+                        click_action: `/delivery/dashboard?viewOrder=${order.orderId}`
+                    }
                 }).catch(() => {});
             });
         } else {

@@ -70,6 +70,7 @@ const DeliveryOrderDetail = () => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [isCancellationModalOpen, setIsCancellationModalOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState(null); // 'pickup', 'delivery', 'openBox'
 
   const pickupInputRef = useRef(null);
   const pickupGalleryRef = useRef(null);
@@ -333,6 +334,12 @@ const DeliveryOrderDetail = () => {
     reader.readAsDataURL(file);
   };
 
+  const openCamera = (target) => {
+    if (target === 'pickup' && pickupInputRef.current) pickupInputRef.current.click();
+    if (target === 'delivery' && deliveryInputRef.current) deliveryInputRef.current.click();
+    if (target === 'openBox' && openBoxInputRef.current) openBoxInputRef.current.click();
+  };
+
   // handleAddExtraPhoto: append to extras array
   const handleAddExtraPhoto = (file, setExtra) => {
     if (!file) return;
@@ -436,7 +443,7 @@ const DeliveryOrderDetail = () => {
                     )}
                     <div className="flex gap-2">
                         <div className="flex-1 flex flex-col gap-2">
-                            <button onClick={() => pickupInputRef.current.click()} className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-50"><FiCamera size={16}/> TAKE PICKUP PHOTO</button>
+                            <button onClick={() => openCamera('pickup')} className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-50"><FiCamera size={16}/> OPEN CAMERA</button>
                             <button onClick={() => pickupGalleryRef.current.click()} className="w-full h-10 bg-slate-100 text-slate-600 rounded-xl text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200"><FiImage size={14}/> GALLERY</button>
                         </div>
                         <input type="file" accept="image/*" capture="environment" ref={pickupInputRef} onChange={(e) => handleImage(e.target.files[0], setPickupPhoto)} className="hidden" />
@@ -544,12 +551,12 @@ const DeliveryOrderDetail = () => {
                               </>
                            ) : (
                               <div className="flex flex-col items-center gap-3">
-                                 <button onClick={() => deliveryInputRef.current.click()} className="flex flex-col items-center gap-1.5 text-indigo-600 active:scale-95 transition-transform">
+                                 <button onClick={() => openCamera(currentPhase === 'pickup' ? 'pickup' : 'delivery')} className="flex flex-col items-center gap-1.5 text-indigo-600 active:scale-95 transition-transform">
                                     <FiCamera size={28}/>
-                                    <span className="text-[9px] font-black uppercase tracking-tight">CAMERA</span>
+                                    <span className="text-[9px] font-black uppercase tracking-tight">OPEN CAMERA</span>
                                  </button>
                                  <div className="w-12 h-px bg-slate-200" />
-                                 <button onClick={() => deliveryGalleryRef.current.click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
+                                 <button onClick={() => (currentPhase === 'pickup' ? pickupGalleryRef.current : deliveryGalleryRef.current).click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
                                     <FiImage size={24}/>
                                     <span className="text-[8px] font-black uppercase tracking-tight">GALLERY</span>
                                  </button>
@@ -570,9 +577,9 @@ const DeliveryOrderDetail = () => {
                                     </>
                                  ) : (
                                     <div className="flex items-center gap-8">
-                                        <button onClick={() => openBoxInputRef.current.click()} className="flex flex-col items-center gap-1.5 text-indigo-600 active:scale-95 transition-transform">
+                                        <button onClick={() => openCamera('openBox')} className="flex flex-col items-center gap-1.5 text-indigo-600 active:scale-95 transition-transform">
                                             <FiCamera size={26}/>
-                                            <span className="text-[8px] font-black uppercase tracking-tight leading-none">CAMERA</span>
+                                            <span className="text-[8px] font-black uppercase tracking-tight leading-none">OPEN CAMERA</span>
                                         </button>
                                         <button onClick={() => openBoxGalleryRef.current.click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
                                             <FiImage size={24}/>

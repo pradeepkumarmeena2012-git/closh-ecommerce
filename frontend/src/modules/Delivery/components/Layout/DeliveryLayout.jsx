@@ -53,12 +53,44 @@ const DeliveryLayout = () => {
 
     initialFetch();
 
+    // 🔗 Deep Link Handling (e.g. from Push Notifications)
+    const params = new URLSearchParams(location.search);
+    const viewOrderId = params.get('viewOrder');
+    const isReturn = params.get('isReturn') === 'true';
+
+    if (viewOrderId) {
+      console.log(`🔗 [DELIVERY] Deep link detected for ${isReturn ? 'Return' : 'Order'}: ${viewOrderId}`);
+      
+      const fetchTaskDetails = async () => {
+        try {
+          // Use the specific detail endpoint to get fresh data for the modal
+          const api = useDeliveryAuthStore.getState().api || (await import('@shared/utils/api')).default;
+          const res = await api.get(`/delivery/orders/${viewOrderId}`);
+          if (res.data?.success || res.data) {
+             const taskData = res.data?.data || res.data;
+             console.log('✅ [DELIVERY] Deep link task data fetched:', taskData);
+             setSelectedNewOrder({ ...taskData, isReturn });
+             setShowNewOrderModal(true);
+             startBuzzer();
+          }
+        } catch (err) {
+          console.error('❌ [DELIVERY] Deep link fetch failed:', err);
+        }
+      };
+
+      fetchTaskDetails();
+      
+      // Clean up the URL to prevent re-triggering on refresh
+      const newRelativePathQuery = window.location.pathname;
+      window.history.replaceState(null, '', newRelativePathQuery);
+    }
+
     const interval = setInterval(() => {
       Promise.all([fetchProfileSummary(), fetchNotifications(1)]);
     }, 120000); // Polling every 2 minutes for better mobile performance
 
     return () => clearInterval(interval);
-  }, [isAuthenticated]); // Only run on auth change
+  }, [isAuthenticated, location.search]);
 
   useEffect(() => {
     // Throttled refresh to prevent storm of calls from multiple socket events

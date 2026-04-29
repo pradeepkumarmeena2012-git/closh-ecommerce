@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiAlertCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -13,10 +13,12 @@ import NewOrderModal from '../NewOrderModal';
 
 const VendorLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { vendor, updateOrderStatus } = useVendorAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const headerHeight = useAdminHeaderHeight();
   const audioUnlockedRef = useRef(false);
+
 
   // Audio Policy Unlock: User interaction required
 
@@ -92,6 +94,38 @@ const VendorLayout = () => {
     setIsBuzzerActive(false);
   }, []);
 
+  // 🔗 Deep Link Handling (e.g. from Push Notifications)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const viewOrderId = params.get('viewOrder');
+    
+    if (viewOrderId && vendor) {
+      console.log('🔗 [VENDOR] Deep link order view triggered:', viewOrderId);
+      
+      const fetchOrderDetails = async () => {
+        try {
+          const { getVendorOrderById } = await import("../../services/vendorService.js");
+          const res = await getVendorOrderById(viewOrderId);
+          const fullOrder = res?.data ?? res;
+          
+          if (fullOrder && (fullOrder._id || fullOrder.id)) {
+            setSelectedOrder(fullOrder);
+            setShowOrderModal(true);
+            startBuzzer();
+          }
+        } catch (err) {
+          console.error('❌ [VENDOR] Deep link fetch failed:', err);
+        }
+      };
+      
+      fetchOrderDetails();
+      
+      // Clean up URL
+      const newPath = window.location.pathname;
+      window.history.replaceState(null, '', newPath);
+    }
+  }, [location.search, vendor, startBuzzer]);
+
   useEffect(() => {
     const vendorId = vendor?.id || vendor?._id;
     if (!vendorId) return;
@@ -112,10 +146,13 @@ const VendorLayout = () => {
 
     // Listen for new orders globally
     const handleNewOrder = async (orderData) => {
-      const orderId = orderData.orderId || orderData.id || (orderData.data?.orderId);
+      if (!orderData) return;
+      const orderId = orderData.orderId || orderData.id || orderData._id || (orderData.data?.orderId);
       
+      if (!orderId) return;
+
       // Prevent duplicate popups for the same order within a short window
-      if (orderId && lastNotifiedOrderId.current === orderId) {
+      if (lastNotifiedOrderId.current === orderId) {
         console.log(`🚫 [VENDOR] Skipping duplicate notification for Order: ${orderId}`);
         return;
       }
@@ -124,12 +161,12 @@ const VendorLayout = () => {
       lastNotifiedOrderId.current = orderId;
 
       let fullOrder = orderData;
-      const hasItems = (orderData.items && orderData.items.length > 0) || (orderData.vendorItems);
+      const hasItems = (orderData.items && orderData.items.length > 0) || (orderData.vendorItems && orderData.vendorItems.length > 0);
 
-      if (orderId && !hasItems) {
+      if (!hasItems) {
         console.log(`🔍 [VENDOR] Fetching full details for Order: ${orderId}`);
         try {
-          const { getVendorOrderById } = await import("../../services/vendorService");
+          const { getVendorOrderById } = await import("../../services/vendorService.js");
           const res = await getVendorOrderById(orderId);
           fullOrder = res?.data ?? res;
         } catch (err) {
@@ -137,8 +174,12 @@ const VendorLayout = () => {
         }
       }
 
+      if (!fullOrder || typeof fullOrder !== 'object') return;
+
       // SAFETY CHECK: Only show modal if the vendor hasn't already accepted/processed it
       const currentVendorId = (vendor?.id || vendor?._id)?.toString();
+      if (!currentVendorId) return;
+
       const vendorItem = fullOrder.vendorItems?.find(vi => vi.vendorId?.toString() === currentVendorId);
       const vStatus = (vendorItem?.status || fullOrder.status || 'pending').toLowerCase();
       
@@ -152,7 +193,7 @@ const VendorLayout = () => {
       setSelectedOrder(fullOrder);
       setShowOrderModal(true);
 
-      const orderIdForRoom = fullOrder.orderId || fullOrder.id;
+      const orderIdForRoom = fullOrder.orderId || fullOrder.id || fullOrder._id;
       if (orderIdForRoom) {
         socketService.joinRoom(`order_${orderIdForRoom}`);
       }
@@ -164,8 +205,6 @@ const VendorLayout = () => {
 
       window.dispatchEvent(new CustomEvent('vendor-new-order', { detail: fullOrder }));
       
-      // Clear the ID after 30 seconds to allow re-notification if something changes, 
-      // but prevents the immediate socket/push double-trigger
       setTimeout(() => {
         if (lastNotifiedOrderId.current === orderId) {
           lastNotifiedOrderId.current = null;
@@ -173,8 +212,7 @@ const VendorLayout = () => {
       }, 30000);
     };
 
-    socketService.on("order_created", handleNewOrder);
-    socketService.on("new_notification", (notif) => {
+    const handleNotification = (notif) => {
       console.log('🔔 [VENDOR] Received general notification:', notif);
       const status = notif.data?.status?.toLowerCase();
       const isNewOrderRequest = notif?.type === 'order' && (status === 'pending' || !status);
@@ -182,22 +220,28 @@ const VendorLayout = () => {
       if (isNewOrderRequest && !showOrderModal) {
         handleNewOrder(notif.data || { orderId: notif.data?.orderId });
       }
-    });
+    };
 
-    socketService.on("order_status_updated", (data) => {
+    const handleStatusUpdate = (data) => {
       window.dispatchEvent(new CustomEvent('vendor-order-updated', { detail: data }));
-    });
+    };
 
-    socketService.on("rider_arrived_at_store", (data) => {
-      toast(`Rider has arrived for order #${data.orderId}`, { icon: '🛵' });
+    const handleRiderArrival = (data) => {
+      toast(`Rider has arrived for order #${data.orderId || data.id}`, { icon: '🛵' });
       window.dispatchEvent(new CustomEvent('vendor-order-updated', { detail: data }));
-    });
+    };
+
+    socketService.on("order_created", handleNewOrder);
+    socketService.on("new_notification", handleNotification);
+    socketService.on("order_status_updated", handleStatusUpdate);
+    socketService.on("rider_arrived_at_store", handleRiderArrival);
 
     return () => {
       socketService.socket?.off('connect', registerVendor);
       socketService.off("order_created", handleNewOrder);
-      socketService.off("order_status_updated");
-      socketService.off("rider_arrived_at_store");
+      socketService.off("new_notification", handleNotification);
+      socketService.off("order_status_updated", handleStatusUpdate);
+      socketService.off("rider_arrived_at_store", handleRiderArrival);
       stopBuzzer();
     };
   }, [vendor?.id, vendor?._id, startBuzzer, stopBuzzer]);

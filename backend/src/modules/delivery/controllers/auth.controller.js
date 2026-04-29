@@ -14,6 +14,7 @@ import {
     rotateRefreshSession,
 } from '../../../services/refreshToken.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
+import { cacheInvalidate } from './order.controller.js';
 
 // In-memory store for registration OTPs (phone -> { otp, expiry, verified })
 const registrationOtpStore = new Map();
@@ -541,6 +542,10 @@ export const logout = asyncHandler(async (req, res) => {
             const decoded = decodeRefreshTokenOrThrow(refreshToken);
             const deliveryBoy = await DeliveryBoy.findById(decoded.id).select('+refreshTokenHash +refreshTokenExpiresAt');
             if (deliveryBoy?.refreshTokenHash) {
+                deliveryBoy.status = 'offline';
+                deliveryBoy.isAvailable = false;
+                await deliveryBoy.save();
+                await cacheInvalidate(`dash:${deliveryBoy._id}`, `profile:${deliveryBoy._id}`);
                 await clearRefreshSession(deliveryBoy);
             }
         } catch {
@@ -626,5 +631,6 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
 
     await boy.save();
+    await cacheInvalidate(`dash:${boy._id}`, `profile:${boy._id}`);
     res.status(200).json(new ApiResponse(200, boy, 'Profile updated.'));
 });

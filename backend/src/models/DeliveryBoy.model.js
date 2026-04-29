@@ -45,7 +45,7 @@ const deliveryBoySchema = new mongoose.Schema(
         refreshTokenHash: { type: String, select: false },
         refreshTokenExpiresAt: { type: Date, select: false },
         isActive: { type: Boolean, default: true },
-        isAvailable: { type: Boolean, default: true },
+        isAvailable: { type: Boolean, default: false },
         status: {
             type: String,
             enum: ['available', 'busy', 'offline'],

@@ -8,7 +8,8 @@ const normalizeDeliveryBoy = (input) => {
   const raw = input.data && input.statusCode ? input.data : input;
   
   const id = raw.id || raw._id;
-  const status = raw.status || (raw.isAvailable === false ? 'offline' : 'available');
+  // Prioritize status, if missing use isAvailable to decide
+  const status = raw.status || (raw.isAvailable === true ? 'available' : 'offline');
   return { 
     ...raw, 
     id, 
@@ -139,6 +140,7 @@ export const useDeliveryAuthStore = create(
       isLoadingOrder: false,
       isUpdatingOrderStatus: false,
       isUpdatingStatus: false,
+      isExplicitlyOffline: false, // Track if user manually went offline
 
       // --- AUTH ACTIONS ---
       sendOtp: async (phone) => {
@@ -204,14 +206,32 @@ export const useDeliveryAuthStore = create(
           return res.data || res;
         } catch (e) { set({ isLoading: false }); throw e; }
       },
-      logout: () => {
-        const rt = localStorage.getItem('delivery-refresh-token');
-        if (rt) api.post('/delivery/auth/logout', { refreshToken: rt }).catch(() => { });
-        set({ deliveryBoy: null, token: null, refreshToken: null, isAuthenticated: false, orders: [], returns: [] });
-        localStorage.removeItem('delivery-token');
-        localStorage.removeItem('delivery-refresh-token');
-        localStorage.removeItem('delivery-auth-storage');
-        window.location.href = '/delivery/login';
+      logout: async () => {
+        try {
+          const current = get().deliveryBoy;
+          if (current?.id) {
+            // Attempt to notify backend to go offline
+            await api.patch('/delivery/auth/profile', { status: 'offline', isAvailable: false }).catch(() => {});
+          }
+          const rt = localStorage.getItem('delivery-refresh-token');
+          if (rt) await api.post('/delivery/auth/logout', { refreshToken: rt }).catch(() => { });
+        } catch (err) {
+          console.error('[DeliveryStore] Logout cleanup error:', err);
+        } finally {
+          set({ 
+            deliveryBoy: null, 
+            token: null, 
+            refreshToken: null, 
+            isAuthenticated: false, 
+            orders: [], 
+            returns: [],
+            isExplicitlyOffline: false 
+          });
+          localStorage.removeItem('delivery-token');
+          localStorage.removeItem('delivery-refresh-token');
+          localStorage.removeItem('delivery-auth-storage');
+          window.location.href = '/delivery/login';
+        }
       },
 
       // --- PROFILE ACTIONS ---
@@ -220,16 +240,33 @@ export const useDeliveryAuthStore = create(
         try {
           const res = await api.get('/delivery/auth/profile');
           const user = normalizeDeliveryBoy(res.data || res);
-          set({ deliveryBoy: user, isLoading: false }); return user;
+          
+          // 🛡️ STATUS LOCK: If user manually went offline, ignore 'available' from server
+          const currentExplicitlyOffline = get().isExplicitlyOffline;
+          if (currentExplicitlyOffline && user.status === 'available') {
+            console.warn('🛡️ [DeliveryStore] Server returned "available" but user is "Explicitly Offline". Re-syncing status...');
+            get().updateStatus('offline');
+            return get().deliveryBoy;
+          }
+
+          set({ deliveryBoy: user, isLoading: false }); 
+          return user;
         } catch (e) { set({ isLoading: false }); throw e; }
       },
-      fetchProfileSummary: async () => {
         try {
           const res = await api.get('/delivery/orders/profile-summary');
           const data = res.data || res;
           if (data) {
             const current = get().deliveryBoy || {};
             const merged = normalizeDeliveryBoy({ ...current, ...data });
+
+            // 🛡️ STATUS LOCK: Maintain local offline preference
+            const currentExplicitlyOffline = get().isExplicitlyOffline;
+            if (currentExplicitlyOffline) {
+               merged.status = 'offline';
+               merged.isAvailable = false;
+            }
+
             set({ deliveryBoy: merged });
             return merged;
           }
@@ -276,8 +313,14 @@ export const useDeliveryAuthStore = create(
         if (!current) return false;
         
         const previousStatus = current.status;
-        // 🚀 Optimistic Update: Change status instantly in store
-        set({ isUpdatingStatus: true, deliveryBoy: normalizeDeliveryBoy({ ...current, status }) });
+        const isGoingOffline = status === 'offline';
+
+        // 🚀 Optimistic Update
+        set({ 
+          isUpdatingStatus: true, 
+          isExplicitlyOffline: isGoingOffline,
+          deliveryBoy: normalizeDeliveryBoy({ ...current, status }) 
+        });
 
         try {
           const res = await api.put('/delivery/auth/profile', { 
@@ -294,6 +337,7 @@ export const useDeliveryAuthStore = create(
           // ⚠️ Rollback on failure
           set({ 
             deliveryBoy: normalizeDeliveryBoy({ ...current, status: previousStatus }), 
+            isExplicitlyOffline: previousStatus === 'offline',
             isUpdatingStatus: false 
           }); 
           throw e; 
@@ -534,7 +578,13 @@ export const useDeliveryAuthStore = create(
     {
       name: 'delivery-auth-storage',
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ token: s.token, refreshToken: s.refreshToken, deliveryBoy: s.deliveryBoy, isAuthenticated: s.isAuthenticated }),
+      partialize: (s) => ({ 
+        token: s.token, 
+        refreshToken: s.refreshToken, 
+        deliveryBoy: s.deliveryBoy, 
+        isAuthenticated: s.isAuthenticated,
+        isExplicitlyOffline: s.isExplicitlyOffline 
+      }),
     }
   )
 );

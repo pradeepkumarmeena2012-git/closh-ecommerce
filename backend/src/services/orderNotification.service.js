@@ -99,7 +99,8 @@ export const OrderNotificationService = {
                     type: 'vendor', 
                     title: status === 'pending' ? '🚀 New Order!' : 'Order Update', 
                     message: msg,
-                    sound: status === 'pending' ? 'buzzer.mp3' : 'default'
+                    sound: status === 'pending' ? 'buzzer.mp3' : 'default',
+                    click_action: `/vendor/dashboard?viewOrder=${order.orderId}`
                 });
 
                 // Socket event for dashboard refresh / buzzer
@@ -116,7 +117,10 @@ export const OrderNotificationService = {
                     type: 'delivery', 
                     title: 'Mission Update', 
                     message: msg,
-                    sound: (status === 'ready_for_pickup' || status === 'searching') ? 'buzzer.mp3' : 'default'
+                    sound: (status === 'ready_for_pickup' || status === 'searching') ? 'buzzer.mp3' : 'default',
+                    click_action: (status === 'ready_for_pickup' || status === 'searching') 
+                        ? `/delivery/dashboard?viewOrder=${order.orderId}`
+                        : `/delivery/orders/${order.orderId}`
                 });
             }
             
@@ -137,7 +141,7 @@ export const OrderNotificationService = {
                     title: r.title,
                     message: r.message,
                     type: 'order',
-                    data: { ...notificationData, ...data },
+                    data: { ...notificationData, ...data, click_action: r.click_action },
                     sound: r.sound || 'default'
                 }));
 
