@@ -96,7 +96,7 @@ const deliveryBoySchema = new mongoose.Schema(
         fcmTokens: [
             {
                 token: { type: String },
-                platform: { type: String, enum: ['web', 'app'], default: 'web' },
+                platform: { type: String, enum: ['web', 'app', 'android', 'ios'], default: 'web' },
                 deviceName: String,
                 lastUsed: { type: Date, default: Date.now },
             },

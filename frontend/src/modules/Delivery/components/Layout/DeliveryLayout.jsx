@@ -266,7 +266,8 @@ const DeliveryLayout = () => {
   const handleAcceptNewTask = async (id) => {
     setIsAcceptingOrder(true);
     try {
-      if (selectedNewOrder?.isReturn) {
+      const isReturn = !!selectedNewOrder?.isReturn;
+      if (isReturn) {
         await acceptReturn(id);
       } else {
         await acceptOrder(id);
@@ -274,6 +275,14 @@ const DeliveryLayout = () => {
       stopBuzzer();
       setShowNewOrderModal(false);
       toast.success('Accepted successfully');
+      
+      // 🚀 Instant Redirect to Detail Page
+      if (isReturn) {
+        navigate(`/delivery/returns/${id}`);
+      } else {
+        navigate(`/delivery/orders/${id}`);
+      }
+      
       window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to accept task');
