@@ -301,7 +301,7 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
         filter.rating = { $gte: Number(minRating) };
     }
 
-    const sortMap = {
+    const sortMap = {   
         newest: { createdAt: -1 },
         oldest: { createdAt: 1 },
         'price-asc': { price: 1 },

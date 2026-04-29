@@ -213,7 +213,7 @@ const DeliveryDashboard = () => {
                   <motion.div 
                     key={order.id}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate(`/delivery/orders/${order.id}`)}
+                    onClick={() => navigate(order.type === 'return' ? `/delivery/returns/${order.id}` : `/delivery/orders/${order.id}`)}
                     className="bg-[#0F172A] rounded-[14px] p-2 flex items-center gap-2.5 cursor-pointer group active:scale-95 transition-all"
                   >
                     {/* Compact Icon Hub */}

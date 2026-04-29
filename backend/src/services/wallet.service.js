@@ -113,5 +113,64 @@ export const WalletService = {
         } finally {
             session.endSession();
         }
+    },
+
+    /**
+     * Reverse earnings from vendor after a successful return completion
+     * @param {Object} returnRequest - ReturnRequest document
+     */
+    async processOrderReturn(returnRequest) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+
+        try {
+            const Order = mongoose.model('Order');
+            const orderId = returnRequest.orderId?._id || returnRequest.orderId;
+            const vendorId = returnRequest.vendorId;
+
+            const order = await Order.findById(orderId).session(session);
+            if (!order) throw new Error('Order not found');
+
+            const vendorGroup = order.vendorItems?.find(group => String(group.vendorId) === String(vendorId));
+            const commission = await Commission.findOne({ orderId, vendorId }).session(session);
+            
+            let amountToDeduct = 0;
+            let salesToDeduct = 0;
+
+            if (commission) {
+                amountToDeduct = Number(commission.vendorEarnings || 0);
+                salesToDeduct = Number(commission.subtotal || 0);
+                
+                commission.status = 'cancelled';
+                await commission.save({ session });
+            } else if (vendorGroup) {
+                amountToDeduct = Number(vendorGroup.vendorEarnings || 0);
+                salesToDeduct = Number(vendorGroup.subtotal || 0);
+            }
+
+            if (amountToDeduct > 0) {
+                await Vendor.findByIdAndUpdate(
+                    vendorId,
+                    {
+                        $inc: {
+                            totalEarnings: -amountToDeduct,
+                            availableBalance: -amountToDeduct,
+                            totalSales: -salesToDeduct
+                        }
+                    },
+                    { session }
+                );
+                console.log(`[Wallet] Deducted ₹${amountToDeduct} from Vendor ${vendorId} for returned order ${orderId}`);
+            }
+
+            await session.commitTransaction();
+            return true;
+        } catch (error) {
+            await session.abortTransaction();
+            console.error('[Wallet Error] Failed to reverse order earnings:', error.message);
+            throw error;
+        } finally {
+            session.endSession();
+        }
     }
 };

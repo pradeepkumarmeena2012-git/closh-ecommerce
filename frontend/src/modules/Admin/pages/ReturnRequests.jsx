@@ -225,7 +225,7 @@ const ReturnRequests = () => {
               </button>
             </>
           )}
-          {row.status === 'approved' && row.refundStatus === 'pending' && (
+          {(row.status === 'approved' || row.status === 'completed') && row.refundStatus === 'pending' && (
             <button
               onClick={() => {
                 const isOnline = row.paymentMethod !== 'cod' && row.paymentMethod !== 'manual';

@@ -245,12 +245,38 @@ export const notifyNearbyDeliveryBoysForReturn = async (returnRequest) => {
         console.error('[ReturnDistance] Failed to calculate return distance:', err.message);
     }
 
+    let customerAddress = 'Address unavailable';
+    let vendorAddress = 'Shop Address unavailable';
+    let vendorName = 'Vendor';
+    
+    try {
+        const Order = (await import('../../../models/Order.model.js')).default;
+        const orderDoc = await Order.findById(returnRequest.orderId?._id || returnRequest.orderId);
+        if (orderDoc?.shippingAddress?.address) {
+            customerAddress = orderDoc.shippingAddress.address;
+        }
+        
+        const Vendor = (await import('../../../models/Vendor.model.js')).default;
+        const vendorDoc = await Vendor.findById(returnRequest.vendorId);
+        if (vendorDoc) {
+            vendorName = vendorDoc.storeName || 'Vendor';
+            vendorAddress = vendorDoc.shopAddress || vendorAddress;
+        }
+    } catch (e) {
+        console.error('[ReturnPayload Enrich Error]', e.message);
+    }
+
     const returnPayload = {
         returnId: String(returnRequest._id),
+        id: String(returnRequest._id),
         orderId: orderId,
         pickupLocation: returnRequest.pickupLocation,
         dropoffLocation: returnRequest.dropoffLocation,
         customerName: returnRequest.userId?.name || 'Customer',
+        customer: returnRequest.userId?.name || 'Customer',
+        vendorName: vendorName,
+        address: customerAddress,
+        vendorAddress: vendorAddress,
         total: returnRequest.orderId?.total || 0,
         distance: estimatedDistance,
         estimatedTime: estimatedTime,

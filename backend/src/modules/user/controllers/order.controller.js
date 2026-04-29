@@ -601,7 +601,11 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Order not found.');
     }
 
-    res.status(200).json(new ApiResponse(200, order, 'Order detail fetched.'));
+    const returnRequest = await ReturnRequest.findOne({ orderId: order._id }).sort({ createdAt: -1 });
+    const orderObj = order.toObject();
+    orderObj.returnRequest = returnRequest;
+
+    res.status(200).json(new ApiResponse(200, orderObj, 'Order detail fetched.'));
 });
 
 // PATCH /api/user/orders/:id/cancel
@@ -985,3 +989,30 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
         deliveryOtpDebug: IS_PROD ? undefined : otp,
     }, 'New delivery OTP sent successfully.'));
 });
+
+/**
+ * @desc    Submit UPI ID for return refund
+ * @route   POST /api/user/returns/:id/upi
+ * @access  Private (Customer)
+ */
+export const submitReturnUPI = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { upiId } = req.body;
+
+    if (!upiId) {
+        throw new ApiError(400, 'UPI ID is required');
+    }
+
+    const returnReq = await ReturnRequest.findOne({ _id: id, userId: req.user.id });
+    if (!returnReq) {
+        throw new ApiError(404, 'Return request not found');
+    }
+
+    returnReq.upiId = upiId;
+    await returnReq.save();
+    
+    emitEvent(`return_${returnReq._id}`, 'return_status_updated', returnReq);
+
+    res.status(200).json(new ApiResponse(200, returnReq, 'UPI ID submitted successfully'));
+});
+

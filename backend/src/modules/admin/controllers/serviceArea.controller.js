@@ -3,6 +3,8 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import ServiceArea from '../../../models/ServiceArea.model.js';
 import PincodeServiceability from '../../../models/PincodeServiceability.model.js';
+import { Order } from '../../../models/Order.model.js';
+import { User } from '../../../models/User.model.js';
 import * as serviceAreaService from '../../../services/serviceArea.service.js';
 
 /**
@@ -25,7 +27,34 @@ export const getAllServiceAreas = asyncHandler(async (req, res) => {
     const areas = await ServiceArea.find(filter)
         .sort({ displayOrder: 1, name: 1 });
     
-    res.json(new ApiResponse(200, areas, 'Service areas fetched successfully'));
+    // Add real-time stats for each area
+    const areasWithStats = await Promise.all(areas.map(async (area) => {
+        // Count orders in this city
+        const orderCount = await Order.countDocuments({
+            'shippingAddress.city': { $regex: new RegExp(`^${area.name}$`, 'i') },
+            isDeleted: false
+        });
+
+        // Count customers preferred this area or in this city
+        const customerCount = await User.countDocuments({
+            role: 'customer',
+            $or: [
+                { 'preferredLocation.serviceAreaId': area._id },
+                { 'preferredLocation.city': { $regex: new RegExp(`^${area.name}$`, 'i') } }
+            ]
+        });
+
+        return {
+            ...area.toObject(),
+            stats: {
+                ...area.stats,
+                totalOrders: orderCount,
+                totalCustomers: customerCount
+            }
+        };
+    }));
+    
+    res.json(new ApiResponse(200, areasWithStats, 'Service areas fetched successfully'));
 });
 
 /**

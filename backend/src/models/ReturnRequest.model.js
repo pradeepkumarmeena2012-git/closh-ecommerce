@@ -39,6 +39,16 @@ const returnRequestSchema = new mongoose.Schema(
         },
         pickupPhoto: String,
         deliveryPhoto: String,
+        upiId: String,
+        isUpiRequested: { type: Boolean, default: false },
+        pickupOtpHash: { type: String },
+        pickupOtpDebug: { type: String },
+        pickupOtpExpiry: { type: Date },
+        deliveryOtpHash: { type: String },
+        deliveryOtpDebug: { type: String },
+        deliveryOtpExpiry: { type: Date },
+        deliveryDistance: { type: Number, default: 0 },
+        deliveryEarnings: { type: Number, default: 0 },
     },
     { timestamps: true }
 );

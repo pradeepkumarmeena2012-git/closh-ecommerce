@@ -40,11 +40,16 @@ const buildDocUrl = (req, relativePath = '') => {
  * @access  Private (Admin)
  */
 export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, search = '', status, applicationStatus, kycStatus } = req.query;
+    const { page = 1, limit = 10, search = '', status, applicationStatus, kycStatus, online } = req.query;
     const numericPage = Number(page) || 1;
     const numericLimit = Number(limit) || 10;
 
     const filter = {};
+
+    if (online === 'true') {
+        filter.status = 'available';
+        filter.isAvailable = true;
+    }
 
     if (search) {
         filter.$or = [

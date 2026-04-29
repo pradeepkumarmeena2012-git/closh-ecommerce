@@ -80,6 +80,7 @@ router.patch('/batch/select', ...deliveryAuth, orderController.handleBatchSelect
 
 // Returns
 router.get('/returns/available', ...deliveryAuth, orderController.getAvailableReturns);
+router.get('/returns/:id', ...deliveryAuth, orderController.getReturnDetail);
 router.post('/returns/:id/accept', ...deliveryAuth, orderController.acceptReturnAssignment);
 router.patch('/returns/:id/status', ...deliveryAuth, orderController.updateReturnStatus);
 

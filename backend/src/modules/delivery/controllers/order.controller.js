@@ -18,6 +18,8 @@ import { sendDeliveryOtpSms } from '../../../services/sms.service.js';
 import * as DeliveryOtpService from '../../../services/deliveryOtp.service.js';
 import redisConnection from '../../../config/redis.js';
 import { WalletService } from '../../../services/wallet.service.js';
+import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
+import Vendor from '../../../models/Vendor.model.js';
 
 const DELIVERY_OTP_TTL_MS = 10 * 60 * 1000;
 const DELIVERY_OTP_MAX_ATTEMPTS = 5;
@@ -1505,6 +1507,20 @@ export const handleBatchSelect = asyncHandler(async (req, res) => {
 
 
 // --- RETURN SYSTEM CONTROLLERS ---
+// GET /api/delivery/returns/:id
+export const getReturnDetail = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const returnReq = await ReturnRequest.findById(id)
+        .populate('userId', 'name email phone')
+        .populate('orderId', 'orderId total items paymentMethod shippingAddress dropoffLocation')
+        .populate('vendorId', 'storeName email phone shopAddress shopLocation');
+
+    if (!returnReq) {
+        throw new ApiError(404, 'Return request not found.');
+    }
+
+    return res.status(200).json(new ApiResponse(200, returnReq, 'Return request detail fetched.'));
+});
 
 // GET /api/delivery/returns/available
 export const getAvailableReturns = asyncHandler(async (req, res) => {
@@ -1606,7 +1622,7 @@ export const acceptReturnAssignment = asyncHandler(async (req, res) => {
 
 // PATCH /api/delivery/returns/:id/status
 export const updateReturnStatus = asyncHandler(async (req, res) => {
-    const { status, pickupPhoto, deliveryPhoto } = req.body;
+    const { status, pickupPhoto, deliveryPhoto, otp } = req.body;
     const { id } = req.params;
     const deliveryBoyId = req.user.id;
 
@@ -1618,26 +1634,106 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
     if (!returnReq) throw new ApiError(404, 'Return request not found.');
 
     if (status === 'picked_up') {
+        const normalizedOtp = String(otp || '').trim();
+        const otpHash = DeliveryOtpService.hashOtp(normalizedOtp);
+        
+        const isValidOtp = otpHash === returnReq.pickupOtpHash || (!IS_PRODUCTION && normalizedOtp === returnReq.pickupOtpDebug);
+        
+        if (!isValidOtp) {
+            throw new ApiError(400, 'Invalid OTP for pickup.');
+        }
+
         if (pickupPhoto) {
             returnReq.pickupPhoto = pickupPhoto;
         }
-        returnReq.status = 'processing'; // Assuming 'processing' covers picking up and en-route
+        returnReq.status = 'processing';
         returnReq.pickupPhoto = pickupPhoto;
+        
+        const dOtp = DeliveryOtpService.generateOtp();
+        returnReq.deliveryOtpHash = DeliveryOtpService.hashOtp(dOtp);
+        returnReq.deliveryOtpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        returnReq.deliveryOtpDebug = dOtp;
+
+        await createNotification({
+            recipientId: returnReq.vendorId,
+            recipientType: 'vendor',
+            title: 'Return Drop-off OTP 🔐',
+            message: `The rider is bringing a return. Your drop-off verification OTP is ${dOtp}.`,
+            type: 'order',
+            data: { returnId: String(returnReq._id), otp: dOtp }
+        });
         
         emitEvent(`user_${returnReq.userId?._id}`, 'return_picked_up', { returnId: returnReq._id });
         emitEvent(`vendor_${returnReq.vendorId}`, 'return_picked_up', { returnId: returnReq._id });
     } else if (status === 'completed') {
+        const normalizedOtp = String(otp || '').trim();
+        const otpHash = DeliveryOtpService.hashOtp(normalizedOtp);
+        
+        const isValidOtp = otpHash === returnReq.deliveryOtpHash || (!IS_PRODUCTION && normalizedOtp === returnReq.deliveryOtpDebug);
+        
+        if (!isValidOtp) {
+            throw new ApiError(400, 'Invalid OTP for vendor handover.');
+        }
+
         if (deliveryPhoto) {
             returnReq.deliveryPhoto = deliveryPhoto;
         }
         returnReq.status = 'completed';
-        
-        // Update associated order status to reflect completion of return
+        returnReq.isUpiRequested = true;
+
+        try {
+            const rider = await DeliveryBoy.findById(deliveryBoyId);
+            const riderCoords = rider?.currentLocation?.coordinates;
+            
+            const order = await Order.findById(returnReq.orderId);
+            const customerCoords = order?.dropoffLocation?.coordinates;
+            
+            const vendor = await Vendor.findById(returnReq.vendorId);
+            const vendorCoords = vendor?.shopLocation?.coordinates;
+            
+            if (riderCoords && customerCoords && vendorCoords) {
+                const dist1 = calculateDistance(riderCoords, customerCoords);
+                const dist2 = calculateDistance(customerCoords, vendorCoords);
+                const totalDistance = parseFloat((dist1 + dist2).toFixed(2));
+                
+                const earnings = getDeliveryEarning(totalDistance);
+                
+                returnReq.deliveryDistance = totalDistance;
+                returnReq.deliveryEarnings = earnings;
+                
+                if (earnings > 0) {
+                    await DeliveryBoy.findByIdAndUpdate(
+                        deliveryBoyId,
+                        {
+                            $inc: {
+                                totalEarnings: earnings,
+                                availableBalance: earnings
+                            }
+                        }
+                    );
+                }
+            }
+        } catch (calcError) {
+            console.error('[Return Earnings Calc Error]', calcError.message);
+        }
+
+        await WalletService.processOrderReturn(returnReq);
+
         const order = await Order.findById(returnReq.orderId);
         if (order) {
             order.status = 'returned';
             await order.save();
         }
+
+        // Notify user to submit UPI ID
+        await createNotification({
+            recipientId: returnReq.userId?._id,
+            recipientType: 'user',
+            title: 'Submit UPI ID for Refund',
+            message: `Your return for order #${order?.orderId || returnReq.returnId} has reached the vendor. Please submit your UPI ID for the refund.`,
+            type: 'return',
+            data: { returnId: String(returnReq._id) }
+        });
 
         // Notify user and vendor
         emitEvent(`user_${returnReq.userId?._id}`, 'return_completed', { returnId: returnReq._id });
@@ -1647,6 +1743,8 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
     }
 
     await returnReq.save();
+    
+    emitEvent(`return_${returnReq._id}`, 'return_status_updated', returnReq);
 
     res.status(200).json(new ApiResponse(200, returnReq, 'Return status updated.'));
 });

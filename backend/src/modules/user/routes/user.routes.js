@@ -82,6 +82,7 @@ router.post('/orders/:id/returns', ...customerAuth, validate(createReturnRequest
 router.post('/orders/:id/resend-delivery-otp', ...customerAuth, orderController.resendDeliveryOtp);
 router.get('/returns', ...customerAuth, orderController.getUserReturnRequests);
 router.get('/returns/:id', ...customerAuth, orderController.getUserReturnRequestById);
+router.post('/returns/:id/upi', ...customerAuth, orderController.submitReturnUPI);
 
 // Notification routes (protected)
 router.get('/notifications', ...customerAuth, notificationController.getUserNotifications);

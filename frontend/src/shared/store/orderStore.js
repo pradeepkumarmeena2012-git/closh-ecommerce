@@ -353,6 +353,12 @@ export const useOrderStore = create(
         return payload?.returnRequests || [];
       },
 
+      submitReturnUPI: async (returnId, upiId) => {
+        const response = await api.post(`/user/returns/${returnId}/upi`, { upiId });
+        const data = response?.data ?? response;
+        return data;
+      },
+
       resetOrders: () => {
         set({
           orders: [],

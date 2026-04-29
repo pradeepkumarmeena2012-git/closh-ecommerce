@@ -12,6 +12,7 @@ import { notifyNearbyDeliveryBoysForReturn } from '../../delivery/controllers/as
 import Vendor from '../../../models/Vendor.model.js';
 import Address from '../../../models/Address.model.js';
 import { emitEvent } from '../../../services/socket.service.js';
+import { WalletService } from '../../../services/wallet.service.js';
 
 const enrichReturnItems = (request) => {
     const orderItems = Array.isArray(request?.orderId?.items) ? request.orderId.items : [];
@@ -277,21 +278,8 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
                     });
                     await Promise.all(stockRestores);
 
-                    // Reverse this vendor's commission on completed return.
-                    await Commission.updateMany(
-                        {
-                            orderId: order._id,
-                            vendorId: req.user.id,
-                            status: { $ne: 'cancelled' },
-                        },
-                        {
-                            $set: {
-                                status: 'cancelled',
-                                paidAt: null,
-                                settlementId: null,
-                            },
-                        }
-                    );
+                    // Reverse vendor earnings and commission
+                    await WalletService.processOrderReturn(request);
 
                     // Mark full order returned/refunded only when every vendor in this order completed returns.
                     const completedReturns = await ReturnRequest.find({
@@ -373,6 +361,8 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
     });
 
     await Promise.allSettled(notificationTasks);
+
+    emitEvent(`return_${request._id}`, 'return_status_updated', request);
 
     res.status(200).json(
         new ApiResponse(

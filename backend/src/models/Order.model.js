@@ -31,7 +31,7 @@ const vendorItemGroupSchema = new mongoose.Schema({
     vendorEarnings: { type: Number, default: 0 },
     status: {
         type: String,
-        enum: ['pending', 'accepted', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled', 'return requested'],
+        enum: ['pending', 'accepted', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled', 'return requested', 'returned'],
         default: 'pending',
     },
 });
@@ -124,7 +124,8 @@ const orderSchema = new mongoose.Schema(
                 'out_for_delivery',  // Rider out for delivery
                 'delivered',         // Order completed + user verified
                 'cancelled',         // Cancelled by any party or timeout
-                'return requested'   // Customer requested return
+                'return requested',   // Customer requested return
+                'returned'           // Order returned
             ],
             default: 'pending',
             index: true,

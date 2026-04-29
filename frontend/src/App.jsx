@@ -156,6 +156,7 @@ const DeliveryLayout = lazy(() => import("@modules/Delivery/components/Layout/De
 const DeliveryDashboard = lazy(() => import("@modules/Delivery/pages/Dashboard"));
 const DeliveryOrders = lazy(() => import("@modules/Delivery/pages/Orders"));
 const DeliveryOrderDetail = lazy(() => import("@modules/Delivery/pages/OrderDetail"));
+const DeliveryReturnDetail = lazy(() => import("@modules/Delivery/pages/ReturnDetail"));
 const DeliveryProfile = lazy(() => import("@modules/Delivery/pages/Profile"));
 const DeliveryNotifications = lazy(() => import("@modules/Delivery/pages/Notifications"));
 const DeliveryLiveTracking = lazy(() => import("@modules/Delivery/pages/LiveTracking"));
@@ -351,6 +352,7 @@ const AppRoutes = () => {
           <Route path="dashboard" element={<DeliveryDashboard />} />
           <Route path="orders" element={<DeliveryOrders />} />
           <Route path="orders/:id" element={<DeliveryOrderDetail />} />
+          <Route path="returns/:id" element={<DeliveryReturnDetail />} />
           <Route path="live-tracking/:orderId" element={<DeliveryLiveTracking />} />
           <Route path="notifications" element={<DeliveryNotifications />} />
           <Route path="payouts" element={<DeliveryPayouts />} />

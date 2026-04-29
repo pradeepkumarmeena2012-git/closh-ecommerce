@@ -351,7 +351,16 @@ export const useDeliveryAuthStore = create(
           const res = await api.get(`/delivery/orders/${id}`);
           const order = normalizeOrder(res.data || res);
           set({ selectedOrder: order, isLoadingOrder: false }); return order;
-        } catch (e) { set({ isLoadingOrder: false }); throw e; }
+        } catch (e) { 
+          try {
+            const res = await api.get(`/delivery/returns/${id}`);
+            const ret = normalizeReturn(res.data?.data || res.data || res);
+            set({ selectedOrder: ret, isLoadingOrder: false }); return ret;
+          } catch (retError) {
+            set({ isLoadingOrder: false }); 
+            throw e; 
+          }
+        }
       },
       acceptOrder: async (id) => {
         const currentOrders = get().orders || [];
@@ -481,6 +490,18 @@ export const useDeliveryAuthStore = create(
           const list = ((res.data || res)?.returns || []).map(normalizeReturn);
           set({ returns: list, isLoadingOrders: false }); return list;
         } catch (e) { set({ isLoadingOrders: false }); throw e; }
+      },
+      fetchReturnById: async (id) => {
+        set({ isLoadingOrder: true });
+        try {
+          const res = await api.get(`/delivery/returns/${id}`);
+          const ret = normalizeReturn(res.data?.data || res.data || res);
+          set({ selectedOrder: ret, isLoadingOrder: false });
+          return ret;
+        } catch (e) {
+          set({ isLoadingOrder: false });
+          throw e;
+        }
       },
       acceptReturn: async (id) => {
         set({ isUpdatingOrderStatus: true });
