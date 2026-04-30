@@ -24,7 +24,6 @@ const DeliveryDashboard = () => {
   const isOnline = deliveryBoy?.status === 'available';
 
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
-  const [newOrderRequest, setNewOrderRequest] = useState(null);
   const [isAccepting, setIsAccepting] = useState(false);
 
   // --- Real-time Delivery Tracking ---
@@ -68,39 +67,13 @@ const DeliveryDashboard = () => {
     };
     window.addEventListener('delivery-dashboard-refresh', handleRefresh);
 
-    const handleNewOrder = (data) => {
-      console.log("🔔 [SOCKET] New Order Request Recieved:", data);
-      
-      // BLOCKER: Do not show or alert for new orders if already on a mission
-      if (activeTasks.length > 0) return;
-
-      // Play Buzzer Sound
-      try {
-        const audio = new Audio('/sounds/buzzer.mp3');
-        audio.play().catch(() => {});
-      } catch {}
-
-      setNewOrderRequest(data);
-    };
-
-    socketService.on('order_ready_for_pickup', handleNewOrder);
-    socketService.on('return_ready_for_pickup', handleNewOrder);
-    socketService.on('newOrder', handleNewOrder);
-    socketService.on('new_order', handleNewOrder);
     
     socketService.on('order_assigned', () => {
-      setNewOrderRequest(null);
       handleRefresh();
     });
 
     socketService.on('order_taken', (data) => {
-       setNewOrderRequest(prev => {
-          if (prev?.id === data.id || prev?.orderId === data.orderId) {
-             toast('Order taken by another partner', { icon: 'ℹ️' });
-             return null;
-          }
-          return prev;
-       });
+       handleRefresh();
     });
 
     socketService.on('order_picked_up', handleRefresh);
@@ -112,8 +85,6 @@ const DeliveryDashboard = () => {
 
     return () => {
       window.removeEventListener('delivery-dashboard-refresh', handleRefresh);
-      socketService.off('order_ready_for_pickup');
-      socketService.off('return_ready_for_pickup');
       socketService.off('order_assigned');
       socketService.off('order_taken');
       socketService.off('order_picked_up');
@@ -242,7 +213,7 @@ const DeliveryDashboard = () => {
                   <motion.div 
                     key={order.id}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate(`/delivery/orders/${order.id}`)}
+                    onClick={() => navigate(order.type === 'return' ? `/delivery/returns/${order.id}` : `/delivery/orders/${order.id}`)}
                     className="bg-[#0F172A] rounded-[14px] p-2 flex items-center gap-2.5 cursor-pointer group active:scale-95 transition-all"
                   >
                     {/* Compact Icon Hub */}
@@ -301,31 +272,6 @@ const DeliveryDashboard = () => {
           onWithdrawalRequested={() => { setShowWithdrawalModal(false); loadDashboardData(); }}
         />
 
-        <NewOrderModal
-          isOpen={!!newOrderRequest && activeTasks.length === 0}
-          order={newOrderRequest}
-          onClose={() => setNewOrderRequest(null)}
-          onAccept={async (id) => {
-            setIsAccepting(true);
-            try {
-              if (newOrderRequest?.type === 'return') {
-                 await useDeliveryAuthStore.getState().acceptReturn(id);
-              } else {
-                 await useDeliveryAuthStore.getState().acceptOrder(id);
-              }
-              toast.success('Order Accepted!');
-              setNewOrderRequest(null);
-              loadDashboardData();
-              navigate(`/delivery/orders/${id}`);
-            } catch (err) {
-              toast.error(err?.response?.data?.message || 'Failed to accept order');
-            } finally {
-              setIsAccepting(false);
-            }
-          }}
-          isAccepting={isAccepting}
-          riderLocation={currentLocation}
-        />
       </div>
     </PageTransition>
   );

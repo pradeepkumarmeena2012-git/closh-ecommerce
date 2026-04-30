@@ -37,7 +37,7 @@ const sendPushToTokens = async (tokens, { title, body, data = {}, sound = 'defau
 
     const message = {
         notification: { title, body },
-        data: { ...stringifiedData, click_action: 'FLUTTER_NOTIFICATION_CLICK' }, // Standard for some frameworks
+        data: { ...stringifiedData, click_action: stringifiedData.click_action || 'FLUTTER_NOTIFICATION_CLICK' }, // Standard for some frameworks
         tokens,
         android: {
             priority: 'high',
@@ -124,12 +124,18 @@ export const createNotification = async ({ recipientId, recipientType, title, me
             switch (recipientType) {
                 case 'admin': recipient = await Admin.findById(recipientId).select('fcmTokens').lean(); break;
                 case 'vendor': recipient = await Vendor.findById(recipientId).select('fcmTokens').lean(); break;
-                case 'delivery': recipient = await DeliveryBoy.findById(recipientId).select('fcmTokens').lean(); break;
+                case 'delivery': recipient = await DeliveryBoy.findById(recipientId).select('fcmTokens status isAvailable').lean(); break;
                 case 'user': recipient = await User.findById(recipientId).select('fcmTokens').lean(); break;
                 case 'customer': recipient = await User.findById(recipientId).select('fcmTokens').lean(); break;
             }
 
             if (recipient && recipient.fcmTokens && recipient.fcmTokens.length > 0) {
+                // 3a. Suppression check: If delivery partner is offline, skip push notification
+                if (recipientType === 'delivery' && (recipient.status === 'offline' || recipient.isAvailable === false)) {
+                    console.log(`🔕 [PUSH SUPPRESSED] Partner ${recipientId} is offline. Skipping push.`);
+                    return null;
+                }
+
                 pushTokens = recipient.fcmTokens.map(t => typeof t === 'string' ? t : t.token);
             }
         }

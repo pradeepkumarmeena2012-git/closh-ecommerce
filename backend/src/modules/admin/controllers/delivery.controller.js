@@ -4,6 +4,7 @@ import Settlement from '../../../models/Settlement.model.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
+import { cacheInvalidate } from '../../delivery/controllers/order.controller.js';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
 import crypto from 'crypto';
@@ -39,11 +40,16 @@ const buildDocUrl = (req, relativePath = '') => {
  * @access  Private (Admin)
  */
 export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, search = '', status, applicationStatus, kycStatus } = req.query;
+    const { page = 1, limit = 10, search = '', status, applicationStatus, kycStatus, online } = req.query;
     const numericPage = Number(page) || 1;
     const numericLimit = Number(limit) || 10;
 
     const filter = {};
+
+    if (online === 'true') {
+        filter.status = 'available';
+        filter.isAvailable = true;
+    }
 
     if (search) {
         filter.$or = [
@@ -91,21 +97,6 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
                     _id: null,
                     totalDeliveries: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
                     totalEarnings: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, '$shipping', 0] } },
-                    cashInHand: {
-                        $sum: {
-                            $cond: [
-                                {
-                                    $and: [
-                                        { $eq: ['$status', 'delivered'] },
-                                        { $in: ['$paymentMethod', ['cod', 'cash', 'COD', 'CASH']] },
-                                        { $ne: ['$isCashSettled', true] }
-                                    ]
-                                },
-                                '$total',
-                                0
-                            ]
-                        }
-                    },
                     pendingDeliveries: {
                         $sum: { $cond: [{ $in: ['$status', ['assigned', 'picked_up', 'out_for_delivery']] }, 1, 0] }
                     }
@@ -113,7 +104,7 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
             }
         ]);
 
-        const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: boy.totalDeliveries || 0, pendingDeliveries: 0, cashInHand: 0 };
+        const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: boy.totalDeliveries || 0, pendingDeliveries: 0 };
         const boyObj = boy.toObject();
 
         return {
@@ -136,27 +127,18 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
             stats: {
                 totalDeliveries: boyStats.totalDeliveries,
                 pendingDeliveries: boyStats.pendingDeliveries,
-                cashInHand: boyStats.cashInHand
+                cashInHand: Number(boy.cashInHand || 0)
             }
         };
     }));
 
-    // Calculate Global Stats
-    const globalStats = await Order.aggregate([
-        {
-            $match: {
-                status: 'delivered',
-                paymentMethod: { $in: ['cod', 'cash', 'COD', 'CASH'] },
-                isDeleted: { $ne: true }
-            }
-        },
+    // Calculate Global Stats from Rider documents instead of recalculating from Orders
+    const globalSummary = await DeliveryBoy.aggregate([
         {
             $group: {
                 _id: null,
-                totalLifetime: { $sum: '$total' },
-                pendingSettlement: {
-                    $sum: { $cond: [{ $ne: ['$isCashSettled', true] }, '$total', 0] }
-                }
+                totalLifetime: { $sum: "$cashCollected" },
+                pendingSettlement: { $sum: "$cashInHand" }
             }
         }
     ]);
@@ -164,7 +146,7 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
     res.status(200).json(
         new ApiResponse(200, {
             deliveryBoys: boysWithStats,
-            summary: globalStats[0] || { totalLifetime: 0, pendingSettlement: 0 },
+            summary: globalSummary[0] || { totalLifetime: 0, pendingSettlement: 0 },
             pagination: {
                 total,
                 page: numericPage,
@@ -204,26 +186,12 @@ export const getDeliveryBoyById = asyncHandler(async (req, res) => {
                 _id: null,
                 totalDeliveries: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
                 totalEarnings: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, '$shipping', 0] } },
-                cashInHand: {
-                    $sum: {
-                        $cond: [
-                            {
-                                $and: [
-                                    { $eq: ['$status', 'delivered'] },
-                                    { $in: ['$paymentMethod', ['cod', 'cash', 'COD', 'CASH']] },
-                                    { $ne: ['$isCashSettled', true] }
-                                ]
-                            },
-                            '$total',
-                            0
-                        ]
-                    }
-                }
             }
         }
     ]);
 
-    const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: boy.totalDeliveries || 0, totalEarnings: 0, cashInHand: 0 };
+    const boyStats = stats.length > 0 ? stats[0] : { totalDeliveries: boy.totalDeliveries || 0, totalEarnings: 0 };
+    boyStats.cashInHand = boy.cashInHand || 0;
 
     const boyObj = boy.toObject();
 
@@ -494,11 +462,25 @@ export const settleCash = asyncHandler(async (req, res) => {
     ]);
 
     const unsettledCount = unsettledStats?.[0]?.count || 0;
-    const settledAmount = Number(unsettledStats?.[0]?.totalAmount || 0);
+    const aggregateAmount = Number(unsettledStats?.[0]?.totalAmount || 0);
 
-    if (unsettledCount === 0) {
+    // If rider has cashInHand balance, we MUST allow settlement even if individual 
+    // order aggregation is 0 (to resolve drift/mismatch issues).
+    const currentBalance = Number(boy.cashInHand || 0);
+
+    if (currentBalance <= 0 && unsettledCount === 0) {
         return res.status(200).json(
             new ApiResponse(200, { modifiedCount: 0, settledAmount: 0 }, 'No pending cash to settle')
+        );
+    }
+
+    // Amount to settle: use the requested amount, fallback to full balance
+    const amountToSettle = amount ? Number(amount) : currentBalance;
+    const settledAmount = amountToSettle > 0 ? amountToSettle : aggregateAmount;
+
+    if (settledAmount <= 0) {
+        return res.status(200).json(
+            new ApiResponse(200, { modifiedCount: 0, settledAmount: 0 }, 'Invalid settlement amount')
         );
     }
 
@@ -520,13 +502,12 @@ export const settleCash = asyncHandler(async (req, res) => {
         status: 'completed'
     });
 
-    // 2. Decrement Rider Cash Collected (In Hand)
-    // We use Math.max to ensure it doesn't go negative if there's a mismatch with old data
+    // 2. Decrement Rider Cash In Hand
     const rider = await DeliveryBoy.findById(req.params.id);
     if (rider) {
-        const newBalance = Math.max(0, (rider.cashCollected || 0) - settledAmount);
+        const newInHand = Math.max(0, (rider.cashInHand || 0) - settledAmount);
         await DeliveryBoy.findByIdAndUpdate(req.params.id, {
-            $set: { cashCollected: newBalance },
+            $set: { cashInHand: newInHand },
         });
 
         // 3. PUSH NOTIFICATION TO RIDER
@@ -543,6 +524,9 @@ export const settleCash = asyncHandler(async (req, res) => {
                     processedBy: req.user.name || 'Admin'
                 }
             });
+
+            // Invalidate rider's dashboard and profile cache
+            await cacheInvalidate(`dash:${rider._id}`, `profile:${rider._id}`);
         } catch (notifError) {
             console.error('Failed to send cash collection notification:', notifError);
         }

@@ -68,6 +68,7 @@ router.get('/orders/:id/company-qr', ...deliveryAuth, orderController.getCompany
 
 // ── Antigravity Engine (state-machine endpoints) ──
 router.get('/orders/:id/flow', ...deliveryAuth, orderController.getDeliveryFlow);
+router.patch('/orders/:id/arrived-vendor', ...deliveryAuth, orderController.markArrivedAtVendor);
 router.patch('/orders/:id/pickup', ...deliveryAuth, orderController.handlePickup);
 router.patch('/orders/:id/start', ...deliveryAuth, orderController.handleStartDelivery);
 router.patch('/orders/:id/location', ...deliveryAuth, orderController.handleLocationUpdate);
@@ -79,6 +80,7 @@ router.patch('/batch/select', ...deliveryAuth, orderController.handleBatchSelect
 
 // Returns
 router.get('/returns/available', ...deliveryAuth, orderController.getAvailableReturns);
+router.get('/returns/:id', ...deliveryAuth, orderController.getReturnDetail);
 router.post('/returns/:id/accept', ...deliveryAuth, orderController.acceptReturnAssignment);
 router.patch('/returns/:id/status', ...deliveryAuth, orderController.updateReturnStatus);
 

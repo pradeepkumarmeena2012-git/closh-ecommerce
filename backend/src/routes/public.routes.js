@@ -12,6 +12,9 @@ import Campaign from '../models/Campaign.model.js';
 import { applyActiveCampaigns } from '../utils/productUtils.js';
 import { calculateVendorShippingForGroups } from '../services/vendorShipping.service.js';
 import { getCache, setCache } from '../utils/cache.js';
+import { optionalAuth } from '../middlewares/authenticate.js';
+import { Order } from '../models/Order.model.js';
+import { validateCoupon } from '../services/coupon.service.js';
 
 
 const router = Router();
@@ -328,7 +331,7 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
         filter.rating = { $gte: Number(minRating) };
     }
 
-    const sortMap = {
+    const sortMap = {   
         newest: { createdAt: -1 },
         oldest: { createdAt: 1 },
         'price-asc': { price: 1 },
@@ -503,9 +506,10 @@ router.get('/vendors/:id/products', asyncHandler(async (req, res) => {
 }));
 
 // POST /api/coupons/validate
-router.post('/coupons/validate', asyncHandler(async (req, res) => {
+router.post('/coupons/validate', optionalAuth, asyncHandler(async (req, res) => {
     const rawCode = String(req.body?.code || '').trim();
     const cartTotal = Number(req.body?.cartTotal);
+    const userId = req.user?.id || req.user?._id;
 
     if (!rawCode) {
         throw new ApiError(400, 'Coupon code is required.');
@@ -514,27 +518,25 @@ router.post('/coupons/validate', asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Cart total must be a valid non-negative number.');
     }
 
-    const coupon = await Coupon.findOne({ code: rawCode.toUpperCase(), isActive: true });
-    if (!coupon) throw new ApiError(400, 'Invalid coupon code.');
-    if (coupon.startsAt && coupon.startsAt > Date.now()) throw new ApiError(400, 'Coupon is not active yet.');
-    if (coupon.expiresAt && coupon.expiresAt < Date.now()) throw new ApiError(400, 'Coupon has expired.');
-    if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) throw new ApiError(400, 'Coupon usage limit reached.');
-    if (cartTotal < coupon.minOrderValue) throw new ApiError(400, `Minimum order value for this coupon is Rs.${coupon.minOrderValue}.`);
+    const { coupon, discount } = await validateCoupon(rawCode, cartTotal, userId);
 
-    let discount = 0;
-    if (coupon.type === 'percentage') {
-        discount = (cartTotal * coupon.value) / 100;
-        if (coupon.maxDiscount) discount = Math.min(discount, coupon.maxDiscount);
-    } else if (coupon.type === 'fixed') {
-        discount = coupon.value;
-    }
-
-    res.status(200).json(new ApiResponse(200, { coupon: { code: coupon.code, type: coupon.type, value: coupon.value }, discount }, 'Coupon is valid.'));
+    res.status(200).json(new ApiResponse(200, { 
+        coupon: { 
+            code: coupon.code, 
+            type: coupon.type, 
+            value: coupon.value,
+            isFirstOrderOnly: coupon.isFirstOrderOnly 
+        }, 
+        discount 
+    }, 'Coupon is valid.'));
 }));
 
 // GET /api/coupons/available
-router.get('/coupons/available', asyncHandler(async (req, res) => {
+router.get('/coupons/available', optionalAuth, asyncHandler(async (req, res) => {
     const now = new Date();
+    const userId = req.user?.id || req.user?._id;
+
+    // Fetch all active coupons within date range
     const coupons = await Coupon.find({
         isActive: true,
         $and: [
@@ -542,12 +544,26 @@ router.get('/coupons/available', asyncHandler(async (req, res) => {
             { $or: [{ expiresAt: null }, { expiresAt: { $exists: false } }, { expiresAt: { $gte: now } }] }
         ]
     })
-        .select('code name type value minOrderValue maxDiscount expiresAt usageLimit usedCount')
+        .select('code name type value minOrderValue maxDiscount expiresAt usageLimit usedCount isFirstOrderOnly')
         .sort({ createdAt: -1 })
         .limit(30)
         .lean();
 
-    res.status(200).json(new ApiResponse(200, coupons, 'Available coupons fetched.'));
+    let filteredCoupons = coupons;
+
+    // If user is logged in, hide first-order-only coupons if they have past orders
+    if (userId) {
+        const hasPastOrders = await Order.exists({
+            userId,
+            status: { $nin: ['cancelled', 'failed'] }
+        });
+
+        if (hasPastOrders) {
+            filteredCoupons = coupons.filter(c => !c.isFirstOrderOnly);
+        }
+    }
+
+    res.status(200).json(new ApiResponse(200, filteredCoupons, 'Available coupons fetched.'));
 }));
 
 // POST /api/shipping/estimate

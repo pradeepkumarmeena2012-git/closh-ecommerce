@@ -26,7 +26,7 @@ const RiderSettlements = () => {
     try {
       setIsLoading(true);
       const response = await api.get("/admin/delivery-settlements");
-      const data = response.data?.data || [];
+      const data = response.data || [];
       setSettlements(data);
     } catch (error) {
       toast.error("Failed to load settlements");

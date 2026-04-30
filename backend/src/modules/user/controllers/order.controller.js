@@ -1,3 +1,5 @@
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
@@ -15,10 +17,17 @@ import { createNotification } from '../../../services/notification.service.js';
 import { calculateVendorShippingForGroups } from '../../../services/vendorShipping.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
+import { validateAddressServiceability } from '../../../services/serviceArea.service.js';
 import Vendor from '../../../models/Vendor.model.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 import { geocodeAddress, getDistanceMatrix } from '../../../services/googleMaps.service.js';
 import { applyActiveCampaigns } from '../../../utils/productUtils.js';
+import { validateCoupon } from '../../../services/coupon.service.js';
+
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 
 const normalizeVariantPart = (value) => String(value || '').trim().toLowerCase();
@@ -135,6 +144,22 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
 // POST /api/user/orders
 export const placeOrder = asyncHandler(async (req, res) => {
     const { items, shippingAddress, paymentMethod, couponCode, shippingOption, orderType, deliveryType, deviceToken, dropoffLocation } = req.body;
+    
+    const userId = req.user?._id || req.user?.id;
+
+    // 1. Check serviceability (Service is not yet delivered/available in the zone check)
+    if (shippingAddress) {
+        try {
+            await validateAddressServiceability({
+                pincode: shippingAddress.zipCode,
+                city: shippingAddress.city,
+                coordinates: dropoffLocation?.coordinates || null
+            });
+        } catch (error) {
+            throw new ApiError(400, error.message || "Service is not yet available/delivered in this area. Please try another location.");
+        }
+    }
+
     console.log("STEP 3 - Received dropoffLocation:", dropoffLocation);
 
     // Validate order type
@@ -144,7 +169,6 @@ export const placeOrder = asyncHandler(async (req, res) => {
     }
 
     const normalizedPaymentMethod = paymentMethod === 'cash' ? 'cod' : paymentMethod;
-    const userId = req.user?.id || null;
     const rawIdempotencyKey = String(req.get('x-idempotency-key') || '').trim();
     const idempotencyKey = rawIdempotencyKey || null;
     const normalizedGuestEmail = String(shippingAddress?.email || '').trim().toLowerCase();
@@ -185,9 +209,17 @@ export const placeOrder = asyncHandler(async (req, res) => {
     for (const item of items) {
         const productDoc = await Product.findById(item.productId).populate(
             'vendorId',
-            'commissionRate storeName shippingEnabled defaultShippingRate freeShippingThreshold shopLocation'
+            'commissionRate storeName shippingEnabled defaultShippingRate freeShippingThreshold shopLocation isOnline'
         );
-        if (!productDoc) throw new ApiError(404, `Product not found: ${item.productId}`);
+
+        if (!productDoc) {
+            throw new ApiError(404, `Product not found: ${item.productId}`);
+        }
+
+        // Check if store is offline
+        if (productDoc.vendorId && productDoc.vendorId.isOnline === false) {
+            throw new ApiError(400, `The store "${productDoc.vendorId.storeName}" is currently offline. Orders cannot be placed at this time.`);
+        }
         
         // Apply active campaigns to ensure order pricing matches catalog pricing
         const product = await applyActiveCampaigns(productDoc);
@@ -258,20 +290,9 @@ export const placeOrder = asyncHandler(async (req, res) => {
     let couponDiscount = 0;
     let appliedCoupon = null;
     if (couponCode) {
-        const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), isActive: true });
-        if (!coupon) throw new ApiError(400, 'Invalid coupon code.');
-        if (coupon.startsAt && coupon.startsAt > Date.now()) throw new ApiError(400, 'Coupon is not active yet.');
-        if (coupon.expiresAt && coupon.expiresAt < Date.now()) throw new ApiError(400, 'Coupon has expired.');
-        if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) throw new ApiError(400, 'Coupon usage limit reached.');
-        if (subtotal < coupon.minOrderValue) throw new ApiError(400, `Minimum order value for this coupon is Rs.${coupon.minOrderValue}.`);
-
-        if (coupon.type === 'percentage') {
-            couponDiscount = (subtotal * coupon.value) / 100;
-            if (coupon.maxDiscount) couponDiscount = Math.min(couponDiscount, coupon.maxDiscount);
-        } else if (coupon.type === 'fixed') {
-            couponDiscount = coupon.value;
-        }
-        appliedCoupon = coupon;
+        const result = await validateCoupon(couponCode, subtotal, userId);
+        appliedCoupon = result.coupon;
+        couponDiscount = result.discount;
     }
 
     // 3. Resolve Dropoff Location & Calculate distance-based shipping
@@ -434,6 +455,23 @@ export const placeOrder = asyncHandler(async (req, res) => {
                     );
                 }
             }
+
+            // If payment method is prepaid, create Razorpay order
+            if (normalizedPaymentMethod === 'prepaid') {
+                try {
+                    const razorpayOrder = await razorpay.orders.create({
+                        amount: Math.round(total * 100), // Razorpay expects amount in paise
+                        currency: 'INR',
+                        receipt: order.orderId,
+                    });
+                    
+                    order.razorpayOrderId = razorpayOrder.id;
+                    await order.save({ session });
+                } catch (razorError) {
+                    console.error("❌ RAZORPAY_ORDER_CREATION_FAILED:", razorError);
+                    throw new ApiError(500, "Failed to initialize online payment. Please try again.");
+                }
+            }
         });
 
         // 10. Unified Notification to all parties (CALLED OUTSIDE TRANSACTION)
@@ -467,6 +505,11 @@ export const placeOrder = asyncHandler(async (req, res) => {
     const responseMessage = idempotentReplay
         ? 'Duplicate order request ignored. Returning existing order.'
         : 'Order placed successfully.';
+    console.log("📤 Sending Order Response Data:", {
+        orderId: order.orderId,
+        razorpayOrderId: order.razorpayOrderId,
+        razorpayKeyId: process.env.RAZORPAY_KEY_ID
+    });
     res.status(responseStatus).json(
         new ApiResponse(
             responseStatus,
@@ -474,11 +517,50 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 orderId: order.orderId,
                 total: order.total,
                 trackingNumber: order.trackingNumber,
+                razorpayOrderId: order.razorpayOrderId,
+                razorpayKeyId: process.env.RAZORPAY_KEY_ID,
                 ...(idempotentReplay ? { idempotentReplay: true } : {}),
             },
             responseMessage
         )
     );
+});
+
+// POST /api/user/orders/verify-payment
+export const verifyPayment = asyncHandler(async (req, res) => {
+    const { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature } = req.body;
+
+    if (!razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
+        throw new ApiError(400, "Missing payment verification details.");
+    }
+
+    const order = await Order.findOne({ orderId });
+    if (!order) throw new ApiError(404, "Order not found.");
+
+    // Verify signature
+    const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
+    hmac.update(razorpayOrderId + "|" + razorpayPaymentId);
+    const generatedSignature = hmac.digest('hex');
+
+    if (generatedSignature !== razorpaySignature) {
+        order.paymentStatus = 'failed';
+        await order.save();
+        throw new ApiError(400, "Invalid payment signature. Payment verification failed.");
+    }
+
+    // Update order status
+    order.paymentStatus = 'paid';
+    order.razorpayPaymentId = razorpayPaymentId;
+    order.razorpaySignature = razorpaySignature;
+    
+    // Auto-confirm order if it was pending
+    if (order.status === 'pending') {
+        order.status = 'pending'; // Keep as pending, but mark as paid
+    }
+    
+    await order.save();
+
+    res.status(200).json(new ApiResponse(200, { orderId: order.orderId }, "Payment verified successfully."));
 });
 
 // GET /api/user/orders
@@ -519,7 +601,11 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Order not found.');
     }
 
-    res.status(200).json(new ApiResponse(200, order, 'Order detail fetched.'));
+    const returnRequest = await ReturnRequest.findOne({ orderId: order._id }).sort({ createdAt: -1 });
+    const orderObj = order.toObject();
+    orderObj.returnRequest = returnRequest;
+
+    res.status(200).json(new ApiResponse(200, orderObj, 'Order detail fetched.'));
 });
 
 // PATCH /api/user/orders/:id/cancel
@@ -903,3 +989,30 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
         deliveryOtpDebug: IS_PROD ? undefined : otp,
     }, 'New delivery OTP sent successfully.'));
 });
+
+/**
+ * @desc    Submit UPI ID for return refund
+ * @route   POST /api/user/returns/:id/upi
+ * @access  Private (Customer)
+ */
+export const submitReturnUPI = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { upiId } = req.body;
+
+    if (!upiId) {
+        throw new ApiError(400, 'UPI ID is required');
+    }
+
+    const returnReq = await ReturnRequest.findOne({ _id: id, userId: req.user.id });
+    if (!returnReq) {
+        throw new ApiError(404, 'Return request not found');
+    }
+
+    returnReq.upiId = upiId;
+    await returnReq.save();
+    
+    emitEvent(`return_${returnReq._id}`, 'return_status_updated', returnReq);
+
+    res.status(200).json(new ApiResponse(200, returnReq, 'UPI ID submitted successfully'));
+});
+

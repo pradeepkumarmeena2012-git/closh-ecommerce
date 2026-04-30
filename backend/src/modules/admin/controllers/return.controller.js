@@ -2,11 +2,14 @@ import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import Order from '../../../models/Order.model.js';
 import User from '../../../models/User.model.js';
 import Product from '../../../models/Product.model.js';
+import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
 import { asyncHandler } from '../../../utils/asyncHandler.js';
 import { refundPayment } from '../../../services/razorpay.service.js';
+import { WalletService } from '../../../services/wallet.service.js';
+import * as DeliveryOtpService from '../../../services/deliveryOtp.service.js';
 
 const enrichReturnItems = (request) => {
     const orderItems = Array.isArray(request?.orderId?.items) ? request.orderId.items : [];
@@ -137,7 +140,8 @@ export const getReturnRequestById = asyncHandler(async (req, res) => {
     const request = await ReturnRequest.findById(req.params.id)
         .populate('userId', 'name email phone')
         .populate('orderId', 'orderId total createdAt items paymentMethod paymentStatus razorpayPaymentId')
-        .populate('vendorId', 'shopName email');
+        .populate('vendorId', 'shopName email')
+        .populate('deliveryBoyId', 'name phone');
 
     if (!request) {
         throw new ApiError(404, 'Return request not found');
@@ -274,6 +278,9 @@ export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
                         await product.save();
                     });
                     await Promise.all(stockRestores);
+                    
+                    // Reverse vendor earnings and commission
+                    await WalletService.processOrderReturn(request);
                 }
             }
         }
@@ -322,5 +329,108 @@ export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
 
     const normalized = normalizeReturnRequest(request);
 
+    emitEvent(`return_${request._id}`, 'return_status_updated', request);
+
     res.status(200).json(new ApiResponse(200, normalized, 'Return request status updated successfully'));
 });
+
+/**
+ * @desc    Assign delivery boy to return request
+ * @route   POST /api/admin/return-requests/:id/assign
+ * @access  Private (Admin)
+ */
+export const assignDeliveryBoyToReturn = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { deliveryBoyId } = req.body;
+
+    if (!deliveryBoyId) {
+        throw new ApiError(400, 'Delivery Boy ID is required');
+    }
+
+    const returnReq = await ReturnRequest.findById(id).populate('userId', 'name');
+    if (!returnReq) {
+        throw new ApiError(404, 'Return request not found');
+    }
+
+    const rider = await DeliveryBoy.findById(deliveryBoyId);
+    if (!rider) {
+        throw new ApiError(404, 'Delivery boy not found');
+    }
+
+    returnReq.deliveryBoyId = deliveryBoyId;
+    returnReq.status = 'processing';
+    
+    // Generate Pickup OTP for customer
+    const otp = DeliveryOtpService.generateOtp();
+    returnReq.pickupOtpHash = DeliveryOtpService.hashOtp(otp);
+    returnReq.pickupOtpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    returnReq.pickupOtpDebug = otp;
+    
+    await returnReq.save();
+    
+    // Notify Customer about OTP
+    if (returnReq.userId) {
+        await createNotification({
+            recipientId: returnReq.userId._id || returnReq.userId,
+            recipientType: 'user',
+            title: 'Return Pickup OTP 🔐',
+            message: `Your return pickup OTP is ${otp}. Please share it with the rider.`,
+            type: 'order',
+            data: { returnId: String(returnReq._id), otp }
+        });
+    }
+
+    // Notify Rider
+    await createNotification({
+        recipientId: deliveryBoyId,
+        recipientType: 'delivery',
+        title: 'New Return Assigned',
+        message: `Admin has assigned you a return request for order #${returnReq.returnId}`,
+        type: 'return',
+        data: { returnId: String(returnReq._id) }
+    });
+
+    let customerAddress = 'Address unavailable';
+    let vendorAddress = 'Shop Address unavailable';
+    let vendorName = 'Vendor';
+    
+    try {
+        const Order = (await import('../../../models/Order.model.js')).default;
+        const orderDoc = await Order.findById(returnReq.orderId?._id || returnReq.orderId);
+        if (orderDoc?.shippingAddress?.address) {
+            customerAddress = orderDoc.shippingAddress.address;
+        }
+        
+        const Vendor = (await import('../../../models/Vendor.model.js')).default;
+        const vendorDoc = await Vendor.findById(returnReq.vendorId);
+        if (vendorDoc) {
+            vendorName = vendorDoc.storeName || 'Vendor';
+            vendorAddress = vendorDoc.shopAddress || vendorAddress;
+        }
+    } catch (e) {
+        console.error('[AdminReturnPayload Enrich Error]', e.message);
+    }
+
+    // Real-time assignment alert to delivery partner for return
+    const returnPayload = {
+        returnId: String(returnReq._id),
+        id: String(returnReq._id),
+        orderId: returnReq.returnId || String(returnReq._id),
+        pickupLocation: returnReq.pickupLocation,
+        dropoffLocation: returnReq.dropoffLocation,
+        customerName: returnReq.userId?.name || 'Customer',
+        customer: returnReq.userId?.name || 'Customer',
+        vendorName: vendorName,
+        address: customerAddress,
+        vendorAddress: vendorAddress,
+        total: returnReq.refundAmount || 0,
+        distance: 'N/A',
+        estimatedTime: 'N/A',
+        deliveryFee: 25,
+        type: 'return'
+    };
+    emitEvent(`delivery_${deliveryBoyId}`, 'return_ready_for_pickup', returnPayload);
+
+    res.status(200).json(new ApiResponse(200, returnReq, 'Delivery boy assigned successfully'));
+});
+

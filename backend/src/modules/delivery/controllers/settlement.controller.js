@@ -5,6 +5,7 @@ import CashSettlement from '../../../models/CashSettlement.model.js';
 import ApiError from '../../../utils/ApiError.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import asyncHandler from '../../../utils/asyncHandler.js';
+import { cacheInvalidate } from './order.controller.js';
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -95,8 +96,11 @@ export const verifySettlement = asyncHandler(async (req, res) => {
     if (!rider) throw new ApiError(404, 'Delivery boy not found.');
 
     rider.cashInHand = Math.max(0, rider.cashInHand - settlement.amount);
-    rider.cashCollected = Math.max(0, rider.cashCollected - settlement.amount);
+    // rider.cashCollected is a lifetime total, do not decrement it.
     await rider.save();
+
+    // Invalidate dashboard and profile cache to reflect updated balance immediately
+    await cacheInvalidate(`dash:${rider._id}`, `profile:${rider._id}`);
 
     // Update settlement record
     settlement.razorpayPaymentId = razorpay_payment_id;

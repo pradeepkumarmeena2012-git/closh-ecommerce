@@ -23,6 +23,8 @@ const MobileOrderDetail = () => {
   const [returnReason, setReturnReason] = useState('Product issue');
   const [returnVendorId, setReturnVendorId] = useState('');
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
+  const [userUpiId, setUserUpiId] = useState('');
+  const [isSubmittingUpi, setIsSubmittingUpi] = useState(false);
   const order = getOrder(orderId);
   const shippingAddress = order?.shippingAddress || {};
   const orderItems = Array.isArray(order?.items) ? order.items : [];
@@ -218,6 +220,24 @@ const MobileOrderDetail = () => {
       toast.error(error?.response?.data?.message || error?.message || 'Failed to submit return request');
     } finally {
       setIsSubmittingReturn(false);
+    }
+  const handleSubmitUpi = async () => {
+    if (!userUpiId) {
+      toast.error('Please enter a valid UPI ID');
+      return;
+    }
+    setIsSubmittingUpi(true);
+    try {
+      await useOrderStore.getState().submitReturnUPI(order.returnRequest._id, userUpiId);
+      toast.success('UPI ID submitted successfully!');
+      if (orderId) {
+        await fetchOrderById(orderId);
+      }
+    } catch (error) {
+      console.error("UPI submission failed:", error);
+      toast.error(error.message || 'Failed to submit UPI ID');
+    } finally {
+      setIsSubmittingUpi(false);
     }
   };
 
@@ -431,6 +451,56 @@ const MobileOrderDetail = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Return Request & UPI Info */}
+              {order.returnRequest && (
+                <div className="bg-amber-50 rounded-2xl p-4 shadow-sm font-bold mt-4">
+                  <h3 className="text-sm font-bold uppercase mb-2 flex items-center gap-2 text-amber-700">
+                    <FiRotateCw className="text-base" /> Return Request Details
+                  </h3>
+                  <div className="space-y-2 text-xs text-amber-900">
+                    <div className="flex justify-between">
+                      <span>Status:</span>
+                      <span className="uppercase text-amber-800">{order.returnRequest.status}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Reason:</span>
+                      <span>{order.returnRequest.reason}</span>
+                    </div>
+
+                    {order.returnRequest.isUpiRequested && (
+                      <div className="mt-3 pt-3 border-t border-amber-200">
+                        {order.returnRequest.upiId ? (
+                          <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-amber-100">
+                            <span className="text-gray-600">UPI ID Submitted:</span>
+                            <span className="text-black font-extrabold break-all">{order.returnRequest.upiId}</span>
+                          </div>
+                        ) : (
+                          <div className="bg-white p-3 rounded-xl border border-amber-100 space-y-2">
+                            <p className="text-gray-700 text-[10px] font-bold uppercase">Submit UPI ID for Refund</p>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={userUpiId}
+                                onChange={(e) => setUserUpiId(e.target.value)}
+                                placeholder="example@upi"
+                                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-black"
+                              />
+                              <button
+                                onClick={handleSubmitUpi}
+                                disabled={isSubmittingUpi}
+                                className="px-4 py-2 bg-black text-white rounded-lg text-[10px] font-bold uppercase hover:bg-gray-800 disabled:bg-gray-300 transition-colors"
+                              >
+                                {isSubmittingUpi ? '...' : 'Submit'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="space-y-2">

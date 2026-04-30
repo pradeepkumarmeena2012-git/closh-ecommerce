@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   FiArrowLeft,
   FiCheck,
@@ -19,12 +20,16 @@ import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import { useReturnStore } from '../../../shared/store/returnStore';
+import { getAllDeliveryBoys } from '../services/adminService';
 
 const ReturnRequestDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { fetchReturnRequestById, updateReturnStatus } = useReturnStore();
+  const { fetchReturnRequestById, updateReturnStatus, assignReturnDeliveryBoy } = useReturnStore();
   const [returnRequest, setReturnRequest] = useState(null);
+  const [onlineRiders, setOnlineRiders] = useState([]);
+  const [selectedRider, setSelectedRider] = useState('');
+  const [isAssigning, setIsAssigning] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [status, setStatus] = useState('');
   const statusTransitions = {
@@ -47,6 +52,22 @@ const ReturnRequestDetail = () => {
     };
     loadDetail();
   }, [id, navigate, fetchReturnRequestById]);
+
+  useEffect(() => {
+    const fetchRiders = async () => {
+      try {
+        const res = await getAllDeliveryBoys({ online: 'true' });
+        if (res?.data?.deliveryBoys) {
+          setOnlineRiders(res.data.deliveryBoys);
+        }
+      } catch (err) {
+        console.error('Failed to fetch online riders:', err);
+      }
+    };
+    if (returnRequest?.status === 'approved' || returnRequest?.status === 'pending' || returnRequest?.status === 'processing') {
+      fetchRiders();
+    }
+  }, [returnRequest?.status]);
 
   const handleStatusUpdate = async (newStatus, action = '') => {
     const statusData = { status: newStatus };
@@ -72,6 +93,22 @@ const ReturnRequestDetail = () => {
         setStatus(data.status);
       }
       setIsEditing(false);
+    }
+  };
+
+  const handleAssignRider = async () => {
+    if (!selectedRider) {
+      toast.error('Please select a delivery boy');
+      return;
+    }
+    setIsAssigning(true);
+    const success = await assignReturnDeliveryBoy(id, selectedRider);
+    setIsAssigning(false);
+    if (success) {
+      const data = await fetchReturnRequestById(id);
+      if (data) {
+        setReturnRequest(data);
+      }
     }
   };
 
@@ -191,7 +228,7 @@ const ReturnRequestDetail = () => {
                   </button>
                 </>
               )}
-              {returnRequest.status === 'approved' && returnRequest.refundStatus === 'pending' && (
+              {(returnRequest.status === 'approved' || returnRequest.status === 'completed') && returnRequest.refundStatus === 'pending' && (
                 <button
                   onClick={() => {
                     if (window.confirm('Process refund for this return request?')) {
@@ -317,6 +354,46 @@ const ReturnRequestDetail = () => {
             </div>
           </div>
 
+          {/* Delivery Verification Photos */}
+          {(returnRequest.pickupPhoto || returnRequest.deliveryPhoto) && (
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <FiPackage className="text-primary-600 text-base" />
+                Delivery Verification Photos
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {returnRequest.pickupPhoto && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wider">
+                      Customer Pickup Photo
+                    </p>
+                    <div className="aspect-[4/3] rounded-lg overflow-hidden border border-gray-100 bg-gray-50 shadow-sm flex items-center justify-center">
+                      <img
+                        src={returnRequest.pickupPhoto}
+                        alt="Customer Pickup"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+                {returnRequest.deliveryPhoto && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wider">
+                      Vendor Handover Photo
+                    </p>
+                    <div className="aspect-[4/3] rounded-lg overflow-hidden border border-gray-100 bg-gray-50 shadow-sm flex items-center justify-center">
+                      <img
+                        src={returnRequest.deliveryPhoto}
+                        alt="Vendor Handover"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Customer Information */}
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
             <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -357,6 +434,63 @@ const ReturnRequestDetail = () => {
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* Assign Delivery Boy */}
+          {(returnRequest.status === 'approved' || returnRequest.status === 'pending' || returnRequest.status === 'processing') && (
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <FiPackage className="text-primary-600 text-base" />
+                {returnRequest.deliveryBoyId ? 'Assigned Delivery Boy' : 'Assign Delivery Boy'}
+              </h2>
+              
+              {returnRequest.deliveryBoyId && (
+                <div className="mb-4 bg-primary-50 p-3 rounded-lg border border-primary-100">
+                  <p className="text-xs font-bold text-primary-800 flex items-center gap-1.5 mb-1">
+                    <FiCheck className="text-sm" /> Currently Assigned:
+                  </p>
+                  <p className="text-sm font-black text-gray-800">
+                    {typeof returnRequest.deliveryBoyId === 'object' 
+                      ? returnRequest.deliveryBoyId.name 
+                      : 'Rider Assigned'}
+                  </p>
+                  {typeof returnRequest.deliveryBoyId === 'object' && returnRequest.deliveryBoyId.phone && (
+                    <p className="text-xs text-gray-600 mt-0.5">{returnRequest.deliveryBoyId.phone}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <p className="text-xs text-gray-500 font-semibold mb-1">
+                  {returnRequest.deliveryBoyId ? 'Reassign to another Rider:' : 'Select Rider:'}
+                </p>
+                {onlineRiders.length > 0 ? (
+                  <>
+                    <select
+                      value={selectedRider}
+                      onChange={(e) => setSelectedRider(e.target.value)}
+                      className="w-full pl-3 pr-10 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    >
+                      <option value="">Select Online Rider</option>
+                      {onlineRiders.map((rider) => (
+                        <option key={rider.id || rider._id} value={rider.id || rider._id}>
+                          {rider.name} ({rider.phone})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleAssignRider}
+                      disabled={isAssigning}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-300 transition-colors text-xs font-semibold"
+                    >
+                      {isAssigning ? 'Assigning...' : returnRequest.deliveryBoyId ? 'Reassign Rider' : 'Assign Rider'}
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded border border-gray-100">No online delivery boys available.</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Refund Summary */}
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
             <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -382,6 +516,12 @@ const ReturnRequestDetail = () => {
                   {returnRequest.refundStatus}
                 </Badge>
               </div>
+              {returnRequest.upiId && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">Customer UPI ID</p>
+                  <p className="font-bold text-sm text-gray-800 bg-green-50 p-2 rounded-lg border border-green-100 break-all">{returnRequest.upiId}</p>
+                </div>
+              )}
             </div>
           </div>
 

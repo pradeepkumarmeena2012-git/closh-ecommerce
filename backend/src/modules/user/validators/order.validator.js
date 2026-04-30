@@ -19,7 +19,7 @@ export const placeOrderSchema = Joi.object({
         zipCode: Joi.string().required(),
         country: Joi.string().required(),
     }).required(),
-    paymentMethod: Joi.string().valid('card', 'cash', 'cod', 'bank', 'wallet', 'upi').required(),
+    paymentMethod: Joi.string().valid('card', 'cash', 'cod', 'bank', 'wallet', 'upi', 'prepaid').required(),
     couponCode: Joi.string().optional().allow(''),
     shippingOption: Joi.string().valid('standard', 'express', 'try_and_buy', 'check_and_buy', 'online').default('online'),
     orderType: Joi.string().valid('check_and_buy', 'try_and_buy').required(),

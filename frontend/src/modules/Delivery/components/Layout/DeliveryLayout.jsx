@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+ import { useState, useRef, useEffect, useCallback } from "react";
 import logo from "../../../../assets/animations/lottie/logo-removebg.png";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { FiLogOut, FiTruck, FiPackage, FiHome, FiUser, FiMenu, FiBell, FiAlertCircle } from "react-icons/fi";
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import DeliveryBottomNav from "./DeliveryBottomNav";
 import { useDeliveryTracking } from "@shared/hooks/useDeliveryTracking";
-import { formatPrice } from "../../../../shared/utils/helpers";
+import { formatPrice } from "@shared/utils/helpers";
 import socketService from "@shared/utils/socket";
 import NewOrderModal from "../NewOrderModal";
 import { useJsApiLoader } from "@react-google-maps/api";
@@ -53,12 +53,44 @@ const DeliveryLayout = () => {
 
     initialFetch();
 
+    // 🔗 Deep Link Handling (e.g. from Push Notifications)
+    const params = new URLSearchParams(location.search);
+    const viewOrderId = params.get('viewOrder');
+    const isReturn = params.get('isReturn') === 'true';
+
+    if (viewOrderId) {
+      console.log(`🔗 [DELIVERY] Deep link detected for ${isReturn ? 'Return' : 'Order'}: ${viewOrderId}`);
+      
+      const fetchTaskDetails = async () => {
+        try {
+          // Use the specific detail endpoint to get fresh data for the modal
+          const api = useDeliveryAuthStore.getState().api || (await import('@shared/utils/api')).default;
+          const res = await api.get(`/delivery/orders/${viewOrderId}`);
+          if (res.data?.success || res.data) {
+             const taskData = res.data?.data || res.data;
+             console.log('✅ [DELIVERY] Deep link task data fetched:', taskData);
+             setSelectedNewOrder({ ...taskData, isReturn });
+             setShowNewOrderModal(true);
+             startBuzzer();
+          }
+        } catch (err) {
+          console.error('❌ [DELIVERY] Deep link fetch failed:', err);
+        }
+      };
+
+      fetchTaskDetails();
+      
+      // Clean up the URL to prevent re-triggering on refresh
+      const newRelativePathQuery = window.location.pathname;
+      window.history.replaceState(null, '', newRelativePathQuery);
+    }
+
     const interval = setInterval(() => {
       Promise.all([fetchProfileSummary(), fetchNotifications(1)]);
     }, 120000); // Polling every 2 minutes for better mobile performance
 
     return () => clearInterval(interval);
-  }, [isAuthenticated]); // Only run on auth change
+  }, [isAuthenticated, location.search]);
 
   useEffect(() => {
     // Throttled refresh to prevent storm of calls from multiple socket events
@@ -74,12 +106,71 @@ const DeliveryLayout = () => {
     return () => window.removeEventListener('delivery-dashboard-refresh', handleGlobalRefresh);
   }, []);
 
+  // Global Buzzer & Notification State
+  const [isBuzzerActive, setIsBuzzerActive] = useState(false);
+  const [showNewOrderModal, setShowNewOrderModal] = useState(false);
+  const [selectedNewOrder, setSelectedNewOrder] = useState(null);
+  const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
+  const buzzerRef = useRef(null);
+
+  // Initialize Buzzer on first interaction to bypass browser policies
+  const initBuzzer = useCallback(() => {
+    if (buzzerRef.current) return;
+    try {
+      const audio = new Audio('/sounds/buzzer.mp3');
+      audio.loop = true;
+      audio.volume = 1.0;
+      audio.load();
+      buzzerRef.current = audio;
+      console.log('🔊 [DELIVERY] Buzzer audio initialized.');
+    } catch (err) {
+      console.error('Failed to init buzzer:', err);
+    }
+  }, []);
+
+  const stopBuzzer = useCallback(() => {
+    if (buzzerRef.current) {
+      try {
+        buzzerRef.current.pause();
+        buzzerRef.current.currentTime = 0;
+      } catch (e) { }
+    }
+    setIsBuzzerActive(false);
+  }, []);
+
+  const startBuzzer = useCallback(() => {
+    console.log('🎵 [DELIVERY] startBuzzer called. Active:', isBuzzerActive);
+    if (!buzzerRef.current) initBuzzer();
+    
+    if (buzzerRef.current) {
+      buzzerRef.current.play()
+        .then(() => console.log('✅ [DELIVERY] Buzzer playing successfully'))
+        .catch(err => {
+          console.error('❌ [DELIVERY] Audio playback failed (likely blocked):', err);
+        });
+      setIsBuzzerActive(true);
+      // Auto-stop after 2 minutes
+      const currentAudio = buzzerRef.current;
+      setTimeout(() => { 
+        if (buzzerRef.current === currentAudio && isBuzzerActive) {
+          console.log('⏱️ [DELIVERY] Auto-stopping buzzer after timeout');
+          stopBuzzer(); 
+        }
+      }, 120000);
+    }
+  }, [initBuzzer, stopBuzzer, isBuzzerActive]);
+
   // Audio Policy Unlock: User interaction required
   useEffect(() => {
     const unlock = () => {
       if (audioUnlockedRef.current) return;
-      const dummy = new Audio();
-      dummy.play().catch(() => { });
+      initBuzzer();
+      if (buzzerRef.current) {
+        buzzerRef.current.play().then(() => {
+          buzzerRef.current.pause();
+          buzzerRef.current.currentTime = 0;
+        }).catch(() => { });
+      }
       audioUnlockedRef.current = true;
       window.removeEventListener('click', unlock);
       window.removeEventListener('touchstart', unlock);
@@ -90,58 +181,45 @@ const DeliveryLayout = () => {
       window.removeEventListener('click', unlock);
       window.removeEventListener('touchstart', unlock);
     };
-  }, []);
-
-  // Global Buzzer & Notification State
-  const [isBuzzerActive, setIsBuzzerActive] = useState(false);
-  const [showNewOrderModal, setShowNewOrderModal] = useState(false);
-  const [selectedNewOrder, setSelectedNewOrder] = useState(null);
-  const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
-  const buzzerRef = useRef(null);
-
-  const stopBuzzer = useCallback(() => {
-    if (buzzerRef.current) {
-      try {
-        buzzerRef.current.pause();
-        buzzerRef.current.currentTime = 0;
-      } catch (e) { }
-      buzzerRef.current = null;
-    }
-    setIsBuzzerActive(false);
-  }, []);
-
-  const startBuzzer = useCallback(() => {
-    if (buzzerRef.current) return;
-    try {
-      const audio = new Audio('/sounds/buzzer.mp3');
-      audio.loop = true;
-      audio.volume = 0.6;
-      audio.play().catch(err => {
-        console.warn('Audio blocked:', err);
-      });
-      buzzerRef.current = audio;
-      setIsBuzzerActive(true);
-      setTimeout(() => { if (buzzerRef.current === audio) stopBuzzer(); }, 120000);
-    } catch (e) { }
-  }, [stopBuzzer]);
+  }, [initBuzzer]);
 
   // Global listeners for new tasks
   const handleNewOrder = useCallback((data) => {
-    console.log('⚡ Incoming Socket Order:', data);
+    console.log('⚡ [DELIVERY] New Order Broadcast Received:', data);
+    const id = data.orderId || data.id;
+    if (!id) {
+        console.warn('⚠️ [DELIVERY] Received order broadcast with NO ID:', data);
+        return;
+    }
     
     const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
-    // Aggressive: Show popup even if store is slightly out of sync, as long as we expected to be available
     if (currentStatus === 'offline') {
       console.warn('⚠️ Order received while offline. Ignoring popup.');
       return;
     }
 
     setIsAcceptingOrder(false); 
+
+    // BLOCKER: Do not show or alert for new orders if already on a mission
+    const store = useDeliveryAuthStore.getState();
+    const activeTasks = [
+      ...(store.orders || []),
+      ...(store.returns || [])
+    ].filter(t => ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'accepted'].includes(t.status?.toLowerCase()));
+
+    if (activeTasks.length > 0) {
+      console.log(`📦 [DELIVERY] Order ${id} skipped. Partner is BUSY with ${activeTasks.length} active tasks.`);
+      return;
+    }
+
+    console.log(`🔊 [DELIVERY] Attempting to play buzzer for Order: ${id}`);
     startBuzzer();
     
     // Full details required for the modal
-    setSelectedNewOrder(data);
-    setShowNewOrderModal(true);
+    if (selectedNewOrder?.id !== id || !showNewOrderModal) {
+        setSelectedNewOrder(data);
+        setShowNewOrderModal(true);
+    }
     
     toast.success(`⚡ NEW ORDER AVAILABLE!`, { 
       duration: 8000, 
@@ -189,6 +267,8 @@ const DeliveryLayout = () => {
 
     socketService.on('order_ready_for_pickup', handleNewOrder);
     socketService.on('return_ready_for_pickup', handleNewReturn);
+    socketService.on('newOrder', handleNewOrder);
+    socketService.on('new_order', handleNewOrder);
     
     const onOrderTaken = (data) => {
       // Use ref-like logic or fresh state from store inside the callback
@@ -218,7 +298,8 @@ const DeliveryLayout = () => {
   const handleAcceptNewTask = async (id) => {
     setIsAcceptingOrder(true);
     try {
-      if (selectedNewOrder?.isReturn) {
+      const isReturn = !!selectedNewOrder?.isReturn;
+      if (isReturn) {
         await acceptReturn(id);
       } else {
         await acceptOrder(id);
@@ -226,6 +307,14 @@ const DeliveryLayout = () => {
       stopBuzzer();
       setShowNewOrderModal(false);
       toast.success('Accepted successfully');
+      
+      // 🚀 Instant Redirect to Detail Page
+      if (isReturn) {
+        navigate(`/delivery/returns/${id}`);
+      } else {
+        navigate(`/delivery/orders/${id}`);
+      }
+      
       window.dispatchEvent(new CustomEvent('delivery-dashboard-refresh'));
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to accept task');
@@ -348,14 +437,23 @@ const DeliveryLayout = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-gray-100">
-                  <div className="p-2 bg-orange-50 rounded-xl border border-orange-100/50">
-                    <p className="text-[9px] font-black text-orange-500 uppercase tracking-tighter">In Hand</p>
-                    <p className="text-[13px] font-black text-orange-700">{formatPrice(deliveryBoy?.cashInHand || 0)}</p>
-                  </div>
-                  <div className="p-2 bg-green-50 rounded-xl border border-green-100/50">
-                    <p className="text-[9px] font-black text-green-500 uppercase tracking-tighter">Collected</p>
-                    <p className="text-[13px] font-black text-green-700">{formatPrice(deliveryBoy?.totalCashCollected || 0)}</p>
-                  </div>
+                  {deliveryBoy ? (
+                    <>
+                      <div className="p-2 bg-orange-50 rounded-xl border border-orange-100/50">
+                        <p className="text-[9px] font-black text-orange-500 uppercase tracking-tighter">In Hand</p>
+                        <p className="text-[13px] font-black text-orange-700">{formatPrice(deliveryBoy?.cashInHand || 0)}</p>
+                      </div>
+                      <div className="p-2 bg-green-50 rounded-xl border border-green-100/50">
+                        <p className="text-[9px] font-black text-green-500 uppercase tracking-tighter">Collected</p>
+                        <p className="text-[13px] font-black text-green-700">{formatPrice(deliveryBoy?.totalCashCollected || 0)}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="p-2 bg-gray-50 rounded-xl border border-gray-100 animate-pulse h-12" />
+                      <div className="p-2 bg-gray-50 rounded-xl border border-gray-100 animate-pulse h-12" />
+                    </>
+                  )}
                 </div>
               </div>
 

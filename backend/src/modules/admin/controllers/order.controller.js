@@ -256,6 +256,23 @@ export const assignDeliveryBoy = asyncHandler(async (req, res) => {
     // Unified role-aware notifications for assignment
     await OrderNotificationService.notifyOrderUpdate(order._id, 'assigned');
 
+    // Real-time assignment alert to delivery partner
+    const socketPayload = {
+        orderId: order.orderId,
+        id: order._id,
+        pickupLocation: order.pickupLocation,
+        customerName: order.shippingAddress?.name || 'Customer',
+        address: order.shippingAddress?.address || 'Address unavailable',
+        total: order.total,
+        paymentMethod: order.paymentMethod,
+        orderType: order.orderType,
+        distance: order.deliveryDistance ? `${order.deliveryDistance} km` : '0 km',
+        estimatedTime: 'N/A',
+        deliveryFee: order.deliveryEarnings || 25,
+        type: 'new_assignment_broadcast'
+    };
+    emitEvent(`delivery_${deliveryBoyId}`, 'order_ready_for_pickup', socketPayload);
+
     res.status(200).json(new ApiResponse(200, order, 'Delivery boy assigned.'));
 });
 

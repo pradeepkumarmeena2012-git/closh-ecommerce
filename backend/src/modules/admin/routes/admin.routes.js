@@ -190,6 +190,7 @@ router.patch('/withdrawals/:id/status', ...adminAuth, checkPermission('finance_v
 router.get('/return-requests', ...adminAuth, checkPermission('orders_manage'), returnController.getAllReturnRequests);
 router.get('/return-requests/:id', ...adminAuth, checkPermission('orders_manage'), returnController.getReturnRequestById);
 router.patch('/return-requests/:id/status', ...adminAuth, checkPermission('orders_manage'), returnController.updateReturnRequestStatus);
+router.post('/return-requests/:id/assign', ...adminAuth, checkPermission('orders_manage'), returnController.assignDeliveryBoyToReturn);
 
 // ─── Support Tickets ──────────────────────────────────────────────────────────
 router.get('/support/tickets', ...adminAuth, checkPermission('support_manage'), supportController.getAllTickets);

@@ -20,13 +20,33 @@ import api from '../../../shared/utils/api';
 import toast from 'react-hot-toast';
 import { formatPrice } from '../../../shared/utils/helpers';
 
+const BalanceSkeleton = () => (
+  <div className="bg-white rounded-[24px] p-5 shadow-xl shadow-slate-200/50 border border-slate-100 animate-pulse">
+    <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-slate-100 rounded-xl" />
+        <div className="h-2 w-20 bg-slate-100 rounded" />
+      </div>
+      <div className="text-right">
+        <div className="h-8 w-32 bg-slate-100 rounded mb-2 ml-auto" />
+        <div className="h-2 w-24 bg-slate-100 rounded ml-auto" />
+      </div>
+    </div>
+    <div className="h-14 w-full bg-slate-100 rounded-[18px] mb-4" />
+    <div className="grid grid-cols-2 gap-3">
+      <div className="h-12 bg-slate-50 rounded-2xl" />
+      <div className="h-12 bg-slate-50 rounded-2xl" />
+    </div>
+  </div>
+);
+
 const Payouts = () => {
   const navigate = useNavigate();
-  const { deliveryBoy, fetchProfile } = useDeliveryAuthStore();
+  const { deliveryBoy, fetchProfile, isLoading: isAuthLoading } = useDeliveryAuthStore();
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [withdrawalHistory, setWithdrawalHistory] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [filter, setFilter] = useState('all'); // all, pending, approved, rejected, completed
   const [nextAvailableDate, setNextAvailableDate] = useState(null);
   const [canRequestPayout, setCanRequestPayout] = useState(true);
@@ -34,7 +54,7 @@ const Payouts = () => {
 
   const loadWithdrawalHistory = useCallback(async () => {
     try {
-      setIsLoading(true);
+      setIsLoadingHistory(true);
       const response = await api.get('/delivery/withdrawals');
       const history = response.data?.data || [];
       setWithdrawalHistory(history);
@@ -60,7 +80,7 @@ const Payouts = () => {
     } catch (error) {
       toast.error('Failed to load payout history');
     } finally {
-      setIsLoading(false);
+      setIsLoadingHistory(false);
     }
   }, []);
 
@@ -117,6 +137,8 @@ const Payouts = () => {
     return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   };
 
+  const isDataReady = deliveryBoy && !isAuthLoading;
+
   return (
     <PageTransition>
       <div className="min-h-screen bg-[#F8FAFC]">
@@ -133,7 +155,7 @@ const Payouts = () => {
               onClick={() => { loadWithdrawalHistory(); fetchProfile(); }}
               className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-white active:rotate-180 transition-all duration-500 shadow-sm"
             >
-              <FiRefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+              <FiRefreshCw size={16} className={isLoadingHistory ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
@@ -141,65 +163,69 @@ const Payouts = () => {
         {/* Content Area */}
         <div className="px-4 -mt-8 relative z-20 space-y-3 pb-24 max-w-lg mx-auto">
           {/* Balance Card - Solid Professionalism */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-[24px] p-5 shadow-xl shadow-slate-200/50 relative overflow-hidden border border-slate-100"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 shadow-sm">
-                  <FiDollarSign className="text-indigo-600" size={20} />
+          {!isDataReady ? (
+            <BalanceSkeleton />
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-[24px] p-5 shadow-xl shadow-slate-200/50 relative overflow-hidden border border-slate-100"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 shadow-sm">
+                    <FiDollarSign className="text-indigo-600" size={20} />
+                  </div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Available Funds</p>
                 </div>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Available Funds</p>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-slate-900 tracking-tighter tabular-nums">{formatPrice(deliveryBoy?.availableBalance || 0)}</p>
-                <div className="flex items-center justify-end gap-1.5 mt-1">
-                  <div className={`w-1.5 h-1.5 rounded-full ${deliveryBoy?.kycStatus === 'verified' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <p className="text-[8px] font-bold uppercase text-slate-400 tracking-widest">{deliveryBoy?.kycStatus === 'verified' ? 'Verified Partner' : 'Pending KYC'}</p>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-slate-900 tracking-tighter tabular-nums">{formatPrice(deliveryBoy?.availableBalance || 0)}</p>
+                  <div className="flex items-center justify-end gap-1.5 mt-1">
+                    <div className={`w-1.5 h-1.5 rounded-full ${deliveryBoy?.kycStatus === 'verified' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                    <p className="text-[8px] font-bold uppercase text-slate-400 tracking-widest">{deliveryBoy?.kycStatus === 'verified' ? 'Verified Partner' : 'Pending KYC'}</p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-4">
-              {!canRequestPayout ? (
-                <div className="bg-slate-50 rounded-2xl p-3 text-center border border-slate-100">
-                  <p className="text-slate-400 text-[8px] font-bold uppercase tracking-widest mb-1">Next Eligibility</p>
-                  <p className="text-[13px] font-bold text-slate-700 tracking-tight">
-                    {nextAvailableDate?.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowWithdrawalModal(true)}
-                  disabled={!deliveryBoy?.availableBalance || deliveryBoy?.availableBalance <= 0 || deliveryBoy?.kycStatus !== 'verified'}
-                  className="w-full py-4 bg-[#1E293B] text-white rounded-[18px] font-bold text-[12px] uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all disabled:opacity-20"
-                >
-                   Request Withdrawal
-                </button>
-              )}
+              <div className="space-y-4">
+                {!canRequestPayout ? (
+                  <div className="bg-slate-50 rounded-2xl p-3 text-center border border-slate-100">
+                    <p className="text-slate-400 text-[8px] font-bold uppercase tracking-widest mb-1">Next Eligibility</p>
+                    <p className="text-[13px] font-bold text-slate-700 tracking-tight">
+                      {nextAvailableDate?.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowWithdrawalModal(true)}
+                    disabled={!deliveryBoy?.availableBalance || deliveryBoy?.availableBalance <= 0 || deliveryBoy?.kycStatus !== 'verified'}
+                    className="w-full py-4 bg-[#1E293B] text-white rounded-[18px] font-bold text-[12px] uppercase tracking-widest shadow-xl active:scale-[0.98] transition-all disabled:opacity-20"
+                  >
+                    Request Withdrawal
+                  </button>
+                )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center">
-                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Earned</p>
-                  <p className="text-sm font-bold text-slate-800">{formatPrice(deliveryBoy?.totalEarnings || 0)}</p>
-                </div>
-                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center relative group">
-                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">In Hand</p>
-                  <p className="text-sm font-bold text-slate-800">{formatPrice(deliveryBoy?.cashInHand || 0)}</p>
-                  {(deliveryBoy?.cashInHand > 0) && (
-                    <button 
-                      onClick={() => setShowSettlementModal(true)}
-                      className="absolute -top-2 -right-1 bg-indigo-600 text-white text-[7px] font-black px-2 py-1 rounded-full shadow-lg shadow-indigo-200 active:scale-95 transition-all"
-                    >
-                        SETTLE
-                    </button>
-                  )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center">
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Earned</p>
+                    <p className="text-sm font-bold text-slate-800">{formatPrice(deliveryBoy?.totalEarnings || 0)}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col items-center justify-center relative group">
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">In Hand</p>
+                    <p className="text-sm font-bold text-slate-800">{formatPrice(deliveryBoy?.cashInHand || 0)}</p>
+                    {(deliveryBoy?.cashInHand > 0) && (
+                      <button 
+                        onClick={() => setShowSettlementModal(true)}
+                        className="absolute -top-2 -right-1 bg-indigo-600 text-white text-[7px] font-black px-2 py-1 rounded-full shadow-lg shadow-indigo-200 active:scale-95 transition-all"
+                      >
+                          SETTLE
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          )}
 
           {/* Policy Toggle */}
            <button 
@@ -258,7 +284,7 @@ const Payouts = () => {
               <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Transfer History</h2>
             </div>
 
-            {isLoading ? (
+            {isLoadingHistory ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3">
                 <FiRefreshCw className="text-indigo-600 animate-spin" size={20} />
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Verifying Ledger...</p>

@@ -4,11 +4,32 @@ import { FiMapPin, FiPackage, FiClock, FiX, FiNavigation, FiZap, FiTarget } from
 import { formatPrice } from '../../../shared/utils/helpers';
 import SwipeToAccept from './SwipeToAccept';
 import { createPortal } from 'react-dom';
+import toast from 'react-hot-toast';
 
 const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLocation }) => {
+    const [timeLeft, setTimeLeft] = useState(60);
     // Calculate live distance from rider to pickup
     const [liveDistance, setLiveDistance] = useState(order?.distance || '...');
     
+    useEffect(() => {
+        if (isOpen && order) {
+            // Only set to 60 if it's a new order or just opened
+            setTimeLeft(60);
+            const timer = setInterval(() => {
+                setTimeLeft((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(timer);
+                        toast.error('Order request expired (Auto Cancelled)');
+                        onClose();
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [isOpen, order?.id]); // Removed onClose to prevent resets on re-renders
+
     useEffect(() => {
         if (riderLocation && order && window.google) {
             const isRet = !!order?.isReturn;
@@ -94,30 +115,54 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLoc
                         }}
                         className="relative bg-white rounded-t-[40px] shadow-[0_-8px_40px_rgba(0,0,0,0.15)] overflow-hidden max-h-[94vh] flex flex-col z-[10000]"
                     >
+                        {/* Timer Progress Bar */}
+                        <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-100 z-50">
+                            <motion.div 
+                                initial={{ width: '100%' }}
+                                animate={{ width: `${(timeLeft / 60) * 100}%` }}
+                                transition={{ duration: 1, ease: 'linear' }}
+                                className={`h-full ${timeLeft < 10 ? 'bg-rose-500' : 'bg-indigo-600'}`}
+                            />
+                        </div>
+
                         {/* Drag Handle / Indicator */}
-                        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-4 mb-2 shrink-0" />
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-6 mb-2 shrink-0" />
 
                         {/* Header Area */}
-                        <div className="px-8 pt-4 pb-6 border-b border-slate-50 relative flex-shrink-0">
+                        <div className="px-8 pt-10 pb-8 border-b border-slate-50 relative flex flex-col items-center text-center">
                             <button
                                 onClick={onClose}
-                                className="absolute top-4 right-6 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors"
+                                className="absolute top-4 right-6 w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors z-10"
                             >
                                 <FiX size={20} />
                             </button>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-14 h-14 ${isReturn ? 'bg-orange-500 shadow-orange-200' : 'bg-indigo-600 shadow-indigo-200'} rounded-2xl flex items-center justify-center text-white shadow-lg relative`}>
-                                    <FiPackage size={28} />
-                                    {(order.itemsCount > 0 || order.items?.length > 0) && (
-                                        <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black min-w-[22px] h-[22px] rounded-full flex items-center justify-center px-1 border-2 border-white">
-                                            {order.itemsCount || order.items?.length}
-                                        </div>
-                                    )}
+
+                            {/* Large Centered Timer */}
+                            <div className="relative mb-6">
+                                <motion.div 
+                                    initial={{ scale: 0.9 }}
+                                    animate={{ scale: 1 }}
+                                    className={`w-24 h-24 rounded-full flex flex-col items-center justify-center border-4 transition-all duration-300 shadow-2xl ${timeLeft < 10 ? 'border-rose-500 bg-rose-50 shadow-rose-100' : 'border-indigo-600 bg-indigo-50 shadow-indigo-100'}`}
+                                >
+                                    <span className={`text-4xl font-black leading-none ${timeLeft < 10 ? 'text-rose-600 animate-pulse' : 'text-indigo-700'}`}>{timeLeft}</span>
+                                    <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${timeLeft < 10 ? 'text-rose-400' : 'text-indigo-400'}`}>sec</span>
+                                </motion.div>
+                                
+                                {/* Status Badge inside Header */}
+                                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${order?.paymentMethod === 'prepaid' ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-slate-900 text-white border-slate-700'}`}>
+                                        {order?.paymentMethod === 'prepaid' ? 'PREPAID' : 'CASH ON DELIVERY'}
+                                    </span>
                                 </div>
-                                <div>
-                                    <p className={`${isReturn ? 'text-orange-500' : 'text-indigo-500'} text-[10px] font-black uppercase tracking-[0.2em]`}>Incoming {isReturn ? 'Return' : 'Request'}</p>
-                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">{isReturn ? `Ref: #${order.orderId || String(order.id || '').slice(-6)}` : `Order #${String(order.id || '').slice(-6)}`}</h2>
-                                </div>
+                            </div>
+
+                            <div className="mt-4">
+                                <p className={`${isReturn ? 'text-orange-500' : 'text-indigo-500'} text-[11px] font-black uppercase tracking-[0.3em] mb-1`}>
+                                    Incoming {isReturn ? 'Return' : 'Request'}
+                                </p>
+                                <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                                    {isReturn ? `Ref: #${order.orderId || String(order.id || '').slice(-6)}` : `Order #${String(order.id || '').slice(-6).toUpperCase()}`}
+                                </h2>
                             </div>
                         </div>
 

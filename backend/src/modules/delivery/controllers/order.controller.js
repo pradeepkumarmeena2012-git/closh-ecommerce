@@ -18,6 +18,8 @@ import { sendDeliveryOtpSms } from '../../../services/sms.service.js';
 import * as DeliveryOtpService from '../../../services/deliveryOtp.service.js';
 import redisConnection from '../../../config/redis.js';
 import { WalletService } from '../../../services/wallet.service.js';
+import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
+import Vendor from '../../../models/Vendor.model.js';
 
 const DELIVERY_OTP_TTL_MS = 10 * 60 * 1000;
 const DELIVERY_OTP_MAX_ATTEMPTS = 5;
@@ -184,7 +186,7 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
 
     const [orders, total] = await Promise.all([
         Order.find(filter)
-            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType createdAt shippingAddress.city shippingAddress.state')
+            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType paymentMethod createdAt shippingAddress.city shippingAddress.state')
             .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -320,6 +322,15 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
 
     const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
 
+    // Source of truth: Use the bulk balance from the rider model
+    const finalCashInHand = (rider.cashInHand !== undefined && rider.cashInHand !== null) 
+        ? rider.cashInHand 
+        : Number(cashRow.cashInHand || 0);
+
+    const finalTotalCollected = (rider.cashCollected !== undefined && rider.cashCollected !== null)
+        ? rider.cashCollected
+        : Number(cashRow.totalCashCollected || 0);
+
     const summary = {
         totalOrders: statusStats.reduce((sum, row) => sum + Number(row?.count || 0), 0),
         completedToday: Number(completedTodayCount || 0),
@@ -330,11 +341,14 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         earnings: Number(earningsStats?.[0]?.totalDeliveryFees || 0),
         totalEarnings: Number(rider.totalEarnings || 0),
         availableBalance: Number(rider.availableBalance || 0),
-        cashInHand: Number(cashRow.cashInHand || 0),
-        totalCashCollected: Number(cashRow.totalCashCollected || 0),
+        cashInHand: finalCashInHand,
+        totalCashCollected: finalTotalCollected,
         recentOrders: augmentedOrders,
         activeReturns,
     };
+
+    // Note: We no longer sync from orders back to model here to avoid overwriting 
+    // settlement-adjusted balances. Financial integrity is maintained via WalletService.
 
     await cacheSet(cacheKey, summary);
     return res.status(200).json(new ApiResponse(200, summary, 'Dashboard summary fetched.'));
@@ -410,6 +424,16 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
     const row = deliveredStats?.[0] || {};
     const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
 
+    // Source of truth: Use the bulk balance from the rider model if it's been initialized/tracked.
+    // Otherwise fallback to the aggregate of unsettled orders (for backward compatibility).
+    const finalCashInHand = (rider.cashInHand !== undefined && rider.cashInHand !== null) 
+        ? rider.cashInHand 
+        : Number(cashRow.cashInHand || 0);
+
+    const finalTotalCollected = (rider.cashCollected !== undefined && rider.cashCollected !== null)
+        ? rider.cashCollected
+        : Number(cashRow.totalCashCollected || 0);
+
     // Cache and return result
     // We include existing rider profile fields to avoid UI data loss on frontend merge
     const profileData = { 
@@ -419,9 +443,12 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
         earnings: Number(row.earnings || 0), 
         totalEarnings: Number(rider.totalEarnings || 0), 
         availableBalance: Number(rider.availableBalance || 0), 
-        cashInHand: Number(cashRow.cashInHand || 0), 
-        totalCashCollected: Number(cashRow.totalCashCollected || 0) 
+        cashInHand: finalCashInHand, 
+        totalCashCollected: finalTotalCollected
     };
+
+    // Note: We no longer sync from orders back to model here to avoid overwriting 
+    // settlement-adjusted balances. Financial integrity is maintained via WalletService.
     
     await cacheSet(profileCacheKey, profileData);
 
@@ -1013,6 +1040,31 @@ export const getDeliveryFlow = asyncHandler(async (req, res) => {
     }, 'Delivery flow fetched.'));
 });
 
+// PATCH /api/delivery/orders/:id/arrived-vendor
+export const markArrivedAtVendor = asyncHandler(async (req, res) => {
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = ensureDeliveryFlow(order);
+
+    flow.arrivedAtVendor = new Date();
+    await order.save();
+
+    // Notify Vendor
+    (order.vendorItems || []).forEach(vi =>
+        emitEvent(`vendor_${vi.vendorId}`, 'rider_arrived_at_store', { 
+            orderId: order.orderId,
+            riderName: order.deliveryBoyId?.name || 'Delivery Partner'
+        })
+    );
+
+    OrderNotificationService.notifyOrderUpdate(order._id, 'arrived_at_store', {
+        excludeRecipientId: req.user.id,
+        title: `Partner Arrived`,
+        message: `Delivery partner has arrived at your store for order #${order.orderId}.`,
+    }).catch(() => {});
+
+    res.status(200).json(new ApiResponse(200, order, 'Marked as arrived at vendor.'));
+});
+
 // PATCH /api/delivery/orders/:id/pickup
 export const handlePickup = asyncHandler(async (req, res) => {
     const { pickupPhoto } = req.body;
@@ -1346,11 +1398,15 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     order.openBoxPhoto = openBoxPhoto;
     order.deliveryPhoto = deliveryProofPhoto;
     order.deliveryOtpVerifiedAt = new Date();
-    if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') {
+    if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash' || order.paymentMethod === 'prepaid') {
         order.paymentStatus = 'paid';
-        order.isCashSettled = false;
-        order.codCollectionMethod = flow.paymentMethod;
-        order.codCollectedAt = new Date();
+        
+        // For COD/Cash, we track settlement; for Prepaid, the platform already has the funds.
+        if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') {
+            order.isCashSettled = false;
+            order.codCollectionMethod = flow.paymentMethod;
+            order.codCollectedAt = new Date();
+        }
     }
 
     // Sync vendorItems statuses
@@ -1451,6 +1507,20 @@ export const handleBatchSelect = asyncHandler(async (req, res) => {
 
 
 // --- RETURN SYSTEM CONTROLLERS ---
+// GET /api/delivery/returns/:id
+export const getReturnDetail = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const returnReq = await ReturnRequest.findById(id)
+        .populate('userId', 'name email phone')
+        .populate('orderId', 'orderId total items paymentMethod shippingAddress dropoffLocation')
+        .populate('vendorId', 'storeName email phone shopAddress shopLocation');
+
+    if (!returnReq) {
+        throw new ApiError(404, 'Return request not found.');
+    }
+
+    return res.status(200).json(new ApiResponse(200, returnReq, 'Return request detail fetched.'));
+});
 
 // GET /api/delivery/returns/available
 export const getAvailableReturns = asyncHandler(async (req, res) => {
@@ -1552,7 +1622,7 @@ export const acceptReturnAssignment = asyncHandler(async (req, res) => {
 
 // PATCH /api/delivery/returns/:id/status
 export const updateReturnStatus = asyncHandler(async (req, res) => {
-    const { status, pickupPhoto, deliveryPhoto } = req.body;
+    const { status, pickupPhoto, deliveryPhoto, otp } = req.body;
     const { id } = req.params;
     const deliveryBoyId = req.user.id;
 
@@ -1564,26 +1634,106 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
     if (!returnReq) throw new ApiError(404, 'Return request not found.');
 
     if (status === 'picked_up') {
+        const normalizedOtp = String(otp || '').trim();
+        const otpHash = DeliveryOtpService.hashOtp(normalizedOtp);
+        
+        const isValidOtp = otpHash === returnReq.pickupOtpHash || (!IS_PRODUCTION && normalizedOtp === returnReq.pickupOtpDebug);
+        
+        if (!isValidOtp) {
+            throw new ApiError(400, 'Invalid OTP for pickup.');
+        }
+
         if (pickupPhoto) {
             returnReq.pickupPhoto = pickupPhoto;
         }
-        returnReq.status = 'processing'; // Assuming 'processing' covers picking up and en-route
+        returnReq.status = 'processing';
         returnReq.pickupPhoto = pickupPhoto;
+        
+        const dOtp = DeliveryOtpService.generateOtp();
+        returnReq.deliveryOtpHash = DeliveryOtpService.hashOtp(dOtp);
+        returnReq.deliveryOtpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        returnReq.deliveryOtpDebug = dOtp;
+
+        await createNotification({
+            recipientId: returnReq.vendorId,
+            recipientType: 'vendor',
+            title: 'Return Drop-off OTP 🔐',
+            message: `The rider is bringing a return. Your drop-off verification OTP is ${dOtp}.`,
+            type: 'order',
+            data: { returnId: String(returnReq._id), otp: dOtp }
+        });
         
         emitEvent(`user_${returnReq.userId?._id}`, 'return_picked_up', { returnId: returnReq._id });
         emitEvent(`vendor_${returnReq.vendorId}`, 'return_picked_up', { returnId: returnReq._id });
     } else if (status === 'completed') {
+        const normalizedOtp = String(otp || '').trim();
+        const otpHash = DeliveryOtpService.hashOtp(normalizedOtp);
+        
+        const isValidOtp = otpHash === returnReq.deliveryOtpHash || (!IS_PRODUCTION && normalizedOtp === returnReq.deliveryOtpDebug);
+        
+        if (!isValidOtp) {
+            throw new ApiError(400, 'Invalid OTP for vendor handover.');
+        }
+
         if (deliveryPhoto) {
             returnReq.deliveryPhoto = deliveryPhoto;
         }
         returnReq.status = 'completed';
-        
-        // Update associated order status to reflect completion of return
+        returnReq.isUpiRequested = true;
+
+        try {
+            const rider = await DeliveryBoy.findById(deliveryBoyId);
+            const riderCoords = rider?.currentLocation?.coordinates;
+            
+            const order = await Order.findById(returnReq.orderId);
+            const customerCoords = order?.dropoffLocation?.coordinates;
+            
+            const vendor = await Vendor.findById(returnReq.vendorId);
+            const vendorCoords = vendor?.shopLocation?.coordinates;
+            
+            if (riderCoords && customerCoords && vendorCoords) {
+                const dist1 = calculateDistance(riderCoords, customerCoords);
+                const dist2 = calculateDistance(customerCoords, vendorCoords);
+                const totalDistance = parseFloat((dist1 + dist2).toFixed(2));
+                
+                const earnings = getDeliveryEarning(totalDistance);
+                
+                returnReq.deliveryDistance = totalDistance;
+                returnReq.deliveryEarnings = earnings;
+                
+                if (earnings > 0) {
+                    await DeliveryBoy.findByIdAndUpdate(
+                        deliveryBoyId,
+                        {
+                            $inc: {
+                                totalEarnings: earnings,
+                                availableBalance: earnings
+                            }
+                        }
+                    );
+                }
+            }
+        } catch (calcError) {
+            console.error('[Return Earnings Calc Error]', calcError.message);
+        }
+
+        await WalletService.processOrderReturn(returnReq);
+
         const order = await Order.findById(returnReq.orderId);
         if (order) {
             order.status = 'returned';
             await order.save();
         }
+
+        // Notify user to submit UPI ID
+        await createNotification({
+            recipientId: returnReq.userId?._id,
+            recipientType: 'user',
+            title: 'Submit UPI ID for Refund',
+            message: `Your return for order #${order?.orderId || returnReq.returnId} has reached the vendor. Please submit your UPI ID for the refund.`,
+            type: 'return',
+            data: { returnId: String(returnReq._id) }
+        });
 
         // Notify user and vendor
         emitEvent(`user_${returnReq.userId?._id}`, 'return_completed', { returnId: returnReq._id });
@@ -1593,6 +1743,8 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
     }
 
     await returnReq.save();
+    
+    emitEvent(`return_${returnReq._id}`, 'return_status_updated', returnReq);
 
     res.status(200).json(new ApiResponse(200, returnReq, 'Return status updated.'));
 });

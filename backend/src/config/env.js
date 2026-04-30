@@ -6,6 +6,8 @@ const requiredEnvVars = [
     'CLOUDINARY_CLOUD_NAME',
     'CLOUDINARY_API_KEY',
     'CLOUDINARY_API_SECRET',
+    'RAZORPAY_KEY_ID',
+    'RAZORPAY_KEY_SECRET',
 ];
 
 export const validateEnv = () => {

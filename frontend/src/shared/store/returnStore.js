@@ -107,5 +107,25 @@ export const useReturnStore = create((set, get) => ({
             toast.error(error.message || 'Failed to update return status');
             return false;
         }
+    },
+
+    assignReturnDeliveryBoy: async (id, deliveryBoyId) => {
+        set({ isLoading: true });
+        try {
+            const response = await adminService.assignReturnDeliveryBoy(id, deliveryBoyId);
+            const updatedReq = response.data;
+            set((state) => ({
+                returnRequests: state.returnRequests.map((req) =>
+                    req.id === id ? { ...req, ...updatedReq } : req
+                ),
+                isLoading: false
+            }));
+            toast.success('Delivery boy assigned successfully');
+            return true;
+        } catch (error) {
+            set({ isLoading: false });
+            toast.error(error.message || 'Failed to assign delivery boy');
+            return false;
+        }
     }
 }));

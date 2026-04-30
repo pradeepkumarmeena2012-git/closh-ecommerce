@@ -97,6 +97,14 @@ const DeliveryOrders = () => {
             isReturn: (data.type === 'return' || type === 'return')
           });
           setShowNewOrderModal(true);
+          
+          // Play real-time notification sound
+          try {
+            const alertSound = new Audio('/sounds/buzzer.mp3');
+            alertSound.play().catch(err => console.warn('Buzzer play prevented:', err));
+          } catch (audioErr) {
+            console.error('Audio initialization failed:', audioErr);
+          }
         }
         if (filter === 'available') loadOrders(currentPage, filter);
       }
@@ -139,7 +147,7 @@ const DeliveryOrders = () => {
       }
       toast.success('Mission assigned! Get started.');
       // Directly redirect to the mission start page (Order Detail)
-      navigate(`/delivery/orders/${orderId}`);
+      navigate(type === 'return' ? `/delivery/returns/${orderId}` : `/delivery/orders/${orderId}`);
     } catch(err) {}
   };
 
@@ -214,7 +222,7 @@ const DeliveryOrders = () => {
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03 }}
-                  onClick={() => navigate(`/delivery/orders/${order.id}`)}
+                  onClick={() => navigate(order.type === 'return' ? `/delivery/returns/${order.id}` : `/delivery/orders/${order.id}`)}
                   className="bg-white rounded-xl p-3 shadow-md shadow-slate-200/50 border border-slate-100 hover:border-slate-300 transition-all cursor-pointer group relative overflow-hidden"
                 >
                   {/* Human-Centered Line 1: ID, Customer & Earnings */}

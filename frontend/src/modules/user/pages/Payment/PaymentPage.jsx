@@ -222,6 +222,17 @@ const PaymentPage = () => {
         setShowLocationModal(false);
     };
 
+    // Helper: load Razorpay checkout script on demand
+    const loadRazorpayScript = () =>
+        new Promise((resolve) => {
+            if (window.Razorpay) return resolve(true);
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+
     const handlePlaceOrder = async () => {
         if (!paymentMethod) {
             toast.error('Please select a payment method');
@@ -248,8 +259,9 @@ const PaymentPage = () => {
                 normalizedPaymentMethod = 'wallet';
             } else if (lowerPm.includes('bank')) {
                 normalizedPaymentMethod = 'bank';
-            } else if (lowerPm.includes('digital_at_door')) {
-                normalizedPaymentMethod = 'digital_at_door';
+
+            } else if (lowerPm.includes('prepaid')) {
+                normalizedPaymentMethod = 'prepaid';
             }
 
             const orderPayload = {
@@ -291,21 +303,95 @@ const PaymentPage = () => {
                     }
                     return null;
                 })(),
-                // Send frontend calculations as well for record/validation
                 subtotal: subtotal,
                 tax: tax,
                 shipping: shipping,
                 platformFee: platformFee,
                 total: finalTotal
             };
-            console.log("PaymentPage - Prepared orderPayload:", orderPayload);
+
+            console.log("🚀 [PAYMENT_DEBUG] Sending Order Payload:", JSON.stringify(orderPayload, null, 2));
 
             const response = await createOrder(orderPayload);
+            console.log("📥 [PAYMENT_DEBUG] Received Order Response:", JSON.stringify(response, null, 2));
+
             if (response && response.id) {
-                toast.success('Order placed successfully!');
-                isNavigatingToSuccess.current = true;
-                clearCart();
-                navigate(`/order-success/${response.id}`);
+                // Check if it's prepaid but missing Razorpay ID
+                if (normalizedPaymentMethod === 'prepaid' && !response.razorpayOrderId) {
+                    console.error("❌ [PAYMENT_ERROR] Order created as PREPAID but no razorpayOrderId received from server.");
+                    toast.error('Payment gateway initialization failed. Your order might be recorded as COD. Please contact support.');
+                    isNavigatingToSuccess.current = true;
+                    clearCart();
+                    navigate(`/order-success/${response.id}?warning=payment_init_failed`);
+                    return;
+                }
+
+                if (normalizedPaymentMethod === 'prepaid' && response.razorpayOrderId) {
+                    // If this order was returned via idempotency and is already paid,
+                    // skip Razorpay — navigating to success directly.
+                    if (response.paymentStatus === 'paid') {
+                        toast.success('Order already paid!');
+                        isNavigatingToSuccess.current = true;
+                        clearCart();
+                        navigate(`/order-success/${response.orderId}`);
+                        return;
+                    }
+                    const razorKey = response.razorpayKeyId || 'rzp_test_8sYbzHWidwe5Zw';
+                    console.log("💳 [PAYMENT_DEBUG] Initializing Razorpay modal with Key:", razorKey);
+                    
+                    const options = {
+                        key: razorKey,
+                        amount: response.razorpayAmount || Math.round(Number(response.total) * 100),
+                        currency: 'INR',
+                        name: 'CLOSH',
+                        description: 'Order Payment',
+                        order_id: response.razorpayOrderId,
+                        handler: async (paymentResponse) => {
+                            try {
+                                await api.post('/user/orders/verify-payment', {
+                                    orderId: response.orderId,
+                                    razorpayPaymentId: paymentResponse.razorpay_payment_id,
+                                    razorpayOrderId: paymentResponse.razorpay_order_id,
+                                    razorpaySignature: paymentResponse.razorpay_signature
+                                });
+                                toast.success('Payment successful!');
+                                isNavigatingToSuccess.current = true;
+                                clearCart();
+                                navigate(`/order-success/${response.id}`);
+                            } catch (error) {
+                                console.error("❌ [PAYMENT_ERROR] Verification Failed:", error);
+                                toast.error('Payment verification failed. Please contact support.');
+                                navigate(`/order-success/${response.id}?payment=failed`);
+                            }
+                        },
+                        prefill: {
+                            name: user?.name || '',
+                            email: user?.email || '',
+                            contact: currentAddress?.mobile || ''
+                        },
+                        theme: { color: '#000000' },
+                        modal: {
+                            ondismiss: () => {
+                                setIsProcessing(false);
+                                toast.error('Payment cancelled');
+                            }
+                        }
+                    };
+                    // Ensure Razorpay SDK is loaded before opening modal
+                    const scriptLoaded = await loadRazorpayScript();
+                    if (!scriptLoaded || !window.Razorpay) {
+                        toast.error('Payment gateway failed to load. Please refresh and try again.');
+                        setIsProcessing(false);
+                        return;
+                    }
+                    const rzp = new window.Razorpay(options);
+                    rzp.open();
+                } else {
+                    toast.success('Order placed successfully!');
+                    isNavigatingToSuccess.current = true;
+                    clearCart();
+                    navigate(`/order-success/${response.id}`);
+                }
             }
         } catch (error) {
             console.error("❌ PAYMENT_PAGE_ORDER_ERROR:", error);
@@ -328,7 +414,13 @@ const PaymentPage = () => {
         <div className="border-b border-gray-100 last:border-0 hover:bg-white hover:text-black">
             <div
                 className="flex items-center justify-between p-4 cursor-pointer  transition-colors"
-                onClick={() => toggleOption(id)}
+                onClick={() => {
+                    toggleOption(id);
+                    // Automatically select the method when expanding, for better UX
+                    if (id === 'prepaid') setPaymentMethod('prepaid');
+
+                    if (id === 'cod') setPaymentMethod('COD');
+                }}
             >
                 <div className="flex items-center gap-4">
                     <Icon size={20} className="text-gray-600" />
@@ -429,63 +521,29 @@ const PaymentPage = () => {
 
                     <div className="space-y-0">
                         {!isTryAndBuy && (
-                            <PaymentOption id="upi" icon={Smartphone} title="UPI (GPay / PhonePe / Paytm)" subtitle="Secure & Instant Payments" offers="NEWPROMO">
-                                <div className="space-y-4 pt-4">
-                                    <div
-                                        className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer ${paymentMethod === 'GPay' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}
-                                        onClick={() => setPaymentMethod('GPay')}
-                                    >
-                                        <span className="text-[13px] font-bold">Google Pay</span>
-                                        {paymentMethod === 'GPay' && <div className="w-2 h-2 rounded-full bg-[#e53e70]" />}
-                                    </div>
-                                    <div
-                                        className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all cursor-pointer ${paymentMethod === 'PhonePe' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}
-                                        onClick={() => setPaymentMethod('PhonePe')}
-                                    >
-                                        <span className="text-[13px] font-bold">PhonePe</span>
-                                        {paymentMethod === 'PhonePe' && <div className="w-2 h-2 rounded-full bg-[#e53e70]" />}
-                                    </div>
+                            <PaymentOption id="prepaid" icon={Smartphone} title="Prepaid (UPI / Cards / Netbanking)" subtitle="Secure Online Payment" offers="FASTEST DELIVERY">
+                                <div className="pt-4">
+                                    <label className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === 'prepaid' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}>
+                                        <div className="flex items-center gap-3">
+                                            <ShieldCheck size={20} className={paymentMethod === 'prepaid' ? "text-[#e53e70]" : "text-gray-400"} />
+                                            <span className="text-[13px] font-bold">Pay Online (Razorpay)</span>
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            name="payment"
+                                            className="hidden"
+                                            checked={paymentMethod === 'prepaid'}
+                                            onChange={() => setPaymentMethod('prepaid')}
+                                        />
+                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'prepaid' ? 'border-[#e53e70] bg-[#e53e70]' : 'border-gray-200'}`}>
+                                            {paymentMethod === 'prepaid' && <div className="w-2 h-2 rounded-full bg-white" />}
+                                        </div>
+                                    </label>
                                 </div>
                             </PaymentOption>
                         )}
 
-                        {!isTryAndBuy && (
-                            <PaymentOption id="card" icon={CreditCard} title="Credit / Debit Cards" subtitle="All major cards supported" offers="10% OFF ON CARDS">
-                                <div className="pt-4 space-y-3">
-                                    <div className="bg-gray-50 p-4 rounded-xl text-center">
-                                        <CreditCard size={32} className="mx-auto text-gray-300 mb-2" />
-                                        <p className="text-[11px] font-bold text-gray-500">Add logic to integrate Stripe or Razorpay here</p>
-                                        <button
-                                            onClick={() => setPaymentMethod('Credit/Debit Card')}
-                                            className={`mt-3 w-full py-2.5 rounded-xl text-[12px] font-bold uppercase border-2 transition-all ${paymentMethod === 'Credit/Debit Card' ? 'bg-[#e53e70] text-white border-[#e53e70]' : 'border-gray-200 text-gray-600'}`}
-                                        >
-                                            Use Card
-                                        </button>
-                                    </div>
-                                </div>
-                            </PaymentOption>
-                        )}
 
-                        <PaymentOption id="digital_at_door" icon={Smartphone} title="Pay Digital at Door" subtitle="Pay via UPI QR when package arrives" offers="POPULAR">
-                            <div className="pt-4">
-                                <label className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === 'digital_at_door' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <Smartphone size={20} className={paymentMethod === 'digital_at_door' ? "text-[#e53e70]" : "text-gray-400"} />
-                                        <span className="text-[13px] font-bold">Pay via QR at Doorstep</span>
-                                    </div>
-                                    <input
-                                        type="radio"
-                                        name="payment"
-                                        className="hidden"
-                                        checked={paymentMethod === 'digital_at_door'}
-                                        onChange={() => setPaymentMethod('digital_at_door')}
-                                    />
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'digital_at_door' ? 'border-[#e53e70] bg-[#e53e70]' : 'border-gray-200'}`}>
-                                        {paymentMethod === 'digital_at_door' && <div className="w-2 h-2 rounded-full bg-white" />}
-                                    </div>
-                                </label>
-                            </div>
-                        </PaymentOption>
 
                         <PaymentOption id="cod" icon={Banknote} title="Cash On Delivery" subtitle="Pay when you receive the order" offers="SAFE">
                             <div className="pt-4">

@@ -167,6 +167,16 @@ const AllOrders = () => {
       ),
     },
     {
+      key: 'paymentMethod',
+      label: 'Payment',
+      sortable: true,
+      render: (value) => (
+        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${value === 'prepaid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-200'}`}>
+          {value === 'prepaid' ? 'Prepaid' : 'COD'}
+        </span>
+      ),
+    },
+    {
       key: 'status',
       label: 'Status',
       sortable: true,
