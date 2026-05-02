@@ -126,14 +126,6 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
         }
     }, [isModalOpen, activeAddress, selectedAddressId]);
 
-    const requireLogin = () => {
-        if (!user) {
-            handleClose();
-            window.dispatchEvent(new Event('openLoginModal'));
-            return true;
-        }
-        return false;
-    };
 
     const handleAddNew = () => {
         // Direct to form as requested
@@ -180,10 +172,30 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                 setFetchedAddress(addr);
                 setPosition({ lat: latitude, lng: longitude });
                 
-                // Professional touch: Auto-confirm if address is found
-                // Update temporary session location if needed, or just let them see the map
-                toast.success("Location pinpointed!");
-                setView('map'); 
+                // Zepto-like: Auto-set current location as active address and close modal
+                const currentLocationAddr = {
+                    id: 'current-location-' + Date.now(),
+                    name: 'Current Location',
+                    fullName: user?.name || 'Guest',
+                    phone: user?.phone || '',
+                    address: addr.formatted,
+                    city: addr.city || '',
+                    state: addr.state || '',
+                    zipCode: addr.pincode || '',
+                    locality: addr.locality || '',
+                    type: 'Current',
+                    isCurrentLocation: true,
+                    lat: latitude,
+                    lng: longitude
+                };
+                
+                updateActiveAddress(currentLocationAddr);
+                toast.success("Location set!");
+                handleClose();
+            } else {
+                // Fallback: show map if address couldn't be resolved
+                toast.error("Couldn't resolve address. Please adjust pin.");
+                setView('map');
             }
             setLoadingLocation(false);
         };
@@ -391,6 +403,9 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                                 key={addr.id || addr._id}
                                                 onClick={() => {
                                                     setSelectedAddressId(addr.id || addr._id);
+                                                    updateActiveAddress(addr);
+                                                    toast.success("Address selected!");
+                                                    handleClose();
                                                 }}
                                                 className={`p-4 bg-white rounded-2xl border-2 transition-all cursor-pointer relative group ${String(selectedAddressId) === String(addr.id || addr._id) ? 'border-black' : 'border-transparent shadow-sm'}`}
                                             >

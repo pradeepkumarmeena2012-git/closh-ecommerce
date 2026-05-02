@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ProfileSidebar from './ProfileSidebar';
-import { History, ShieldCheck, RefreshCcw, Truck, ChevronLeft, MapPin, ChevronDown } from 'lucide-react';
+import { History, ShieldCheck, RefreshCcw, Truck, ChevronLeft, MapPin, ChevronDown, RefreshCw } from 'lucide-react';
 import { useUserLocation } from '../../context/LocationContext';
 import LocationModal from '../../components/Header/LocationModal';
 
@@ -11,6 +11,17 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
     const { activeAddress } = useUserLocation();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = useCallback(async () => {
+        if (isRefreshing) return;
+        setIsRefreshing(true);
+        // Dispatch a custom event that child pages can listen to for data re-fetch
+        window.dispatchEvent(new CustomEvent('user-panel-refresh'));
+        // Give time for the data fetches to initiate and animate the spinner
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        setIsRefreshing(false);
+    }, [isRefreshing]);
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -50,7 +61,15 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
                         >
                             <ChevronLeft size={20} strokeWidth={3} />
                         </button>
-                        <h1 className="font-bold text-lg md:text-xl text-gray-900">{getPageTitle()}</h1>
+                        <h1 className="font-bold text-lg md:text-xl text-gray-900 flex-1">{getPageTitle()}</h1>
+                        <button
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className="w-10 h-10 md:w-10 md:h-10 bg-white text-gray-600 rounded-[14px] md:rounded-xl flex items-center justify-center active:scale-95 transition-all border border-gray-200 hover:bg-gray-50 hover:text-black disabled:opacity-50"
+                            title="Refresh page"
+                        >
+                            <RefreshCw size={18} strokeWidth={2.5} className={isRefreshing ? 'animate-spin' : ''} />
+                        </button>
                     </div>
                 )}
 
@@ -61,6 +80,22 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
                     {/* Hide detail content on mobile account menu */}
                     {(!isMobile || !isMenuPage) && (
                         <main className="flex-1 px-1 lg:px-0">
+                            {/* Desktop Header Title & Refresh */}
+                            {!isMobile && (
+                                <div className="flex items-center justify-between mb-6 px-4">
+                                    <h1 className="text-2xl font-black text-black tracking-tight uppercase">
+                                        {getPageTitle()}
+                                    </h1>
+                                    <button
+                                        onClick={handleRefresh}
+                                        disabled={isRefreshing}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white text-gray-600 rounded-xl border border-gray-200 hover:bg-black hover:text-white transition-all active:scale-95 shadow-sm disabled:opacity-50"
+                                    >
+                                        <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
+                                        <span className="text-[11px] font-bold uppercase tracking-wider">Refresh Data</span>
+                                    </button>
+                                </div>
+                            )}
                             <div className="bg-gray-50 rounded-[24px] md:rounded-3xl shadow-2xl border border-gray-200 p-2 md:p-8 min-h-[400px] md:min-h-[500px]">
                                 {children}
                             </div>

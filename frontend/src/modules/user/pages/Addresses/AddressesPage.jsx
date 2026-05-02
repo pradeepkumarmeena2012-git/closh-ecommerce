@@ -108,6 +108,16 @@ const AddressesPage = () => {
         type: 'Home'
     });
 
+    // Listen for refresh event from AccountLayout
+    useEffect(() => {
+        const onRefresh = () => {
+            refreshAddresses();
+            toast.success('Addresses refreshed');
+        };
+        window.addEventListener('user-panel-refresh', onRefresh);
+        return () => window.removeEventListener('user-panel-refresh', onRefresh);
+    }, [refreshAddresses]);
+
     const handleSearch = async (e) => {
         if (e) e.preventDefault();
         if (!searchQuery.trim()) return;

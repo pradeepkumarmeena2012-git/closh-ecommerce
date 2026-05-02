@@ -488,14 +488,6 @@ const OfflineSales = () => {
 
                   {/* Sizes */}
                   <div className="bg-emerald-50/10 p-3 md:p-5 rounded-2xl border border-emerald-50 space-y-3">
-                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                       <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase flex items-center gap-1 shrink-0">
-                         <FiMaximize className="text-emerald-500" size={12} /> Sizes
-                       </label>
-                       <div className="relative w-full sm:w-32">
-                          <input 
-                            placeholder="Add..." 
-                  <div className="bg-emerald-50/10 p-3 md:p-5 rounded-2xl border border-emerald-50 space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                         <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase flex items-center gap-1 shrink-0">
                           <FiMaximize className="text-emerald-500" size={12} /> Sizes

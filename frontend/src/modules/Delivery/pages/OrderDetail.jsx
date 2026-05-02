@@ -21,6 +21,7 @@ import {
   FiZap,
   FiAlertTriangle
 } from 'react-icons/fi';
+import { requestCameraPermission } from '@shared/utils/permissionHelper';
 import CancellationModal from '../components/CancellationModal';
 import TrackingMap from '../../../shared/components/TrackingMap';
 import PageTransition from '../../../shared/components/PageTransition';
@@ -334,7 +335,11 @@ const DeliveryOrderDetail = () => {
     reader.readAsDataURL(file);
   };
 
-  const openCamera = (target) => {
+  const openCamera = async (target) => {
+    // Explicitly request permission first to ensure mobile wrappers trigger native prompt
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) return;
+
     if (target === 'pickup' && pickupInputRef.current) pickupInputRef.current.click();
     if (target === 'delivery' && deliveryInputRef.current) deliveryInputRef.current.click();
     if (target === 'openBox' && openBoxInputRef.current) openBoxInputRef.current.click();

@@ -1,16 +1,38 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import AccountLayout from '../../components/Profile/AccountLayout';
-import { ShoppingBag, Package, Clock, ChevronRight } from 'lucide-react';
+import { ShoppingBag, Package, Clock, ChevronRight, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOrderStore } from '../../../../shared/store/orderStore';
+import toast from 'react-hot-toast';
 
 const OrdersPage = () => {
     const navigate = useNavigate();
     const { orders, fetchUserOrders, isLoading } = useOrderStore();
+    const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+
+    const handleRefreshOrders = useCallback(async () => {
+        setIsManualRefreshing(true);
+        try {
+            await fetchUserOrders(1, 20);
+            toast.success('Orders refreshed');
+        } catch (err) {
+            console.error("Failed to refresh orders:", err);
+            toast.error('Failed to refresh orders');
+        } finally {
+            setIsManualRefreshing(false);
+        }
+    }, [fetchUserOrders]);
 
     useEffect(() => {
         fetchUserOrders().catch(err => console.error("Failed to fetch orders:", err));
     }, [fetchUserOrders]);
+
+    // Listen for refresh event from AccountLayout
+    useEffect(() => {
+        const onRefresh = () => handleRefreshOrders();
+        window.addEventListener('user-panel-refresh', onRefresh);
+        return () => window.removeEventListener('user-panel-refresh', onRefresh);
+    }, [handleRefreshOrders]);
 
     if (isLoading && orders.length === 0) {
         return (
@@ -28,9 +50,19 @@ const OrdersPage = () => {
             <div className="space-y-6">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold uppercase ">My Orders</h2>
-                    <span className="text-[10px] font-bold bg-gray-100 px-3 py-1 rounded-full uppercase  text-gray-400">
-                        {orders.length} Orders
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleRefreshOrders}
+                            disabled={isManualRefreshing || isLoading}
+                            className="w-9 h-9 bg-gray-100 text-gray-500 rounded-xl flex items-center justify-center hover:bg-gray-200 hover:text-black active:scale-95 transition-all disabled:opacity-50 border border-gray-200"
+                            title="Refresh orders"
+                        >
+                            <RefreshCw size={15} strokeWidth={2.5} className={isManualRefreshing ? 'animate-spin' : ''} />
+                        </button>
+                        <span className="text-[10px] font-bold bg-gray-100 px-3 py-1 rounded-full uppercase  text-gray-400">
+                            {orders.length} Orders
+                        </span>
+                    </div>
                 </div>
 
                 {orders.length === 0 ? (

@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AccountLayout from '../../components/Profile/AccountLayout';
 import { Camera, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { requestCameraPermission } from '@shared/utils/permissionHelper';
 
 const ProfilePage = () => {
     const { user, updateProfile, uploadProfileAvatar } = useAuth();
@@ -35,6 +36,26 @@ const ProfilePage = () => {
         }
     }, [user]);
 
+    // Listen for refresh event from AccountLayout
+    useEffect(() => {
+        const onRefresh = () => {
+            if (user) {
+                setFormData({
+                    firstName: user.firstName || user.name?.split(' ')[0] || '',
+                    lastName: user.lastName || user.name?.split(' ').slice(1).join(' ') || '',
+                    email: user.email || '',
+                    dob: user.dob || '',
+                    gender: user.gender || '',
+                    phone: user.phone || '',
+                    avatar: user.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
+                });
+                toast.success('Profile refreshed');
+            }
+        };
+        window.addEventListener('user-panel-refresh', onRefresh);
+        return () => window.removeEventListener('user-panel-refresh', onRefresh);
+    }, [user]);
+
     const handleImageChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -54,7 +75,9 @@ const ProfilePage = () => {
         }
     };
 
-    const triggerFileInput = () => {
+    const triggerFileInput = async () => {
+        // Request camera permission before opening file picker to ensure mobile app compatibility
+        await requestCameraPermission();
         fileInputRef.current?.click();
     };
 
