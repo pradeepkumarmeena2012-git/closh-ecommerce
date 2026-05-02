@@ -6,32 +6,47 @@ import toast from 'react-hot-toast';
  */
 export const requestCameraPermission = async () => {
     try {
-        // Check if mediaDevices is supported
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            console.warn("Camera API not supported in this browser/environment");
-            return false;
+        // Modern API
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: { ideal: "environment" } } 
+            });
+            stream.getTracks().forEach(track => track.stop());
+            return true;
         }
 
-        // Try to access camera (video only)
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                facingMode: { ideal: "environment" } 
-            } 
-        });
+        // Legacy API Fallback
+        const legacyGetUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+        if (legacyGetUserMedia) {
+            return new Promise((resolve) => {
+                legacyGetUserMedia.call(navigator, { video: true }, (stream) => {
+                    stream.getTracks().forEach(track => track.stop());
+                    resolve(true);
+                }, () => resolve(false));
+            });
+        }
 
-        // If successful, stop the tracks immediately to release the camera
-        stream.getTracks().forEach(track => track.stop());
-        return true;
+        // Context Check (Security)
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+            toast.error("Camera access requires HTTPS. Please check your connection.");
+        } else {
+            console.warn("Camera API not supported in this environment");
+        }
+        
+        return false;
     } catch (err) {
         console.error("Camera permission error:", err);
         
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            toast.error("Camera permission denied. Please allow camera access in your settings.");
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-            toast.error("No camera found on this device.");
-        } else {
-            toast.error("Failed to access camera. Please check your permissions.");
-        }
+        const errorMsg = {
+            'NotAllowedError': "Camera permission denied. Please allow access in settings.",
+            'PermissionDeniedError': "Camera permission denied. Please allow access in settings.",
+            'NotFoundError': "No camera found on this device.",
+            'DevicesNotFoundError': "No camera found on this device.",
+            'NotReadableError': "Camera is already in use by another app.",
+            'SecurityError': "Camera access blocked due to security settings (use HTTPS)."
+        }[err.name] || "Failed to access camera. Please check your permissions.";
+
+        toast.error(errorMsg);
         return false;
     }
 };

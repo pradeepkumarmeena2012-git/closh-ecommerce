@@ -4,6 +4,8 @@ import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiTruck, FiCamera, Fi
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
+import { compressImage } from '@shared/utils/imageHelper';
+import { requestCameraPermission } from '@shared/utils/permissionHelper';
 import logo from '../../../assets/animations/lottie/logo-removebg.png';
 
 const STEPS = [
@@ -47,10 +49,20 @@ const DeliveryRegister = () => {
     const { name, value, files } = e.target;
     if (['drivingLicense', 'drivingLicenseBack', 'aadharCard', 'aadharCardBack'].includes(name)) {
       const file = files?.[0] || null;
-      setFormData((prev) => ({ ...prev, [name]: file }));
       if (file) {
-        const url = URL.createObjectURL(file);
-        setPreviews((prev) => ({ ...prev, [name]: url }));
+        const toastId = toast.loading(`Processing document...`);
+        compressImage(file, { maxWidth: 1280, quality: 0.7 })
+          .then(compressed => {
+            setFormData((prev) => ({ ...prev, [name]: compressed }));
+            setPreviews((prev) => ({ ...prev, [name]: compressed }));
+            toast.success("Ready!", { id: toastId });
+          })
+          .catch(() => {
+            setFormData((prev) => ({ ...prev, [name]: file }));
+            const url = URL.createObjectURL(file);
+            setPreviews((prev) => ({ ...prev, [name]: url }));
+            toast.dismiss(toastId);
+          });
       }
       return;
     }
@@ -170,40 +182,49 @@ const DeliveryRegister = () => {
     }
   };
 
-  const DocUploadCard = ({ name, label }) => (
-    <div
-      onClick={() => fileInputRefs.current[name]?.click()}
-      className="relative cursor-pointer group"
-    >
-      <input
-        ref={(el) => (fileInputRefs.current[name] = el)}
-        type="file"
-        name={name}
-        accept="image/*"
-        onChange={handleChange}
-        className="hidden"
-      />
-      {previews[name] ? (
-        <div className="relative w-full h-36 sm:h-40 rounded-2xl overflow-hidden border-2 border-emerald-200 shadow-sm">
-          <img src={previews[name]} alt={label} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <FiCamera className="text-white" size={24} />
+  const DocUploadCard = ({ name, label }) => {
+    const handleDocClick = async () => {
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) return;
+      fileInputRefs.current[name]?.click();
+    };
+
+    return (
+      <div
+        onClick={handleDocClick}
+        className="relative cursor-pointer group"
+      >
+        <input
+          ref={(el) => (fileInputRefs.current[name] = el)}
+          type="file"
+          name={name}
+          accept="image/*"
+          capture="environment" // Hint to use camera on mobile
+          onChange={handleChange}
+          className="hidden"
+        />
+        {previews[name] ? (
+          <div className="relative w-full h-36 sm:h-40 rounded-2xl overflow-hidden border-2 border-emerald-200 shadow-sm">
+            <img src={previews[name]} alt={label} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <FiCamera className="text-white" size={24} />
+            </div>
+            <div className="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+              <FiCheck className="text-white" size={14} />
+            </div>
           </div>
-          <div className="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
-            <FiCheck className="text-white" size={14} />
+        ) : (
+          <div className="w-full h-36 sm:h-40 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 group-hover:border-indigo-300 group-hover:bg-indigo-50/50 transition-all">
+            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+              <FiCamera className="text-gray-400 group-hover:text-indigo-500" size={20} />
+            </div>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tap to Upload</span>
           </div>
-        </div>
-      ) : (
-        <div className="w-full h-36 sm:h-40 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 group-hover:border-indigo-300 group-hover:bg-indigo-50/50 transition-all">
-          <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-            <FiCamera className="text-gray-400 group-hover:text-indigo-500" size={20} />
-          </div>
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tap to Upload</span>
-        </div>
-      )}
-      <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider text-center mt-2">{label}</p>
-    </div>
-  );
+        )}
+        <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider text-center mt-2">{label}</p>
+      </div>
+    );
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && e.target.tagName === 'INPUT') {

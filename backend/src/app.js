@@ -23,8 +23,8 @@ import notFound from './middlewares/notFound.js';
 
 const app = express();
 // ─── Body Parsing ────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // app.use(detailedRequestLogger);
 
 // Trust proxy (necessary for express-rate-limit when behind Nginx)

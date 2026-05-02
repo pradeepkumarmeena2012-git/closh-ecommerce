@@ -1234,9 +1234,14 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                             </div>
                             <div className="flex flex-col border-l pl-4 border-gray-300">
                               <span className="text-[10px] uppercase font-bold text-gray-500 ">Markup %</span>
-                              <span className={`text-sm font-bold ${marginPercent >= 0 ? "text-green-600" : "text-red-600"}`}>
-                                {marginPercent.toFixed(2)}%
-                              </span>
+                              {(() => {
+                                const mp = ((parseFloat(formData.price) - parseFloat(formData.vendorPrice)) / parseFloat(formData.vendorPrice)) * 100;
+                                return (
+                                  <span className={`text-sm font-bold ${mp >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                    {mp.toFixed(2)}%
+                                  </span>
+                                );
+                              })()}
                             </div>
                             <div className="flex flex-col border-l pl-4 border-gray-300">
                               <span className="text-[10px] uppercase font-bold text-gray-500 ">Total Customer Discount</span>

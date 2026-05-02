@@ -22,6 +22,7 @@ import {
   FiAlertTriangle
 } from 'react-icons/fi';
 import { requestCameraPermission } from '@shared/utils/permissionHelper';
+import { compressImage } from '@shared/utils/imageHelper';
 import CancellationModal from '../components/CancellationModal';
 import TrackingMap from '../../../shared/components/TrackingMap';
 import PageTransition from '../../../shared/components/PageTransition';
@@ -327,22 +328,48 @@ const DeliveryOrderDetail = () => {
     }
   };
 
-  // handleImage: set primary photo
-  const handleImage = (file, setter) => {
+  // handleImage: set primary photo with compression
+  const handleImage = async (file, setter) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setter(reader.result);
-    reader.readAsDataURL(file);
+    
+    const toastId = toast.loading("Processing photo...");
+    try {
+      // Use our new compression utility
+      const compressed = await compressImage(file, { maxWidth: 1280, quality: 0.8 });
+      setter(compressed);
+      toast.success("Photo captured!", { id: toastId });
+    } catch (err) {
+      console.error("Compression failed:", err);
+      // Fallback to raw if compression fails
+      const reader = new FileReader();
+      reader.onload = () => {
+        setter(reader.result);
+        toast.dismiss(toastId);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const openCamera = async (target) => {
-    // Explicitly request permission first to ensure mobile wrappers trigger native prompt
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) return;
+    // If we're already checking permission, don't trigger again
+    if (isUpdatingOrderStatus) return;
 
-    if (target === 'pickup' && pickupInputRef.current) pickupInputRef.current.click();
-    if (target === 'delivery' && deliveryInputRef.current) deliveryInputRef.current.click();
-    if (target === 'openBox' && openBoxInputRef.current) openBoxInputRef.current.click();
+    try {
+      // Explicitly request permission first to ensure mobile wrappers trigger native prompt
+      // We do this BEFORE clicking the input to ensure the native prompt is handled
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) return;
+
+      // Small delay to ensure any native permission dialogs have closed before triggering file picker
+      setTimeout(() => {
+        if (target === 'pickup' && pickupInputRef.current) pickupInputRef.current.click();
+        if (target === 'delivery' && deliveryInputRef.current) deliveryInputRef.current.click();
+        if (target === 'openBox' && openBoxInputRef.current) openBoxInputRef.current.click();
+      }, 100);
+    } catch (err) {
+      console.error("Camera trigger failed:", err);
+      toast.error("Failed to open camera. Please try using the Gallery.");
+    }
   };
 
   // handleAddExtraPhoto: append to extras array

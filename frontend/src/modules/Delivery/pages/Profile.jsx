@@ -11,6 +11,8 @@
   import toast from 'react-hot-toast';
   import { formatPrice } from '@shared/utils/helpers';
   import CashSettlementModal from '@modules/Delivery/components/CashSettlementModal';
+import { requestCameraPermission } from '@shared/utils/permissionHelper';
+import { compressImage } from '@shared/utils/imageHelper';
 
   import { useRef } from 'react';
 
@@ -207,7 +209,9 @@
       navigate('/delivery/login');
     };
 
-    const handleImageClick = () => {
+    const handleImageClick = async () => {
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) return;
       if (fileInputRef.current) fileInputRef.current.click();
     };
 
@@ -215,19 +219,14 @@
       const file = e.target.files[0];
       if (!file) return;
 
-      if (file.size > 2 * 1024 * 1024) return toast.error('Image size must be less than 2MB');
-
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const base64String = reader.result;
-          await updateProfile({ avatar: base64String });
-          toast.success('Profile picture updated!');
-        } catch (err) {
-          toast.error('Failed to update profile picture');
-        }
-      };
-      reader.readAsDataURL(file);
+      const toastId = toast.loading("Processing profile photo...");
+      try {
+        const compressed = await compressImage(file, { maxWidth: 800, quality: 0.7 });
+        await updateProfile({ avatar: compressed });
+        toast.success('Profile picture updated!', { id: toastId });
+      } catch (err) {
+        toast.error('Failed to update profile picture', { id: toastId });
+      }
     };
 
     const stats = [

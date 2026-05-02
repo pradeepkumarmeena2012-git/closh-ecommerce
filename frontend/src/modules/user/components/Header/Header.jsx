@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, MapPin, User, ShoppingCart, X, LayoutGrid, Compass, Heart, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, MapPin, User, ShoppingCart, X, LayoutGrid, Compass, Heart, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
 import MegaMenu from './MegaMenu';
 import DiscoverModal from './DiscoverModal';
 import LocationModal from './LocationModal';
@@ -92,6 +92,17 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
 
     const [searchSuggestions, setSearchSuggestions] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleGlobalRefresh = async () => {
+        if (isRefreshing) return;
+        setIsRefreshing(true);
+        // Dispatch refresh event for components to listen
+        window.dispatchEvent(new CustomEvent('user-panel-refresh'));
+        // Wait for animation
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setIsRefreshing(false);
+    };
 
     // Auto-Hide Header Logic
     const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -312,7 +323,17 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                     </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-3 justify-end">
+                                 <div className="flex items-center gap-3 justify-end">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleGlobalRefresh();
+                                        }}
+                                        disabled={isRefreshing}
+                                        className="w-8 h-8 rounded-full bg-white shadow-sm border border-black/5 flex items-center justify-center active:scale-90 transition-all disabled:opacity-50"
+                                    >
+                                        <RefreshCw size={14} className={`text-gray-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                    </button>
                                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-black/5">
                                         <Link to="/cart" onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[1px]">
                                             <ShoppingCart size={17} className="text-gray-600 group-hover/icon:text-black transition-colors" />
