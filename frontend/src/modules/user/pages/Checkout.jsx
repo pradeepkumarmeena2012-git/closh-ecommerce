@@ -132,15 +132,12 @@ const MobileCheckout = () => {
   };
 
   const total = getTotal();
-  const shipping =
-    typeof estimatedShipping === "number"
-      ? estimatedShipping
-      : calculateShippingFallback();
+  const shipping = 0;
   const discount = appliedCoupon ? appliedDiscount : 0;
   const platformFee = 20;
   const taxableAmount = Math.max(0, total - discount);
   const tax = 0; // GST removed as per user request
-  const finalTotal = Math.max(0, total + shipping + tax + platformFee - discount);
+  const finalTotal = Math.max(0, total + tax + platformFee - discount);
 
   useEffect(() => {
     if (appliedCoupon) {

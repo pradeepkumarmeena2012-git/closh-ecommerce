@@ -13,11 +13,12 @@ const CartPage = () => {
 
     const totalMRP = cart.reduce((acc, item) => {
         const sellingPrice = Number(item.price || 0);
-        const originalPrice = Number(item.originalPrice || item.price || 0);
-        const mrp = Math.max(originalPrice, sellingPrice);
+        // Ensure MRP is at least the selling price to avoid negative discounts
+        const originalPrice = Number(item.originalPrice || 0);
+        const mrp = Math.max(sellingPrice, originalPrice);
         return acc + (mrp * item.quantity);
     }, 0);
-    const totalDiscount = totalMRP - cartTotal;
+    const totalDiscount = Math.max(0, totalMRP - cartTotal);
 
     const handleMoveToWishlist = (item) => {
         addToWishlist(item);
@@ -172,12 +173,9 @@ const CartPage = () => {
                                     </div>
                                     <div className="flex justify-between text-[13px] font-bold">
                                         <span className="text-gray-400 uppercase ">Cart Discount</span>
-                                        <span className="text-emerald-600 font-bold ">-₹{totalDiscount.toFixed(0)}</span>
+                                        <span className="text-emerald-600 font-bold ">{totalDiscount > 0 ? `-₹${totalDiscount.toFixed(0)}` : "₹0"}</span>
                                     </div>
-                                    <div className="flex justify-between text-[13px] font-bold">
-                                        <span className="text-gray-400 uppercase ">Shipping</span>
-                                        <span className="text-emerald-600 font-bold ">FREE</span>
-                                    </div>
+
 
                                     <div className="h-px bg-white my-2"></div>
 

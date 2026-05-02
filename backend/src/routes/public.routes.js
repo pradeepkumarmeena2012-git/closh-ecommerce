@@ -627,10 +627,10 @@ router.post('/shipping/estimate', asyncHandler(async (req, res) => {
 
     res.status(200).json(
         new ApiResponse(200, {
-            shipping: totalShipping,
-            byVendor: shippingByVendor,
+            shipping: 0,
+            byVendor: Object.fromEntries(Object.keys(vendorMap).map(id => [id, 0])),
             distances: distanceByVendor
-        }, 'Shipping estimate calculated.')
+        }, 'Shipping estimate calculated (Hardcoded to 0 as per request).')
     );
 }));
 

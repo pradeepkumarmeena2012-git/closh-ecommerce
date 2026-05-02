@@ -15,10 +15,13 @@ const CartPage = () => {
 
 
     const totalMRP = cart.reduce((acc, item) => {
-        const itemMRP = Number(item.originalPrice) || Number(item.price) || 0;
-        return acc + (itemMRP * item.quantity);
+        const sellingPrice = Number(item.price || 0);
+        const originalPrice = Number(item.originalPrice || 0);
+        // Ensure MRP is at least the selling price to avoid negative discounts
+        const mrp = Math.max(sellingPrice, originalPrice);
+        return acc + (mrp * item.quantity);
     }, 0);
-    const totalDiscount = totalMRP - getCartTotal();
+    const totalDiscount = Math.max(0, totalMRP - getCartTotal());
 
     if (cart.length === 0) {
         return (
@@ -197,12 +200,9 @@ const CartPage = () => {
                                     </div>
                                     <div className="flex justify-between text-[13px] font-bold">
                                         <span className="text-gray-400 uppercase ">Cart Discount</span>
-                                        <span className="text-black font-bold ">-₹{totalDiscount.toFixed(2)}</span>
+                                        <span className="text-black font-bold ">{totalDiscount > 0 ? `-₹${totalDiscount.toFixed(2)}` : "₹0.00"}</span>
                                     </div>
-                                    <div className="flex justify-between text-[13px] font-bold">
-                                        <span className="text-gray-400 uppercase ">Convenience Fee</span>
-                                        <span className="text-black font-bold ">FREE</span>
-                                    </div>
+
 
                                     <div className="h-px bg-gray-100 my-2"></div>
 
@@ -211,9 +211,11 @@ const CartPage = () => {
                                             <p className="text-[10px] font-bold text-gray-500 uppercase  mb-1">Total Amount</p>
                                             <p className="text-2xl font-bold text-gray-900 ">₹{getCartTotal().toFixed(2)}</p>
                                         </div>
-                                         <div className="text-right">
-                                             <p className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">You saved ₹{totalDiscount.toFixed(2)}</p>
-                                         </div>
+                                        {totalDiscount > 0 && (
+                                            <div className="text-right">
+                                                <p className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">You saved ₹{totalDiscount.toFixed(2)}</p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* HIDDEN ON MOBILE: Avoids duplicate button with bottom action bar */}

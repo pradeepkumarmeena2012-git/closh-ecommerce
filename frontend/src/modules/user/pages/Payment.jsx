@@ -48,12 +48,14 @@ const PaymentPage = () => {
 
     const cartTotal = getTotal();
     const totalMRP = cart.reduce((acc, item) => {
-        const originalPrice = Number(item.originalPrice || item.price || 0);
-        return acc + (originalPrice * item.quantity);
+        const sellingPrice = Number(item.price || 0);
+        const originalPrice = Number(item.originalPrice || 0);
+        const mrp = Math.max(sellingPrice, originalPrice);
+        return acc + (mrp * item.quantity);
     }, 0);
-    const totalDiscount = totalMRP - cartTotal;
-    const shipping = cartTotal > 500 ? 0 : 40;
-    const finalTotal = cartTotal + shipping;
+    const totalDiscount = Math.max(0, totalMRP - cartTotal);
+    const shipping = 0;
+    const finalTotal = cartTotal;
 
     const getDeliveryDate = () => {
         const date = new Date();
@@ -276,13 +278,10 @@ const PaymentPage = () => {
                         {totalDiscount > 0 && (
                             <div className="flex justify-between text-[13px]">
                                 <span className="text-gray-500 font-medium">Discount on MRP</span>
-                                <span className="text-emerald-600 font-bold">-₹{totalDiscount.toFixed(0)}</span>
+                                <span className="text-emerald-600 font-bold">{totalDiscount > 0 ? `-₹${totalDiscount.toFixed(0)}` : "₹0"}</span>
                             </div>
                         )}
-                        <div className="flex justify-between text-[13px]">
-                            <span className="text-gray-500 font-medium">Shipping Fee</span>
-                            <span className="text-emerald-600 font-bold">{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
-                        </div>
+
                     </div>
                     <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
                         <span className="text-[14px] font-bold text-gray-900 uppercase ">Total Amount</span>

@@ -52,17 +52,12 @@ const OrderSummary = ({ itemsByVendor, total, discount, shipping, tax, platformF
           <span>{formatPrice(total)}</span>
         </div>
         {discount > 0 && (
-          <div className="flex justify-between text-green-600">
+          <div className="flex justify-between text-green-600 font-medium">
             <span>Discount</span>
-            <span>-{formatPrice(discount)}</span>
+            <span>- {formatPrice(Math.abs(discount))}</span>
           </div>
         )}
-        <div className="flex justify-between text-gray-600">
-          <span>Shipping</span>
-          <span>
-            {shipping === 0 ? <span className="text-green-600 font-semibold">FREE</span> : formatPrice(shipping)}
-          </span>
-        </div>
+
         <div className="flex justify-between text-gray-600">
           <span>Tax</span>
           <span>{formatPrice(tax)}</span>
