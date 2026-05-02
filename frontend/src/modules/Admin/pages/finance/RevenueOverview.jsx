@@ -58,15 +58,18 @@ const RevenueOverview = () => {
   const chartData = useMemo(() => {
     return financialSummary.map(item => ({
       ...item,
-      date: item._id, // Map _id to date for the chart
+      date: item._id, 
+      revenue: item.netRevenue || 0, // Override revenue for the chart to show Net Revenue
+      grossRevenue: item.revenue || 0,
     }));
   }, [financialSummary]);
 
   const stats = useMemo(() => {
-    const revenue = financialSummary.reduce((sum, item) => sum + item.revenue, 0);
+    const grossRevenue = financialSummary.reduce((sum, item) => sum + item.revenue, 0);
+    const netRevenue = financialSummary.reduce((sum, item) => sum + (item.netRevenue || 0), 0);
     const orders = financialSummary.reduce((sum, item) => sum + item.orders, 0);
-    const aov = orders > 0 ? revenue / orders : 0;
-    return { revenue, orders, aov };
+    const aov = orders > 0 ? grossRevenue / orders : 0;
+    return { grossRevenue, netRevenue, orders, aov };
   }, [financialSummary]);
 
   if (isPageLoading && financialSummary.length === 0) {
@@ -91,15 +94,23 @@ const RevenueOverview = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Total Revenue</p>
-            <FiDollarSign className="text-green-600" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-[#003d29] text-white rounded-2xl p-6 shadow-xl shadow-emerald-900/10 border border-emerald-800 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs text-emerald-300 font-black uppercase tracking-widest">Platform Net Earnings</p>
+              <div className="p-2 bg-emerald-800/50 rounded-lg text-emerald-400">
+                <FiDollarSign size={20} />
+              </div>
+            </div>
+            <p className="text-4xl font-black tracking-tighter">
+              {formatPrice(stats.netRevenue)}
+            </p>
           </div>
-          <p className="text-2xl font-bold text-gray-800">
-            {formatPrice(stats.revenue)}
-          </p>
+          <div className="mt-6 pt-4 border-t border-emerald-800/50 flex justify-between items-center">
+            <span className="text-[10px] text-emerald-400 font-black uppercase">Gross Sales volume</span>
+            <span className="text-sm font-black text-emerald-100">{formatPrice(stats.grossRevenue)}</span>
+          </div>
         </div>
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">

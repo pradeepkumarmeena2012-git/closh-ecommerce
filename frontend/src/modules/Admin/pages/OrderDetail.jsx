@@ -14,7 +14,8 @@ import {
   FiPackage,
   FiClock,
   FiMail,
-  FiCamera
+  FiCamera,
+  FiPrinter
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
@@ -131,12 +132,170 @@ const OrderDetail = () => {
     return 'https://via.placeholder.com/100x100?text=Product';
   };
 
+  const [showInvoice, setShowInvoice] = useState(false);
+
+  const handlePrint = () => {
+    const printContent = document.getElementById('printable-invoice');
+    const originalContent = document.body.innerHTML;
+    document.body.innerHTML = printContent.innerHTML;
+    window.print();
+    document.body.innerHTML = originalContent;
+    window.location.reload();
+  };
+
+  const InvoiceModal = () => {
+    if (!showInvoice) return null;
+
+    // Get primary vendor details from the first item
+    const firstVendor = order.vendorItems?.[0]?.vendorId || {};
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-8"
+        >
+          {/* Action Bar */}
+          <div className="p-4 bg-gray-50 border-b flex justify-between items-center no-print">
+            <h3 className="font-bold text-gray-800">Order Invoice</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-bold"
+              >
+                <FiPrinter /> Print Invoice
+              </button>
+              <button
+                onClick={() => setShowInvoice(false)}
+                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-bold"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+
+          {/* Printable Area */}
+          <div id="printable-invoice" className="p-8 sm:p-12 bg-white text-gray-800 font-sans">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-8 mb-12">
+              <div className="space-y-2">
+                <h1 className="text-4xl font-black text-primary-600 tracking-tighter">CLOSH</h1>
+                <div className="text-sm text-gray-500 space-y-1">
+                  <p className="font-bold text-gray-800">CLOSH OFFICIAL PVT LTD</p>
+                  <p>123, Fashion Hub, Sector 5, New Delhi - 110001</p>
+                  <p>GSTIN: 07AAAAA0000A1Z5</p>
+                  <p>Phone: +91 98765 43210</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">INVOICE</h2>
+                <p className="text-gray-500 text-sm">#{order.id}</p>
+                <p className="text-gray-500 text-sm">Date: {new Date(order.date).toLocaleDateString()}</p>
+                <div className="mt-4 inline-block">
+                    <Badge variant={order.paymentStatus === 'paid' ? 'delivered' : 'pending'}>
+                        {order.paymentStatus?.toUpperCase() || 'PENDING'}
+                    </Badge>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12 py-8 border-y border-gray-100">
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed From (Vendor)</h3>
+                <div className="space-y-1">
+                    <p className="font-bold text-lg text-gray-900">{firstVendor.storeName || order.vendorItems?.[0]?.vendorName || 'Closh Partner'}</p>
+                    <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{firstVendor.shopAddress || 'Address details in order file'}</p>
+                    {firstVendor.gstNumber && <p className="text-sm font-semibold text-gray-700">GST: {firstVendor.gstNumber}</p>}
+                    {firstVendor.phone && <p className="text-sm text-gray-500">Tel: {firstVendor.phone}</p>}
+                </div>
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed To (Customer)</h3>
+                <div className="space-y-1">
+                    <p className="font-bold text-lg text-gray-900">{order.shippingAddress?.name || order.customer?.name}</p>
+                    <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{order.shippingAddress?.address}, {order.shippingAddress?.city}, {order.shippingAddress?.state} - {order.shippingAddress?.zipCode}</p>
+                    <p className="text-sm text-gray-500">Phone: {order.shippingAddress?.phone || order.customer?.phone}</p>
+                    <p className="text-sm text-gray-500">Email: {order.customer?.email}</p>
+                </div>
+              </div>
+            </div>
+
+            <table className="w-full mb-12">
+              <thead>
+                <tr className="border-b-2 border-gray-900">
+                  <th className="py-4 text-left text-xs font-black text-gray-400 uppercase tracking-wider">Product Description</th>
+                  <th className="py-4 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Price</th>
+                  <th className="py-4 text-center text-xs font-black text-gray-400 uppercase tracking-wider">Qty</th>
+                  <th className="py-4 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {itemsArray.map((item, idx) => (
+                  <tr key={idx} className="group">
+                    <td className="py-6">
+                      <p className="font-bold text-gray-900">{item.name}</p>
+                      {formatVariantLabel(item.variant) && (
+                        <p className="text-xs text-gray-400 mt-1">{formatVariantLabel(item.variant)}</p>
+                      )}
+                    </td>
+                    <td className="py-6 text-right font-medium text-gray-600">{formatCurrency(item.price)}</td>
+                    <td className="py-6 text-center font-bold text-gray-900">{item.quantity}</td>
+                    <td className="py-6 text-right font-bold text-gray-900">{formatCurrency(item.price * item.quantity)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="flex justify-end">
+              <div className="w-full max-w-xs space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="font-bold text-gray-900">{formatCurrency(subtotal)}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Discount ({order.couponCode || 'PROMO'})</span>
+                    <span className="font-bold text-green-600">-{formatCurrency(discount)}</span>
+                  </div>
+                )}
+                {tax > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Estimated Tax</span>
+                    <span className="font-bold text-gray-900">{formatCurrency(tax)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Shipping & Handling</span>
+                  <span className="font-bold text-gray-900">{formatCurrency(shipping)}</span>
+                </div>
+                <div className="pt-4 border-t-2 border-gray-900 flex justify-between items-center">
+                  <span className="text-lg font-black text-gray-900 uppercase">Grand Total</span>
+                  <span className="text-2xl font-black text-primary-600">{formatCurrency(order.total)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-20 pt-12 border-t border-gray-100 text-center">
+              <p className="text-xs text-gray-400 font-medium">Thank you for shopping with Closh! This is a computer-generated invoice.</p>
+              <div className="flex justify-center gap-8 mt-6 grayscale opacity-30">
+                <div className="h-8 w-8 bg-gray-400 rounded-full"></div>
+                <div className="h-8 w-24 bg-gray-400 rounded-lg"></div>
+                <div className="h-8 w-8 bg-gray-400 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
+      <InvoiceModal />
       {/* Compact Header */}
       <div className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-gray-200">
         <div className="flex items-center gap-3">
@@ -181,6 +340,13 @@ const OrderDetail = () => {
             </>
           ) : (
             <>
+              <button
+                onClick={() => setShowInvoice(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold"
+              >
+                <FiPrinter className="text-sm" />
+                Generate Invoice
+              </button>
               <Badge variant={order.status}>{order.status}</Badge>
               <button
                 onClick={() => setIsEditing(true)}

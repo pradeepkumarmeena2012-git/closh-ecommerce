@@ -15,6 +15,7 @@ import { formatVariantLabel } from '../../../../shared/utils/variant';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getAllVendorOrders, updateVendorOrderStatus } from '../../services/vendorService';
 import toast from 'react-hot-toast';
+import socketService from '../../../../shared/utils/socket';
 
 const AllOrders = () => {
   const navigate = useNavigate();
@@ -42,6 +43,27 @@ const AllOrders = () => {
     };
 
     fetchOrders();
+
+    // Socket real-time updates
+    if (vendorId) {
+      socketService.joinRoom(`vendor_${vendorId}`);
+    }
+
+    const handleRealTimeUpdate = () => {
+      fetchOrders();
+    };
+
+    socketService.on('new_order', handleRealTimeUpdate);
+    socketService.on('order_status_updated', handleRealTimeUpdate);
+    socketService.on('order_picked_up', handleRealTimeUpdate);
+    socketService.on('order_delivered', handleRealTimeUpdate);
+
+    return () => {
+      socketService.off('new_order');
+      socketService.off('order_status_updated');
+      socketService.off('order_picked_up');
+      socketService.off('order_delivered');
+    };
   }, [vendorId]);
 
   const filteredOrders = useMemo(() => {
@@ -170,11 +192,21 @@ const AllOrders = () => {
       key: 'paymentMethod',
       label: 'Payment',
       sortable: true,
-      render: (value) => (
-        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${value === 'prepaid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-200'}`}>
-          {value === 'prepaid' ? 'Prepaid' : 'COD'}
-        </span>
-      ),
+      render: (value, row) => {
+        // Check both value and row.paymentMethod, handle various formats
+        const method = (value || row?.paymentMethod || '').toLowerCase();
+        const isCod = method.includes('cod') || method.includes('cash');
+        
+        return (
+          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+            isCod 
+              ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          }`}>
+            {isCod ? 'COD' : (value?.toUpperCase() || 'PREPAID')}
+          </span>
+        );
+      },
     },
     {
       key: 'status',

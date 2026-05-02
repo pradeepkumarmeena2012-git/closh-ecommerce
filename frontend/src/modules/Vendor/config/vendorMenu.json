@@ -38,6 +38,11 @@
         ]
     },
     {
+        "title": "Offline Sale",
+        "route": "/vendor/stock-management/offline-sales",
+        "children": []
+    },
+    {
         "title": "Help",
         "route": "/vendor/help",
         "children": []

@@ -26,6 +26,7 @@ import {
   FiFile,
   FiHelpCircle,
   FiMessageSquare,
+  FiShoppingCart,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
@@ -38,6 +39,7 @@ const iconMap = {
   "Return Requests": FiRefreshCw,
   "Product Reviews": FiStar,
   "Stock Management": FiTrendingDown,
+  "Offline Sale": FiShoppingCart,
   "Wallet History": FiCreditCard,
   "Pickup Locations": FiMapPin,
   Help: FiHelpCircle,

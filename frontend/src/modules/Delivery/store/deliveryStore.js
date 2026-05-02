@@ -253,6 +253,7 @@ export const useDeliveryAuthStore = create(
           return user;
         } catch (e) { set({ isLoading: false }); throw e; }
       },
+      fetchProfileSummary: async () => {
         try {
           const res = await api.get('/delivery/orders/profile-summary');
           const data = res.data || res;

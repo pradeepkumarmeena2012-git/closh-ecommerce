@@ -6,6 +6,8 @@ export const useAnalyticsStore = create((set, get) => ({
     dashboardStats: null,
     revenueData: [],
     financialSummary: [],
+    detailedEarningsReport: [],
+    detailedEarningsPagination: { total: 0, page: 1, pages: 1 },
     inventoryStats: null,
     isLoading: false,
     error: null,
@@ -48,6 +50,21 @@ export const useAnalyticsStore = create((set, get) => ({
             set({ revenueData: response.data, isLoading: false });
         } catch (error) {
             set({ error: error.message, isLoading: false });
+        }
+    },
+
+    fetchDetailedEarningsReport: async (params = {}) => {
+        set({ isLoading: true });
+        try {
+            const response = await adminService.getDetailedEarningsReport(params);
+            set({ 
+                detailedEarningsReport: response.data.report, 
+                detailedEarningsPagination: response.data.pagination,
+                isLoading: false 
+            });
+        } catch (error) {
+            set({ error: error.message, isLoading: false });
+            toast.error('Failed to fetch detailed earnings report');
         }
     }
 }));

@@ -41,7 +41,7 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         : { 'vendorItems.vendorId': req.user.id };
 
     const orders = await Order.find(filter)
-        .select('orderId status total orderType items.name items.image items.quantity items.variant shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.status vendorItems.items.name vendorItems.items.image vendorItems.items.quantity vendorItems.items.variant vendorItems.subtotal createdAt updatedAt')
+        .select('orderId status total orderType paymentMethod paymentStatus items.name items.image items.quantity items.variant shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.status vendorItems.items.name vendorItems.items.image vendorItems.items.quantity vendorItems.items.variant vendorItems.subtotal createdAt updatedAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(numericLimit)
@@ -62,7 +62,10 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
     const order = await Order.findOne({
         $or: idFilter,
         'vendorItems.vendorId': req.user.id,
-    }).populate('deliveryBoyId', 'name phone profileImage vehicleNumber status');
+    }).populate('deliveryBoyId', 'name phone profileImage vehicleNumber status')
+      .populate('userId', 'name email phone')
+      .populate('items.productId')
+      .lean();
     if (!order) throw new ApiError(404, 'Order not found.');
 
     res.status(200).json(new ApiResponse(200, order, 'Order fetched.'));

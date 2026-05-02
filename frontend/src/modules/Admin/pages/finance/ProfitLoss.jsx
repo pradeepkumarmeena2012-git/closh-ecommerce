@@ -29,7 +29,7 @@ const getRangeForPeriod = (period) => {
 const ProfitLoss = () => {
   const [period, setPeriod] = useState("month");
   const [isPageLoading, setIsPageLoading] = useState(false);
-  const { financialSummary, fetchFinancialSummary } = useAnalyticsStore();
+  const { financialSummary, fetchFinancialSummary, detailedEarningsReport, fetchDetailedEarningsReport } = useAnalyticsStore();
 
   useEffect(() => {
     const periodMap = {
@@ -43,7 +43,10 @@ const ProfitLoss = () => {
     const run = async () => {
       setIsPageLoading(true);
       try {
-        await fetchFinancialSummary(periodMap[period] || 'monthly', range);
+        await Promise.all([
+          fetchFinancialSummary(periodMap[period] || 'monthly', range),
+          fetchDetailedEarningsReport({ ...range })
+        ]);
       } finally {
         if (mounted) setIsPageLoading(false);
       }
@@ -63,22 +66,30 @@ const ProfitLoss = () => {
   }, [financialSummary]);
 
   const financials = useMemo(() => {
-    const revenue = financialSummary.reduce((sum, item) => sum + item.revenue, 0);
+    const revenue = financialSummary.reduce((sum, item) => sum + (item.revenue || 0), 0);
     const totalTax = financialSummary.reduce((sum, item) => sum + (item.tax || 0), 0);
     const totalDelivery = financialSummary.reduce((sum, item) => sum + (item.delivery || 0), 0);
+    const totalDeliveryPayout = financialSummary.reduce((sum, item) => sum + (item.deliveryPayout || 0), 0);
     const totalDiscount = financialSummary.reduce((sum, item) => sum + (item.discount || 0), 0);
-    const grossProfit = revenue - totalDiscount;
-    const totalExpenses = totalTax + totalDelivery + totalDiscount;
-    const netProfit = revenue - totalExpenses;
-    const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    const totalCommission = financialSummary.reduce((sum, item) => sum + (item.commission || 0), 0);
+    const totalMargin = financialSummary.reduce((sum, item) => sum + (item.margin || 0), 0);
+    
+    // Admin Earnings: Commission + Margin + Shipping Collected
+    const adminGrossIncome = totalCommission + totalMargin + totalDelivery;
+    const totalExpenses = totalDeliveryPayout + totalDiscount;
+    const netProfit = adminGrossIncome - totalExpenses; 
+    const profitMargin = adminGrossIncome > 0 ? (netProfit / adminGrossIncome) * 100 : 0;
 
     return {
       revenue,
       totalTax,
       totalDelivery,
+      totalDeliveryPayout,
       totalDiscount,
+      totalCommission,
+      totalMargin,
+      adminGrossIncome,
       totalExpenses,
-      grossProfit,
       netProfit,
       profitMargin,
     };
@@ -121,41 +132,55 @@ const ProfitLoss = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Income</h3>
+          <h3 className="text-lg font-bold text-gray-800 mb-4">Earnings (Profit)</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Total Revenue</span>
+              <span className="text-gray-600">Product Margin</span>
               <span className="font-bold text-green-600">
-                {formatPrice(financials.revenue)}
+                {formatPrice(financials.totalMargin)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Vendor Commission</span>
+              <span className="font-bold text-green-600">
+                {formatPrice(financials.totalCommission)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Shipping Fee (Income)</span>
+              <span className="font-bold text-green-600">
+                {formatPrice(financials.totalDelivery)}
+              </span>
+            </div>
+            <div className="border-t border-gray-200 pt-4 flex items-center justify-between">
+              <span className="font-semibold text-gray-800">
+                Gross Earnings
+              </span>
+              <span className="font-bold text-green-600">
+                {formatPrice(financials.adminGrossIncome)}
               </span>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Deductions</h3>
+          <h3 className="text-lg font-bold text-gray-800 mb-4">Operational Costs (Loss)</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Discount</span>
+              <span className="text-gray-600">Delivery Partner Payout</span>
+              <span className="font-bold text-red-600">
+                {formatPrice(financials.totalDeliveryPayout)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Platform Discounts</span>
               <span className="font-bold text-red-600">
                 {formatPrice(financials.totalDiscount)}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Tax</span>
-              <span className="font-bold text-red-600">
-                {formatPrice(financials.totalTax)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Shipping</span>
-              <span className="font-bold text-red-600">
-                {formatPrice(financials.totalDelivery)}
-              </span>
-            </div>
             <div className="border-t border-gray-200 pt-4 flex items-center justify-between">
               <span className="font-semibold text-gray-800">
-                Total Deductions
+                Total Operational Cost
               </span>
               <span className="font-bold text-red-600">
                 {formatPrice(financials.totalExpenses)}
@@ -168,11 +193,11 @@ const ProfitLoss = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-gray-600">Gross Profit</p>
+            <p className="text-sm text-gray-600">Gross Earnings</p>
             <FiTrendingUp className="text-green-600" />
           </div>
           <p className="text-2xl font-bold text-green-600">
-            {formatPrice(financials.grossProfit)}
+            {formatPrice(financials.adminGrossIncome)}
           </p>
         </div>
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
@@ -210,6 +235,48 @@ const ProfitLoss = () => {
           />
         </div>
         <ProfitLossChart data={chartData} period={period} />
+      </div>
+
+      {/* Detailed Payout Report */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-800">Detailed Operational Expenses</h3>
+          <p className="text-sm text-gray-500 italic mt-1">Breakdown of payouts to delivery partners and vendors</p>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                <th className="py-4 px-4 text-xs font-black uppercase tracking-wider text-gray-400">Order ID</th>
+                <th className="py-4 px-4 text-xs font-black uppercase tracking-wider text-gray-400">Date</th>
+                <th className="py-4 px-4 text-xs font-black uppercase tracking-wider text-gray-400">Partner</th>
+                <th className="py-4 px-4 text-xs font-black uppercase tracking-wider text-gray-400">Payout (Expense)</th>
+                <th className="py-4 px-4 text-xs font-black uppercase tracking-wider text-gray-400">Net Profit</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {detailedEarningsReport.slice(0, 10).map((row, idx) => (
+                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="py-4 px-4 text-sm font-bold text-gray-800">{row.orderId}</td>
+                  <td className="py-4 px-4 text-sm text-gray-500">{new Date(row.date).toLocaleDateString()}</td>
+                  <td className="py-4 px-4">
+                    <span className="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded uppercase tracking-tighter">
+                      {row.deliveryPartner}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4 text-sm font-black text-red-600">-{formatPrice(row.deliveryPayout)}</td>
+                  <td className="py-4 px-4 text-sm font-black text-green-600">+{formatPrice(row.adminNetProfit)}</td>
+                </tr>
+              ))}
+              {detailedEarningsReport.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="py-12 text-center text-gray-400 italic text-sm">No recent transactions found</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </motion.div>
   );

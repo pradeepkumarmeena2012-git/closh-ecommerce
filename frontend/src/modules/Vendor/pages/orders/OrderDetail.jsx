@@ -7,15 +7,21 @@ import {
     FiUser,
     FiDollarSign,
     FiCamera,
-    FiTruck
+    FiTruck,
+    FiPrinter,
+    FiDownload
 } from 'react-icons/fi';
-import { motion } from 'framer-motion';
+import closhLogo from "../../../../shared/assets/closh_logo.svg";
+import { motion, AnimatePresence } from 'framer-motion';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getVendorOrderById, updateVendorOrderStatus } from '../../services/vendorService';
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { formatVariantLabel } from '../../../../shared/utils/variant';
 import Badge from '../../../../shared/components/Badge';
 import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
+
+// CLOSH official address used on all vendor invoices
+const CLOSH_ADDRESS = "CLOSH Headquarters, 123 Business Avenue, Mumbai, Maharashtra, 400001, India";
 import toast from 'react-hot-toast';
 import socketService from '../../../../shared/utils/socket';
 
@@ -188,6 +194,152 @@ const OrderDetail = () => {
     const vendorItems = vendorItem?.items ?? [];
     const vendorSubtotal = vendorItem?.subtotal ?? 0;
 
+    const [showInvoice, setShowInvoice] = useState(false);
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const InvoiceModal = () => {
+        if (!order) return null;
+
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-8"
+                >
+                    {/* Action Bar */}
+                    <div className="p-4 bg-gray-50 border-b flex justify-between items-center no-print">
+                        <h3 className="font-bold text-gray-800">Order Invoice</h3>
+                        <div className="flex gap-2">
+                                <button
+                                    onClick={handlePrint}
+                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-bold shadow-lg shadow-teal-200"
+                                >
+                                    <FiDownload /> Download PDF
+                                </button>
+                            <button
+                                onClick={() => setShowInvoice(false)}
+                                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-bold"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Printable Area */}
+                    <div id="printable-invoice" className="p-8 sm:p-12 bg-white text-gray-800 font-sans">
+                        <div className="flex flex-col sm:flex-row justify-between items-start gap-8 mb-12">
+                            <div className="space-y-2 flex items-center gap-4">
+                                <img src={closhLogo} alt="CLOSH Logo" className="h-12 w-auto" />
+                                <h1 className="text-4xl font-black text-teal-600 tracking-tighter">CLOSH</h1>
+                            </div>
+                            <div className="text-sm text-gray-500 space-y-1">
+                                <p className="font-bold text-gray-800 uppercase">{vendor?.storeName || 'Vendor Official'}</p>
+                                <p>{vendor?.shopAddress || 'Vendor Store Address'}</p>
+                                {vendor?.gstNumber && <p>GSTIN: {vendor.gstNumber}</p>}
+                                <p>Phone: {vendor?.phone || 'N/A'}</p>
+                                <p className="mt-2 text-gray-600">{CLOSH_ADDRESS}</p>
+                            </div>
+                            <div className="text-right">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-1">INVOICE</h2>
+                                <p className="text-gray-500 text-sm">#{order.orderId || order._id}</p>
+                                <p className="text-gray-500 text-sm">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
+                                <div className="mt-4 flex flex-col items-end gap-2">
+                                    <Badge variant={order.paymentStatus === 'paid' ? 'delivered' : 'pending'}>
+                                        {order.paymentStatus?.toUpperCase() || 'PENDING'}
+                                    </Badge>
+                                    <span className={`px-2 py-1 ${(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'} text-[10px] font-bold rounded border uppercase`}>
+                                        {(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') ? 'Cash on Delivery' : 'Prepaid'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12 py-8 border-y border-gray-100">
+                        {/* Billed From (Vendor) */}
+                        <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed From (Vendor)</h3>
+                            <div className="space-y-1">
+                                <p className="font-bold text-lg text-gray-900">{vendor?.storeName || 'Our Store'}</p>
+                                <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{vendor?.shopAddress}</p>
+                                {vendor?.gstNumber && <p className="text-sm font-semibold text-gray-700">GST: {vendor.gstNumber}</p>}
+                                {vendor?.phone && <p className="text-sm text-gray-500">Tel: {vendor.phone}</p>}
+                            </div>
+                        </div>
+                        {/* Billed To (Customer) */}
+                        <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
+                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed To (Customer)</h3>
+                            <div className="space-y-1">
+                                <p className="font-bold text-lg text-gray-900">{customerName}</p>
+                                <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
+                                    {shippingAddress?.address || shippingAddress?.street}, {shippingAddress?.city}, {shippingAddress?.state} - {shippingAddress?.zipCode}<br/>{shippingAddress?.country}
+                                </p>
+                                <p className="text-sm text-gray-500">Phone: {customerPhone}</p>
+                                <p className="text-sm text-gray-500">Email: {customerEmail}</p>
+                            </div>
+                        </div>
+                        </div>
+
+                        <table className="w-full mb-12">
+                            <thead>
+                                <tr className="border-b-2 border-teal-600 bg-teal-100 text-teal-800">
+                                    <th className="py-4 text-left text-xs font-black uppercase tracking-wider">Product Description</th>
+                                    <th className="py-4 text-right text-xs font-black uppercase tracking-wider">Unit Price</th>
+                                    <th className="py-4 text-center text-xs font-black uppercase tracking-wider">Qty</th>
+                                    <th className="py-4 text-right text-xs font-black uppercase tracking-wider">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {vendorItems.map((item, idx) => (
+                                    <tr key={idx} className="group">
+                                        <td className="py-6">
+                                            <p className="font-bold text-gray-900">{item.name}</p>
+                                            {formatVariantLabel(item.variant) && (
+                                                <p className="text-xs text-gray-400 mt-1">{formatVariantLabel(item.variant)}</p>
+                                            )}
+                                        </td>
+                                        <td className="py-6 text-right font-medium text-gray-600">{formatPrice(item.vendorPrice || item.price || 0)}</td>
+                                        <td className="py-6 text-center font-bold text-gray-900">{item.quantity}</td>
+                                        <td className="py-6 text-right font-bold text-gray-900">{formatPrice((item.vendorPrice || item.price || 0) * item.quantity)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        <div className="flex justify-end">
+                            <div className="w-full max-w-xs space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Vendor Subtotal</span>
+                                    <span className="font-bold text-gray-900">{formatPrice(vendorItem?.basePrice || vendorItem?.subtotal || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm border-t border-dashed border-gray-200 pt-2">
+                                    <span className="text-gray-500">Platform Commission</span>
+                                    <span className="font-bold text-red-500">-{formatPrice(vendorItem?.commissionAmount || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm border-t border-dashed border-gray-200 pt-2">
+                                    <span className="text-gray-500">Payment Method</span>
+                                    <span className="font-bold text-gray-900 uppercase">{(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') ? 'COD' : 'Prepaid'}</span>
+                                </div>
+                                <div className="pt-4 border-t-2 border-gray-900 flex justify-between items-center">
+                                    <span className="text-lg font-black text-gray-900 uppercase">Vendor Earning</span>
+                                    <span className="text-2xl font-black text-emerald-600">{formatPrice(vendorItem?.vendorEarnings || 0)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-20 pt-12 border-t border-gray-100 text-center">
+                            <p className="text-xs text-gray-400 font-medium italic">Thank you for your business. This is an automated vendor invoice from CLOSH.</p>
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+        );
+    };
+
     if (loading) {
         return (
             <div className="p-6 text-center">
@@ -214,11 +366,39 @@ const OrderDetail = () => {
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-        >
+        <>
+            {/* Global Print Styles */}
+            <style dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    #printable-invoice, #printable-invoice * {
+                        visibility: visible;
+                    }
+                    #printable-invoice {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                    }
+                    .no-print {
+                        display: none !important;
+                    }
+                }
+            `}} />
+
+            <AnimatePresence>
+                {showInvoice && <InvoiceModal />}
+            </AnimatePresence>
+
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6"
+            >
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -247,6 +427,13 @@ const OrderDetail = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowInvoice(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold shadow-sm"
+                    >
+                        <FiDownload className="text-sm" />
+                        Download Invoice
+                    </button>
                     <AnimatedSelect
                         options={visibleStatusOptions}
                         value={currentStatus}
@@ -535,6 +722,7 @@ const OrderDetail = () => {
                 </div>
             </div>
         </motion.div >
+        </>
     );
 };
 

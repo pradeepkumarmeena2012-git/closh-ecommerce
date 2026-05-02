@@ -17,23 +17,21 @@ import { motion } from "framer-motion";
 const ProfitLossChart = ({ data, period = "month" }) => {
   const chartData = useMemo(() => {
     return data.map((item) => {
-      const revenue = item.revenue || 0;
+      const earnings = (item.commission || 0) + (item.margin || 0);
+      const payout = item.deliveryPayout || 0;
       const discount = item.discount || 0;
-      const tax = item.tax || 0;
-      const shipping = item.delivery || 0;
-      const grossProfit = revenue - discount;
-      const netProfit = revenue - (discount + tax + shipping);
+      const netProfit = earnings - payout;
 
       return {
         date: item.date,
         dateLabel: formatDate(item.date, { month: "short", day: "numeric" }),
-        revenue,
-        discount,
-        tax,
-        shipping,
-        grossProfit,
+        revenue: earnings, // Mapping to 'revenue' for AreaChart compat
+        totalExpenses: payout, // Mapping to 'totalExpenses' for AreaChart compat
         netProfit,
-        totalExpenses: discount + tax + shipping,
+        commission: item.commission || 0,
+        margin: item.margin || 0,
+        deliveryPayout: payout,
+        discount
       };
     });
   }, [data]);
@@ -153,7 +151,7 @@ const ProfitLossChart = ({ data, period = "month" }) => {
               stroke="#10b981"
               strokeWidth={3}
               fill="url(#colorRevenue)"
-              name="Revenue"
+              name="Platform Earnings"
               dot={{ fill: "#10b981", r: 4 }}
               activeDot={{ r: 6, stroke: "#10b981", strokeWidth: 2 }}
             />
@@ -163,7 +161,7 @@ const ProfitLossChart = ({ data, period = "month" }) => {
               stroke="#ef4444"
               strokeWidth={3}
               fill="url(#colorExpenses)"
-              name="Total Expenses"
+              name="Delivery Payouts"
               dot={{ fill: "#ef4444", r: 4 }}
               activeDot={{ r: 6, stroke: "#ef4444", strokeWidth: 2 }}
             />

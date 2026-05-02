@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   FiSearch, 
   FiPlus, 
@@ -24,6 +24,13 @@ import ExportButton from "../../../Admin/components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { 
+  getVendorProducts, 
+  updateVendorStock, 
+  updateVendorVariantStock,
+  createVendorProduct,
+  updateVendorProduct
+} from "../../services/vendorService";
 import toast from "react-hot-toast";
 
 const OfflineSales = () => {
@@ -31,21 +38,48 @@ const OfflineSales = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   
-  const [sales, setSales] = useState([
-    {
-      id: "6B2273",
-      productName: "T-Shirt Premium",
-      price: 1200,
-      stock: 15,
-      unit: "Piece",
-      category: "Apparel",
-      brand: "Closh",
-      approvalStatus: "approved",
-      stockStatus: "in_stock",
-      date: new Date().toISOString().split('T')[0]
+  const [sales, setSales] = useState([]);
+  const [isSaleConfirmOpen, setIsSaleConfirmOpen] = useState(false);
+  const [saleProduct, setSaleProduct] = useState(null);
+  const [saleSelection, setSaleSelection] = useState({});
+  const [saleQuantity, setSaleQuantity] = useState(1);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const response = await getVendorProducts({ limit: 1000 });
+      const products = response.data.products.map(p => ({
+        id: p._id,
+        productId: p._id,
+        productName: p.name,
+        price: p.price || p.vendorPrice,
+        stock: p.stockQuantity,
+        unit: p.unit || "Piece",
+        category: p.categoryId?.name || "Uncategorized",
+        brand: p.brandId?.name || "N/A",
+        approvalStatus: p.approvalStatus,
+        stockStatus: p.stock,
+        mainImage: p.mainImage,
+        description: p.shortDescription || p.description,
+        colors: p.variants?.attributes?.find(a => a.name.toLowerCase() === 'color')?.values || [],
+        sizes: p.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.values || p.variants?.sizes || [],
+        date: p.createdAt,
+        variants: p.variants,
+        sold: p.offlineSold || 0 // Assuming backend might have this, or default to 0
+      }));
+      setSales(products);
+    } catch (error) {
+      toast.error("Failed to fetch products");
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
 
   const [formData, setFormData] = useState({
     productName: "",
@@ -137,28 +171,50 @@ const OfflineSales = () => {
     }
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.productName || !formData.price) {
       toast.error("Required: Name & Selling Price");
       return;
     }
 
-    if (editingSale) {
-      setSales(sales.map(s => s.id === editingSale.id ? { ...s, ...formData } : s));
-      toast.success("Updated");
-    } else {
-      const newSale = {
-        ...formData,
-        id: Math.random().toString(36).substr(2, 6).toUpperCase(),
-        date: new Date().toISOString().split('T')[0],
-        approvalStatus: "approved",
-        stockStatus: formData.stock > 0 ? "in_stock" : "out_of_stock",
+    setIsLoading(true);
+    try {
+      const payload = {
+        name: formData.productName,
+        unit: formData.unit,
+        description: formData.description,
+        price: formData.price,
+        originalPrice: formData.originalPrice,
+        discount: formData.discount,
+        stockQuantity: formData.stock,
+        // For new products, we might need a default category/brand if not provided
+        // In a real app, we would have a dropdown for these
+        categoryId: editingSale?.variants?.categoryId || "654321098765432109876543", // Placeholder or existing
+        brandId: editingSale?.variants?.brandId || "654321098765432109876542", // Placeholder or existing
+        variants: {
+          sizes: formData.sizes,
+          attributes: [
+            { name: "Color", values: formData.colors },
+            { name: "Size", values: formData.sizes }
+          ]
+        }
       };
-      setSales([newSale, ...sales]);
-      toast.success("Recorded");
+
+      if (editingSale && editingSale.productId) {
+        await updateVendorProduct(editingSale.productId, payload);
+        toast.success("Product Updated");
+      } else {
+        await createVendorProduct(payload);
+        toast.success("Product Created");
+      }
+      fetchProducts();
+      setIsModalOpen(false);
+    } catch (error) {
+      toast.error("Failed to save product");
+    } finally {
+      setIsLoading(false);
     }
-    setIsModalOpen(false);
   };
 
   const handleDelete = (id) => {
@@ -171,10 +227,88 @@ const OfflineSales = () => {
   const handleSale = (id) => {
     const target = sales.find(s => s.id === id);
     if (target && target.stock > 0) {
-      setSales(sales.map(s => s.id === id ? { ...s, stock: s.stock - 1 } : s));
-      toast.success(`Sold 1 ${target.productName}!`);
+      setSaleProduct(target);
+      const initialSelection = {};
+      
+      // Handle Size (either from attributes or simple sizes array)
+      const sizeAttr = target.variants?.attributes?.find(a => a.name.toLowerCase() === 'size');
+      if (sizeAttr) {
+        initialSelection[sizeAttr.name] = sizeAttr.values[0];
+      } else if (target.sizes?.length > 0) {
+        initialSelection['Size'] = target.sizes[0];
+      }
+
+      // Handle other attributes
+      target.variants?.attributes?.forEach(attr => {
+        if (attr.name.toLowerCase() !== 'size' && attr.values?.length > 0) {
+          initialSelection[attr.name] = attr.values[0];
+        }
+      });
+
+      setSaleSelection(initialSelection);
+      setSaleQuantity(1);
+      setIsSaleConfirmOpen(true);
     } else {
       toast.error("Out of Stock!");
+    }
+  };
+
+  const confirmSale = async () => {
+    if (!saleProduct) return;
+    
+    try {
+      const quantity = parseInt(saleQuantity) || 1;
+      if (quantity <= 0) {
+        toast.error("Invalid quantity");
+        return;
+      }
+
+      const hasVariants = saleProduct.variants && (
+        (saleProduct.variants.attributes && saleProduct.variants.attributes.length > 0) || 
+        (saleProduct.variants.sizes && saleProduct.variants.sizes.length > 0)
+      );
+
+      if (hasVariants) {
+        const stockMap = { ...(saleProduct.variants.stockMap || {}) };
+        let key = "";
+
+        if (saleProduct.variants.attributes?.length > 0) {
+          // Dynamic key: attr_name=value|attr_name2=value2 (sorted by attr name)
+          key = Object.entries(saleSelection)
+            .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()))
+            .map(([attr, val]) => `${attr.toLowerCase().replace(/\s+/g, '_')}=${val.toLowerCase()}`)
+            .join('|');
+        } else {
+          // Simple size key: size|
+          const size = saleSelection['Size'] || "";
+          key = `${size.toLowerCase()}|`;
+        }
+
+        if (stockMap[key] === undefined || stockMap[key] < quantity) {
+          toast.error("Not enough stock for this variant!");
+          return;
+        }
+
+        stockMap[key] -= quantity;
+        await updateVendorStock(saleProduct.productId, saleProduct.stock - quantity); // Update main stock
+        // Update variant stock 
+        await updateVendorVariantStock(saleProduct.productId, stockMap);
+
+        setSales(sales.map(s => s.id === saleProduct.id ? { ...s, stock: s.stock - quantity, sold: (s.sold || 0) + quantity, variants: { ...s.variants, stockMap } } : s));
+      } else {
+        if (saleProduct.stock < quantity) {
+          toast.error("Not enough stock!");
+          return;
+        }
+        const newStock = saleProduct.stock - quantity;
+        await updateVendorStock(saleProduct.productId, newStock);
+        setSales(sales.map(s => s.id === saleProduct.id ? { ...s, stock: newStock, sold: (s.sold || 0) + quantity } : s));
+      }
+
+      toast.success(`Sold ${quantity} ${saleProduct.productName}!`);
+      setIsSaleConfirmOpen(false);
+    } catch (error) {
+      toast.error("Failed to record sale");
     }
   };
 
@@ -212,6 +346,12 @@ const OfflineSales = () => {
       label: "STOCK",
       sortable: true,
       render: (value) => <span className="text-gray-600 font-bold text-[10px] md:text-xs">{value}</span>,
+    },
+    {
+      key: "sold",
+      label: "SOLD",
+      sortable: true,
+      render: (value) => <span className="text-emerald-600 font-black text-[10px] md:text-xs">{value || 0}</span>,
     },
     {
       key: "approvalStatus",
@@ -335,6 +475,10 @@ const OfflineSales = () => {
                    <div className="flex flex-col gap-0.5">
                       <span className="text-[8px] font-black text-gray-400 uppercase">Stock</span>
                       <span className="text-[11px] font-black text-gray-900">{sale.stock} <span className="text-[8px] text-gray-400">{sale.unit}</span></span>
+                   </div>
+                   <div className="flex flex-col gap-0.5">
+                      <span className="text-[8px] font-black text-emerald-400 uppercase">Sold</span>
+                      <span className="text-[11px] font-black text-emerald-600">{sale.sold || 0}</span>
                    </div>
                    <div className="flex flex-col gap-0.5">
                       <span className="text-[8px] font-black text-gray-400 uppercase">Status</span>
@@ -561,6 +705,135 @@ const OfflineSales = () => {
           </div>
         </div>
       )}
+      <AnimatePresence>
+        {isSaleConfirmOpen && saleProduct && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsSaleConfirmOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-[2rem] p-6 md:p-8 shadow-2xl border border-emerald-50 overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-black text-[#003d29] flex items-center gap-2">
+                  <FiShoppingCart className="text-emerald-600" /> Confirm Sale
+                </h3>
+                <button onClick={() => setIsSaleConfirmOpen(false)} className="p-2 bg-emerald-50 text-[#003d29] rounded-xl hover:bg-emerald-100 transition-colors">
+                  <FiX size={20} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-4 mb-8 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-50">
+                <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center overflow-hidden border border-emerald-100 shadow-sm">
+                  {saleProduct.mainImage ? <img src={saleProduct.mainImage} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" size={24} />}
+                </div>
+                <div>
+                  <h4 className="font-black text-[#003d29] leading-tight">{saleProduct.productName}</h4>
+                  <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{saleProduct.category}</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-sm font-black text-gray-900">{formatPrice(saleProduct.price)}</span>
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 rounded text-[10px] font-bold text-emerald-700">
+                      Sold: {saleProduct.sold || 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6 mb-8">
+                {/* Size Selection */}
+                {(saleProduct.sizes?.length > 0 || saleProduct.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')) && (
+                  <div className="space-y-3">
+                    <label className="text-xs font-black text-emerald-800 uppercase ml-1 flex items-center gap-1.5">
+                      <FiMaximize size={14} className="text-emerald-500" /> Select Size
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {(saleProduct.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.values || saleProduct.sizes).map(size => {
+                        const sizeAttrName = saleProduct.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.name || 'Size';
+                        return (
+                          <button
+                            key={size}
+                            onClick={() => setSaleSelection({...saleSelection, [sizeAttrName]: size})}
+                            className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-2 ${
+                              saleSelection[sizeAttrName] === size 
+                              ? 'bg-[#003d29] text-white border-[#003d29] shadow-lg shadow-emerald-900/20' 
+                              : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200'
+                            }`}
+                          >
+                            {size}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Other Attributes */}
+                {saleProduct.variants?.attributes?.filter(a => a.name.toLowerCase() !== 'size').map(attr => (
+                  <div key={attr.name} className="space-y-3">
+                    <label className="text-xs font-black text-emerald-800 uppercase ml-1 flex items-center gap-1.5">
+                      <div className="size-1.5 rounded-full bg-emerald-500"></div> Select {attr.name}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {attr.values.map(val => (
+                        <button
+                          key={val}
+                          onClick={() => setSaleSelection({...saleSelection, [attr.name]: val})}
+                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-2 ${
+                            saleSelection[attr.name] === val
+                            ? 'bg-[#003d29] text-white border-[#003d29] shadow-lg shadow-emerald-900/20'
+                            : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200'
+                          }`}
+                        >
+                          {val}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Quantity Selection */}
+                <div className="space-y-3">
+                  <label className="text-xs font-black text-emerald-800 uppercase ml-1 flex items-center gap-1.5">
+                    <FiBox size={14} className="text-emerald-500" /> Quantity (Pieces)
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setSaleQuantity(Math.max(1, saleQuantity - 1))}
+                      className="w-10 h-10 rounded-xl border-2 border-gray-100 flex items-center justify-center text-gray-500 hover:border-emerald-200 transition-all font-black"
+                    >
+                      -
+                    </button>
+                    <input 
+                      type="number" 
+                      value={saleQuantity}
+                      onChange={(e) => setSaleQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 text-center py-2 bg-emerald-50/20 border-2 border-emerald-50 rounded-xl font-black text-[#003d29]"
+                    />
+                    <button 
+                      onClick={() => setSaleQuantity(saleQuantity + 1)}
+                      className="w-10 h-10 rounded-xl border-2 border-gray-100 flex items-center justify-center text-gray-500 hover:border-emerald-200 transition-all font-black"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={confirmSale}
+                className="w-full py-4 bg-[#003d29] text-white rounded-2xl font-black text-sm tracking-widest hover:bg-[#002a1c] transition-all uppercase flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/20"
+              >
+                <FiCheck className="size-5" /> Record Sale
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </AnimatePresence>
   </motion.div>
   );
