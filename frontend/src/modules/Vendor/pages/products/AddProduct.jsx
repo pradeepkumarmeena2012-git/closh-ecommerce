@@ -12,6 +12,7 @@ import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
 import toast from "react-hot-toast";
 import MultiSelect from "../../../Admin/components/MultiSelect";
 import { PRODUCT_SIZES } from "../../../../shared/utils/constants";
+import { requestCameraPermission } from "@shared/utils/permissionHelper";
 import {
   parseVariantAxis,
   buildVariantCombinations,
@@ -655,6 +656,7 @@ const AddProduct = () => {
                   />
                   <label
                     htmlFor="main-image-upload"
+                    onClick={() => requestCameraPermission()}
                     className="flex items-center justify-center gap-2 w-full px-3 py-2 border-2 border-dashed border-primary-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white">
                     <FiUpload className="text-base text-primary-600" />
                     <span className="text-xs font-medium text-gray-700">
@@ -705,6 +707,7 @@ const AddProduct = () => {
                   />
                   <label
                     htmlFor="gallery-upload"
+                    onClick={() => requestCameraPermission()}
                     className="flex items-center justify-center gap-2 w-full px-3 py-2 border-2 border-dashed border-primary-300 rounded-lg cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-colors bg-white">
                     <FiUpload className="text-base text-primary-600" />
                     <span className="text-xs font-medium text-gray-700">

@@ -25,8 +25,6 @@ const StoreSettings = () => {
         businessHours: vendor.businessHours || "Mon-Fri 9AM-6PM",
         timezone: vendor.timezone || "UTC",
         currency: vendor.currency || "INR",
-        timezone: vendor.timezone || "UTC",
-        currency: vendor.currency || "INR",
       });
     }
   }, [vendor]);

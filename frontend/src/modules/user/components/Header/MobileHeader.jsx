@@ -12,10 +12,12 @@ import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import SearchBar from "../../../../shared/components/SearchBar";
 import { categories } from "../../../../data/categories";
 import { useUserLocation } from "../../context/LocationContext";
+import LocationModal from "./LocationModal";
 
 const MobileHeader = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showCartAnimation, setShowCartAnimation] = useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [positionsReady, setPositionsReady] = useState(false);
   const [hasPlayed, setHasPlayed] = useState(false);
   const [animationPositions, setAnimationPositions] = useState({
@@ -179,14 +181,14 @@ const MobileHeader = () => {
                    
                </Link>
                
-               <div className="flex items-center gap-2" onClick={() => navigate('/addresses')}>
+               <div className="flex items-center gap-2 cursor-pointer" onClick={() => setIsLocationModalOpen(true)}>
                    <div className="flex items-center justify-center w-8 h-8 bg-black rounded-[8px] text-white flex-shrink-0">
                        <span className="text-[12px] font-black leading-none tracking-tighter">60</span>
                    </div>
                    <div className="flex flex-col min-w-0">
                        <span className="text-[11px] font-black text-gray-900 leading-none">delivery in 60 min</span>
-                       <div className="flex items-center gap-0.5 text-[9px] text-gray-400 font-bold whitespace-nowrap">
-                           Current <FiChevronRight size={10} className="text-gray-400 mt-0.5" />
+                       <div className="flex items-center gap-0.5 text-[9px] text-gray-400 font-bold whitespace-nowrap truncate max-w-[120px]">
+                           {activeAddress ? activeAddress.address : 'Select location'} <FiChevronDown size={10} className="text-gray-400 mt-0.5 ml-0.5 shrink-0" />
                        </div>
                    </div>
                </div>
@@ -290,6 +292,10 @@ const MobileHeader = () => {
         createPortal(headerContent, document.body)}
       {typeof document !== "undefined" &&
         createPortal(animationContent, document.body)}
+      <LocationModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+      />
     </>
   );
 };

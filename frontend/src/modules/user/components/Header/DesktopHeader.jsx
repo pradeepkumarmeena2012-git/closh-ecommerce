@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useUserNotificationStore } from "../../store/userNotificationStore";
 import { categories } from "../../../../data/categories";
 import { useUserLocation } from "../../context/LocationContext";
+import LocationModal from "./LocationModal";
 
 const DesktopHeader = () => {
     const navigate = useNavigate();
@@ -22,6 +23,7 @@ const DesktopHeader = () => {
     const toggleCart = useUIStore((state) => state.toggleCart);
 
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const userMenuRef = useRef(null);
     const { activeAddress, serviceability } = useUserLocation();
 
@@ -70,6 +72,7 @@ const DesktopHeader = () => {
     };
 
     return (
+        <>
         <header className="hidden md:block sticky top-0 z-[999] bg-white border-b border-gray-100 shadow-sm">
             {/* Serviceability Banner */}
             {!serviceability?.loading && !serviceability?.isServiceable && activeAddress && (
@@ -86,7 +89,10 @@ const DesktopHeader = () => {
 
                     </Link>
 
-                    <div className="flex items-center gap-3">
+                    <div 
+                        className="flex items-center gap-3 cursor-pointer group/loc" 
+                        onClick={() => setIsLocationModalOpen(true)}
+                    >
                         {/* Black '60' box */}
                         <div className="flex items-center justify-center w-11 h-11 bg-black rounded-[12px] text-white shadow-sm">
                             <span className="text-2xl font-black leading-none tracking-tighter">60</span>
@@ -94,9 +100,12 @@ const DesktopHeader = () => {
                         {/* Text info */}
                         <div className="flex flex-col justify-center">
                             <span className="text-[15px] font-black text-gray-900 leading-tight">delivery in 60 min</span>
-                            <div className="flex items-center gap-0.5 text-[11px] text-gray-400 font-bold whitespace-nowrap cursor-pointer hover:text-black transition-colors group/addr">
-                                Current: <span className="text-black ml-1">Add Address</span>
-                                <FiChevronRight className="text-gray-400 mt-0.5 group-hover/addr:text-black transition-colors" />
+                            <div className="flex items-center gap-0.5 text-[11px] text-gray-400 font-bold whitespace-nowrap hover:text-black transition-colors">
+                                {activeAddress ? (
+                                    <><span className="truncate max-w-[180px]">{activeAddress.address}</span> <FiChevronDown className="text-gray-400 mt-0.5 ml-0.5 group-hover/loc:text-black transition-colors shrink-0" /></>
+                                ) : (
+                                    <>Select location <FiChevronDown className="text-gray-400 mt-0.5 ml-0.5 group-hover/loc:text-black transition-colors shrink-0" /></>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -208,6 +217,12 @@ const DesktopHeader = () => {
                 </div>
             </div>
         </header>
+
+        <LocationModal
+            isOpen={isLocationModalOpen}
+            onClose={() => setIsLocationModalOpen(false)}
+        />
+        </>
     );
 };
 
