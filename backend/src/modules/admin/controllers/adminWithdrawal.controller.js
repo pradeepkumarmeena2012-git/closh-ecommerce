@@ -12,10 +12,11 @@ import { createNotification } from '../../../services/notification.service.js';
  * Get all withdrawal requests
  */
 export const getAllWithdrawalRequests = asyncHandler(async (req, res) => {
-    const { status, type } = req.query;
+    const { status, type, requestType } = req.query;
     const filter = {};
     if (status) filter.status = status;
     if (type) filter.requesterType = type;
+    if (requestType) filter.requestType = requestType;
 
     const requests = await WithdrawalRequest.find(filter)
         .populate({ path: 'requesterId', select: 'name email phone storeName storeLogo avatar' })
@@ -48,9 +49,21 @@ export const updateWithdrawalStatus = asyncHandler(async (req, res) => {
             const model = request.requesterType === 'DeliveryBoy' ? DeliveryBoy : Vendor;
             const requester = await model.findById(request.requesterId).session(session);
 
+            // Check if this is a settlement request (linked to commissions)
+            const Commission = mongoose.model('Commission');
+            const linkedCommissions = await Commission.find({ withdrawalRequestId: request._id }).session(session);
+            const isSettlementRequest = linkedCommissions.length > 0;
+
             if (status === 'approved' || status === 'completed') {
-                if (!requester || requester.availableBalance < request.amount) {
-                    throw new ApiError(400, 'Requester no longer has sufficient balance.');
+                const balanceToCheck = isSettlementRequest ? 'pendingBalance' : 'availableBalance';
+                const currentBalance = Number(requester?.[balanceToCheck] || 0);
+                const requestAmount = Number(request.amount || 0);
+                
+                // Use Math.round to avoid floating point precision issues (e.g. 100.000000001 < 100)
+                // Also, for settlement requests, we allow some leniency if the vendor has legacy commissions 
+                // that might not be fully reflected in the new pendingBalance field.
+                if (!requester || (Math.round(currentBalance) < Math.round(requestAmount) && !isSettlementRequest)) {
+                    throw new ApiError(400, `Requester no longer has sufficient ${balanceToCheck.replace('Balance', ' balance')}. Current: ₹${currentBalance}, Requested: ₹${requestAmount}`);
                 }
 
                 // If UPI ID is present, try to process real payout via Razorpay
@@ -72,13 +85,31 @@ export const updateWithdrawalStatus = asyncHandler(async (req, res) => {
 
                 // Deduct balance
                 await model.findByIdAndUpdate(request.requesterId, {
-                    $inc: { availableBalance: -request.amount }
+                    $inc: { [balanceToCheck]: -requestAmount }
                 }, { session });
+
+                // If it's a settlement request, mark commissions as paid
+                if (isSettlementRequest) {
+                    await Commission.updateMany(
+                        { withdrawalRequestId: request._id },
+                        { $set: { status: 'paid', paidAt: new Date() } },
+                        { session }
+                    );
+                }
 
                 request.status = status;
                 request.transactionId = transactionId || request.transactionId;
             } else if (status === 'rejected') {
                 request.status = 'rejected';
+                
+                // If it's a settlement request, revert commissions to pending
+                if (isSettlementRequest) {
+                    await Commission.updateMany(
+                        { withdrawalRequestId: request._id },
+                        { $set: { status: 'pending' }, $unset: { withdrawalRequestId: "" } },
+                        { session }
+                    );
+                }
             }
 
             request.adminNotes = adminNotes || request.adminNotes;

@@ -179,6 +179,7 @@ const VendorAllOrders = lazy(() => import("@modules/Vendor/pages/orders/AllOrder
 const VendorOrderTracking = lazy(() => import("@modules/Vendor/pages/orders/OrderTracking"));
 const VendorOrderDetail = lazy(() => import("@modules/Vendor/pages/orders/OrderDetail"));
 const VendorSettlements = lazy(() => import("@modules/Vendor/pages/Settlements.jsx"));
+const VendorEarnings = lazy(() => import("@modules/Vendor/pages/Earnings.jsx"));
 const VendorSettings = lazy(() => import("@modules/Vendor/pages/Settings"));
 const VendorStockManagement = lazy(() => import("@modules/Vendor/pages/StockManagement"));
 const VendorReturnRequests = lazy(() => import("@modules/Vendor/pages/ReturnRequests"));
@@ -402,8 +403,12 @@ const AppRoutes = () => {
           <Route path="orders/order-tracking" element={<VendorOrderTracking />} />
           <Route path="orders/:id" element={<VendorOrderDetail />} />
           <Route path="settlements" element={<VendorSettlements />} />
-          <Route path="settlements/earnings-ledger" element={<VendorSettlements />} />
-          <Route path="settlements/payout-history" element={<VendorSettlements />} />
+          <Route path="settlements/pending" element={<VendorSettlements />} />
+          <Route path="settlements/ready" element={<VendorSettlements />} />
+          <Route path="settlements/completed" element={<VendorSettlements />} />
+          <Route path="earnings" element={<VendorEarnings />} />
+          <Route path="earnings/commission-history" element={<VendorEarnings />} />
+          <Route path="earnings/settlement-history" element={<VendorEarnings />} />
           <Route path="stock-management">
             <Route index element={<VendorStockManagement />} />
             <Route path="manage" element={<VendorStockManagement />} />

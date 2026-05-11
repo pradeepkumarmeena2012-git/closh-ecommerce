@@ -54,18 +54,18 @@ const ReturnRequestDetail = () => {
   }, [id, navigate, fetchReturnRequestById]);
 
   useEffect(() => {
-    const fetchRiders = async () => {
+    const fetchOnlineRiders = async () => {
       try {
         const res = await getAllDeliveryBoys({ online: 'true' });
         if (res?.data?.deliveryBoys) {
           setOnlineRiders(res.data.deliveryBoys);
         }
-      } catch (err) {
-        console.error('Failed to fetch online riders:', err);
+      } catch (error) {
+        console.error('Error fetching online riders:', error);
       }
     };
     if (returnRequest?.status === 'approved' || returnRequest?.status === 'pending' || returnRequest?.status === 'processing') {
-      fetchRiders();
+      fetchOnlineRiders();
     }
   }, [returnRequest?.status]);
 
@@ -472,7 +472,7 @@ const ReturnRequestDetail = () => {
                       <option value="">Select Online Rider</option>
                       {onlineRiders.map((rider) => (
                         <option key={rider.id || rider._id} value={rider.id || rider._id}>
-                          {rider.name} ({rider.phone})
+                          {rider.name} ({rider.phone}) - ₹{rider.stats?.cashInHand || 0} In Hand
                         </option>
                       ))}
                     </select>

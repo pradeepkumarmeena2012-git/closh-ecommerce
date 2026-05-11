@@ -26,6 +26,7 @@ import {
   FiFile,
   FiHelpCircle,
   FiMessageSquare,
+  FiShoppingCart,
 } from "react-icons/fi";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import vendorMenu from "../../config/vendorMenu.json";
@@ -38,6 +39,7 @@ const iconMap = {
   "Return Requests": FiRefreshCw,
   "Product Reviews": FiStar,
   "Stock Management": FiTrendingDown,
+  "Offline Sale": FiShoppingCart,
   "Wallet History": FiCreditCard,
   "Pickup Locations": FiMapPin,
   Help: FiHelpCircle,
@@ -49,6 +51,7 @@ const iconMap = {
   Documents: FiFile,
   Analytics: FiBarChart2,
   Settlements: FiDollarSign,
+  Earnings: FiTrendingUp,
   Settings: FiSettings,
   Profile: FiUser,
 };
@@ -65,8 +68,9 @@ const getChildRoute = (parentRoute, childName) => {
       "Order Tracking": "/vendor/orders/order-tracking",
     },
     "/vendor/settlements": {
-      "Earnings Ledger": "/vendor/settlements/earnings-ledger",
-      "Payout History": "/vendor/settlements/payout-history",
+      "Pending": "/vendor/settlements/pending",
+      "Ready to Payment": "/vendor/settlements/ready",
+      "Settlement": "/vendor/settlements/completed",
     },
     "/vendor/settings": {
       "Store Settings": "/vendor/settings/store",

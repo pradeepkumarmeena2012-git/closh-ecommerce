@@ -127,7 +127,8 @@ export const getAllDeliveryBoys = asyncHandler(async (req, res) => {
             stats: {
                 totalDeliveries: boyStats.totalDeliveries,
                 pendingDeliveries: boyStats.pendingDeliveries,
-                cashInHand: Number(boy.cashInHand || 0)
+                cashInHand: Number(boy.cashInHand || 0),
+                totalEarnings: boyStats.totalEarnings || boy.totalEarnings || 0
             }
         };
     }));

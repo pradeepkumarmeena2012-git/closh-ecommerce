@@ -81,7 +81,7 @@ const SalesReport = () => {
       const vendorItem = order.vendorItems?.find(
         (vi) => vi.vendorId?.toString() === vendorId?.toString()
       );
-      return sum + (vendorItem?.subtotal || vendorItem?.vendorEarnings || 0);
+      return sum + (vendorItem?.basePrice ?? vendorItem?.subtotal ?? 0);
     }, 0);
   }, [filteredOrders, vendorId]);
 
@@ -99,7 +99,7 @@ const SalesReport = () => {
               productMap[item.id] = { name: item.name, quantity: 0, revenue: 0 };
             }
             productMap[item.id].quantity += item.quantity || 1;
-            productMap[item.id].revenue += (item.price || 0) * (item.quantity || 1);
+            productMap[item.id].revenue += (item.vendorPrice ?? item.price ?? 0) * (item.quantity || 1);
           });
         }
       });
@@ -132,7 +132,7 @@ const SalesReport = () => {
         );
         return (
           <span className="font-bold text-gray-800">
-            {formatPrice(vendorItem?.subtotal || vendorItem?.vendorEarnings || 0)}
+            {formatPrice(vendorItem?.basePrice ?? vendorItem?.subtotal ?? 0)}
           </span>
         );
       },
@@ -235,7 +235,7 @@ const SalesReport = () => {
                   const vendorItem = row.vendorItems?.find(
                     (vi) => vi.vendorId?.toString() === vendorId?.toString()
                   );
-                  return formatPrice(vendorItem?.subtotal || vendorItem?.vendorEarnings || 0);
+                  return formatPrice(vendorItem?.basePrice ?? vendorItem?.subtotal ?? 0);
                 }
               },
               { label: 'Status', accessor: (row) => row.status },

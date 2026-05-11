@@ -9,6 +9,7 @@ export const deliveryListQuerySchema = Joi.object({
     status: Joi.string().valid('active', 'inactive').optional(),
     applicationStatus: Joi.string().valid('pending', 'approved', 'rejected').optional(),
     kycStatus: Joi.string().valid('none', 'pending', 'verified', 'rejected').optional(),
+    online: Joi.string().valid('true', 'false').optional(),
 });
 
 export const deliveryBoyIdParamSchema = Joi.object({

@@ -76,7 +76,7 @@ const StockManagement = () => {
     const lowStock = products.filter((p) => p.stock === "low_stock").length;
     const outOfStock = products.filter((p) => p.stock === "out_of_stock").length;
     const totalValue = products.reduce(
-      (sum, p) => sum + p.price * (p.stockQuantity || 0),
+      (sum, p) => sum + (p.vendorPrice || p.price || 0) * (p.stockQuantity || 0),
       0
     );
 
@@ -117,10 +117,10 @@ const StockManagement = () => {
       ),
     },
     {
-      key: "price",
-      label: "Price",
+      key: "vendorPrice",
+      label: "Your Price",
       sortable: true,
-      render: (value, row) => formatPrice(row.vendorPrice || value),
+      render: (value, row) => formatPrice(value || row.price),
     },
     {
       key: "stockQuantity",
@@ -295,7 +295,7 @@ const StockManagement = () => {
                 headers={[
                   { label: "ID", accessor: (row) => String(row._id ?? row.id ?? "") },
                   { label: "Name", accessor: (row) => row.name },
-                  { label: "Price", accessor: (row) => formatPrice(row.price) },
+                  { label: "Your Price", accessor: (row) => formatPrice(row.vendorPrice || row.price) },
                   { label: "Stock", accessor: (row) => row.stockQuantity || 0 },
                   { label: "Status", accessor: (row) => row.stock || "N/A" },
                 ]}

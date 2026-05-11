@@ -41,7 +41,7 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
         : { 'vendorItems.vendorId': req.user.id };
 
     const orders = await Order.find(filter)
-        .select('orderId status total orderType items.name items.image items.quantity items.variant shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.status vendorItems.items.name vendorItems.items.image vendorItems.items.quantity vendorItems.items.variant vendorItems.subtotal createdAt updatedAt')
+        .select('orderId status total orderType paymentMethod paymentStatus items.name items.image items.quantity items.variant shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.status vendorItems.items.name vendorItems.items.image vendorItems.items.quantity vendorItems.items.variant vendorItems.items.vendorPrice vendorItems.subtotal vendorItems.basePrice createdAt updatedAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(numericLimit)
@@ -62,7 +62,10 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
     const order = await Order.findOne({
         $or: idFilter,
         'vendorItems.vendorId': req.user.id,
-    }).populate('deliveryBoyId', 'name phone profileImage vehicleNumber status');
+    }).populate('deliveryBoyId', 'name phone profileImage vehicleNumber status')
+      .populate('userId', 'name email phone')
+      .populate('items.productId')
+      .lean();
     if (!order) throw new ApiError(404, 'Order not found.');
 
     res.status(200).json(new ApiResponse(200, order, 'Order fetched.'));
@@ -171,6 +174,8 @@ export const getEarnings = asyncHandler(async (req, res) => {
     const numericSettlementsLimit = Math.max(1, Number(settlementsLimit) || 50);
     const settlementSkip = (numericSettlementsPage - 1) * numericSettlementsLimit;
 
+    const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
     const [commissionDocs, totalCommissions, settlements, totalSettlements, aggregationResult] = await Promise.all([
         Commission.find({ vendorId: req.user.id })
             .select('orderId subtotal basePrice vendorEarnings commission commissionRate status createdAt')
@@ -193,7 +198,9 @@ export const getEarnings = asyncHandler(async (req, res) => {
                     _id: null,
                     totalEarnings: { $sum: { $cond: [{ $ne: ["$status", "cancelled"] }, "$vendorEarnings", 0] } },
                     totalCommission: { $sum: { $cond: [{ $ne: ["$status", "cancelled"] }, "$commission", 0] } },
-                    pendingEarnings: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, "$vendorEarnings", 0] } },
+                    // Dynamic calculation for aggregation isn't easy for the 24h window without passing a date
+                    pendingStatusEarnings: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, "$vendorEarnings", 0] } },
+                    requestedEarnings: { $sum: { $cond: [{ $eq: ["$status", "requested"] }, "$vendorEarnings", 0] } },
                     paidEarnings: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$vendorEarnings", 0] } },
                     cancelledEarnings: { $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, "$vendorEarnings", 0] } },
                     totalOrders: { $sum: { $cond: [{ $ne: ["$status", "cancelled"] }, 1, 0] } }
@@ -202,12 +209,28 @@ export const getEarnings = asyncHandler(async (req, res) => {
         ])
     ]);
 
-    const currentVendor = await mongoose.model('Vendor').findById(req.user.id).select('availableBalance').lean();
-    const stats = aggregationResult[0] || { totalEarnings: 0, pendingEarnings: 0, paidEarnings: 0, cancelledEarnings: 0, totalCommission: 0, totalOrders: 0 };
+    // Better summary with 24h breakdown
+    const summaryBreakdown = await Commission.aggregate([
+        { $match: { vendorId: new mongoose.Types.ObjectId(req.user.id), status: 'pending' } },
+        {
+            $group: {
+                _id: null,
+                pendingAmount: { $sum: { $cond: [{ $gte: ["$createdAt", TWENTY_FOUR_HOURS_AGO] }, "$vendorEarnings", 0] } },
+                readyAmount: { $sum: { $cond: [{ $lt: ["$createdAt", TWENTY_FOUR_HOURS_AGO] }, "$vendorEarnings", 0] } },
+            }
+        }
+    ]);
+
+    const currentVendor = await mongoose.model('Vendor').findById(req.user.id).select('availableBalance pendingBalance').lean();
+    const stats = aggregationResult[0] || { totalEarnings: 0, pendingStatusEarnings: 0, paidEarnings: 0, cancelledEarnings: 0, totalCommission: 0, totalOrders: 0, requestedEarnings: 0 };
+    const breakdown = summaryBreakdown[0] || { pendingAmount: 0, readyAmount: 0 };
     
     const summary = {
         ...stats,
-        availableBalance: currentVendor?.availableBalance || 0
+        pendingAmount: breakdown.pendingAmount,
+        readyAmount: breakdown.readyAmount,
+        availableBalance: currentVendor?.availableBalance || 0,
+        pendingBalance: currentVendor?.pendingBalance || 0
     };
 
     const commissions = commissionDocs.map((doc) => {
@@ -215,12 +238,21 @@ export const getEarnings = asyncHandler(async (req, res) => {
         const orderRef = commission.orderId?._id || commission.orderId;
         const orderDisplayId = commission.orderId?.orderId || String(orderRef || '');
         const orderStatus = String(commission.orderId?.status || '').toLowerCase();
+        
+        const isReady = commission.status === 'pending' && new Date(commission.createdAt) < TWENTY_FOUR_HOURS_AGO;
+        const settlementPhase = commission.status === 'paid' ? 'settled' : 
+                               (commission.status === 'requested' ? 'requested' : 
+                               (isReady ? 'ready' : 'pending'));
+
         const effectiveStatus = orderStatus === 'cancelled' ? 'cancelled' : String(commission.status || 'pending');
+        
         return {
             ...commission,
             orderRef,
             orderDisplayId,
             effectiveStatus,
+            settlementPhase,
+            isReady,
         };
     });
 

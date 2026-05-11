@@ -6,6 +6,7 @@ import {
   FiClock,
   FiCheckCircle,
   FiFileText,
+  FiArrowUpRight,
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import Badge from "../../../shared/components/Badge";
@@ -150,41 +151,58 @@ const Earnings = () => {
           {activeTab === "overview" && (
             <div className="mb-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 shadow-sm border border-green-200">
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 shadow-sm border border-purple-200">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-green-700 font-medium">
+                    <p className="text-sm text-purple-700 font-medium">
                       Total Earnings
                     </p>
-                    <FiDollarSign className="text-green-600" />
+                    <FiDollarSign className="text-purple-600" />
                   </div>
-                  <p className="text-2xl font-bold text-green-800">
+                  <p className="text-2xl font-bold text-purple-800">
                     {earningsSummary
                       ? formatPrice(earningsSummary.totalEarnings)
                       : formatPrice(0)}
                   </p>
-                  <p className="text-xs text-green-600 mt-1">All time</p>
+                  <p className="text-xs text-purple-600 mt-1">Gross lifetime earnings</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-6 shadow-sm border border-yellow-200">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm text-yellow-700 font-medium">
-                      Available Balance
+                      Pending (24h Hold)
                     </p>
                     <FiClock className="text-yellow-600" />
                   </div>
                   <p className="text-2xl font-bold text-yellow-800">
                     {earningsSummary
-                      ? formatPrice(earningsSummary.availableBalance || earningsSummary.pendingEarnings)
+                      ? formatPrice(earningsSummary.pendingAmount)
                       : formatPrice(0)}
                   </p>
                   <p className="text-xs text-yellow-600 mt-1">
-                    Ready for settlement
+                    Orders delivered &lt; 24h
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-6 shadow-sm border border-emerald-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-emerald-700 font-medium">
+                      Ready to Payout
+                    </p>
+                    <FiArrowUpRight className="text-emerald-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-emerald-800">
+                    {earningsSummary
+                      ? formatPrice(earningsSummary.readyAmount)
+                      : formatPrice(0)}
+                  </p>
+                  <p className="text-xs text-emerald-600 mt-1">
+                    Orders delivered &gt; 24h
                   </p>
                 </div>
 
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 shadow-sm border border-blue-200">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-blue-700 font-medium">Paid</p>
+                    <p className="text-sm text-blue-700 font-medium">Settled</p>
                     <FiCheckCircle className="text-blue-600" />
                   </div>
                   <p className="text-2xl font-bold text-blue-800">
@@ -192,20 +210,7 @@ const Earnings = () => {
                       ? formatPrice(earningsSummary.paidEarnings)
                       : formatPrice(0)}
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">Settled</p>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 shadow-sm border border-purple-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-purple-700 font-medium">
-                      Total Orders
-                    </p>
-                    <FiTrendingUp className="text-purple-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-purple-800">
-                    {earningsSummary ? earningsSummary.totalOrders : 0}
-                  </p>
-                  <p className="text-xs text-purple-600 mt-1">With earnings</p>
+                  <p className="text-xs text-blue-600 mt-1">Paid to your bank</p>
                 </div>
               </div>
             </div>
@@ -264,9 +269,9 @@ const Earnings = () => {
                               </p>
                             </div>
                             <div>
-                              <p className="text-gray-600">Subtotal</p>
+                              <p className="text-gray-600">Base Price</p>
                               <p className="font-semibold text-gray-800">
-                                {formatPrice(commission.subtotal)}
+                                {formatPrice(commission.basePrice)}
                               </p>
                             </div>
                             <div>

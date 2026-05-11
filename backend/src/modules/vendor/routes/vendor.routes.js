@@ -120,6 +120,7 @@ router.get('/wallet/summary', ...vendorAuth, walletController.getWalletSummary);
 router.get('/wallet/payouts', ...vendorAuth, walletController.getPayoutHistory);
 router.get('/wallet/transactions', ...vendorAuth, walletController.getTransactionLedger);
 router.post('/withdrawals', ...vendorAuth, withdrawalController.requestWithdrawal);
+router.post('/request-settlement', ...vendorAuth, withdrawalController.requestSettlement);
 router.get('/withdrawals', ...vendorAuth, withdrawalController.getWithdrawalHistory);
 
 // Return requests

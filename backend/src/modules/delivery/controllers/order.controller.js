@@ -228,7 +228,15 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [statusStats, completedTodayCount, earningsStats, recentOrders, activeReturns] = await Promise.all([
+    const [
+        statusStats, 
+        completedTodayCount, 
+        completedReturnsTodayCount, 
+        orderEarningsStats, 
+        returnEarningsStats, 
+        recentOrders, 
+        activeReturns
+    ] = await Promise.all([
         Order.aggregate([
             { $match: { deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId), isDeleted: { $ne: true } } },
             {
@@ -248,6 +256,11 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
                 { deliveredAt: null, updatedAt: { $gte: todayStart } },
             ],
         }),
+        ReturnRequest.countDocuments({
+            deliveryBoyId,
+            status: 'completed',
+            updatedAt: { $gte: todayStart }
+        }),
         Order.aggregate([
             {
                 $match: {
@@ -262,6 +275,20 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
                     totalDeliveryFees: { $sum: { $ifNull: ['$deliveryEarnings', 0] } },
                 },
             },
+        ]),
+        ReturnRequest.aggregate([
+            {
+                $match: {
+                    deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId),
+                    status: 'completed'
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalReturnFees: { $sum: { $ifNull: ['$deliveryEarnings', 0] } }
+                }
+            }
         ]),
         Order.find({
             deliveryBoyId,
@@ -282,6 +309,9 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         .populate('vendorId', 'storeName shopAddress shopLocation')
         .lean()
     ]);
+
+    const orderEarnings = Number(orderEarningsStats?.[0]?.totalDeliveryFees || 0);
+    const returnEarnings = Number(returnEarningsStats?.[0]?.totalReturnFees || 0);
 
     const countByStatus = statusStats.reduce((acc, row) => {
         acc[String(row?._id || '')] = Number(row?.count || 0);
@@ -333,12 +363,13 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
 
     const summary = {
         totalOrders: statusStats.reduce((sum, row) => sum + Number(row?.count || 0), 0),
-        completedToday: Number(completedTodayCount || 0),
+        completedToday: Number(completedTodayCount || 0) + Number(completedReturnsTodayCount || 0),
         openOrders:
             Number(countByStatus.assigned || 0) +
             Number(countByStatus.picked_up || 0) +
-            Number(countByStatus.out_for_delivery || 0),
-        earnings: Number(earningsStats?.[0]?.totalDeliveryFees || 0),
+            Number(countByStatus.out_for_delivery || 0) +
+            activeReturns.length,
+        earnings: orderEarnings + returnEarnings,
         totalEarnings: Number(rider.totalEarnings || 0),
         availableBalance: Number(rider.availableBalance || 0),
         cashInHand: finalCashInHand,
@@ -365,7 +396,7 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [deliveredStats, completedTodayCount] = await Promise.all([
+    const [deliveredStats, completedTodayCount, returnStats, returnTodayCount] = await Promise.all([
         Order.aggregate([
             {
                 $match: {
@@ -391,6 +422,26 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
                 { deliveredAt: { $exists: false }, updatedAt: { $gte: todayStart } },
                 { deliveredAt: null, updatedAt: { $gte: todayStart } },
             ],
+        }),
+        ReturnRequest.aggregate([
+            {
+                $match: {
+                    deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId),
+                    status: 'completed',
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalReturns: { $sum: 1 },
+                    earnings: { $sum: { $ifNull: ['$deliveryEarnings', 0] } },
+                },
+            },
+        ]),
+        ReturnRequest.countDocuments({
+            deliveryBoyId,
+            status: 'completed',
+            updatedAt: { $gte: todayStart }
         }),
     ]);
 
@@ -422,6 +473,7 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
     ]);
     const rider = await DeliveryBoy.findById(deliveryBoyId);
     const row = deliveredStats?.[0] || {};
+    const rRow = returnStats?.[0] || {};
     const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
 
     // Source of truth: Use the bulk balance from the rider model if it's been initialized/tracked.
@@ -438,9 +490,9 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
     // We include existing rider profile fields to avoid UI data loss on frontend merge
     const profileData = { 
         ...rider.toObject(),
-        totalDeliveries: Number(row.totalDeliveries || 0), 
-        completedToday: Number(completedTodayCount || 0), 
-        earnings: Number(row.earnings || 0), 
+        totalDeliveries: Number(row.totalDeliveries || 0) + Number(rRow.totalReturns || 0), 
+        completedToday: Number(completedTodayCount || 0) + Number(returnTodayCount || 0), 
+        earnings: Number(row.earnings || 0) + Number(rRow.earnings || 0), 
         totalEarnings: Number(rider.totalEarnings || 0), 
         availableBalance: Number(rider.availableBalance || 0), 
         cashInHand: finalCashInHand, 

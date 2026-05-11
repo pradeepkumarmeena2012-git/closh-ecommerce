@@ -316,7 +316,9 @@ const VendorDashboard = () => {
                 if (['pending', 'accepted', 'processing'].includes(displayStatus)) {
                   return <SwipeOrderCard key={order._id ?? order.orderId} order={order} onStatusUpdate={() => loadDashboardData()} />;
                 }
-                const displayAmount = vendorItem?.subtotal ?? order.totalAmount ?? order.total ?? 0;
+                const displayAmount = vendorItem?.basePrice ?? 
+                                      vendorItem?.items?.reduce((sum, it) => sum + (it.vendorPrice ?? it.price ?? 0) * (it.quantity ?? 1), 0) ??
+                                      vendorItem?.subtotal ?? 0;
                 return (
                   <div key={order._id ?? order.orderId} onClick={() => navigate(`/vendor/orders/${order.orderId ?? order._id}`)} className="flex items-center justify-between p-3 bg-white hover:bg-gray-100 rounded-lg cursor-pointer transition-colors border border-gray-100">
                     <div className="flex items-center gap-3 min-w-0">
@@ -352,7 +354,7 @@ const VendorDashboard = () => {
               {topProducts.map((product) => (
                 <div key={product._id ?? product.id} onClick={() => navigate(`/vendor/products/${product._id ?? product.id}`)} className="flex items-center gap-3 p-3 bg-white hover:bg-gray-100 rounded-lg cursor-pointer transition-colors">
                   <img src={product.image || product.images?.[0]} alt={product.name} className="w-12 h-12 object-cover rounded-lg" />
-                  <div className="flex-1 min-w-0"><p className="font-semibold text-gray-800 truncate">{product.name}</p><p className="text-sm text-gray-600">{formatPrice(product.price || 0)}</p></div>
+                  <div className="flex-1 min-w-0"><p className="font-semibold text-gray-800 truncate">{product.name}</p><p className="text-sm text-gray-600">{formatPrice(product.vendorPrice || product.price || 0)}</p></div>
                 </div>
               ))}
             </div>

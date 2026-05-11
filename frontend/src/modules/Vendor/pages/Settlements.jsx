@@ -2,71 +2,152 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FiDollarSign,
-  FiTrendingUp,
   FiClock,
   FiCheckCircle,
   FiFileText,
   FiSearch,
   FiArrowUpRight,
-  FiArrowDownLeft,
-  FiCalendar
+  FiCalendar,
+  FiSend
 } from "react-icons/fi";
 import { motion } from "framer-motion";
 import Badge from "../../../shared/components/Badge";
 import { formatPrice } from "../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
-import { getVendorEarnings } from "../services/vendorService";
+import { getVendorEarnings, requestSettlement } from "../services/vendorService";
+import { toast } from "react-hot-toast";
 
 const Settlements = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { vendor } = useVendorAuthStore();
 
-  const [activeTab, setActiveTab] = useState("overview"); // overview, earnings, payouts
-  const [selectedStatus, setSelectedStatus] = useState("all");
+  const hasBankDetails = useMemo(() => {
+    const b = vendor?.bankDetails;
+    return !!(b?.upiId || (b?.accountNumber && b?.ifscCode));
+  }, [vendor]);
+
+  const getInitialTab = () => {
+    const path = location.pathname;
+    if (path.endsWith("/pending")) return "pending";
+    if (path.endsWith("/ready")) return "ready";
+    if (path.endsWith("/completed")) return "completed";
+    return "pending";
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab());
   const [commissions, setCommissions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [earningsSummary, setEarningsSummary] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
   const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const vendorId = vendor?.id || vendor?._id;
 
+  const fetchEarnings = async () => {
+    setIsLoading(true);
+    try {
+      const res = await getVendorEarnings();
+      const data = res?.data ?? res;
+      setCommissions(data?.commissions ?? []);
+      setSettlements(data?.settlements ?? []);
+      setEarningsSummary(data?.summary ?? null);
+    } catch {
+      // errors handled by api.js toast
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!vendorId) return;
-
-    const fetchEarnings = async () => {
-      setIsLoading(true);
-      try {
-        const res = await getVendorEarnings();
-        const data = res?.data ?? res;
-        setCommissions(data?.commissions ?? []);
-        setSettlements(data?.settlements ?? []);
-        setEarningsSummary(data?.summary ?? null);
-      } catch {
-        // errors handled by api.js toast
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchEarnings();
   }, [vendorId]);
 
+  useEffect(() => {
+    setActiveTab(getInitialTab());
+  }, [location.pathname]);
+
   const filteredCommissions = useMemo(() => {
     let list = commissions;
-    if (selectedStatus !== "all") {
-        list = list.filter(c => (c.status || 'pending') === selectedStatus);
+    
+    // Filter by phase based on active tab
+    if (activeTab === "pending") {
+        list = list.filter(c => c.settlementPhase === 'pending');
+    } else if (activeTab === "ready") {
+        list = list.filter(c => c.settlementPhase === 'ready' || c.settlementPhase === 'requested');
+    } else if (activeTab === "completed") {
+        list = list.filter(c => c.settlementPhase === 'settled');
     }
+
     if (search) {
         list = list.filter(c => 
             (c.orderDisplayId || c.orderId?._id || '').toLowerCase().includes(search.toLowerCase())
         );
     }
     return list;
-  }, [commissions, selectedStatus, search]);
+  }, [commissions, activeTab, search]);
 
-  if (isLoading) {
+  useEffect(() => {
+    setSelectedIds([]); // Reset selection when tab changes
+  }, [activeTab]);
+
+  const handleRequestPayout = async (ids = []) => {
+    if (isRequesting) return;
+    
+    let targets = [];
+    if (Array.isArray(ids) && ids.length > 0) {
+        targets = ids;
+    } else if (typeof ids === 'string' && ids.length > 0) {
+        targets = [ids];
+    } else if (selectedIds.length > 0) {
+        targets = selectedIds;
+    } else {
+        // Fallback: If nothing selected, request ALL ready commissions (Bulk action)
+        targets = filteredCommissions
+            .filter(c => c.settlementPhase === 'ready')
+            .map(c => c._id);
+    }
+    
+    if (targets.length === 0) {
+        toast.error("No ready orders available to request");
+        return;
+    }
+    
+    setIsRequesting(true);
+    try {
+        await requestSettlement(targets);
+        toast.success(`Settlement request for ${targets.length} order(s) sent!`);
+        setSelectedIds([]);
+        fetchEarnings();
+    } catch (err) {
+        toast.error(err?.message || "Failed to request settlement");
+    } finally {
+        setIsRequesting(false);
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => 
+        prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const readyIds = filteredCommissions
+        .filter(c => c.settlementPhase === 'ready')
+        .map(c => c._id);
+    
+    if (selectedIds.length === readyIds.length && readyIds.length > 0) {
+        setSelectedIds([]);
+    } else {
+        setSelectedIds(readyIds);
+    }
+  };
+
+  if (isLoading && !commissions.length) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -83,218 +164,208 @@ const Settlements = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Settlement Center</h1>
-          <p className="text-gray-500 text-sm">Monitor your earnings, orders, and platform payouts</p>
+          <p className="text-gray-500 text-sm">Monitor and request your order payouts</p>
         </div>
-        <div className="flex items-center gap-3">
-             <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 flex items-center gap-2">
-                <FiCalendar className="text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">All Time</span>
-             </div>
-        </div>
+
+        {!hasBankDetails && (
+            <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-4 animate-pulse">
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
+                    <FiDollarSign className="text-xl" />
+                </div>
+                <div className="flex-1">
+                    <p className="text-amber-800 font-bold text-sm">Bank Details Missing</p>
+                    <p className="text-amber-600 text-xs font-medium">Please update your bank or UPI details in your profile to request payouts.</p>
+                </div>
+                <button 
+                    onClick={() => navigate('/vendor/profile')}
+                    className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                    Update Now
+                </button>
+            </div>
+        )}
+        
+        {activeTab === 'ready' && filteredCommissions.some(c => c.settlementPhase === 'ready') && (
+            <button 
+                onClick={handleRequestPayout}
+                disabled={isRequesting || !hasBankDetails}
+                title={!hasBankDetails ? "Please fill bank details in profile to request payout" : ""}
+                className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-primary-200 hover:bg-primary-700 transition-all disabled:opacity-50"
+            >
+                <FiSend />
+                {isRequesting ? 'Requesting...' : 'Request Payout for Ready Orders'}
+            </button>
+        )}
       </div>
 
-      {/* Financial Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                <FiDollarSign size={80} />
-            </div>
-            <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600">
-                    <FiTrendingUp />
-                </div>
-                <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total Sales</span>
-            </div>
-            <h3 className="text-2xl font-black text-gray-800">
-                {formatPrice(earningsSummary?.totalSales || commissions.reduce((sum, c) => sum + (c.subtotal || 0), 0))}
-            </h3>
-            <p className="text-xs text-gray-400 mt-2 italic">* Gross selling price</p>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                <FiClock size={80} />
-            </div>
-            <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600">
+      {/* Stats Summary specifically for Settlements */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className={`bg-white rounded-2xl p-5 border shadow-sm transition-all ${activeTab === 'pending' ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100'}`}>
+            <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
                     <FiClock />
                 </div>
-                <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Available</span>
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pending (Wait 24h)</span>
             </div>
-            <h3 className="text-2xl font-black text-amber-600">
-                {formatPrice(earningsSummary?.availableBalance || 0)}
+            <h3 className="text-xl font-black text-amber-700">
+                {formatPrice(earningsSummary?.pendingAmount || 0)}
             </h3>
-            <p className="text-xs text-gray-400 mt-2 italic">Ready for payout</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                <FiCheckCircle size={80} />
+        <div className={`bg-white rounded-2xl p-5 border shadow-sm transition-all ${activeTab === 'ready' ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-100'}`}>
+            <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600">
+                    <FiArrowUpRight />
+                </div>
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ready to Payout</span>
             </div>
-            <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
+            <h3 className="text-xl font-black text-emerald-700">
+                {formatPrice(earningsSummary?.readyAmount || 0)}
+            </h3>
+        </div>
+
+        <div className={`bg-white rounded-2xl p-5 border shadow-sm transition-all ${activeTab === 'completed' ? 'border-blue-200 bg-blue-50/30' : 'border-gray-100'}`}>
+            <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
                     <FiCheckCircle />
                 </div>
-                <span className="text-sm font-bold text-gray-500 uppercase tracking-wider">Paid Payouts</span>
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Settled</span>
             </div>
-            <h3 className="text-2xl font-black text-gray-800">
-                {formatPrice(earningsSummary?.paidEarnings || settlements.reduce((sum, s) => sum + s.amount, 0))}
+            <h3 className="text-xl font-black text-blue-700">
+                {formatPrice(earningsSummary?.paidEarnings || 0)}
             </h3>
-            <p className="text-xs text-gray-400 mt-2 italic">Transferred to bank</p>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 border border-primary-100 shadow-sm relative overflow-hidden group bg-gradient-to-br from-primary-50 to-white">
-            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity text-primary-600">
-                <FiDollarSign size={80} />
-            </div>
-            <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center text-white shadow-lg">
-                    <FiDollarSign />
-                </div>
-                <span className="text-sm font-bold text-primary-700 uppercase tracking-wider">Net Earnings</span>
-            </div>
-            <h3 className="text-2xl font-black text-primary-700">
-                {formatPrice(earningsSummary?.totalEarnings || 0)}
-            </h3>
-            <p className="text-xs text-primary-600/70 mt-2 italic">* After all deductions</p>
         </div>
       </div>
 
       {/* Tabs and Content */}
       <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-        <div className="flex border-b border-gray-100">
+        <div className="flex border-b border-gray-100 bg-gray-50/50">
             <button 
-                onClick={() => setActiveTab('overview')}
-                className={`flex-1 py-4 text-sm font-bold transition-all px-4 ${activeTab === 'overview' ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50/10' : 'text-gray-400 hover:text-gray-600'}`}
+                onClick={() => navigate('/vendor/settlements/pending')}
+                className={`flex-1 py-4 text-xs sm:text-sm font-bold transition-all px-4 ${activeTab === 'pending' ? 'text-primary-600 border-b-2 border-primary-600 bg-white' : 'text-gray-400 hover:text-gray-600'}`}
             >
-                Order Ledger
+                Pending
             </button>
             <button 
-                onClick={() => setActiveTab('payouts')}
-                className={`flex-1 py-4 text-sm font-bold transition-all px-4 ${activeTab === 'payouts' ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50/10' : 'text-gray-400 hover:text-gray-600'}`}
+                onClick={() => navigate('/vendor/settlements/ready')}
+                className={`flex-1 py-4 text-xs sm:text-sm font-bold transition-all px-4 ${activeTab === 'ready' ? 'text-primary-600 border-b-2 border-primary-600 bg-white' : 'text-gray-400 hover:text-gray-600'}`}
             >
-                Payout History
+                Ready to Payment
+            </button>
+            <button 
+                onClick={() => navigate('/vendor/settlements/completed')}
+                className={`flex-1 py-4 text-xs sm:text-sm font-bold transition-all px-4 ${activeTab === 'completed' ? 'text-primary-600 border-b-2 border-primary-600 bg-white' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+                Settlement
             </button>
         </div>
 
         <div className="p-4 sm:p-6">
-            {activeTab === 'overview' ? (
-                <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
-                        <div className="relative w-full sm:w-80">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input 
-                                type="text"
-                                placeholder="Search by Order ID..."
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm transition-all"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex gap-2 w-full sm:w-auto">
-                            <select 
-                                className="flex-1 sm:flex-none px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-                                value={selectedStatus}
-                                onChange={(e) => setSelectedStatus(e.target.value)}
-                            >
-                                <option value="all">All Status</option>
-                                <option value="pending">Pending</option>
-                                <option value="paid">Settled</option>
-                            </select>
-                        </div>
+            <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
+                    <div className="relative w-full sm:w-80">
+                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input 
+                            type="text"
+                            placeholder="Search by Order ID..."
+                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none text-sm transition-all"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
                     </div>
+                </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50/50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b border-gray-50">
-                                <tr>
-                                    <th className="px-4 py-4 text-left">Order Detail</th>
-                                    <th className="px-4 py-4 text-right">Uploaded Price</th>
-                                    <th className="px-4 py-4 text-right">Commission</th>
-                                    <th className="px-4 py-4 text-right">Net Earning</th>
-                                    <th className="px-4 py-4 text-center">Settlement</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {filteredCommissions.map((c) => (
-                                    <tr key={c._id} className="hover:bg-gray-50/80 transition-colors group">
-                                        <td className="px-4 py-5">
-                                            <div className="font-bold text-gray-800 text-sm">#{c.orderDisplayId || c.orderId?._id?.slice(-8)}</div>
-                                            <div className="text-[10px] text-gray-400 font-medium">
-                                                {new Date(c.createdAt).toLocaleDateString()} at {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-5 text-right font-medium text-gray-900">
-                                            {formatPrice(c.basePrice || c.subtotal)}
-                                        </td>
-                                        <td className="px-4 py-5 text-right font-bold text-red-500/80 text-xs">
-                                            -{formatPrice(c.commission)}
-                                            <span className="block text-[8px] opacity-70">({c.commissionRate}%)</span>
-                                        </td>
-                                        <td className="px-4 py-5 text-right">
-                                            <div className="font-black text-emerald-600">{formatPrice(c.vendorEarnings)}</div>
-                                        </td>
-                                        <td className="px-4 py-5 text-center">
-                                            <Badge variant={c.status === 'paid' ? 'success' : 'warning'}>
-                                                {c.status?.toUpperCase() || 'PENDING'}
-                                            </Badge>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {filteredCommissions.length === 0 && (
-                                    <tr>
-                                        <td colSpan="5" className="py-20 text-center">
-                                            <div className="flex flex-col items-center gap-2 opacity-30">
-                                                <FiFileText size={40} />
-                                                <p className="text-sm font-bold">No earning records found</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-50/50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b border-gray-50">
+                            <tr>
+                                {activeTab === 'ready' && (
+                                    <th className="px-4 py-4 text-left w-10">
+                                        <input 
+                                            type="checkbox"
+                                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                            onChange={toggleSelectAll}
+                                            checked={selectedIds.length > 0 && selectedIds.length === filteredCommissions.filter(c => c.settlementPhase === 'ready').length}
+                                        />
+                                    </th>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
+                                <th className="px-4 py-4 text-left">Order Detail</th>
+                                <th className="px-4 py-4 text-right">Net Earning</th>
+                                <th className="px-4 py-4 text-center">Status</th>
+                                {activeTab === 'completed' && <th className="px-4 py-4 text-right">Paid At</th>}
+                                {activeTab === 'ready' && <th className="px-4 py-4 text-right">Action</th>}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {filteredCommissions.map((c) => (
+                                <tr key={c._id} className={`hover:bg-gray-50/80 transition-colors group ${selectedIds.includes(c._id) ? 'bg-primary-50/30' : ''}`}>
+                                    {activeTab === 'ready' && (
+                                        <td className="px-4 py-5">
+                                            {c.settlementPhase === 'ready' && (
+                                                <input 
+                                                    type="checkbox"
+                                                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                                    checked={selectedIds.includes(c._id)}
+                                                    onChange={() => toggleSelect(c._id)}
+                                                />
+                                            )}
+                                        </td>
+                                    )}
+                                    <td className="px-4 py-5">
+                                        <div className="font-bold text-gray-800 text-sm">#{c.orderDisplayId || c.orderId?._id?.slice(-8)}</div>
+                                        <div className="text-[10px] text-gray-400 font-medium">
+                                            Delivered: {new Date(c.createdAt).toLocaleDateString()}
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-5 text-right">
+                                        <div className="font-black text-emerald-600">{formatPrice(c.vendorEarnings)}</div>
+                                        <div className="text-[9px] text-gray-400">-{formatPrice(c.commission)} (Fee)</div>
+                                    </td>
+                                    <td className="px-4 py-5 text-center">
+                                        <Badge variant={
+                                            c.settlementPhase === 'settled' ? 'success' : 
+                                            c.settlementPhase === 'requested' ? 'info' :
+                                            c.settlementPhase === 'ready' ? 'primary' : 'warning'
+                                        }>
+                                            {c.settlementPhase?.toUpperCase() || 'PENDING'}
+                                        </Badge>
+                                    </td>
+                                    {activeTab === 'completed' && (
+                                        <td className="px-4 py-5 text-right text-xs text-gray-500 font-medium">
+                                            {c.paidAt ? new Date(c.paidAt).toLocaleDateString() : 'N/A'}
+                                        </td>
+                                    )}
+                                    {activeTab === 'ready' && (
+                                        <td className="px-4 py-5 text-right">
+                                            {c.settlementPhase === 'ready' ? (
+                                                <button 
+                                                    onClick={() => handleRequestPayout(c._id)}
+                                                    disabled={isRequesting}
+                                                    className="text-[10px] font-bold bg-primary-50 text-primary-600 px-3 py-1 rounded-lg hover:bg-primary-600 hover:text-white transition-all border border-primary-100"
+                                                >
+                                                    Request
+                                                </button>
+                                            ) : (
+                                                <span className="text-[10px] text-gray-400 italic">Processing...</span>
+                                            )}
+                                        </td>
+                                    )}
+                                </tr>
+                            ))}
+                            {filteredCommissions.length === 0 && (
+                                <tr>
+                                    <td colSpan={activeTab === 'completed' ? 4 : 3} className="py-20 text-center">
+                                        <div className="flex flex-col items-center gap-2 opacity-30">
+                                            <FiFileText size={40} />
+                                            <p className="text-sm font-bold">No records in this phase</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            ) : (
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-6">
-                        <div className="p-2 bg-primary-100 text-primary-600 rounded-lg">
-                            <FiCheckCircle />
-                        </div>
-                        <h3 className="font-bold text-gray-800">Successful Bank Transfers</h3>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {settlements.map((s) => (
-                            <div key={s._id} className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 flex justify-between items-center group hover:border-primary-200 transition-all">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-primary-600 border border-gray-100">
-                                        <FiArrowUpRight size={20} />
-                                    </div>
-                                    <div>
-                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{new Date(s.createdAt).toDateString()}</div>
-                                        <div className="font-black text-gray-700 text-lg">{formatPrice(s.amount)}</div>
-                                        <div className="text-[10px] italic text-gray-400">Ref: {s.referenceId || 'N/A'}</div>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <Badge variant="success">COMPLETED</Badge>
-                                    <div className="text-[9px] text-gray-400 mt-2 uppercase font-black">{s.method?.replace('_', ' ')}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    
-                    {settlements.length === 0 && (
-                        <div className="py-20 text-center">
-                            <div className="flex flex-col items-center gap-2 opacity-20">
-                                <FiArrowUpRight size={40} />
-                                <p className="text-sm font-bold">No payout history available</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
+            </div>
         </div>
       </div>
     </motion.div>

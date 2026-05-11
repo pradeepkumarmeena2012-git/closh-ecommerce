@@ -79,7 +79,7 @@ export const WalletService = {
                             {
                                 $inc: {
                                     totalEarnings: adjustedEarnings,
-                                    availableBalance: adjustedEarnings,
+                                    pendingBalance: adjustedEarnings,
                                     totalSales: Math.round((group.subtotal || 0) * subtotalRatio)
                                 }
                             },
@@ -149,18 +149,20 @@ export const WalletService = {
             }
 
             if (amountToDeduct > 0) {
+                const balanceField = (commission && commission.status === 'paid') ? 'availableBalance' : 'pendingBalance';
+                
                 await Vendor.findByIdAndUpdate(
                     vendorId,
                     {
                         $inc: {
                             totalEarnings: -amountToDeduct,
-                            availableBalance: -amountToDeduct,
+                            [balanceField]: -amountToDeduct,
                             totalSales: -salesToDeduct
                         }
                     },
                     { session }
                 );
-                console.log(`[Wallet] Deducted ₹${amountToDeduct} from Vendor ${vendorId} for returned order ${orderId}`);
+                console.log(`[Wallet] Deducted ₹${amountToDeduct} from Vendor ${vendorId} (${balanceField}) for returned order ${orderId}`);
             }
 
             await session.commitTransaction();

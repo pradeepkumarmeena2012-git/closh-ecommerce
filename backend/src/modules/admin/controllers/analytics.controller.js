@@ -208,13 +208,46 @@ export const getFinancialSummary = asyncHandler(async (req, res) => {
     const pipeline = [
         { $match: match },
         {
+            $addFields: {
+                docCommission: { 
+                    $reduce: {
+                        input: { $ifNull: ["$vendorItems", []] },
+                        initialValue: 0,
+                        in: { $add: ["$$value", { $ifNull: ["$$this.commissionAmount", 0] }] }
+                    }
+                },
+                docMargin: {
+                    $reduce: {
+                        input: { $ifNull: ["$items", []] },
+                        initialValue: 0,
+                        in: { $add: ["$$value", { $ifNull: ["$$this.marginAmount", 0] }] }
+                    }
+                }
+            }
+        },
+        {
             $group: {
                 _id: { $dateToString: { format: groupFormat, date: '$createdAt' } },
                 revenue: { $sum: '$total' },
+                netRevenue: { 
+                    $sum: { 
+                        $subtract: [
+                            { $add: ["$docCommission", "$docMargin", { $ifNull: ['$shipping', 0] }] },
+                            { $add: [
+                                { $ifNull: ['$deliveryEarnings', 0] },
+                                { $ifNull: ['$discount', 0] },
+                                { $ifNull: ['$couponDiscount', 0] }
+                            ]}
+                        ]
+                    }
+                },
                 subtotal: { $sum: '$subtotal' },
                 tax: { $sum: '$tax' },
                 delivery: { $sum: '$shipping' },
-                discount: { $sum: '$discount' },
+                deliveryPayout: { $sum: '$deliveryEarnings' },
+                discount: { $sum: { $add: [{ $ifNull: ['$discount', 0] }, { $ifNull: ['$couponDiscount', 0] }] } },
+                commission: { $sum: '$docCommission' },
+                margin: { $sum: '$docMargin' },
                 orders: { $sum: 1 }
             }
         },
@@ -324,9 +357,10 @@ export const getDetailedEarningsReport = asyncHandler(async (req, res) => {
 
     const [orders, total] = await Promise.all([
         Order.find(filter)
-            .select('orderId total shipping subtotal vendorItems items createdAt')
+            .select('orderId total shipping subtotal vendorItems items createdAt deliveryBoyId')
             .populate('vendorItems.vendorId', 'commissionRate')
             .populate('items.productId', 'vendorPrice')
+            .populate('deliveryBoyId', 'name')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(numericLimit)
@@ -355,10 +389,11 @@ export const getDetailedEarningsReport = asyncHandler(async (req, res) => {
             orderId: order.orderId,
             date: order.createdAt,
             revenue: order.total,
-            vendorCost: orderVendorCost, // Correct: Sum of all item.vendorPrice
+            vendorCost: orderVendorCost,
             commission,
             margin,
             deliveryPayout: delivery,
+            deliveryPartner: order.deliveryBoyId?.name || 'N/A',
             adminNetProfit: (commission + margin) - delivery
         };
     });

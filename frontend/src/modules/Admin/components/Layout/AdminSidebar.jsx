@@ -91,7 +91,7 @@ const getChildRoute = (parentRoute, childName, admin) => {
     [`${basePrefix}/delivery`]: {
       "Delivery Boys": `${basePrefix}/delivery/delivery-boys`,
       "Cash Collection": `${basePrefix}/delivery/cash-collection`,
-      "Payout Requests": `${basePrefix}/delivery/withdrawals`,
+      "Payout Requests": `${basePrefix}/delivery/withdrawals?type=DeliveryBoy`,
       "Online Settlements": `${basePrefix}/delivery/rider-settlements`,
     },
     [`${basePrefix}/attributes`]: {
@@ -105,6 +105,7 @@ const getChildRoute = (parentRoute, childName, admin) => {
       "Vendor Analytics": `${basePrefix}/vendors/vendor-analytics`,
       "Vendor Registration": `${basePrefix}/vendors/register`,
       "Vendor Settlements": `${basePrefix}/vendors/settlements`,
+      "Payout Requests": `${basePrefix}/delivery/withdrawals?type=Vendor`,
     },
     [`${basePrefix}/offers`]: {
       "Home Sliders": `${basePrefix}/offers/home-sliders`,

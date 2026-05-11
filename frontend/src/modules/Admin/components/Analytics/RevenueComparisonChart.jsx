@@ -22,14 +22,13 @@ import { motion } from "framer-motion";
 
 const RevenueComparisonChart = ({ data, period = "month" }) => {
   const filteredData = useMemo(() => {
-    const range = getDateRange(period);
-    const filtered = filterByDateRange(data, range.start, range.end);
-    return filtered.map((item) => ({
+    // We trust the parent component to provide pre-filtered data for the selected period
+    return data.map((item) => ({
       ...item,
       dateLabel: formatDate(item.date, { month: "short", day: "numeric" }),
-      averageOrderValue: item.orders > 0 ? item.revenue / item.orders : 0,
+      averageOrderValue: item.orders > 0 ? (item.grossRevenue || item.revenue) / item.orders : 0,
     }));
-  }, [data, period]);
+  }, [data]);
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {

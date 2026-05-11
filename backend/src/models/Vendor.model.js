@@ -24,6 +24,7 @@ const vendorSchema = new mongoose.Schema(
         reviewCount: { type: Number, default: 0 },
         totalSales: { type: Number, default: 0 },
         totalEarnings: { type: Number, default: 0 },
+        pendingBalance: { type: Number, default: 0 },
         availableBalance: { type: Number, default: 0 },
         shippingEnabled: { type: Boolean, default: true },
         freeShippingThreshold: { type: Number, default: 100, min: 0 },
@@ -55,10 +56,11 @@ const vendorSchema = new mongoose.Schema(
             },
         },
         bankDetails: {
-            accountName: { type: String, select: false },
-            accountNumber: { type: String, select: false },
-            bankName: { type: String, select: false },
-            ifscCode: { type: String, select: false },
+            accountName: { type: String },
+            accountNumber: { type: String },
+            bankName: { type: String },
+            ifscCode: { type: String },
+            upiId: { type: String },
         },
         documents: {
             gst: String,

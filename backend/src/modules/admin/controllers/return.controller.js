@@ -34,17 +34,27 @@ const normalizeReturnRequest = (requestDoc) => {
     const request = requestDoc.toObject ? requestDoc.toObject() : requestDoc;
     const orderRefId = request.orderId?._id || request.orderId || null;
     const orderOrderId = request.orderId?.orderId || null;
+    const guestInfo = request.orderId?.guestInfo || null;
+
+    let customer = { name: 'Guest', email: 'N/A', phone: 'N/A' };
+    if (request.userId) {
+        customer = {
+            name: request.userId.name || 'Unknown Customer',
+            email: request.userId.email || 'N/A',
+            phone: request.userId.phone || 'N/A'
+        };
+    } else if (guestInfo) {
+        customer = {
+            name: guestInfo.name || 'Guest Customer',
+            email: guestInfo.email || 'N/A',
+            phone: guestInfo.phone || 'N/A'
+        };
+    }
 
     return {
         ...request,
         id: String(request._id),
-        customer: request.userId
-            ? {
-                name: request.userId.name || 'Unknown Customer',
-                email: request.userId.email || 'N/A',
-                phone: request.userId.phone || 'N/A'
-            }
-            : { name: 'Guest', email: 'N/A', phone: 'N/A' },
+        customer,
         orderId: orderOrderId || (typeof orderRefId === 'string' ? orderRefId : 'N/A'),
         orderRefId: orderRefId ? String(orderRefId) : null,
         paymentMethod: request.orderId?.paymentMethod || 'manual',
@@ -108,7 +118,7 @@ export const getAllReturnRequests = asyncHandler(async (req, res) => {
 
     const returnRequests = await ReturnRequest.find(filter)
         .populate('userId', 'name email phone')
-        .populate('orderId', 'orderId total items paymentMethod paymentStatus')
+        .populate('orderId', 'orderId total items paymentMethod paymentStatus guestInfo')
         .sort({ createdAt: -1 })
         .skip((numericPage - 1) * numericLimit)
         .limit(numericLimit);
@@ -139,7 +149,7 @@ export const getAllReturnRequests = asyncHandler(async (req, res) => {
 export const getReturnRequestById = asyncHandler(async (req, res) => {
     const request = await ReturnRequest.findById(req.params.id)
         .populate('userId', 'name email phone')
-        .populate('orderId', 'orderId total createdAt items paymentMethod paymentStatus razorpayPaymentId')
+        .populate('orderId', 'orderId total createdAt items paymentMethod paymentStatus razorpayPaymentId guestInfo')
         .populate('vendorId', 'shopName email')
         .populate('deliveryBoyId', 'name phone');
 

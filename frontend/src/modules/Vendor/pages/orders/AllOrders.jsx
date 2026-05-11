@@ -15,6 +15,7 @@ import { formatVariantLabel } from '../../../../shared/utils/variant';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
 import { getAllVendorOrders, updateVendorOrderStatus } from '../../services/vendorService';
 import toast from 'react-hot-toast';
+import socketService from '../../../../shared/utils/socket';
 
 const AllOrders = () => {
   const navigate = useNavigate();
@@ -42,6 +43,27 @@ const AllOrders = () => {
     };
 
     fetchOrders();
+
+    // Socket real-time updates
+    if (vendorId) {
+      socketService.joinRoom(`vendor_${vendorId}`);
+    }
+
+    const handleRealTimeUpdate = () => {
+      fetchOrders();
+    };
+
+    socketService.on('new_order', handleRealTimeUpdate);
+    socketService.on('order_status_updated', handleRealTimeUpdate);
+    socketService.on('order_picked_up', handleRealTimeUpdate);
+    socketService.on('order_delivered', handleRealTimeUpdate);
+
+    return () => {
+      socketService.off('new_order');
+      socketService.off('order_status_updated');
+      socketService.off('order_picked_up');
+      socketService.off('order_delivered');
+    };
   }, [vendorId]);
 
   const filteredOrders = useMemo(() => {
@@ -73,7 +95,10 @@ const AllOrders = () => {
     const vendorItem = order.vendorItems?.find(
       (vi) => vi.vendorId?.toString() === vendorId?.toString()
     );
-    return vendorItem?.basePrice ?? vendorItem?.subtotal ?? order.total ?? order.totalAmount ?? 0;
+    // Prioritize basePrice (vendor price sum) over subtotal (customer price sum)
+    return vendorItem?.basePrice ?? 
+           vendorItem?.items?.reduce((sum, it) => sum + (it.vendorPrice ?? it.price ?? 0) * (it.quantity ?? 1), 0) ??
+           vendorItem?.subtotal ?? 0;
   };
 
   const getOrderStatus = (order) => {
@@ -158,7 +183,7 @@ const AllOrders = () => {
     },
     {
       key: 'totalAmount',
-      label: 'Amount',
+      label: 'Your Amount',
       sortable: true,
       render: (_, row) => (
         <span className="font-semibold text-gray-800">
@@ -170,11 +195,21 @@ const AllOrders = () => {
       key: 'paymentMethod',
       label: 'Payment',
       sortable: true,
-      render: (value) => (
-        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${value === 'prepaid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-200'}`}>
-          {value === 'prepaid' ? 'Prepaid' : 'COD'}
-        </span>
-      ),
+      render: (value, row) => {
+        // Check both value and row.paymentMethod, handle various formats
+        const method = (value || row?.paymentMethod || '').toLowerCase();
+        const isCod = method.includes('cod') || method.includes('cash');
+        
+        return (
+          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+            isCod 
+              ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          }`}>
+            {isCod ? 'COD' : (value?.toUpperCase() || 'PREPAID')}
+          </span>
+        );
+      },
     },
     {
       key: 'status',

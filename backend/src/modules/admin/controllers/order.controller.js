@@ -79,7 +79,8 @@ export const getOrderById = asyncHandler(async (req, res) => {
     })
         .populate('userId', 'name email phone')
         .populate('deliveryBoyId', 'name phone email vehicleType vehicleNumber currentLocation')
-        .populate('items.productId', 'name images price')
+        .populate('items.productId')
+        .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation phone gstNumber')
         .lean();
 
     if (!order) throw new ApiError(404, 'Order not found.');

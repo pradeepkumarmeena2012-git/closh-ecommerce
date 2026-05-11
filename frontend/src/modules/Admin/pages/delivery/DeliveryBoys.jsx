@@ -150,7 +150,30 @@ const DeliveryBoys = () => {
             ),
         },
         {
-          key: 'bank',
+            key: 'stats',
+            label: 'Earnings & Deliveries',
+            render: (_, row) => (
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-black text-emerald-600 uppercase">Earned:</span>
+                        <span className="text-sm font-black text-gray-800">₹{row.stats?.totalEarnings || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 opacity-60">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase">Deliveries:</span>
+                        <span className="text-xs font-bold text-gray-600">{row.stats?.totalDeliveries || 0}</span>
+                    </div>
+                    {row.stats?.cashInHand > 0 && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded border border-amber-100 uppercase tracking-tighter">
+                                Cash in Hand: ₹{row.stats.cashInHand}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            ),
+        },
+        {
+            key: 'bank',
           label: 'Banking Info',
           render: (_, row) => (
             row.bankDetails?.accountNumber ? (

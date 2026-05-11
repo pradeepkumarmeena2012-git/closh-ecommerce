@@ -39,7 +39,9 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
     );
 
     const currentStatus = (vendorItem?.status ?? order.status ?? 'pending').toLowerCase();
-    const displayAmount = vendorItem?.subtotal ?? order.totalAmount ?? order.total ?? 0;
+    const displayAmount = vendorItem?.basePrice ?? 
+                         vendorItem?.items?.reduce((sum, it) => sum + (it.vendorPrice ?? it.price ?? 0) * (it.quantity ?? 1), 0) ??
+                         vendorItem?.subtotal ?? 0;
     const orderId = order.orderId ?? order._id;
 
     // Logic for next state
