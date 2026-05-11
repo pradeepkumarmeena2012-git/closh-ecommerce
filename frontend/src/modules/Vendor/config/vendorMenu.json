@@ -51,9 +51,15 @@
         "title": "Settlements",
         "route": "/vendor/settlements",
         "children": [
-            "Earnings Ledger",
-            "Payout History"
+            "Pending",
+            "Ready to Payment",
+            "Settlement"
         ]
+    },
+    {
+        "title": "Earnings",
+        "route": "/vendor/earnings",
+        "children": []
     },
     {
         "title": "Documents",

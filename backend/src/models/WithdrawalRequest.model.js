@@ -13,6 +13,12 @@ const withdrawalRequestSchema = new mongoose.Schema(
             required: true, 
             enum: ['DeliveryBoy', 'Vendor'] 
         },
+        requestType: {
+            type: String,
+            enum: ['withdrawal', 'settlement'],
+            default: 'withdrawal',
+            index: true
+        },
         amount: { 
             type: Number, 
             required: true, 

@@ -498,6 +498,12 @@ export const deleteVendorShippingRate = (id) =>
 export const getVendorEarnings = () => api.get('/vendor/earnings');
 
 /**
+ * Request settlement for specific or all ready commissions (> 24h)
+ * @param {string[]} commissionIds - Optional array of commission IDs
+ */
+export const requestSettlement = (commissionIds = []) => api.post('/vendor/request-settlement', { commissionIds });
+
+/**
  * Get vendor wallet summary
  */
 export const getVendorWalletSummary = () => api.get('/vendor/wallet/summary');

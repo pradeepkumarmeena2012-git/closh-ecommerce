@@ -12,12 +12,13 @@ const commissionSchema = new mongoose.Schema(
         vendorEarnings: { type: Number, required: true },
         status: {
             type: String,
-            enum: ['pending', 'paid', 'cancelled'],
+            enum: ['pending', 'requested', 'paid', 'cancelled'],
             default: 'pending',
             index: true,
         },
         paidAt: Date,
         settlementId: { type: mongoose.Schema.Types.ObjectId, ref: 'Settlement' },
+        withdrawalRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'WithdrawalRequest' },
     },
     { timestamps: true }
 );
