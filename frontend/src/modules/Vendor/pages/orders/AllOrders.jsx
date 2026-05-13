@@ -69,6 +69,9 @@ const AllOrders = () => {
   const filteredOrders = useMemo(() => {
     let filtered = orders;
 
+    // Debugging: Log counts when filters change
+    console.log(`[AllOrders] Filtering ${orders.length} orders. Current Vendor ID: ${vendorId}`);
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter((order) =>
@@ -82,7 +85,8 @@ const AllOrders = () => {
         const vendorItem = order.vendorItems?.find(
           (vi) => vi.vendorId?.toString() === vendorId?.toString()
         );
-        const status = (vendorItem?.status ?? order.status ?? '').toLowerCase();
+        // Fallback to order.status if vendorItem status is missing
+        const status = (vendorItem?.status || order.status || 'pending').toLowerCase();
         return status === selectedStatus.toLowerCase();
       });
     }
@@ -95,9 +99,8 @@ const AllOrders = () => {
     const vendorItem = order.vendorItems?.find(
       (vi) => vi.vendorId?.toString() === vendorId?.toString()
     );
-    // Prioritize basePrice (vendor price sum) over subtotal (customer price sum)
-    return vendorItem?.basePrice ?? 
-           vendorItem?.items?.reduce((sum, it) => sum + (it.vendorPrice ?? it.price ?? 0) * (it.quantity ?? 1), 0) ??
+    // Prioritize price (selling price) over vendorPrice (cost price)
+    return vendorItem?.items?.reduce((sum, it) => sum + (it.price ?? it.vendorPrice ?? 0) * (it.quantity ?? 1), 0) ??
            vendorItem?.subtotal ?? 0;
   };
 

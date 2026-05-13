@@ -4,17 +4,26 @@ import toast from 'react-hot-toast';
 
 export const normalizeProduct = (p) => {
     const originalPrice = p.originalPrice || p.mrp || null;
-    const discountedPrice = p.price || 0;
-    const discountValue = p.discount || (originalPrice > discountedPrice ? `${Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)}% OFF` : null);
+    const sellingPrice = p.price || 0;
+    
+    // Format discount string: use p.discount if provided, otherwise calculate from prices
+    let discountDisplay = null;
+    if (p.discount) {
+        discountDisplay = String(p.discount).toUpperCase().includes('OFF') 
+            ? p.discount 
+            : `${p.discount}% OFF`;
+    } else if (originalPrice && Number(originalPrice) > Number(sellingPrice)) {
+        discountDisplay = `${Math.round(((Number(originalPrice) - Number(sellingPrice)) / Number(originalPrice)) * 100)}% OFF`;
+    }
 
     return {
         ...p,
         id: p._id || p.id,
         stockQuantity: p.stockQuantity ?? 0,
-        price: discountedPrice,
-        discountedPrice: discountedPrice,
+        price: sellingPrice,
+        discountedPrice: sellingPrice,
         originalPrice: originalPrice,
-        discount: discountValue,
+        discount: discountDisplay,
         image: p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=500&fit=crop',
         images: Array.isArray(p.images) && p.images.length > 0 ? p.images : (p.image ? [p.image] : []),
         brand: p.brandName || p.brandId?.name || p.brand || 'Appzeto',

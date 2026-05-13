@@ -319,36 +319,69 @@ export const updateProduct = asyncHandler(async (req, res) => {
         payload.slug = slugify(payload.name) + '-' + Date.now();
     }
 
-    if (payload.stockQuantity !== undefined) {
-        const numericStockQuantity = Number(payload.stockQuantity) || 0;
-        payload.stockQuantity = numericStockQuantity;
-        if (!payload.stock) {
-            payload.stock = numericStockQuantity <= 0
-                ? 'out_of_stock'
-                : numericStockQuantity <= 10
-                    ? 'low_stock'
-                    : 'in_stock';
+    // Centralized Stock: Admin cannot edit stock for vendor products
+    const existingProduct = await Product.findById(req.params.id).select('vendorId stockQuantity variants.stockMap stock').lean();
+    const isVendorProduct = existingProduct && existingProduct.vendorId;
+
+    if (isVendorProduct) {
+        // Remove stock fields from payload to prevent admin overrides
+        delete payload.stockQuantity;
+        delete payload.stock;
+        if (payload.variants) {
+            // Keep prices/images but remove stockMap from variant updates
+            delete payload.variants.stockMap;
+        }
+    } else {
+        // For non-vendor (platform) products, admin can still edit stock
+        if (payload.stockQuantity !== undefined) {
+            const numericStockQuantity = Number(payload.stockQuantity) || 0;
+            payload.stockQuantity = numericStockQuantity;
+            if (!payload.stock) {
+                payload.stock = numericStockQuantity <= 0
+                    ? 'out_of_stock'
+                    : numericStockQuantity <= 10
+                        ? 'low_stock'
+                        : 'in_stock';
+            }
         }
     }
+
     if (Object.prototype.hasOwnProperty.call(payload, 'faqs')) {
         payload.faqs = sanitizeFaqs(payload.faqs);
     }
+
     if (Object.prototype.hasOwnProperty.call(payload, 'variants')) {
         const fallbackPrice =
             Object.prototype.hasOwnProperty.call(payload, 'price')
                 ? payload.price
                 : (await Product.findById(req.params.id).select('price').lean())?.price;
-        payload.variants = normalizeVariantsPayload(payload.variants, fallbackPrice);
-        const variantAggregateStock = calculateVariantAggregateStock(payload.variants);
-        if (Number.isFinite(variantAggregateStock)) {
-            payload.stockQuantity = variantAggregateStock;
-            if (!payload.stock) {
-                payload.stock = variantAggregateStock <= 0
-                    ? 'out_of_stock'
-                    : variantAggregateStock <= 10
-                        ? 'low_stock'
-                        : 'in_stock';
+        
+        // Merge with existing stockMap if it's a vendor product
+        if (isVendorProduct && existingProduct.variants?.stockMap) {
+            if (!payload.variants.stockMap) {
+                payload.variants.stockMap = existingProduct.variants.stockMap;
             }
+        }
+
+        payload.variants = normalizeVariantsPayload(payload.variants, fallbackPrice);
+
+        // Only derive total stock if not restricted
+        if (!isVendorProduct) {
+            const variantAggregateStock = calculateVariantAggregateStock(payload.variants);
+            if (Number.isFinite(variantAggregateStock)) {
+                payload.stockQuantity = variantAggregateStock;
+                if (!payload.stock) {
+                    payload.stock = variantAggregateStock <= 0
+                        ? 'out_of_stock'
+                        : variantAggregateStock <= 10
+                            ? 'low_stock'
+                            : 'in_stock';
+                }
+            }
+        } else {
+            // Ensure vendor product keeps its stock info
+            payload.stockQuantity = existingProduct.stockQuantity;
+            payload.stock = existingProduct.stock;
         }
     }
 

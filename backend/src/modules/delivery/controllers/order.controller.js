@@ -1320,6 +1320,29 @@ const acceptedSubtotal = acceptedItems.reduce((sum, i) => sum + ((i.price || 0) 
     flow.finalAmount = acceptedSubtotal + shipping + platformFee + adjustedTax - adjustedDiscount;
     if (flow.finalAmount < 0) flow.finalAmount = 0;
 
+    // Sync to main order document so all other views (Admin, User, Vendor) see the adjusted price
+    order.total = flow.finalAmount;
+    order.subtotal = acceptedSubtotal;
+    order.tax = adjustedTax;
+    order.discount = adjustedDiscount;
+
+    // Synchronize vendorItems to reflect item rejections
+    if (order.vendorItems) {
+        order.vendorItems.forEach(vi => {
+            const matchingTryItem = tryItems.find(ti => 
+                String(ti.productId) === String(vi.productId) && 
+                getVariantSignature(ti.variant || {}) === getVariantSignature(vi.variant || {})
+            );
+            if (matchingTryItem && matchingTryItem.decision === 'rejected') {
+                vi.quantity = 0;
+                vi.subtotal = 0;
+                // Also adjust earnings/commission to 0 for rejected items
+                vi.vendorEarnings = 0;
+                vi.commissionAmount = 0;
+            }
+        });
+    }
+
     await order.save();
 
     // Restore stock for rejected items

@@ -231,9 +231,16 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
         // Always trust server-side product pricing; never trust client-sent item.price.
         const { price: itemPrice, variantKey, hasVariantAxes } = resolveVariantSelection(product, item.variant);
-        const variantStockValue = variantKey ? Number(product?.variants?.stockMap?.get?.(variantKey) ?? product?.variants?.stockMap?.[variantKey]) : null;
-        if (hasVariantAxes && variantKey && Number.isFinite(variantStockValue) && variantStockValue < item.quantity) {
-            throw new ApiError(400, `Only ${variantStockValue} units available for variant [${variantKey}] of ${product.name}. Please check stock in variants section.`);
+        
+        if (hasVariantAxes && !variantKey) {
+            throw new ApiError(400, `Please select a valid variant for ${product.name}.`);
+        }
+
+        const rawVariantStock = variantKey ? (product?.variants?.stockMap?.get?.(variantKey) ?? product?.variants?.stockMap?.[variantKey]) : null;
+        const variantStockValue = variantKey ? Number(rawVariantStock ?? 0) : null;
+
+        if (hasVariantAxes && variantKey && variantStockValue < item.quantity) {
+            throw new ApiError(400, `Only ${variantStockValue || 0} units available for variant [${variantKey}] of ${product.name}. Please check stock in variants section.`);
         }
         const itemSubtotal = itemPrice * item.quantity;
         subtotal += itemSubtotal;
@@ -437,7 +444,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 if (!updatedProduct) {
                     const currentProduct = await Product.findById(item.productId).session(session);
                     const availableTotal = currentProduct?.stockQuantity || 0;
-                    const availableVariant = variantKey ? (currentProduct?.variants?.stockMap?.get?.(variantKey) ?? currentProduct?.variants?.stockMap?.[variantKey]) : 'N/A';
+                    const rawVarStock = variantKey ? (currentProduct?.variants?.stockMap?.get?.(variantKey) ?? currentProduct?.variants?.stockMap?.[variantKey]) : null;
+                    const availableVariant = variantKey ? (rawVarStock ?? 0) : 'N/A';
                     
                     throw new ApiError(400, `Stock changed for ${item.name}. Requested: ${quantity}, Available Total: ${availableTotal}, Available Variant [${variantKey || 'None'}]: ${availableVariant}. Please refresh and try again.`);
                 }

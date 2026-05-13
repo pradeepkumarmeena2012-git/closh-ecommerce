@@ -178,14 +178,45 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         });
     }
 
-    if (nextStatus === 'cancelled' && previousStatus !== 'cancelled' && ['pending', 'processing', 'shipped'].includes(previousStatus)) {
+    if (nextStatus === 'cancelled' && previousStatus !== 'cancelled') {
         for (const item of order.items || []) {
+            const quantity = Number(item.quantity || 0);
+            if (quantity <= 0 || !item.productId) continue;
+
             const product = await Product.findById(item.productId);
             if (!product) continue;
-            product.stockQuantity += Number(item.quantity || 0);
-            if (product.stockQuantity <= 0) product.stock = 'out_of_stock';
-            else if (product.stockQuantity <= product.lowStockThreshold) product.stock = 'low_stock';
-            else product.stock = 'in_stock';
+
+            const variantKey = item.variantKey;
+            
+            // Increment total stock
+            product.stockQuantity = (Number(product.stockQuantity) || 0) + quantity;
+
+            if (variantKey && product.variants) {
+                // Restore variant-specific stock if it was a variant order
+                if (!product.variants.stockMap) {
+                    product.variants.stockMap = new Map();
+                }
+
+                const currentMap = product.variants.stockMap;
+                let currentVariantStock = 0;
+                
+                if (currentMap instanceof Map) {
+                    currentVariantStock = Number(currentMap.get(variantKey)) || 0;
+                    currentMap.set(variantKey, currentVariantStock + quantity);
+                } else {
+                    currentVariantStock = Number(currentMap[variantKey]) || 0;
+                    currentMap[variantKey] = currentVariantStock + quantity;
+                }
+                product.markModified('variants.stockMap');
+            }
+
+            // Update stock status
+            const nextStockState =
+                product.stockQuantity <= 0
+                    ? 'out_of_stock'
+                    : (product.stockQuantity <= (product.lowStockThreshold || 10) ? 'low_stock' : 'in_stock');
+            
+            product.stock = nextStockState;
             await product.save();
         }
     }

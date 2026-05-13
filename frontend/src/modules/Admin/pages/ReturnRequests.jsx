@@ -114,27 +114,27 @@ const ReturnRequests = () => {
   const columns = [
     {
       key: 'id',
-      label: 'Return ID',
+      label: 'ID',
       sortable: true,
       render: (value) => (
-        <span className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-orange-50 text-orange-700 border border-orange-100 shadow-sm whitespace-nowrap tracking-tight">
-          #{String(value || "").replace(/^RET-/, "").replace(/^#/, "")}
+        <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-100 whitespace-nowrap">
+          #{String(value || "").replace(/^RET-/, "").replace(/^#/, "").slice(-6).toUpperCase()}
         </span>
       ),
     },
     {
       key: 'orderId',
-      label: 'Order ID',
+      label: 'Order',
       sortable: true,
       render: (value) => (
         <span
-          className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-sm whitespace-nowrap tracking-tight cursor-pointer hover:bg-indigo-100 transition-colors"
+          className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 whitespace-nowrap cursor-pointer hover:bg-indigo-100 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             navigate(`/admin/orders/${value}`);
           }}
         >
-          #{String(value || "").replace(/^ORD-/, "").replace(/^#/, "")}
+          #{String(value || "").replace(/^ORD-/, "").replace(/^#/, "").slice(-6).toUpperCase()}
         </span>
       ),
     },
@@ -151,9 +151,14 @@ const ReturnRequests = () => {
     },
     {
       key: 'requestDate',
-      label: 'Request Date',
+      label: 'Date',
       sortable: true,
-      render: (value) => formatDateTime(value),
+      render: (value) => (
+        <div className="text-xs whitespace-nowrap">
+          <p className="font-medium text-gray-800">{new Date(value).toLocaleDateString()}</p>
+          <p className="text-[10px] text-gray-500">{new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
+      ),
     },
     {
       key: 'items',
@@ -174,7 +179,7 @@ const ReturnRequests = () => {
     },
     {
       key: 'refundAmount',
-      label: 'Refund Amount',
+      label: 'Refund',
       sortable: true,
       render: (value) => (
         <span className="font-bold text-gray-800">{formatCurrency(value)}</span>

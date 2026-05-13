@@ -196,6 +196,10 @@ const MobileProductDetail = () => {
 
   const isFavorite = product ? isInWishlist(product.id) : false;
   const selectedVariantSignature = getVariantSignature(selectedVariant || {});
+  const currentPrice = useMemo(() => {
+    return resolveVariantPrice(product, selectedVariant);
+  }, [product, selectedVariant]);
+
   const isInCart = product
     ? items.some(
       (item) =>

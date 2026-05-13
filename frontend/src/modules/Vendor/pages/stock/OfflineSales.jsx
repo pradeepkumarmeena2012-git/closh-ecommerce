@@ -67,7 +67,7 @@ const OfflineSales = () => {
         brand: p.brandId?.name || "N/A",
         approvalStatus: p.approvalStatus,
         stockStatus: p.stock,
-        mainImage: p.mainImage,
+        image: p.image || p.images?.[0],
         description: p.shortDescription || p.description,
         colors: p.variants?.attributes?.find(a => a.name.toLowerCase() === 'color')?.values || [],
         sizes: p.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.values || p.variants?.sizes || [],
@@ -93,7 +93,7 @@ const OfflineSales = () => {
     originalPrice: "",
     discount: 0,
     stock: 0,
-    mainImage: null,
+    image: null,
     colors: [],
     sizes: [],
     showColorAttr: true,
@@ -122,7 +122,7 @@ const OfflineSales = () => {
         originalPrice: sale.originalPrice || "",
         discount: sale.discount || 0,
         stock: sale.stock || 0,
-        mainImage: sale.mainImage || null,
+        image: sale.image || null,
         colors: sale.colors || [],
         sizes: sale.sizes || [],
         showColorAttr: true,
@@ -140,7 +140,7 @@ const OfflineSales = () => {
         originalPrice: "",
         discount: 0,
         stock: 0,
-        mainImage: null,
+        image: null,
         colors: [],
         sizes: [],
         showColorAttr: true,
@@ -148,6 +148,25 @@ const OfflineSales = () => {
       });
     }
     setIsModalOpen(true);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      const uploadResponse = await uploadVendorImage(file);
+      const imageUrl = uploadResponse.data?.url || uploadResponse.data;
+      if (imageUrl) {
+        setFormData(prev => ({ ...prev, image: imageUrl }));
+        toast.success("Image uploaded");
+      }
+    } catch (error) {
+      toast.error("Upload failed");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAddTag = (type) => {
@@ -182,6 +201,7 @@ const OfflineSales = () => {
         originalPrice: formData.originalPrice,
         discount: formData.discount,
         stockQuantity: formData.stock,
+        image: formData.image,
         // For new products, we might need a default category/brand if not provided
         // In a real app, we would have a dropdown for these
         categoryId: editingSale?.variants?.categoryId || "654321098765432109876543", // Placeholder or existing
@@ -320,7 +340,7 @@ const OfflineSales = () => {
       render: (value, row) => (
         <div className="flex items-center gap-2 md:gap-3 min-w-[120px]">
           <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-emerald-50 flex items-center justify-center overflow-hidden border border-emerald-100 shrink-0">
-             {row.mainImage ? <img src={row.mainImage} alt={value} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" />}
+             {row.image ? <img src={row.image} alt={value} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" />}
           </div>
           <div className="flex flex-col min-w-0">
             <span className="font-bold text-gray-900 leading-tight text-[10px] md:text-xs truncate">{value}</span>
@@ -442,7 +462,7 @@ const OfflineSales = () => {
                    <span className="w-28 mt-2 uppercase">Product:</span>
                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-black flex items-center justify-center overflow-hidden shrink-0 border border-emerald-50 shadow-sm">
-                         {sale.mainImage ? <img src={sale.mainImage} className="w-full h-full object-cover" /> : <div className="text-[10px] text-white font-black italic">CLOSH</div>}
+                         {sale.image ? <img src={sale.image} className="w-full h-full object-cover" /> : <div className="text-[10px] text-white font-black italic">CLOSH</div>}
                       </div>
                       <span className="text-gray-900 font-black text-xs leading-tight">{sale.productName.toLowerCase()}</span>
                    </div>
@@ -669,10 +689,31 @@ const OfflineSales = () => {
                 </div>
 
                 {/* 4. Small Media Upload */}
-                <div className="p-2 md:p-4 border-2 border-dashed border-emerald-100 rounded-xl text-center hover:border-emerald-300 transition-all cursor-pointer bg-emerald-50/10 flex items-center justify-center gap-2">
-                  <FiUpload className="size-3.5 md:size-5 text-emerald-300" />
-                  <div>
-                    <p className="text-[11px] md:text-sm font-black text-[#003d29]">Upload Image</p>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                  />
+                  <div className="p-2 md:p-4 border-2 border-dashed border-emerald-100 rounded-xl text-center hover:border-emerald-300 transition-all bg-emerald-50/10 flex items-center justify-center gap-2 min-h-[60px]">
+                    {formData.image ? (
+                      <div className="flex items-center gap-3 w-full px-2">
+                        <img src={formData.image} alt="Preview" className="w-10 h-10 rounded-lg object-cover border border-emerald-200" />
+                        <div className="text-left flex-1 min-w-0">
+                          <p className="text-[11px] md:text-sm font-black text-[#003d29] truncate">Image Selected</p>
+                          <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-tight">Click to Change</p>
+                        </div>
+                        <FiUpload className="size-3.5 md:size-4 text-emerald-300" />
+                      </div>
+                    ) : (
+                      <>
+                        <FiUpload className="size-3.5 md:size-5 text-emerald-300" />
+                        <div>
+                          <p className="text-[11px] md:text-sm font-black text-[#003d29]">Upload Product Image</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -711,7 +752,7 @@ const OfflineSales = () => {
 
               <div className="flex items-center gap-4 mb-8 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-50">
                 <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center overflow-hidden border border-emerald-100 shadow-sm">
-                  {saleProduct.mainImage ? <img src={saleProduct.mainImage} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" size={24} />}
+                  {saleProduct.image ? <img src={saleProduct.image} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" size={24} />}
                 </div>
                 <div>
                   <h4 className="font-black text-[#003d29] leading-tight">{saleProduct.productName}</h4>

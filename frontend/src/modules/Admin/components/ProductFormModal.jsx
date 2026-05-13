@@ -46,11 +46,12 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     categoryId: null,
     subcategoryId: null,
     brandId: null,
-    vendorId: "",
+    vendorId: null,
     stock: "in_stock",
-    stockQuantity: "",
+    stockQuantity: 0,
     totalAllowedQuantity: "",
     minimumOrderQuantity: "",
+    vendorPrice: "",
     warrantyPeriod: "",
     guaranteePeriod: "",
     hsnCode: "",
@@ -178,7 +179,12 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
             relatedProducts: product.relatedProducts || [],
             faqs: Array.isArray(product.faqs) ? product.faqs : [],
             approvalStatus: product.approvalStatus || "pending",
+            stock: product.stock || "in_stock",
+            stockQuantity: product.stockQuantity || 0,
+            totalAllowedQuantity: product.totalAllowedQuantity || "",
+            minimumOrderQuantity: product.minimumOrderQuantity || "",
             vendorPrice: product.vendorPrice || product.originalPrice || "",
+            vendorId: product.vendorId?._id || product.vendorId || null,
           });
           setTagInput((product.tags || []).join(", "));
         }
@@ -249,6 +255,74 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     }));
   };
 
+  const normalizeVariantPart = (value) => String(value || "").trim().toLowerCase();
+  const parseVariantAxis = (rawText) => {
+    const values = String(rawText || "")
+      .split(",")
+      .map((entry) => String(entry || "").trim())
+      .filter(Boolean);
+    const seen = new Set();
+    return values.filter((value) => {
+      const key = normalizeVariantPart(value);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+  const createVariantKey = (size = "", color = "") => {
+    const obj = {};
+    if (size) obj.size = size;
+    if (color) obj.color = color;
+    return getVariantSignature(obj);
+  };
+
+  const variantCombinations = (() => {
+    const sizes = Array.isArray(formData?.variants?.sizes) ? formData.variants.sizes : [];
+    const colors = Array.isArray(formData?.variants?.colors) ? formData.variants.colors : [];
+    const attributes = Array.isArray(formData?.variants?.attributes)
+      ? formData.variants.attributes
+        .map((attr) => ({
+          name: String(attr?.name || "").trim(),
+          key: normalizeVariantPart(attr?.name || ""),
+          values: Array.isArray(attr?.values) ? attr.values.filter(Boolean) : [],
+        }))
+        .filter((attr) => attr.name && attr.key && attr.values.length > 0)
+      : [];
+    if (attributes.length > 0) {
+      let combos = [{}];
+      attributes.forEach((attr) => {
+        const next = [];
+        combos.forEach((selection) => {
+          attr.values.forEach((value) => next.push({ ...selection, [attr.key]: value }));
+        });
+        combos = next;
+      });
+      return combos.map((selection) => ({
+        selection,
+        size: selection.size || "",
+        color: selection.color || "",
+        key: Object.entries(selection)
+          .map(([axis, value]) => [normalizeVariantPart(axis), normalizeVariantPart(value)])
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([axis, value]) => `${axis}=${value}`)
+          .join("|"),
+        label: attributes.map((attr) => `${attr.name}: ${selection[attr.key] || "-"}`).join(" / "),
+      }));
+    }
+    if (sizes.length > 0 && colors.length > 0) {
+      return sizes.flatMap((size) =>
+        colors.map((color) => ({ size, color, key: createVariantKey(size, color), label: `${size} / ${color}` }))
+      );
+    }
+    if (sizes.length > 0) {
+      return sizes.map((size) => ({ size, color: "", key: createVariantKey(size, ""), label: `${size} / Any Color` }));
+    }
+    if (colors.length > 0) {
+      return colors.map((color) => ({ size: "", color, key: createVariantKey("", color), label: `Any Size / ${color}` }));
+    }
+    return [];
+  })();
+
   const [marginInput, setMarginInput] = useState("0");
   const marginInputRef = useRef(null);
 
@@ -277,6 +351,25 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       setFormData((prev) => ({ ...prev, price: newPrice.toFixed(2) }));
     }
   };
+
+  // Auto-calculate total stock from variants (Centralized Logic)
+  useEffect(() => {
+    const stockMap = formData.variants?.stockMap || {};
+    const total = Object.values(stockMap).reduce((sum, val) => {
+      const num = parseInt(val, 10);
+      return sum + (isNaN(num) ? 0 : num);
+    }, 0);
+
+    const currentTotal = parseInt(formData.stockQuantity || 0, 10);
+    const hasAnyVariants = variantCombinations.length > 0;
+
+    if (hasAnyVariants && total !== currentTotal) {
+      setFormData((prev) => ({
+        ...prev,
+        stockQuantity: total,
+      }));
+    }
+  }, [formData.variants?.stockMap, variantCombinations.length]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -388,52 +481,39 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     }));
   };
 
-  const normalizeVariantPart = (value) => String(value || "").trim().toLowerCase();
-  const parseVariantAxis = (rawText) => {
-    const values = String(rawText || "")
-      .split(",")
-      .map((entry) => String(entry || "").trim())
-      .filter(Boolean);
-    const seen = new Set();
-    return values.filter((value) => {
-      const key = normalizeVariantPart(value);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  };
-  const createVariantKey = (size = "", color = "") => {
-    const obj = {};
-    if (size) obj.size = size;
-    if (color) obj.color = color;
-    return getVariantSignature(obj);
-  };
 
   const syncVariantMaps = (sizes = [], colors = [], variants = {}) => {
-    const combinations =
-      sizes.length > 0 && colors.length > 0
-        ? sizes.flatMap((size) =>
-          colors.map((color) => ({ key: createVariantKey(size, color) }))
-        )
-        : sizes.length > 0
-          ? sizes.map((size) => ({ key: createVariantKey(size, "") }))
-          : colors.length > 0
-            ? colors.map((color) => ({ key: createVariantKey("", color) }))
-            : [];
+    const combinations = [];
+    if (sizes.length > 0 && colors.length > 0) {
+      sizes.forEach(size => {
+        colors.forEach(color => {
+          combinations.push({ key: createVariantKey(size, color) });
+        });
+      });
+    } else if (sizes.length > 0) {
+      sizes.forEach(size => {
+        combinations.push({ key: createVariantKey(size, "") });
+      });
+    } else if (colors.length > 0) {
+      colors.forEach(color => {
+        combinations.push({ key: createVariantKey("", color) });
+      });
+    }
 
     const nextPrices = {};
     const nextStockMap = {};
     const nextImageMap = {};
+
     combinations.forEach(({ key }) => {
-      if (Object.prototype.hasOwnProperty.call(variants?.prices || {}, key)) {
+      if (!key) return;
+      if (variants.prices && Object.prototype.hasOwnProperty.call(variants.prices, key)) {
         nextPrices[key] = variants.prices[key];
       }
-      if (Object.prototype.hasOwnProperty.call(variants?.stockMap || {}, key)) {
+      if (variants.stockMap && Object.prototype.hasOwnProperty.call(variants.stockMap, key)) {
         nextStockMap[key] = variants.stockMap[key];
       }
-      const image = String(variants?.imageMap?.[key] || "").trim();
-      if (image) {
-        nextImageMap[key] = image;
+      if (variants.imageMap && variants.imageMap[key]) {
+        nextImageMap[key] = variants.imageMap[key];
       }
     });
 
@@ -579,52 +659,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     }
   };
 
-  const variantCombinations = (() => {
-    const sizes = Array.isArray(formData?.variants?.sizes) ? formData.variants.sizes : [];
-    const colors = Array.isArray(formData?.variants?.colors) ? formData.variants.colors : [];
-    const attributes = Array.isArray(formData?.variants?.attributes)
-      ? formData.variants.attributes
-        .map((attr) => ({
-          name: String(attr?.name || "").trim(),
-          key: normalizeVariantPart(attr?.name || ""),
-          values: Array.isArray(attr?.values) ? attr.values.filter(Boolean) : [],
-        }))
-        .filter((attr) => attr.name && attr.key && attr.values.length > 0)
-      : [];
-    if (attributes.length > 0) {
-      let combos = [{}];
-      attributes.forEach((attr) => {
-        const next = [];
-        combos.forEach((selection) => {
-          attr.values.forEach((value) => next.push({ ...selection, [attr.key]: value }));
-        });
-        combos = next;
-      });
-      return combos.map((selection) => ({
-        selection,
-        size: selection.size || "",
-        color: selection.color || "",
-        key: Object.entries(selection)
-          .map(([axis, value]) => [normalizeVariantPart(axis), normalizeVariantPart(value)])
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([axis, value]) => `${axis}=${value}`)
-          .join("|"),
-        label: attributes.map((attr) => `${attr.name}: ${selection[attr.key] || "-"}`).join(" / "),
-      }));
-    }
-    if (sizes.length > 0 && colors.length > 0) {
-      return sizes.flatMap((size) =>
-        colors.map((color) => ({ size, color, key: createVariantKey(size, color), label: `${size} / ${color}` }))
-      );
-    }
-    if (sizes.length > 0) {
-      return sizes.map((size) => ({ size, color: "", key: createVariantKey(size, ""), label: `${size} / Any Color` }));
-    }
-    if (colors.length > 0) {
-      return colors.map((color) => ({ size: "", color, key: createVariantKey("", color), label: `Any Size / ${color}` }));
-    }
-    return [];
-  })();
 
   const parseAxisValues = (rawText) =>
     String(rawText || "")
@@ -789,33 +823,46 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       }
     }
 
-    const submissionData = {
-      ...formData,
-      price: parseFloat(formData.price || 0),
-      originalPrice: (formData.originalPrice === "" || formData.originalPrice === null)
-        ? null
-        : parseFloat(formData.originalPrice),
-      vendorPrice: (formData.vendorPrice === "" || formData.vendorPrice === null)
-        ? 0
-        : parseFloat(formData.vendorPrice),
-      stockQuantity: parseInt(formData.stockQuantity || 0, 10),
-      totalAllowedQuantity: (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
-        ? null
-        : parseInt(formData.totalAllowedQuantity, 10),
-      minimumOrderQuantity: (formData.minimumOrderQuantity === "" || formData.minimumOrderQuantity === null || isNaN(parseInt(formData.minimumOrderQuantity)))
-        ? null
-        : parseInt(formData.minimumOrderQuantity, 10),
-      categoryId: finalCategoryId,
-      subcategoryId: formData.subcategoryId || null,
-      brandId: formData.brandId || null,
-      vendorId: formData.vendorId || null,
-      faqs: (formData.faqs || [])
-        .map((faq) => ({
-          question: String(faq?.question || "").trim(),
-          answer: String(faq?.answer || "").trim(),
-        }))
-        .filter((faq) => faq.question && faq.answer),
-    };
+      const submissionData = {
+        ...formData,
+        price: parseFloat(formData.price || 0),
+        originalPrice: (formData.originalPrice === "" || formData.originalPrice === null)
+          ? null
+          : parseFloat(formData.originalPrice),
+        vendorPrice: (formData.vendorPrice === "" || formData.vendorPrice === null)
+          ? 0
+          : parseFloat(formData.vendorPrice),
+        stockQuantity: parseInt(formData.stockQuantity || 0, 10),
+        totalAllowedQuantity: (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
+          ? null
+          : parseInt(formData.totalAllowedQuantity, 10),
+        minimumOrderQuantity: (formData.minimumOrderQuantity === "" || formData.minimumOrderQuantity === null || isNaN(parseInt(formData.minimumOrderQuantity)))
+          ? null
+          : parseInt(formData.minimumOrderQuantity, 10),
+        categoryId: finalCategoryId,
+        subcategoryId: formData.subcategoryId || null,
+        brandId: formData.brandId || null,
+        vendorId: formData.vendorId || null,
+        variants: {
+          ...formData.variants,
+          prices: Object.fromEntries(
+            Object.entries(formData.variants?.prices || {})
+              .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+              .map(([k, v]) => [k, parseFloat(v)])
+          ),
+          stockMap: Object.fromEntries(
+            Object.entries(formData.variants?.stockMap || {})
+              .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+              .map(([k, v]) => [k, parseInt(v, 10)])
+          )
+        },
+        faqs: (formData.faqs || [])
+          .map((faq) => ({
+            question: String(faq?.question || "").trim(),
+            answer: String(faq?.answer || "").trim(),
+          }))
+          .filter((faq) => faq.question && faq.answer),
+      };
 
     try {
       if (isEdit) {
@@ -905,17 +952,50 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         }
       }
 
-      // Then save the rest of the form (prices, etc)
-      const submissionData = {
-        ...formData,
-        price: parseFloat(formData.price),
-        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : null,
-        vendorPrice: formData.vendorPrice ? parseFloat(formData.vendorPrice) : 0,
-        stockQuantity: parseInt(formData.stockQuantity),
-        isActive: true,
-        isVisible: true,
-        approvalStatus: "approved"
-      };
+        // Then save the rest of the form (prices, etc)
+        const submissionData = {
+          ...formData,
+          price: parseFloat(formData.price || 0),
+          originalPrice: (formData.originalPrice === "" || formData.originalPrice === null)
+            ? null
+            : parseFloat(formData.originalPrice),
+          vendorPrice: (formData.vendorPrice === "" || formData.vendorPrice === null)
+            ? 0
+            : parseFloat(formData.vendorPrice),
+          stockQuantity: parseInt(formData.stockQuantity || 0, 10),
+          totalAllowedQuantity: (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
+            ? null
+            : parseInt(formData.totalAllowedQuantity, 10),
+          minimumOrderQuantity: (formData.minimumOrderQuantity === "" || formData.minimumOrderQuantity === null || isNaN(parseInt(formData.minimumOrderQuantity)))
+            ? null
+            : parseInt(formData.minimumOrderQuantity, 10),
+          categoryId: finalCategoryId,
+          subcategoryId: formData.subcategoryId || null,
+          brandId: formData.brandId || null,
+          vendorId: formData.vendorId || null,
+          variants: {
+            ...formData.variants,
+            prices: Object.fromEntries(
+              Object.entries(formData.variants?.prices || {})
+                .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+                .map(([k, v]) => [k, parseFloat(v)])
+            ),
+            stockMap: Object.fromEntries(
+              Object.entries(formData.variants?.stockMap || {})
+                .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+                .map(([k, v]) => [k, parseInt(v, 10)])
+            )
+          },
+          faqs: (formData.faqs || [])
+            .map((faq) => ({
+              question: String(faq?.question || "").trim(),
+              answer: String(faq?.answer || "").trim(),
+            }))
+            .filter((faq) => faq.question && faq.answer),
+          isActive: true,
+          isVisible: true,
+          approvalStatus: "approved"
+        };
 
       await updateProduct(productId, submissionData);
       toast.success("Product approved and saved successfully");
@@ -1400,15 +1480,17 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                           Stock Quantity <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="number"
-                          name="stockQuantity"
-                          value={formData.stockQuantity}
-                          onChange={handleChange}
-                          required
-                          min="0"
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        />
+                        <div className="relative group">
+                          <input
+                            type="number"
+                            name="stockQuantity"
+                            value={formData.stockQuantity}
+                            onChange={handleChange}
+                            required
+                            min="0"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                        </div>
                       </div>
 
                       <div>
@@ -1589,7 +1671,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                               <button
                                 type="button"
                                 onClick={() => syncAllVariants('stock', formData.stockQuantity)}
-                                className="text-[10px] font-bold px-2 py-1 bg-primary-50 text-primary-700 border border-primary-200 rounded-md hover:bg-primary-100 transition-colors"
+                                disabled={!!formData.vendorId}
+                                className={`text-[10px] font-bold px-2 py-1 border rounded-md transition-colors ${formData.vendorId ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed" : "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100"}`}
                               >
                                 Use Main Stock For All
                               </button>

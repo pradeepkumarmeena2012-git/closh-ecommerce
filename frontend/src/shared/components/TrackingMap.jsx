@@ -291,11 +291,7 @@ const TrackingMap = ({
         </button>
       )}
 
-      {import.meta.env.DEV && (
-        <button onClick={() => setIsSimulating(!isSimulating)} className="absolute top-24 left-6 z-40 bg-slate-900/90 text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-xl">
-          {isSimulating ? 'Stop SIM' : 'Simulate'}
-        </button>
-      )}
+
 
       <GoogleMap
         mapContainerStyle={containerStyle}

@@ -36,9 +36,12 @@ export const getVendorOrders = asyncHandler(async (req, res) => {
     const numericLimit = Math.max(1, Number(limit) || 20);
     const skip = (numericPage - 1) * numericLimit;
 
+    const vendorObjectId = new mongoose.Types.ObjectId(req.user.id);
     const filter = status
-        ? { vendorItems: { $elemMatch: { vendorId: req.user.id, status } } }
-        : { 'vendorItems.vendorId': req.user.id };
+        ? { vendorItems: { $elemMatch: { vendorId: vendorObjectId, status } } }
+        : { 'vendorItems.vendorId': vendorObjectId };
+
+    console.log(`[getVendorOrders] Vendor: ${req.user.id}, Filter:`, JSON.stringify(filter));
 
     const orders = await Order.find(filter)
         .select('orderId status total orderType paymentMethod paymentStatus items.name items.image items.quantity items.variant shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.status vendorItems.items.name vendorItems.items.image vendorItems.items.quantity vendorItems.items.variant vendorItems.items.vendorPrice vendorItems.subtotal vendorItems.basePrice createdAt updatedAt')
@@ -120,13 +123,69 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     console.log(`Order: ${id}, Vendor: ${req.user.id}, Next Status: ${status}`);
 
     // Update only this vendor's items status
-    order.vendorItems = order.vendorItems.map((vi) =>
-        vi.vendorId.toString() === req.user.id ? { ...vi.toObject(), status } : vi
-    );
+    let statusChangedToCancelled = false;
+    order.vendorItems = order.vendorItems.map((vi) => {
+        if (vi.vendorId.toString() === req.user.id) {
+            if (status === 'cancelled' && vi.status !== 'cancelled') {
+                statusChangedToCancelled = true;
+            }
+            return { ...vi.toObject(), status };
+        }
+        return vi;
+    });
+
     const oldStatus = order.status;
     order.status = deriveTopLevelOrderStatus(order.vendorItems, order.status);
     console.log(`[VendorUpdate] New Group Status: ${status}, Overall Order Status: ${oldStatus} -> ${order.status}`);
     await order.save();
+
+    // Restore stock if cancelled by vendor
+    if (statusChangedToCancelled) {
+        console.log(`[StockRestore] Vendor ${req.user.id} cancelled order ${order.orderId}. Restoring stock...`);
+        const vendorGroup = order.vendorItems.find((vi) => vi.vendorId.toString() === req.user.id);
+        if (vendorGroup && Array.isArray(vendorGroup.items)) {
+            const Product = mongoose.model('Product');
+            for (const item of vendorGroup.items) {
+                const quantity = Number(item.quantity || 0);
+                if (quantity <= 0 || !item.productId) continue;
+
+                const product = await Product.findById(item.productId);
+                if (!product) continue;
+
+                const variantKey = item.variantKey;
+
+                // Increment total stock
+                product.stockQuantity = (Number(product.stockQuantity) || 0) + quantity;
+
+                if (variantKey && product.variants) {
+                    if (!product.variants.stockMap) {
+                        product.variants.stockMap = new Map();
+                    }
+
+                    const currentMap = product.variants.stockMap;
+                    let currentVariantStock = 0;
+
+                    if (currentMap instanceof Map) {
+                        currentVariantStock = Number(currentMap.get(variantKey)) || 0;
+                        currentMap.set(variantKey, currentVariantStock + quantity);
+                    } else {
+                        currentVariantStock = Number(currentMap[variantKey]) || 0;
+                        currentMap[variantKey] = currentVariantStock + quantity;
+                    }
+                    product.markModified('variants.stockMap');
+                }
+
+                // Update stock status
+                const nextStockState =
+                    product.stockQuantity <= 0
+                        ? 'out_of_stock'
+                        : (product.stockQuantity <= (product.lowStockThreshold || 10) ? 'low_stock' : 'in_stock');
+
+                product.stock = nextStockState;
+                await product.save();
+            }
+        }
+    }
 
     if (status === 'ready_for_pickup') {
         if (vendor && vendor.shopLocation) {

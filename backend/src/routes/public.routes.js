@@ -122,7 +122,17 @@ const listProducts = asyncHandler(async (req, res) => {
     // --- CACHE END ---
 
     const skip = (page - 1) * limit;
-    const filter = { isActive: true };
+    
+    // Get all approved vendor IDs to ensure we only show products from active sellers
+    const approvedVendors = await Vendor.find({ status: 'approved' }).select('_id').lean();
+    const approvedVendorIds = approvedVendors.map(v => v._id);
+
+    const filter = { 
+        isActive: true, 
+        approvalStatus: 'approved', 
+        price: { $gt: 0 },
+        vendorId: { $in: approvedVendorIds }
+    };
 
     if (division && division !== 'All') {
         // Map common aliases to match Product model enum: ['Men', 'Women', 'Boys', 'Girls', 'Unisex']
@@ -294,7 +304,12 @@ router.get('/products', listProducts);
 
 // GET /api/products/flash-sale
 router.get('/flash-sale', asyncHandler(async (req, res) => {
-    const products = await Product.find({ isActive: true, flashSale: true })
+    const products = await Product.find({ 
+        isActive: true, 
+        flashSale: true,
+        approvalStatus: 'approved',
+        price: { $gt: 0 }
+    })
         .populate('vendorId', 'storeName isOnline')
         .limit(20);
     const activeProducts = await applyActiveCampaigns(products);
@@ -318,7 +333,12 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
     const numericLimit = Math.max(Number(limit) || 20, 1);
     const skip = (numericPage - 1) * numericLimit;
 
-    const filter = { isActive: true, isNewArrival: true };
+    const filter = { 
+        isActive: true, 
+        isNewArrival: true,
+        approvalStatus: 'approved',
+        price: { $gt: 0 }
+    };
     const searchQuery = String(search || q || '').trim();
     if (searchQuery) filter.$text = { $search: searchQuery };
     if (minPrice || maxPrice) {
@@ -362,7 +382,11 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
 
 // GET /api/products/popular
 router.get('/popular', asyncHandler(async (req, res) => {
-    const products = await Product.find({ isActive: true })
+    const products = await Product.find({ 
+        isActive: true,
+        approvalStatus: 'approved',
+        price: { $gt: 0 }
+    })
         .populate('vendorId', 'storeName isOnline')
         .sort({ reviewCount: -1, rating: -1 })
         .limit(10);
@@ -374,7 +398,13 @@ router.get('/popular', asyncHandler(async (req, res) => {
 router.get('/similar/:id', asyncHandler(async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) throw new ApiError(404, 'Product not found.');
-    const similar = await Product.find({ isActive: true, _id: { $ne: product._id }, categoryId: product.categoryId })
+    const similar = await Product.find({ 
+        isActive: true, 
+        approvalStatus: 'approved',
+        price: { $gt: 0 },
+        _id: { $ne: product._id }, 
+        categoryId: product.categoryId 
+    })
         .populate('vendorId', 'storeName isOnline')
         .limit(6);
     const activeSimilar = await applyActiveCampaigns(similar);
@@ -487,7 +517,12 @@ router.get('/vendors/:id/products', asyncHandler(async (req, res) => {
     }).select('_id');
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
 
-    const filter = { isActive: true, vendorId: req.params.id };
+    const filter = { 
+        isActive: true, 
+        approvalStatus: 'approved',
+        price: { $gt: 0 },
+        vendorId: req.params.id 
+    };
     const products = await Product.find(filter)
         .populate('categoryId', 'name')
         .populate('brandId', 'name')

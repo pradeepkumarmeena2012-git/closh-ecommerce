@@ -581,8 +581,8 @@ const AllOrders = () => {
       label: "Order ID",
       sortable: true,
       render: (value) => (
-        <span className="inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-sm whitespace-nowrap tracking-tight">
-          #{String(value || "").replace(/^ORD-/, "").replace(/^#/, "")}
+        <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 whitespace-nowrap">
+          #{String(value || "").replace(/^ORD-/, "").replace(/^#/, "").slice(-6).toUpperCase()}
         </span>
       ),
     },
@@ -606,50 +606,49 @@ const AllOrders = () => {
       ),
     },
     {
-      key: "total",
-      label: "Total (₹)",
-      sortable: true,
-      render: (value) => (
-        <span className="font-bold text-gray-800">{formatCurrency(value)}</span>
-      ),
-    },
-    {
       key: "finalTotal",
-      label: "Final Total (₹)",
+      label: "Amount",
       sortable: true,
       render: (value, row) => {
         const finalTotal = calculateFinalTotal(row);
+        const originalTotal = row.total || 0;
+        const isAdjusted = finalTotal !== originalTotal && row.orderType === 'try_and_buy';
         return (
-          <span className="font-bold text-gray-800">
-            {formatCurrency(finalTotal)}
-          </span>
+          <div className="flex flex-col">
+            <span className="font-bold text-gray-800 text-sm">
+              {formatCurrency(finalTotal)}
+            </span>
+            {isAdjusted && (
+              <span className="text-[9px] text-orange-600 font-bold uppercase">Adjusted</span>
+            )}
+          </div>
         );
       },
     },
     {
       key: "paymentMethod",
-      label: "Payment",
+      label: "Payment & Type",
       sortable: true,
-      render: (value) => (
-        <span className="text-gray-700 capitalize">
-          {formatPaymentMethod(value)}
-        </span>
+      render: (value, row) => (
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold text-gray-700 capitalize">
+            {formatPaymentMethod(value)}
+          </span>
+          <span className={`px-1.5 py-0.5 inline-block w-fit whitespace-nowrap ${row.orderType === 'try_and_buy' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-blue-50 text-blue-700 border-blue-100'} text-[9px] font-bold rounded border uppercase tracking-tight`}>
+            {row.orderType?.replace(/_/g, ' ') || 'STANDARD'}
+          </span>
+        </div>
       ),
     },
     {
       key: "date",
-      label: "Order Date",
-      sortable: true,
-      render: (value) => new Date(value).toLocaleString(),
-    },
-    {
-      key: "orderType",
-      label: "Order Type",
+      label: "Date",
       sortable: true,
       render: (value) => (
-        <span className={`px-2 py-0.5 ${value === 'try_and_buy' ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-blue-50 text-blue-700 border-blue-100'} text-[10px] font-bold rounded-lg border uppercase er font-sans`}>
-          {value?.replace(/_/g, ' ') || 'STANDARD'}
-        </span>
+        <div className="text-xs whitespace-nowrap">
+          <p className="font-medium text-gray-800">{new Date(value).toLocaleDateString()}</p>
+          <p className="text-[10px] text-gray-500">{new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
       ),
     },
     {
