@@ -5,6 +5,7 @@ import ApiError from '../../../utils/ApiError.js';
 import WithdrawalRequest from '../../../models/WithdrawalRequest.model.js';
 import Vendor from '../../../models/Vendor.model.js';
 import Admin from '../../../models/Admin.model.js';
+import Commission from '../../../models/Commission.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 
 /**
@@ -80,10 +81,16 @@ export const requestSettlement = asyncHandler(async (req, res) => {
         query._id = { $in: commissionIds };
     }
 
-    const readyCommissions = await mongoose.model('Commission').find(query);
+    let readyCommissions = await Commission.find(query).populate('orderId', 'status');
+
+    // Filter out return requested or returned orders
+    readyCommissions = readyCommissions.filter(c => {
+        const orderStatus = String(c.orderId?.status || '').toLowerCase();
+        return orderStatus !== 'return requested' && orderStatus !== 'returned' && orderStatus !== 'cancelled';
+    });
 
     if (!readyCommissions.length) {
-        throw new ApiError(400, 'No selected commissions are ready for payout (must be > 24h old).');
+        throw new ApiError(400, 'No selected commissions are ready for payout (must be > 24h old and not have active return requests).');
     }
 
     const totalAmount = readyCommissions.reduce((sum, c) => sum + (c.vendorEarnings || 0), 0);
@@ -96,6 +103,11 @@ export const requestSettlement = asyncHandler(async (req, res) => {
     }
 
     // Create withdrawal request
+    const orderDisplayIds = readyCommissions.map(c => {
+        const id = c.orderDisplayId || String(c.orderId?._id || c.orderId || '').slice(-8);
+        return id || 'N/A';
+    }).join(', ');
+    
     const request = await WithdrawalRequest.create({
         requesterId: vendorId,
         requesterType: 'Vendor',
@@ -103,7 +115,7 @@ export const requestSettlement = asyncHandler(async (req, res) => {
         amount: totalAmount,
         bankDetails: vendor.bankDetails,
         status: 'pending',
-        adminNotes: `Settlement request for ${readyCommissions.length} orders.`
+        adminNotes: `Settlement request for ${readyCommissions.length} orders: ${orderDisplayIds}`
     });
 
     // Mark commissions as requested and link to this request

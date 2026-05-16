@@ -318,8 +318,8 @@ export const changePassword = asyncHandler(async (req, res) => {
 
 // PUT /api/vendor/auth/bank-details
 export const updateBankDetails = asyncHandler(async (req, res) => {
-    const { accountName, accountNumber, bankName, ifscCode } = req.body;
-    if (!accountName && !accountNumber && !bankName && !ifscCode) {
+    const { accountName, accountNumber, bankName, ifscCode, upiId } = req.body;
+    if (!accountName && !accountNumber && !bankName && !ifscCode && !upiId) {
         throw new ApiError(400, 'At least one bank detail field is required.');
     }
 
@@ -328,6 +328,7 @@ export const updateBankDetails = asyncHandler(async (req, res) => {
     if (accountNumber) updates['bankDetails.accountNumber'] = accountNumber;
     if (bankName) updates['bankDetails.bankName'] = bankName;
     if (ifscCode) updates['bankDetails.ifscCode'] = ifscCode;
+    if (upiId !== undefined) updates['bankDetails.upiId'] = upiId;
 
     const vendor = await Vendor.findByIdAndUpdate(
         req.user.id,

@@ -55,19 +55,38 @@ export const updateWithdrawalStatus = asyncHandler(async (req, res) => {
             const isSettlementRequest = linkedCommissions.length > 0;
 
             if (status === 'approved' || status === 'completed') {
-                const balanceToCheck = isSettlementRequest ? 'pendingBalance' : 'availableBalance';
-                const currentBalance = Number(requester?.[balanceToCheck] || 0);
+                // For settlements, if they are finalized by cron, they are in availableBalance.
+                // If they are requested before cron, they might still be in pendingBalance.
+                // We'll check availableBalance first as that's the new standard for 'ready' funds.
+                const balanceToCheck = isSettlementRequest ? 'availableBalance' : 'availableBalance';
+                let currentBalance = Number(requester?.[balanceToCheck] || 0);
                 const requestAmount = Number(request.amount || 0);
-                
-                // Use Math.round to avoid floating point precision issues (e.g. 100.000000001 < 100)
-                // Also, for settlement requests, we allow some leniency if the vendor has legacy commissions 
-                // that might not be fully reflected in the new pendingBalance field.
-                if (!requester || (Math.round(currentBalance) < Math.round(requestAmount) && !isSettlementRequest)) {
-                    throw new ApiError(400, `Requester no longer has sufficient ${balanceToCheck.replace('Balance', ' balance')}. Current: ₹${currentBalance}, Requested: ₹${requestAmount}`);
+
+                // Fallback for pendingBalance if available is not enough (handling mid-transition requests)
+                if (isSettlementRequest && currentBalance < requestAmount) {
+                    const pending = Number(requester?.pendingBalance || 0);
+                    if (pending >= requestAmount) {
+                        // If it's in pending, we'll deduct from pending instead.
+                        // This handles requests made before the cron job runs.
+                        await model.findByIdAndUpdate(request.requesterId, {
+                            $inc: { pendingBalance: -requestAmount }
+                        }, { session });
+                    } else {
+                        throw new ApiError(400, `Insufficient funds. Available: ₹${currentBalance}, Pending: ₹${pending}, Requested: ₹${requestAmount}`);
+                    }
+                } else {
+                    // Standard deduction from availableBalance
+                    if (!requester || (Math.round(currentBalance) < Math.round(requestAmount) && !isSettlementRequest)) {
+                         throw new ApiError(400, `Requester no longer has sufficient balance. Current: ₹${currentBalance}, Requested: ₹${requestAmount}`);
+                    }
+                    await model.findByIdAndUpdate(request.requesterId, {
+                        $inc: { [balanceToCheck]: -requestAmount }
+                    }, { session });
                 }
 
                 // If UPI ID is present, try to process real payout via Razorpay
-                if (request.bankDetails?.upiId && process.env.RAZORPAY_KEY_ID !== 'your_key_id') {
+                // Only attempt if NO transactionId is provided (manual override)
+                if (request.bankDetails?.upiId && !transactionId && process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID !== 'your_key_id') {
                     try {
                         const payout = await payoutToUpi({
                             name: requester.name || requester.storeName,
@@ -75,18 +94,18 @@ export const updateWithdrawalStatus = asyncHandler(async (req, res) => {
                             amount: request.amount,
                             requestId: String(request._id)
                         });
-                        request.transactionId = payout.id || transactionId || request.transactionId;
+                        request.transactionId = payout.id || request.transactionId;
                         request.adminNotes = `Razorpay Payout ID: ${payout.id}. ` + (adminNotes || '');
                     } catch (error) {
                         console.error('Payout automation failed:', error);
-                        throw new ApiError(500, `Automated Payout Failed: ${error.message}. Please approve manually if you handled the transfer separately.`);
+                        // Instead of throwing, we record the error and allow manual completion
+                        // This prevents blocking the entire withdrawal process if Razorpay API fails
+                        request.adminNotes = `[AUTO-PAY-FAILED] ${error.message}. ` + (adminNotes || '');
                     }
+                } else if (transactionId) {
+                    // If transactionId is provided manually, use it
+                    request.transactionId = transactionId;
                 }
-
-                // Deduct balance
-                await model.findByIdAndUpdate(request.requesterId, {
-                    $inc: { [balanceToCheck]: -requestAmount }
-                }, { session });
 
                 // If it's a settlement request, mark commissions as paid
                 if (isSettlementRequest) {
@@ -152,4 +171,18 @@ export const updateWithdrawalStatus = asyncHandler(async (req, res) => {
     }
 
     res.status(200).json(new ApiResponse(200, request, `Withdrawal request ${status}.`));
+});
+
+/**
+ * Get commissions associated with a specific withdrawal request
+ */
+export const getWithdrawalCommissions = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    
+    const Commission = mongoose.model('Commission');
+    const commissions = await Commission.find({ withdrawalRequestId: id })
+        .populate('orderId', 'orderId status total items')
+        .sort({ createdAt: -1 });
+
+    res.status(200).json(new ApiResponse(200, commissions, 'Withdrawal commissions fetched.'));
 });

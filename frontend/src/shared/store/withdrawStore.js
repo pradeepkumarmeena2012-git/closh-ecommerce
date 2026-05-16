@@ -38,5 +38,15 @@ export const useWithdrawStore = create((set) => ({
             toast.error(msg);
             return false;
         }
+    },
+    
+    fetchRequestCommissions: async (id) => {
+        try {
+            const response = await api.get(`/admin/withdrawals/${id}/commissions`);
+            return response?.data?.data || response?.data || response;
+        } catch (error) {
+            console.error('Fetch commissions error:', error);
+            return [];
+        }
     }
 }));

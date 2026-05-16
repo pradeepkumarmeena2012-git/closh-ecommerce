@@ -8,20 +8,21 @@ import AnimatedSelect from '../../../Admin/components/AnimatedSelect';
 import toast from 'react-hot-toast';
 
 const PaymentSettings = () => {
-  const { vendor } = useVendorAuthStore();
+  const { vendor, updateBankDetails } = useVendorAuthStore();
   const [formData, setFormData] = useState({
     bankDetails: {
       accountName: '',
       accountNumber: '',
       ifscCode: '',
       bankName: '',
+      upiId: '',
     },
     paymentMethods: {
       bankTransfer: true,
       upi: false,
       paypal: false,
     },
-    upiId: '',
+    upiId: '', // Legacy or redundant? We'll keep synced with bankDetails.upiId
     paypalEmail: '',
   });
   const [activeSection, setActiveSection] = useState('bank');
@@ -29,18 +30,19 @@ const PaymentSettings = () => {
   useEffect(() => {
     if (vendor && vendor.bankDetails) {
       setFormData({
-        bankDetails: vendor.bankDetails || {
-          accountName: '',
-          accountNumber: '',
-          ifscCode: '',
-          bankName: '',
+        bankDetails: {
+            accountName: vendor.bankDetails.accountName || '',
+            accountNumber: vendor.bankDetails.accountNumber || '',
+            ifscCode: vendor.bankDetails.ifscCode || '',
+            bankName: vendor.bankDetails.bankName || '',
+            upiId: vendor.bankDetails.upiId || '',
         },
         paymentMethods: vendor.paymentMethods || {
           bankTransfer: true,
-          upi: false,
+          upi: !!vendor.bankDetails.upiId,
           paypal: false,
         },
-        upiId: vendor.upiId || '',
+        upiId: vendor.bankDetails.upiId || '',
         paypalEmail: vendor.paypalEmail || '',
       });
     }
@@ -56,9 +58,18 @@ const PaymentSettings = () => {
           ...formData.bankDetails,
           [bankField]: value,
         },
+        // Also sync root upiId if it's the upi field
+        ...(bankField === 'upiId' ? { upiId: value } : {})
       });
     } else {
-      setFormData({ ...formData, [name]: value });
+      setFormData({ 
+        ...formData, 
+        [name]: value,
+        // If updating root upiId, sync back to bankDetails
+        ...(name === 'upiId' ? { 
+            bankDetails: { ...formData.bankDetails, upiId: value } 
+        } : {})
+      });
     }
   };
 
@@ -77,21 +88,22 @@ const PaymentSettings = () => {
     if (!vendor) return;
 
     try {
-      // Save bank details via dedicated endpoint
-      await updateVendorBankDetails({
+      // Save bank details via store action to keep UI in sync
+      await updateBankDetails({
         accountName: formData.bankDetails.accountName,
         accountNumber: formData.bankDetails.accountNumber,
         ifscCode: formData.bankDetails.ifscCode,
         bankName: formData.bankDetails.bankName,
+        upiId: formData.bankDetails.upiId,
       });
       toast.success('Payment settings saved successfully');
     } catch {
-      // api.js shows toast
+      // store/api.js shows toast
     }
   };
 
   const sections = [
-    { id: 'bank', label: 'Bank Details', icon: FiCreditCard },
+    { id: 'bank', label: 'Payout Details', icon: FiCreditCard },
     { id: 'methods', label: 'Payment Methods', icon: FiLock },
   ];
 
@@ -143,42 +155,54 @@ const PaymentSettings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Account Holder Name <span className="text-red-500">*</span>
+                    Account Holder Name
                   </label>
                   <input
                     type="text"
                     name="bank_accountName"
                     value={formData.bankDetails.accountName || ''}
                     onChange={handleChange}
-                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Enter account holder name"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Account Number <span className="text-red-500">*</span>
+                    UPI ID (Recommended for faster payouts)
+                  </label>
+                  <input
+                    type="text"
+                    name="bank_upiId"
+                    value={formData.bankDetails.upiId || ''}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-emerald-300 bg-emerald-50/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-emerald-700"
+                    placeholder="yourname@upi"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Account Number
                   </label>
                   <input
                     type="text"
                     name="bank_accountNumber"
                     value={formData.bankDetails.accountNumber || ''}
                     onChange={handleChange}
-                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    IFSC Code <span className="text-red-500">*</span>
+                    IFSC Code
                   </label>
                   <input
                     type="text"
                     name="bank_ifscCode"
                     value={formData.bankDetails.ifscCode || ''}
                     onChange={handleChange}
-                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="BANK0001234"
                   />
@@ -186,15 +210,15 @@ const PaymentSettings = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Bank Name <span className="text-red-500">*</span>
+                    Bank Name
                   </label>
                   <input
                     type="text"
                     name="bank_bankName"
                     value={formData.bankDetails.bankName || ''}
                     onChange={handleChange}
-                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="e.g. HDFC Bank"
                   />
                 </div>
               </div>

@@ -158,6 +158,26 @@ const Settlements = () => {
                 </button>
             </div>
 
+            {/* Quick Link to Requests */}
+            <div 
+                onClick={() => window.location.href = '/admin/finance/withdrawals?requestType=settlement'}
+                className="bg-primary-600 rounded-3xl p-6 text-white flex items-center justify-between cursor-pointer hover:bg-primary-700 transition-all shadow-xl shadow-primary-100 group"
+            >
+                <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-3xl">
+                        <Smartphone />
+                    </div>
+                    <div>
+                        <p className="text-primary-100 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Incoming Requests</p>
+                        <h2 className="text-2xl font-black">Process Vendor Settlement Requests</h2>
+                        <p className="text-primary-200 text-xs font-medium mt-1">Review and approve settlements requested by vendors from their dashboard</p>
+                    </div>
+                </div>
+                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center group-hover:translate-x-2 transition-transform">
+                    <ChevronRight />
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Main Table Content */}
                 <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

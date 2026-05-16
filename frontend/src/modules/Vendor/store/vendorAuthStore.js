@@ -258,6 +258,28 @@ export const useVendorAuthStore = create(
           throw error;
         }
       },
+
+      updateBankDetails: async (bankData) => {
+        set({ isLoading: true });
+        try {
+          const { updateVendorBankDetails } = await import("../services/vendorService");
+          const response = await updateVendorBankDetails(bankData);
+          const body = response?.data || response || {};
+          const data = body.data || body;
+          
+          const rawVendor = data && (data._id || data.id) ? data : (data?.vendor || get().vendor);
+          const updatedVendor = get()._normalizeVendor({ ...get().vendor, ...rawVendor });
+          
+          set({
+            vendor: updatedVendor,
+            isLoading: false,
+          });
+          return { success: true, vendor: updatedVendor };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
       // Initialize vendor auth state from localStorage
       initialize: () => {
         const token = localStorage.getItem("vendor-token");

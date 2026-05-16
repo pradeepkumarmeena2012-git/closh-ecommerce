@@ -207,6 +207,7 @@ const OfflineSales = () => {
         categoryId: editingSale?.variants?.categoryId || "654321098765432109876543", // Placeholder or existing
         brandId: editingSale?.variants?.brandId || "654321098765432109876542", // Placeholder or existing
         variants: {
+          ...(editingSale?.variants || {}),
           sizes: formData.sizes,
           attributes: [
             { name: "Color", values: formData.colors },
@@ -286,29 +287,60 @@ const OfflineSales = () => {
         const stockMap = { ...(saleProduct.variants.stockMap || {}) };
         let key = "";
 
-        if (saleProduct.variants.attributes?.length > 0) {
-          // Dynamic key: attr_name=value|attr_name2=value2 (sorted by attr name)
-          key = Object.entries(saleSelection)
+        // Improved key generation: Only use relevant attributes and normalize correctly
+        const attributes = saleProduct.variants.attributes || [];
+        if (attributes.length > 0) {
+          const relevantSelection = {};
+          attributes.forEach(attr => {
+            const val = saleSelection[attr.name];
+            if (val) relevantSelection[attr.name] = val;
+          });
+
+          // Sort entries to ensure consistent key generation
+          key = Object.entries(relevantSelection)
             .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()))
-            .map(([attr, val]) => `${attr.toLowerCase().replace(/\s+/g, '_')}=${val.toLowerCase()}`)
+            .map(([attr, val]) => `${attr.toLowerCase().trim().replace(/\s+/g, '_')}=${String(val).toLowerCase().trim()}`)
             .join('|');
         } else {
-          // Simple size key: size|
-          const size = saleSelection['Size'] || "";
-          key = `${size.toLowerCase()}|`;
+          // Fallback to simple size key format
+          const size = saleSelection['Size'] || saleSelection['size'] || Object.values(saleSelection)[0] || "";
+          key = `${String(size).toLowerCase().trim()}|`;
         }
 
-        if (stockMap[key] === undefined || stockMap[key] < quantity) {
-          toast.error("Not enough stock for this variant!");
-          return;
+        // Fuzzy matching: Try to find the key case-insensitively if exact match fails
+        if (stockMap[key] === undefined) {
+          const keys = Object.keys(stockMap);
+          const foundKey = keys.find(k => k.toLowerCase().trim() === key.toLowerCase().trim());
+          if (foundKey) key = foundKey;
         }
 
-        stockMap[key] -= quantity;
-        await updateVendorStock(saleProduct.productId, saleProduct.stock - quantity); // Update main stock
-        // Update variant stock 
-        await updateVendorVariantStock(saleProduct.productId, stockMap);
+        const hasStockData = Object.keys(stockMap).length > 0;
 
-        setSales(sales.map(s => s.id === saleProduct.id ? { ...s, stock: s.stock - quantity, sold: (s.sold || 0) + quantity, variants: { ...s.variants, stockMap } } : s));
+        if (hasStockData) {
+          if (stockMap[key] === undefined || stockMap[key] < quantity) {
+            toast.error("Not enough stock for this variant!");
+            return;
+          }
+          stockMap[key] -= quantity;
+        } else {
+          // If no variant stock data exists yet, fallback to total stock check
+          if (saleProduct.stock < quantity) {
+            toast.error("Not enough stock!");
+            return;
+          }
+        }
+
+        await updateVendorStock(saleProduct.productId, saleProduct.stock - quantity);
+        if (hasStockData) {
+          await updateVendorVariantStock(saleProduct.productId, stockMap);
+        }
+
+        setSales(sales.map(s => s.id === saleProduct.id ? { 
+          ...s, 
+          stock: s.stock - quantity, 
+          sold: (s.sold || 0) + quantity, 
+          variants: { ...s.variants, stockMap } 
+        } : s));
       } else {
         if (saleProduct.stock < quantity) {
           toast.error("Not enough stock!");

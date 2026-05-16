@@ -177,7 +177,7 @@ const Settlements = () => {
                     <p className="text-amber-600 text-xs font-medium">Please update your bank or UPI details in your profile to request payouts.</p>
                 </div>
                 <button 
-                    onClick={() => navigate('/vendor/profile')}
+                    onClick={() => navigate('/vendor/settings/payment')}
                     className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-lg hover:bg-amber-700 transition-colors"
                 >
                     Update Now
@@ -185,20 +185,29 @@ const Settlements = () => {
             </div>
         )}
         
-        {activeTab === 'ready' && filteredCommissions.some(c => c.settlementPhase === 'ready') && (
+        {activeTab === 'ready' && selectedIds.length === 0 && filteredCommissions.some(c => c.settlementPhase === 'ready') && (
             <button 
-                onClick={handleRequestPayout}
-                disabled={isRequesting || !hasBankDetails}
+                onClick={() => {
+                    if (!hasBankDetails) {
+                        toast.error("Please update bank details in profile first");
+                        return;
+                    }
+                    handleRequestPayout();
+                }}
+                disabled={isRequesting}
                 title={!hasBankDetails ? "Please fill bank details in profile to request payout" : ""}
-                className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-primary-200 hover:bg-primary-700 transition-all disabled:opacity-50"
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold shadow-lg transition-all disabled:opacity-50 ${
+                    !hasBankDetails 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-200'
+                }`}
             >
                 <FiSend />
-                {isRequesting ? 'Requesting...' : 'Request Payout for Ready Orders'}
+                {isRequesting ? 'Requesting...' : 'Request Payout for All Ready Orders'}
             </button>
         )}
       </div>
 
-      {/* Stats Summary specifically for Settlements */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className={`bg-white rounded-2xl p-5 border shadow-sm transition-all ${activeTab === 'pending' ? 'border-amber-200 bg-amber-50/30' : 'border-gray-100'}`}>
             <div className="flex items-center gap-3 mb-2">
@@ -236,6 +245,47 @@ const Settlements = () => {
             </h3>
         </div>
       </div>
+
+      {/* Selected Orders Summary - Only shows when orders are selected in Ready tab */}
+      {activeTab === 'ready' && selectedIds.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-primary-600 text-white rounded-3xl p-6 shadow-xl shadow-primary-200 flex flex-col md:flex-row items-center justify-between gap-6"
+          >
+              <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-3xl">
+                      <FiDollarSign />
+                  </div>
+                  <div>
+                      <p className="text-primary-100 text-xs font-black uppercase tracking-[0.2em] mb-1">Selected Settlement Total</p>
+                      <h2 className="text-4xl font-black">{formatPrice(selectedIds.reduce((sum, id) => {
+                          const item = commissions.find(c => c._id === id);
+                          return sum + (item?.vendorEarnings || 0);
+                      }, 0))}</h2>
+                      <p className="text-primary-200 text-[10px] font-bold mt-1 uppercase tracking-widest">{selectedIds.length} Orders Selected for Request</p>
+                  </div>
+              </div>
+              <button 
+                onClick={() => {
+                    if (!hasBankDetails) {
+                        toast.error("Please update bank details in profile first");
+                        return;
+                    }
+                    handleRequestPayout();
+                }}
+                disabled={isRequesting}
+                className={`w-full md:w-auto px-10 py-4 rounded-2xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 text-lg ${
+                    !hasBankDetails 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-white text-primary-600 hover:bg-gray-50'
+                }`}
+              >
+                  <FiSend />
+                  {isRequesting ? 'Processing...' : 'Request Payout Now'}
+              </button>
+          </motion.div>
+      )}
 
       {/* Tabs and Content */}
       <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
@@ -281,12 +331,15 @@ const Settlements = () => {
                             <tr>
                                 {activeTab === 'ready' && (
                                     <th className="px-4 py-4 text-left w-10">
-                                        <input 
-                                            type="checkbox"
-                                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                                            onChange={toggleSelectAll}
-                                            checked={selectedIds.length > 0 && selectedIds.length === filteredCommissions.filter(c => c.settlementPhase === 'ready').length}
-                                        />
+                                        <div className="flex items-center gap-2">
+                                            <input 
+                                                type="checkbox"
+                                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                                onChange={toggleSelectAll}
+                                                checked={selectedIds.length > 0 && selectedIds.length === filteredCommissions.filter(c => c.settlementPhase === 'ready').length}
+                                            />
+                                            <span className="text-[8px] font-black whitespace-nowrap">SELECT ALL</span>
+                                        </div>
                                     </th>
                                 )}
                                 <th className="px-4 py-4 text-left">Order Detail</th>

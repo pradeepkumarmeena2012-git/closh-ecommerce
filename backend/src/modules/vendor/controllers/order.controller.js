@@ -253,24 +253,79 @@ export const getEarnings = asyncHandler(async (req, res) => {
         Commission.aggregate([
             { $match: { vendorId: new mongoose.Types.ObjectId(req.user.id) } },
             {
+                $lookup: {
+                    from: 'orders',
+                    localField: 'orderId',
+                    foreignField: '_id',
+                    as: 'order'
+                }
+            },
+            { $unwind: { path: '$order', preserveNullAndEmptyArrays: true } },
+            {
                 $group: {
                     _id: null,
-                    totalEarnings: { $sum: { $cond: [{ $ne: ["$status", "cancelled"] }, "$vendorEarnings", 0] } },
-                    totalCommission: { $sum: { $cond: [{ $ne: ["$status", "cancelled"] }, "$commission", 0] } },
-                    // Dynamic calculation for aggregation isn't easy for the 24h window without passing a date
-                    pendingStatusEarnings: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, "$vendorEarnings", 0] } },
+                    totalEarnings: { 
+                        $sum: { 
+                            $cond: [
+                                { $nin: ["$order.status", ["return requested", "returned", "cancelled"]] }, 
+                                "$vendorEarnings", 
+                                0
+                            ] 
+                        } 
+                    },
+                    totalCommission: { 
+                        $sum: { 
+                            $cond: [
+                                { $nin: ["$order.status", ["return requested", "returned", "cancelled"]] }, 
+                                "$commission", 
+                                0
+                            ] 
+                        } 
+                    },
+                    pendingStatusEarnings: { 
+                        $sum: { 
+                            $cond: [
+                                { 
+                                    $and: [
+                                        { $eq: ["$status", "pending"] },
+                                        { $nin: ["$order.status", ["return requested", "returned", "cancelled"]] }
+                                    ]
+                                }, 
+                                "$vendorEarnings", 
+                                0
+                            ] 
+                        } 
+                    },
                     requestedEarnings: { $sum: { $cond: [{ $eq: ["$status", "requested"] }, "$vendorEarnings", 0] } },
                     paidEarnings: { $sum: { $cond: [{ $eq: ["$status", "paid"] }, "$vendorEarnings", 0] } },
                     cancelledEarnings: { $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, "$vendorEarnings", 0] } },
-                    totalOrders: { $sum: { $cond: [{ $ne: ["$status", "cancelled"] }, 1, 0] } }
+                    totalOrders: { 
+                        $sum: { 
+                            $cond: [
+                                { $nin: ["$order.status", ["return requested", "returned", "cancelled"]] }, 
+                                1, 
+                                0
+                            ] 
+                        } 
+                    }
                 }
             }
         ])
     ]);
 
-    // Better summary with 24h breakdown
+    // Better summary with 24h breakdown - including order status check
     const summaryBreakdown = await Commission.aggregate([
         { $match: { vendorId: new mongoose.Types.ObjectId(req.user.id), status: 'pending' } },
+        {
+            $lookup: {
+                from: 'orders',
+                localField: 'orderId',
+                foreignField: '_id',
+                as: 'order'
+            }
+        },
+        { $unwind: '$order' },
+        { $match: { 'order.status': { $nin: ['return requested', 'returned', 'cancelled'] } } },
         {
             $group: {
                 _id: null,
@@ -297,11 +352,27 @@ export const getEarnings = asyncHandler(async (req, res) => {
         const orderRef = commission.orderId?._id || commission.orderId;
         const orderDisplayId = commission.orderId?.orderId || String(orderRef || '');
         const orderStatus = String(commission.orderId?.status || '').toLowerCase();
+        const isReturnRelated = orderStatus === 'return requested' || orderStatus === 'returned';
         
-        const isReady = commission.status === 'pending' && new Date(commission.createdAt) < TWENTY_FOUR_HOURS_AGO;
-        const settlementPhase = commission.status === 'paid' ? 'settled' : 
-                               (commission.status === 'requested' ? 'requested' : 
-                               (isReady ? 'ready' : 'pending'));
+        // A commission is truly ready if the cron job has finalized it (status === 'ready')
+        // OR if it's pending but older than 24h and not returned (for immediate UI feedback)
+        const isFinalized = commission.status === 'ready';
+        const isTimeReady = commission.status === 'pending' && 
+                           new Date(commission.createdAt) < TWENTY_FOUR_HOURS_AGO &&
+                           !isReturnRelated;
+        
+        const isReady = isFinalized || isTimeReady;
+
+        let settlementPhase = 'pending';
+        if (commission.status === 'paid') {
+            settlementPhase = 'settled';
+        } else if (commission.status === 'requested') {
+            settlementPhase = 'requested';
+        } else if (isReturnRelated || orderStatus === 'cancelled' || commission.status === 'cancelled') {
+            settlementPhase = 'void'; // Will be filtered out from Pending/Ready
+        } else if (isReady) {
+            settlementPhase = 'ready';
+        }
 
         const effectiveStatus = orderStatus === 'cancelled' ? 'cancelled' : String(commission.status || 'pending');
         

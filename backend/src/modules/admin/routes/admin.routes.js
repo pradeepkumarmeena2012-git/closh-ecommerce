@@ -184,6 +184,7 @@ router.get('/delivery-settlements', ...adminAuth, checkPermission('delivery_mana
 
 // ─── Withdrawal Requests ──────────────────────────────────────────────────────
 router.get('/withdrawals', ...adminAuth, checkPermission('finance_view'), adminWithdrawalController.getAllWithdrawalRequests);
+router.get('/withdrawals/:id/commissions', ...adminAuth, checkPermission('finance_view'), adminWithdrawalController.getWithdrawalCommissions);
 router.patch('/withdrawals/:id/status', ...adminAuth, checkPermission('finance_view'), adminWithdrawalController.updateWithdrawalStatus);
 
 // ─── Return Requests ──────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ const commissionSchema = new mongoose.Schema(
         vendorEarnings: { type: Number, required: true },
         status: {
             type: String,
-            enum: ['pending', 'requested', 'paid', 'cancelled'],
+            enum: ['pending', 'ready', 'requested', 'paid', 'cancelled'],
             default: 'pending',
             index: true,
         },
