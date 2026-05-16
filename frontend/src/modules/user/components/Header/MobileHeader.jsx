@@ -92,12 +92,25 @@ const MobileHeader = () => {
         window.requestAnimationFrame(() => {
           const currentScrollY = window.scrollY;
           const lastScrollY = lastScrollYRef.current;
+          const delta = currentScrollY - lastScrollY;
+
+          // Ignore tiny scroll movements (< 8px) to prevent blinking from elastic bounce
+          if (Math.abs(delta) < 8) {
+            lastScrollYRef.current = currentScrollY;
+            ticking = false;
+            return;
+          }
+
+          // Detect if at the very bottom of the page (elastic bounce zone)
+          const isAtBottom = document.documentElement.scrollHeight - window.scrollY - window.innerHeight < 5;
 
           if (currentScrollY < 10) {
             setIsTopRowVisible(true);
-          } else if (currentScrollY < lastScrollY) {
+          } else if (isAtBottom) {
+            // Don't toggle at the bottom to avoid bounce-induced blinking
+          } else if (delta < 0) {
             setIsTopRowVisible(true);
-          } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+          } else if (delta > 0 && currentScrollY > 100) {
             setIsTopRowVisible(false);
           }
 

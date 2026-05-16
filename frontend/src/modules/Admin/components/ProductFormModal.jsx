@@ -81,7 +81,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     relatedProducts: [],
     faqs: [],
     approvalStatus: "pending",
-    vendorPrice: "",
   });
 
   const extractId = (value) => {
@@ -141,11 +140,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
               ? productCategoryId
               : product.subcategoryId || null,
             brandId: productBrandId || null,
-            vendorId: productVendorId || "",
-            stock: product.stock || "in_stock",
-            stockQuantity: product.stockQuantity || "",
-            totalAllowedQuantity: product.totalAllowedQuantity || "",
-            minimumOrderQuantity: product.minimumOrderQuantity || "",
             warrantyPeriod: product.warrantyPeriod || "",
             guaranteePeriod: product.guaranteePeriod || "",
             hsnCode: product.hsnCode || "",
@@ -184,7 +178,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
             totalAllowedQuantity: product.totalAllowedQuantity || "",
             minimumOrderQuantity: product.minimumOrderQuantity || "",
             vendorPrice: product.vendorPrice || product.originalPrice || "",
-            vendorId: product.vendorId?._id || product.vendorId || null,
+            vendorId: product.vendorId?._id || product.vendorId || null
           });
           setTagInput((product.tags || []).join(", "));
         }

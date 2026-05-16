@@ -270,25 +270,25 @@ const OffersPage = () => {
                         {promoCodes.map((promo) => (
                             <div key={promo._id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
                                 <div className="p-6">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
-                                                <Percent size={24} strokeWidth={3} />
+                                    <div className="flex items-start justify-between mb-4 flex-col sm:flex-row gap-4">
+                                        <div className="flex items-center gap-3 md:gap-4 w-full sm:w-auto">
+                                            <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 shrink-0">
+                                                <Percent size={22} strokeWidth={3} />
                                             </div>
-                                            <div className="border-2 border-dashed border-gray-300 rounded-lg px-4 py-1.5 bg-white flex flex-col items-center">
-                                                <span className="font-bold text-lg text-gray-900 uppercase">{promo.code}</span>
+                                            <div className="border-2 border-dashed border-gray-300 rounded-xl px-4 py-2 bg-white flex flex-col items-center flex-1 sm:flex-initial">
+                                                <span className="font-black text-lg text-gray-900 uppercase tracking-tighter">{promo.code}</span>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col gap-2">
+                                        <div className="w-full sm:w-auto">
                                             {fromPayment ? (
                                                 <button
                                                     onClick={() => {
                                                         navigate('/payment', { state: { ...location.state, appliedCode: promo.code } });
                                                         toast.success(`Applying ${promo.code}...`);
                                                     }}
-                                                    className="bg-emerald-600 text-white px-8 py-2.5 rounded-xl font-bold text-[12px] hover:bg-emerald-700 transition-all uppercase shadow-lg active:scale-95"
+                                                    className="w-full sm:w-auto bg-emerald-600 text-white px-8 py-3 rounded-xl font-black text-[11px] hover:bg-emerald-700 transition-all uppercase shadow-lg active:scale-95 tracking-widest"
                                                 >
-                                                    Apply
+                                                    Apply Code
                                                 </button>
                                             ) : (
                                                 <button
@@ -296,26 +296,26 @@ const OffersPage = () => {
                                                         navigator.clipboard.writeText(promo.code);
                                                         toast.success('Code copied!');
                                                     }}
-                                                    className="bg-black text-white px-8 py-2.5 rounded-xl font-bold text-[12px] hover:bg-gray-800 transition-all uppercase shadow-lg active:scale-95"
+                                                    className="w-full sm:w-auto bg-black text-white px-8 py-3 rounded-xl font-black text-[11px] hover:bg-gray-800 transition-all uppercase shadow-lg active:scale-95 tracking-widest"
                                                 >
-                                                    Copy
+                                                    Copy Code
                                                 </button>
                                             )}
                                         </div>
                                     </div>
 
-                                    <div className="space-y-1">
-                                        <h3 className="text-[16px] font-bold text-gray-900 uppercase ">
-                                            {promo.type === 'percentage' ? `${promo.discount || promo.value}% OFF` : `₹${promo.discount || promo.value} OFF`} ON MINIMUM PURCHASE: ₹{promo.minOrderValue || promo.minPurchase || 0}
+                                    <div className="space-y-2">
+                                        <h3 className="text-[14px] md:text-[16px] font-black text-gray-900 uppercase tracking-tight leading-tight">
+                                            {promo.type === 'percentage' ? `${promo.discount || promo.value}% OFF` : `₹${promo.discount || promo.value} OFF`} ON MIN PURCHASE: ₹{promo.minOrderValue || promo.minPurchase || 0}
                                         </h3>
-                                        <p className="text-gray-500 text-[13px] font-medium leading-relaxed">
+                                        <p className="text-gray-500 text-[12px] md:text-[13px] font-bold leading-relaxed uppercase tracking-wide opacity-70">
                                             {promo.type === 'percentage'
-                                                ? `Get ${promo.discount || promo.value}% off on your order. Max discount up to ₹${promo.maxDiscount || 'unlimited'}.`
-                                                : `Get a flat ₹${promo.discount || promo.value} discount on your order.`
+                                                ? `Get ${promo.discount || promo.value}% off. Max discount ₹${promo.maxDiscount || 'unlimited'}.`
+                                                : `Get a flat ₹${promo.discount || promo.value} discount.`
                                             }
                                         </p>
-                                        <p className="text-emerald-600 text-[13px] font-bold pt-2 flex items-center gap-1.5">
-                                            <Tag size={14} /> Valid until {new Date(promo.expiresAt || promo.endDate || promo.expiryDate).toLocaleDateString()}
+                                        <p className="text-emerald-600 text-[11px] font-black pt-2 flex items-center gap-2 uppercase tracking-widest">
+                                            <Tag size={14} strokeWidth={3} /> Valid until {new Date(promo.expiresAt || promo.endDate || promo.expiryDate).toLocaleDateString()}
                                         </p>
                                     </div>
                                 </div>

@@ -363,53 +363,53 @@ const OfflineSales = () => {
       key: "id",
       label: "ID",
       sortable: true,
-      render: (value) => <span className="text-gray-500 font-medium">{value}</span>,
+      render: (value) => <span className="text-gray-400 font-black text-[9px] uppercase tracking-tight">#{value.slice(-6)}</span>,
     },
     {
       key: "productName",
-      label: "PRODUCT NAME",
+      label: "PRODUCT",
       sortable: true,
       render: (value, row) => (
-        <div className="flex items-center gap-2 md:gap-3 min-w-[120px]">
-          <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-emerald-50 flex items-center justify-center overflow-hidden border border-emerald-100 shrink-0">
-             {row.image ? <img src={row.image} alt={value} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" />}
+        <div className="flex items-center gap-2 min-w-[100px]">
+          <div className="w-7 h-7 rounded bg-emerald-50 flex items-center justify-center overflow-hidden border border-emerald-100 shrink-0">
+             {row.image ? <img src={row.image} alt={value} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" size={12} />}
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="font-bold text-gray-900 leading-tight text-[10px] md:text-xs truncate">{value}</span>
-            <span className="text-[8px] md:text-[9px] text-emerald-600 font-bold uppercase">{row.category}</span>
+            <span className="font-black text-gray-900 leading-tight text-[10px] truncate uppercase">{value}</span>
+            <span className="text-[8px] text-emerald-600 font-bold uppercase truncate">{row.category}</span>
           </div>
         </div>
       )
     },
     {
       key: "price",
-      label: "YOUR PRICE",
+      label: "PRICE",
       sortable: true,
-      render: (value) => <span className="text-gray-900 font-black text-[10px] md:text-xs">{formatPrice(value)}</span>,
+      render: (value) => <span className="text-gray-900 font-black text-[10px]">{formatPrice(value)}</span>,
     },
     {
       key: "stock",
       label: "STOCK",
       sortable: true,
-      render: (value) => <span className="text-gray-600 font-bold text-[10px] md:text-xs">{value}</span>,
+      render: (value) => <span className="text-gray-600 font-bold text-[10px]">{value}</span>,
     },
     {
       key: "sold",
       label: "SOLD",
       sortable: true,
-      render: (value) => <span className="text-emerald-600 font-black text-[10px] md:text-xs">{value || 0}</span>,
+      render: (value) => <span className="text-emerald-600 font-black text-[10px]">{value || 0}</span>,
     },
     {
       key: "approvalStatus",
       label: "APPROVAL",
-      render: (value) => <Badge variant="success" className="text-[9px] py-0.5 px-2">APPROVED</Badge>,
+      render: (value) => <Badge variant="success" className="text-[8px] py-0 px-1.5 uppercase">Approved</Badge>,
     },
     {
       key: "stockStatus",
-      label: "STOCK STATUS",
+      label: "STATUS",
       render: (value, row) => (
-        <Badge variant={row.stock > 0 ? "success" : "error"} className="text-[9px] py-0.5 px-2">
-           {row.stock > 0 ? "IN STOCK" : "OUT"}
+        <Badge variant={row.stock > 0 ? "success" : "error"} className="text-[8px] py-0 px-1.5 uppercase">
+           {row.stock > 0 ? "In Stock" : "Out"}
         </Badge>
       )
     },
@@ -417,10 +417,10 @@ const OfflineSales = () => {
       key: "actions",
       label: "ACTIONS",
       render: (_, row) => (
-        <div className="flex items-center gap-2 md:gap-3">
-          <button onClick={() => handleOpenModal(row)} className="text-emerald-600 hover:text-emerald-800 transition-colors p-1"><FiEdit size={14} className="md:size-4" /></button>
-          <button onClick={() => handleDelete(row.id)} className="text-red-500 hover:text-red-700 transition-colors p-1"><FiTrash2 size={14} className="md:size-4" /></button>
-          <button onClick={() => handleSale(row.id)} title="Quick Sale" className="text-blue-500 hover:text-blue-700 transition-colors p-1"><FiShoppingCart size={14} className="md:size-4" /></button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => handleOpenModal(row)} className="text-emerald-600 hover:text-emerald-800 transition-colors p-2 hover:bg-emerald-50 rounded-lg"><FiEdit size={20} /></button>
+          <button onClick={() => handleDelete(row.id)} className="text-red-500 hover:text-red-700 transition-colors p-2 hover:bg-red-50 rounded-lg"><FiTrash2 size={20} /></button>
+          <button onClick={() => handleSale(row.id)} title="Quick Sale" className="text-blue-500 hover:text-blue-700 transition-colors p-2 hover:bg-blue-50 rounded-lg"><FiShoppingCart size={20} /></button>
         </div>
       )
     }
@@ -470,7 +470,7 @@ const OfflineSales = () => {
 
         {/* Desktop View */}
         <div className="hidden md:block overflow-x-auto">
-          <DataTable data={filteredSales} columns={columns} pagination={true} itemsPerPage={10} />
+          <DataTable data={filteredSales} columns={columns} pagination={true} itemsPerPage={10} minWidth="min-w-full" />
         </div>
 
         {/* Mobile View - Classic List Cards */}
@@ -559,15 +559,15 @@ const OfflineSales = () => {
                    <div className="flex gap-1.5">
                       <Badge variant="success" className="text-[8px] py-1 px-2.5">APPROVED</Badge>
                    </div>
-                   <div className="flex items-center gap-4">
-                      <button onClick={() => handleOpenModal(sale)} className="text-emerald-500 hover:text-emerald-700 transition-transform active:scale-90">
-                         <FiEdit size={16} />
+                   <div className="flex items-center gap-5">
+                      <button onClick={() => handleOpenModal(sale)} className="text-emerald-500 hover:text-emerald-700 transition-transform active:scale-90 p-2 bg-emerald-50 rounded-xl">
+                         <FiEdit size={20} />
                       </button>
-                      <button onClick={() => handleDelete(sale.id)} className="text-red-400 hover:text-red-600 transition-transform active:scale-90">
-                         <FiTrash2 size={16} />
+                      <button onClick={() => handleDelete(sale.id)} className="text-red-400 hover:text-red-600 transition-transform active:scale-90 p-2 bg-red-50 rounded-xl">
+                         <FiTrash2 size={20} />
                       </button>
-                      <button onClick={() => handleSale(sale.id)} className="text-blue-500 hover:text-blue-700 transition-transform active:scale-90 p-1.5 bg-blue-50 rounded-lg">
-                         <FiShoppingCart size={16} />
+                      <button onClick={() => handleSale(sale.id)} className="text-blue-500 hover:text-blue-700 transition-transform active:scale-90 p-2 bg-blue-50 rounded-xl">
+                         <FiShoppingCart size={20} />
                       </button>
                    </div>
                 </div>

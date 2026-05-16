@@ -114,16 +114,33 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
 
         const handleScroll = () => {
             const currentScrollY = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
-            
-            // Logic for 'Premium Auto-Hide' - Expand when scrolling up, hide when scrolling down
-            if (currentScrollY > lastScrollY && currentScrollY > 100) {
+            const delta = currentScrollY - lastScrollY;
+
+            // Ignore tiny scroll movements (< 8px) to prevent blinking from elastic bounce at page edges
+            if (Math.abs(delta) < 8) {
+                setLastScrollY(currentScrollY);
+                return;
+            }
+
+            // Detect if at the very bottom of the scrollable area (elastic bounce zone)
+            let isAtBottom = false;
+            if (scrollContainer) {
+                isAtBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 5;
+            } else {
+                isAtBottom = document.documentElement.scrollHeight - window.scrollY - window.innerHeight < 5;
+            }
+
+            if (currentScrollY < 10) {
+                // Always show at the very top
+                setIsHeaderVisible(true);
+            } else if (isAtBottom) {
+                // Don't toggle visibility at the bottom to avoid bounce-induced blinking
+                // Keep current state
+            } else if (delta > 0 && currentScrollY > 100) {
                 // Scrolling down - hide additional parts to maximize screen
                 setIsHeaderVisible(false);
-            } else if (currentScrollY < lastScrollY) {
+            } else if (delta < 0) {
                 // Scrolling UP - Expand header for better navigation
-                setIsHeaderVisible(true);
-            } else if (currentScrollY < 10) {
-                // Always show at the very top
                 setIsHeaderVisible(true);
             }
             

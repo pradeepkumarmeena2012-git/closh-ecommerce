@@ -11,6 +11,7 @@ const DataTable = ({
   sortable = true,
   onRowClick,
   className = '',
+  minWidth = 'min-w-[800px]',
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -125,7 +126,7 @@ const DataTable = ({
 
       {/* Desktop Table View - Hide on mobile, show on desktop */}
       <div className="hidden md:block w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-        <table className="w-full min-w-[800px] border-collapse">
+        <table className={`w-full ${minWidth} border-collapse`}>
           <thead className="bg-white border-b border-gray-200">
             <tr>
               {columns.map((column) => (

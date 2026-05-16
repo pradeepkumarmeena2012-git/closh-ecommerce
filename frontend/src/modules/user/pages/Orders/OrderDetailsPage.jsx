@@ -485,49 +485,49 @@ const OrderDetailsPage = () => {
                             if (isCancelled) step = 0; // Special case
 
                             return (
-                                <div className="px-1">
+                                <div className="px-1 mt-2">
                                     {isCancelled ? (
-                                        <div className="text-center py-2">
-                                            <p className="text-red-500 text-[10px] font-bold uppercase">Order Cancelled</p>
+                                        <div className="text-center py-4 bg-red-50 rounded-2xl border border-red-100">
+                                            <p className="text-red-500 text-[11px] font-black uppercase tracking-widest">Order Cancelled</p>
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="flex items-center relative">
+                                            <div className="flex items-center relative h-10">
                                                 {/* Progress Line Background */}
-                                                <div className="absolute top-1/2 left-0 w-full h-[3px] bg-gray-100 -translate-y-1/2 z-0 rounded-full"></div>
+                                                <div className="absolute top-1/2 left-0 w-full h-[4px] bg-gray-100 -translate-y-1/2 z-0 rounded-full"></div>
 
                                                 {/* Active Progress Line */}
                                                 <div
-                                                    className="absolute top-1/2 left-0 h-[3px] bg-green-500 -translate-y-1/2 z-0 rounded-full transition-all duration-500"
+                                                    className="absolute top-1/2 left-0 h-[4px] bg-emerald-500 -translate-y-1/2 z-0 rounded-full transition-all duration-700"
                                                     style={{ width: step === 3 ? '100%' : step === 2 ? '50%' : '0%' }}
                                                 ></div>
 
                                                 {/* Step 1: Ordered */}
-                                                <div className={`relative z-10 w-7 h-7 flex items-center justify-center rounded-lg transition-colors duration-300 ${step >= 1 ? 'bg-green-500 text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <Package size={12} />
+                                                <div className={`relative z-10 w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-500 ${step >= 1 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-110' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <Package size={16} strokeWidth={2.5} />
                                                 </div>
 
                                                 {/* Spacer */}
                                                 <div className="flex-1"></div>
 
                                                 {/* Step 2: Shipped */}
-                                                <div className={`relative z-10 w-7 h-7 flex items-center justify-center rounded-lg transition-colors duration-300 ${step >= 2 ? 'bg-green-500 text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <CreditCard size={12} />
+                                                <div className={`relative z-10 w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-500 ${step >= 2 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-110' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <CreditCard size={16} strokeWidth={2.5} />
                                                 </div>
 
                                                 {/* Spacer */}
                                                 <div className="flex-1"></div>
 
                                                 {/* Step 3: Delivered */}
-                                                <div className={`relative z-10 w-7 h-7 flex items-center justify-center rounded-lg transition-colors duration-300 ${step >= 3 ? 'bg-green-500 text-white shadow-md' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <Package size={12} />
+                                                <div className={`relative z-10 w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-500 ${step >= 3 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-110' : 'bg-gray-100 text-gray-400'}`}>
+                                                    <Package size={16} strokeWidth={2.5} />
                                                 </div>
                                             </div>
 
-                                            <div className="flex justify-between text-[8px] font-bold text-gray-400 uppercase mt-2">
-                                                <span className={step >= 1 ? 'text-green-600' : ''}>Placed</span>
-                                                <span className={step >= 2 ? 'text-green-600 text-center' : 'text-center'}>Shipped</span>
-                                                <span className={step >= 3 ? 'text-green-600 text-right' : 'text-right'}>Received</span>
+                                            <div className="flex justify-between text-[9px] font-black uppercase mt-4 tracking-widest">
+                                                <span className={step >= 1 ? 'text-emerald-600' : 'text-gray-400'}>Confirmed</span>
+                                                <span className={step >= 2 ? 'text-emerald-600 text-center' : 'text-gray-400 text-center'}>Transit</span>
+                                                <span className={step >= 3 ? 'text-emerald-600 text-right' : 'text-gray-400 text-right'}>Arrival</span>
                                             </div>
                                         </>
                                     )}

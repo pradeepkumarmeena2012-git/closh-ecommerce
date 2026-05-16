@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useSupportStore } from '../../../../shared/store/supportStore';
 import { useAuthStore } from '../../../../shared/store/authStore';
 import AccountLayout from '../../components/Profile/AccountLayout';
 import { FiMessageCircle, FiSend, FiClock, FiCheckCircle, FiInfo, FiPlus } from 'react-icons/fi';
+import { ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const SupportPage = () => {
@@ -23,7 +25,16 @@ const SupportPage = () => {
     const [newMessage, setNewMessage] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newTicket, setNewTicket] = useState({ subject: '', message: '' });
+    const [searchParams] = useSearchParams();
     const messagesEndRef = useRef(null);
+
+    useEffect(() => {
+        const orderId = searchParams.get('orderId');
+        if (orderId) {
+            setShowCreateModal(true);
+            setNewTicket(prev => ({ ...prev, subject: `Issue with Order #${orderId}` }));
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -81,70 +92,72 @@ const SupportPage = () => {
 
     return (
         <AccountLayout>
-            <div className="flex flex-col h-[600px] md:h-[700px] bg-white overflow-hidden rounded-[24px]">
+            <div className="flex flex-col h-[75vh] min-h-[500px] md:h-[700px] bg-white overflow-hidden rounded-[32px] border border-gray-100 shadow-xl">
                 <div className="flex flex-1 overflow-hidden">
                     {/* Sidebar: Chat List */}
                     <div className={`w-full md:w-80 flex flex-col border-r border-gray-100 ${activeChatId ? 'hidden md:flex' : 'flex'}`}>
-                        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-gray-900 ">Support</h2>
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+                            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Support</h2>
                             <button
                                 onClick={() => setShowCreateModal(true)}
-                                className="p-2 bg-black text-white rounded-xl hover:bg-gray-100 hover:text-black transition-all"
+                                className="p-2.5 bg-black text-white rounded-xl hover:bg-gray-800 transition-all shadow-lg active:scale-95"
                             >
-                                <FiPlus size={20} />
+                                <FiPlus size={20} strokeWidth={3} />
                             </button>
                         </div>
-                        <div className="flex-1 overflow-y-auto space-y-1 p-3 scrollbar-hide">
+                        <div className="flex-1 overflow-y-auto space-y-2 p-4 scrollbar-hide">
                             {tickets?.map(ticket => (
                                 <button
                                     key={ticket.id || ticket._id}
                                     onClick={() => handleSelectChat(ticket.id || ticket._id)}
-                                    className={`w-full text-left p-4 rounded-2xl transition-all duration-300 group ${activeChatId === (ticket.id || ticket._id)
-                                        ? 'bg-black text-white'
-                                        : 'hover:bg-gray-50 text-gray-700'}`}
+                                    className={`w-full text-left p-5 rounded-[24px] transition-all duration-300 group relative overflow-hidden ${activeChatId === (ticket.id || ticket._id)
+                                        ? 'bg-black text-white shadow-xl scale-[1.02]'
+                                        : 'hover:bg-gray-50 text-gray-700 bg-white border border-gray-100'}`}
                                 >
-                                    <div className="flex justify-between items-start mb-1">
-                                        <span className={`text-[10px] font-bold uppercase  ${activeChatId === (ticket.id || ticket._id) ? 'text-black/60' : 'text-gray-400'}`}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className={`text-[9px] font-black uppercase tracking-[0.1em] ${activeChatId === (ticket.id || ticket._id) ? 'text-white/40' : 'text-gray-400'}`}>
                                             #{(ticket.id || ticket._id).slice(-6)}
                                         </span>
                                         {activeChatId !== (ticket.id || ticket._id) && getStatusBadge(ticket.status)}
                                     </div>
-                                    <p className={`font-bold text-[14px] line-clamp-1 mb-1 ${activeChatId === (ticket.id || ticket._id) ? 'text-black' : 'text-gray-900'}`}>
+                                    <p className={`font-black text-[14px] line-clamp-1 mb-2 uppercase tracking-tight ${activeChatId === (ticket.id || ticket._id) ? 'text-white' : 'text-gray-900'}`}>
                                         {ticket.subject}
                                     </p>
-                                    <div className="flex items-center gap-2 opacity-60">
-                                        <FiClock size={10} />
-                                        <span className="text-[10px] font-medium">{new Date(ticket.updatedAt).toLocaleDateString()}</span>
+                                    <div className="flex items-center gap-2 opacity-50">
+                                        <FiClock size={12} />
+                                        <span className="text-[10px] font-black uppercase tracking-wider">{new Date(ticket.updatedAt).toLocaleDateString()}</span>
                                     </div>
                                 </button>
                             ))}
                             {(!tickets || tickets.length === 0) && (
-                                <div className="text-center py-20 px-6 opacity-30">
-                                    <FiMessageCircle className="mx-auto text-4xl mb-4" />
-                                    <p className="text-sm font-bold">No active conversations</p>
+                                <div className="text-center py-20 px-6">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <FiMessageCircle className="text-gray-200 text-3xl" />
+                                    </div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">No active conversations</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Chat Window */}
-                    <div className={`flex-1 flex flex-col bg-gray-100 relative ${!activeChatId ? 'hidden md:flex' : 'flex'}`}>
+                    <div className={`flex-1 flex flex-col bg-gray-50 relative ${!activeChatId ? 'hidden md:flex' : 'flex'}`}>
                         {selectedTicket ? (
                             <>
                                 {/* Chat Header */}
-                                <div className="p-4 md:p-6 border-b border-gray-100 bg-white/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
+                                <div className="p-4 md:p-6 border-b border-gray-100 bg-white/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-20">
                                     <div className="flex items-center gap-4">
                                         <button
                                             onClick={() => setActiveChatId(null)}
-                                            className="md:hidden text-gray-500 hover:text-white"
+                                            className="md:hidden w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition-all"
                                         >
-                                            &larr;
+                                            <ChevronLeft size={20} strokeWidth={3} />
                                         </button>
                                         <div>
-                                            <h3 className="font-bold text-gray-900 ">{selectedTicket.subject}</h3>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase ">Support Agent Online</span>
+                                            <h3 className="font-black text-gray-900 uppercase tracking-tight">{selectedTicket.subject}</h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Support Advisor Online</span>
                                             </div>
                                         </div>
                                     </div>
@@ -162,12 +175,12 @@ const SupportPage = () => {
                                             key={idx}
                                             className={`flex ${msg.senderType === 'user' ? 'justify-end' : 'justify-start'}`}
                                         >
-                                            <div className={`max-w-[85%] md:max-w-[70%] rounded-[24px] p-4 md:p-5 ${msg.senderType === 'user'
-                                                ? 'bg-black text-white rounded-tr-none shadow-[0_10px_30px_rgba(212,175,55,0.1)]'
-                                                : 'bg-gray-50 text-gray-900 rounded-tl-none border border-gray-100 shadow-2xl'
+                                            <div className={`max-w-[85%] md:max-w-[70%] rounded-[28px] p-4 md:p-5 shadow-sm ${msg.senderType === 'user'
+                                                ? 'bg-black text-white rounded-tr-none'
+                                                : 'bg-white text-gray-900 rounded-tl-none border border-gray-100'
                                                 }`}>
-                                                <p className="text-[14px] leading-relaxed font-medium">{msg.message}</p>
-                                                <div className={`text-[9px] font-bold uppercase  mt-2 flex items-center gap-1.5 ${msg.senderType === 'user' ? 'text-black/40' : 'text-gray-400'}`}>
+                                                <p className="text-[13px] md:text-[14px] leading-relaxed font-bold">{msg.message}</p>
+                                                <div className={`text-[9px] font-black uppercase tracking-widest mt-3 flex items-center gap-2 ${msg.senderType === 'user' ? 'text-white/40' : 'text-gray-400'}`}>
                                                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     {msg.senderType === 'user' && <FiCheckCircle size={10} />}
                                                 </div>
@@ -180,21 +193,21 @@ const SupportPage = () => {
                                 {/* Input Area */}
                                 <div className="p-4 md:p-6 bg-white border-t border-gray-100">
                                     <div className="max-w-3xl mx-auto flex gap-3 items-center">
-                                        <div className="flex-1 relative group">
+                                        <div className="flex-1 relative">
                                             <input
                                                 type="text"
                                                 value={newMessage}
                                                 onChange={(e) => setNewMessage(e.target.value)}
                                                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                                placeholder="Ask us anything..."
-                                                className="w-full bg-gray-50 text-gray-900 border border-gray-200 rounded-full px-6 py-4 text-[14px] focus:outline-none focus:border-black/50 focus:ring-1 focus:ring-black/20 transition-all placeholder-white/20"
+                                                placeholder="Type your message..."
+                                                className="w-full bg-gray-50 text-gray-900 border border-gray-100 rounded-[20px] px-6 py-4 text-[14px] font-bold focus:outline-none focus:border-black transition-all"
                                             />
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2">
                                                 <button
                                                     onClick={handleSend}
-                                                    className="p-2.5 bg-black text-white rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_5px_15px_rgba(212,175,55,0.2)]"
+                                                    className="p-3 bg-black text-white rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-xl"
                                                 >
-                                                    <FiSend size={18} />
+                                                    <FiSend size={18} strokeWidth={2.5} />
                                                 </button>
                                             </div>
                                         </div>
@@ -202,17 +215,17 @@ const SupportPage = () => {
                                 </div>
                             </>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                                <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-                                    <FiMessageCircle className="text-4xl text-black" />
+                            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white">
+                                <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-8 shadow-inner">
+                                    <FiMessageCircle className="text-5xl text-gray-200" />
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-2  uppercase">Support Center</h3>
-                                <p className="text-gray-400 text-sm max-w-[280px] font-medium mb-8">Select a conversation or start a new ticket to talk to our luxury style advisors.</p>
+                                <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Concierge Support</h3>
+                                <p className="text-gray-400 text-[11px] max-w-[240px] font-black uppercase tracking-widest mb-10 leading-relaxed">Select a conversation or start a new inquiry to speak with our style advisors.</p>
                                 <button
                                     onClick={() => setShowCreateModal(true)}
-                                    className="px-8 py-4 bg-black text-white rounded-full font-bold uppercase text-[12px] shadow-[0_15px_30px_rgba(212,175,55,0.2)] hover:bg-gray-100 hover:text-black transition-all active:scale-95"
+                                    className="px-10 py-4 bg-black text-white rounded-2xl font-black uppercase tracking-widest text-[12px] shadow-2xl hover:bg-gray-800 transition-all active:scale-95"
                                 >
-                                    Start New Inquiry
+                                    New Inquiry
                                 </button>
                             </div>
                         )}

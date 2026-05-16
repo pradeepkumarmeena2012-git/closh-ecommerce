@@ -41,10 +41,10 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
 
     return (
         <div className="bg-white text-gray-900 min-h-screen pb-12">
-            <div className="max-w-7xl mx-auto px-1 md:px-8 lg:px-12 py-4 md:py-8">
+            <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12 py-4 md:py-8">
                 {/* Mobile Back Header */}
                 {isMobile && !hideHeader && (
-                    <div className="flex items-center gap-3 mb-2 bg-gray-50 p-2 md:p-3 rounded-[20px] md:rounded-2xl shadow-sm border border-gray-200 mx-0">
+                    <div className="flex items-center gap-3 mb-4 bg-gray-50 p-3 rounded-2xl shadow-sm border border-gray-200">
                         <button
                             onClick={() => {
                                 if (isMenuPage) {
@@ -57,15 +57,15 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
                                     navigate('/account');
                                 }
                             }}
-                            className="w-10 h-10 md:w-10 md:h-10 bg-black text-white rounded-[14px] md:rounded-xl flex items-center justify-center active:scale-95 transition-all shadow-[0_0_15px_rgba(212,175,55,0.3)]"
+                            className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center active:scale-95 transition-all shadow-[0_0_15px_rgba(212,175,55,0.3)]"
                         >
                             <ChevronLeft size={20} strokeWidth={3} />
                         </button>
-                        <h1 className="font-bold text-lg md:text-xl text-gray-900 flex-1">{getPageTitle()}</h1>
+                        <h1 className="font-bold text-lg text-gray-900 flex-1 truncate">{getPageTitle()}</h1>
                         <button
                             onClick={handleRefresh}
                             disabled={isRefreshing}
-                            className="w-10 h-10 md:w-10 md:h-10 bg-white text-gray-600 rounded-[14px] md:rounded-xl flex items-center justify-center active:scale-95 transition-all border border-gray-200 hover:bg-gray-50 hover:text-black disabled:opacity-50"
+                            className="w-10 h-10 bg-white text-gray-600 rounded-xl flex items-center justify-center active:scale-95 transition-all border border-gray-200 hover:bg-gray-50 hover:text-black disabled:opacity-50"
                             title="Refresh page"
                         >
                             <RefreshCw size={18} strokeWidth={2.5} className={isRefreshing ? 'animate-spin' : ''} />
@@ -79,7 +79,7 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
 
                     {/* Hide detail content on mobile account menu */}
                     {(!isMobile || !isMenuPage) && (
-                        <main className="flex-1 px-1 lg:px-0">
+                        <main className="flex-1">
                             {/* Desktop Header Title & Refresh */}
                             {!isMobile && (
                                 <div className="flex items-center justify-between mb-6 px-4">
@@ -96,7 +96,7 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
                                     </button>
                                 </div>
                             )}
-                            <div className="bg-gray-50 rounded-[24px] md:rounded-3xl shadow-2xl border border-gray-200 p-2 md:p-8 min-h-[400px] md:min-h-[500px]">
+                            <div className="bg-gray-50 rounded-[32px] shadow-2xl border border-gray-200 p-4 md:p-8 min-h-[400px] md:min-h-[500px]">
                                 {children}
                             </div>
                         </main>
@@ -106,16 +106,16 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
                 {/* Benefits Section - Hide on mobile detail pages to keep it clean */}
                 {(!isMobile || isMenuPage) && (
                     <div className="mt-8 overflow-x-auto scrollbar-hide">
-                        <div className="flex justify-between min-w-0 w-full border-t border-gray-200 pt-6 pb-6 lg:pb-8">
+                        <div className="flex justify-between min-w-max md:min-w-0 w-full border-t border-gray-200 pt-6 pb-6 lg:pb-8 gap-4 px-2">
                             {[
                                 { icon: <ShieldCheck size={20} />, label: 'Secure Payments' },
                                 { icon: <History size={20} />, label: 'Genuine Product' },
                                 { icon: <RefreshCcw size={20} />, label: 'Click Connect Collect' },
                                 { icon: <Truck size={20} />, label: '24 Hour Return' }
                             ].map((item, idx) => (
-                                <div key={idx} className="flex flex-col items-center gap-1.5 px-2 flex-1 group">
+                                <div key={idx} className="flex flex-col items-center gap-1.5 px-2 flex-1 group min-w-[80px]">
                                     <div className="text-gray-400 group-hover:text-black transition-colors">{item.icon}</div>
-                                    <span className="text-[11px] md:text-[12px] font-bold text-gray-500 text-center leading-tight group-hover:text-white transition-colors">{item.label}</span>
+                                    <span className="text-[10px] md:text-[12px] font-bold text-gray-500 text-center leading-tight group-hover:text-black transition-colors">{item.label}</span>
                                 </div>
                             ))}
                         </div>

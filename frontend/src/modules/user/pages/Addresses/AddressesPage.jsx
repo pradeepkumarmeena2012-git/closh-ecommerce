@@ -254,9 +254,9 @@ const AddressesPage = () => {
                 </div>
 
                 {view === 'map' ? (
-                    <div className="animate-fadeIn h-[75vh] min-h-[450px] md:h-[600px] md:min-h-[600px] flex flex-col relative rounded-[20px] md:rounded-[32px] overflow-hidden border border-gray-100 shadow-sm mx-1 md:mx-0">
+                    <div className="animate-fadeIn h-[70vh] min-h-[400px] md:h-[600px] flex flex-col relative rounded-[28px] overflow-hidden border border-gray-100 shadow-sm mx-1 md:mx-0">
                         {/* Map Search Box */}
-                        <div className="absolute top-4 md:top-6 left-1/2 -translate-x-1/2 z-[1000] w-[92%] md:w-[90%] max-w-[500px]">
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-[92%] max-w-[500px]">
                             <form onSubmit={handleSearch} className="relative group">
                                 <input
                                     type="text"
@@ -289,24 +289,24 @@ const AddressesPage = () => {
                             </MapContainer>
 
                             {/* Current Location Button Overlay */}
-                            <div className="absolute top-20 md:top-24 right-4 md:right-5 z-[1000]">
+                            <div className="absolute top-20 md:top-24 right-4 z-[1000]">
                                 <button
                                     onClick={handleUseCurrentLocation}
-                                    className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-[14px] md:rounded-2xl shadow-xl flex items-center justify-center text-black hover:bg-white hover:text-black active:scale-90 transition-all border border-gray-100"
+                                    className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-xl md:rounded-2xl shadow-xl flex items-center justify-center text-black active:scale-90 transition-all border border-gray-100"
                                 >
-                                    {loadingLocation ? <Loader2 size={20} md:size={24} className="animate-spin" /> : <Target size={20} md:size={24} className="text-black" />}
+                                    {loadingLocation ? <Loader2 size={18} className="animate-spin" /> : <Target size={18} className="text-black" />}
                                 </button>
                             </div>
 
                             {/* Selection Detail Overlay */}
                             {fetchedAddress && (
-                                <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 right-4 md:right-6 bg-white p-3 md:p-4 rounded-xl md:rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-start gap-2.5 md:gap-3 animate-fadeInUp">
-                                    <div className="p-2 md:p-2.5 bg-red-50 rounded-lg md:rounded-xl shrink-0">
-                                        <MapPinIcon size={18} md:size={20} className="text-red-500" />
+                                <div className="absolute bottom-4 left-4 right-4 bg-white p-3 md:p-4 rounded-xl md:rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-start gap-3 animate-fadeInUp">
+                                    <div className="p-2 bg-red-50 rounded-lg md:rounded-xl shrink-0">
+                                        <MapPinIcon size={18} className="text-red-500" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="text-[9px] md:text-[10px] font-bold uppercase text-gray-400 mb-0.5 md:mb-1">Selected Location</h4>
-                                        <p className="text-[12px] md:text-[13px] font-bold text-gray-900 leading-tight truncate md:whitespace-normal">
+                                        <h4 className="text-[9px] font-black uppercase text-gray-400 mb-0.5">Selected Location</h4>
+                                        <p className="text-[12px] font-bold text-gray-900 leading-tight line-clamp-2 md:whitespace-normal">
                                             {fetchedAddress.formatted}
                                         </p>
                                     </div>
@@ -318,117 +318,117 @@ const AddressesPage = () => {
                         <div className="p-4 md:p-6 bg-white border-t border-gray-50 shrink-0">
                             <button
                                 onClick={handleConfirmLocation}
-                                className="w-full py-3.5 md:py-4 bg-black text-white rounded-[16px] md:rounded-2xl font-bold text-[13px] md:text-[14px] uppercase shadow-xl hover:bg-gray-800 transition-all active:scale-[0.98]"
+                                className="w-full py-4 bg-black text-white rounded-[20px] font-bold text-[13px] uppercase shadow-xl hover:bg-gray-800 transition-all active:scale-[0.98]"
                             >
                                 Confirm & Continue
                             </button>
                         </div>
                     </div>
                 ) : view === 'form' ? (
-                    <div className="animate-fadeInUp">
+                    <div className="animate-fadeInUp pb-6">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="font-bold text-gray-800">Complete Address Details</h3>
+                            <h3 className="font-black text-gray-900 uppercase text-sm tracking-wider">Complete Address Details</h3>
                         </div>
                         <form onSubmit={handleSave} className="space-y-4 max-w-[600px]">
                             {/* Auto-filled Location Info */}
                             {fetchedAddress && (
-                                <div className="p-4 bg-white rounded-2xl border border-dashed border-gray-200 mb-6 flex items-start gap-4">
-                                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                                <div className="p-4 bg-white rounded-[24px] border border-dashed border-gray-200 mb-6 flex items-start gap-4">
+                                    <div className="p-2.5 bg-gray-50 rounded-xl shadow-sm">
                                         <MapPinIcon size={16} className="text-emerald-500" />
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Pinned Location</p>
-                                        <p className="text-[12px] font-bold text-gray-600 italic">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Pinned Location</p>
+                                        <p className="text-[11px] font-bold text-gray-600 line-clamp-2 italic leading-relaxed">
                                             {fetchedAddress.formatted}
                                         </p>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => setView('map')}
-                                        className="text-[10px] font-bold text-blue-600 uppercase pt-1"
+                                        className="text-[10px] font-black text-black uppercase tracking-wider pt-1 underline underline-offset-4"
                                     >
                                         Change
                                     </button>
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold uppercase  text-gray-400 ml-1">Full Name</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5 relative">
+                                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1 tracking-widest">Full Name</label>
                                     <input
                                         required
                                         type="text"
                                         placeholder="Name"
-                                        className="w-full px-4 py-3 bg-white border border-transparent rounded-xl outline-none focus:bg-white focus:border-black transition-all font-bold"
+                                        className="w-full px-4 py-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:border-black transition-all font-bold text-[13px]"
                                         value={newAddress.name}
                                         onChange={e => setNewAddress({ ...newAddress, name: e.target.value })}
                                     />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold uppercase  text-gray-400 ml-1">Mobile Number</label>
+                                <div className="space-y-1.5 relative">
+                                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1 tracking-widest">Mobile Number</label>
                                     <input
                                         required
                                         type="text"
                                         placeholder="Mobile Number"
-                                        className="w-full px-4 py-3 bg-white border border-transparent rounded-xl outline-none focus:bg-white focus:border-black transition-all font-bold"
+                                        className="w-full px-4 py-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:border-black transition-all font-bold text-[13px]"
                                         value={newAddress.mobile}
                                         onChange={e => setNewAddress({ ...newAddress, mobile: e.target.value })}
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold uppercase  text-gray-400 ml-1">Pincode</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5 relative">
+                                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1 tracking-widest">Pincode</label>
                                     <input
                                         required
                                         type="text"
                                         placeholder="Pincode"
-                                        className="w-full px-4 py-3 bg-white border border-transparent rounded-xl outline-none focus:bg-white focus:border-black transition-all font-bold"
+                                        className="w-full px-4 py-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:border-black transition-all font-bold text-[13px]"
                                         value={newAddress.pincode}
                                         onChange={e => setNewAddress({ ...newAddress, pincode: e.target.value })}
                                     />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold uppercase  text-gray-400 ml-1">Locality / Town</label>
+                                <div className="space-y-1.5 relative">
+                                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1 tracking-widest">Locality / Town</label>
                                     <input
                                         required
                                         type="text"
                                         placeholder="Locality / Town"
-                                        className="w-full px-4 py-3 bg-white border border-transparent rounded-xl outline-none focus:bg-white focus:border-black transition-all font-bold"
+                                        className="w-full px-4 py-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:border-black transition-all font-bold text-[13px]"
                                         value={newAddress.locality}
                                         onChange={e => setNewAddress({ ...newAddress, locality: e.target.value })}
                                     />
                                 </div>
                             </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold uppercase  text-gray-400 ml-1">Flat / House / Building Details</label>
+                            <div className="space-y-1.5 relative">
+                                <label className="text-[10px] font-black uppercase text-gray-400 ml-1 tracking-widest">Flat / House / Building Details</label>
                                 <textarea
                                     required
                                     placeholder="Address (House No, Building, Street, Area)"
-                                    className="w-full px-4 py-3 bg-white border border-transparent rounded-xl outline-none focus:bg-white focus:border-black transition-all h-24 resize-none font-bold"
+                                    className="w-full px-4 py-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:border-black transition-all h-24 resize-none font-bold text-[13px]"
                                     value={newAddress.address}
                                     onChange={e => setNewAddress({ ...newAddress, address: e.target.value })}
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold uppercase  text-gray-400 ml-1">City</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5 relative">
+                                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1 tracking-widest">City</label>
                                     <input
                                         required
                                         type="text"
                                         placeholder="City / District"
-                                        className="w-full px-4 py-3 bg-white border border-transparent rounded-xl outline-none focus:bg-white focus:border-black transition-all font-bold"
+                                        className="w-full px-4 py-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:border-black transition-all font-bold text-[13px]"
                                         value={newAddress.city}
                                         onChange={e => setNewAddress({ ...newAddress, city: e.target.value })}
                                     />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold uppercase  text-gray-400 ml-1">State</label>
+                                <div className="space-y-1.5 relative">
+                                    <label className="text-[10px] font-black uppercase text-gray-400 ml-1 tracking-widest">State</label>
                                     <input
                                         required
                                         type="text"
                                         placeholder="State"
-                                        className="w-full px-4 py-3 bg-white border border-transparent rounded-xl outline-none focus:bg-white focus:border-black transition-all font-bold"
+                                        className="w-full px-4 py-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:border-black transition-all font-bold text-[13px]"
                                         value={newAddress.state}
                                         onChange={e => setNewAddress({ ...newAddress, state: e.target.value })}
                                     />
@@ -436,14 +436,14 @@ const AddressesPage = () => {
                             </div>
 
                             <div className="pt-4">
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase  mb-3 ml-1">Address Type</h4>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Address Type</h4>
                                 <div className="flex gap-4">
                                     {['Home', 'Work'].map(type => (
                                         <button
                                             key={type}
                                             type="button"
                                             onClick={() => setNewAddress({ ...newAddress, type })}
-                                            className={`flex-1 h-14 rounded-2xl text-[12px] font-bold uppercase  border-2 transition-all flex items-center justify-center gap-3 ${newAddress.type === type ? 'bg-black text-white border-black shadow-lg scale-[1.02]' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
+                                            className={`flex-1 h-14 rounded-2xl text-[12px] font-black uppercase border-2 transition-all flex items-center justify-center gap-3 ${newAddress.type === type ? 'bg-black text-white border-black shadow-lg scale-[1.02]' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200'
                                                 }`}
                                         >
                                             {type === 'Home' ? <Home size={16} /> : <Briefcase size={16} />}
@@ -453,51 +453,49 @@ const AddressesPage = () => {
                                 </div>
                             </div>
 
-                            <button type="submit" className="w-full h-16 bg-black text-white rounded-2xl font-bold uppercase mt-8 shadow-2xl hover:bg-gray-900 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                            <button type="submit" className="w-full h-16 bg-black text-white rounded-2xl font-black uppercase tracking-widest mt-8 shadow-2xl hover:bg-gray-900 transition-all active:scale-[0.98]">
                                 Save Address
                             </button>
                         </form>
                     </div>
                 ) : addresses.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+                    <div className="flex flex-col items-center justify-center min-h-[400px] text-center bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
                         <div className="relative mb-6">
-                            <div className="w-48 h-48 bg-white rounded-full flex items-center justify-center border border-dashed border-gray-200">
-                                <Search size={64} className="text-gray-200 rotate-12" />
-                            </div>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                <MapPin size={80} className="text-gray-300 opacity-50" />
+                            <div className="w-32 h-32 bg-gray-50 rounded-full flex items-center justify-center border border-dashed border-gray-200">
+                                <MapPin size={48} className="text-gray-200" />
                             </div>
                         </div>
-                        <p className="text-gray-900 font-bold uppercase  mb-8">You don't have any saved addresses</p>
-                        <button onClick={() => setView('map')} className="w-full py-4 bg-black text-white rounded-2xl font-bold text-[14px] uppercase  hover:bg-gray-800 transition-all shadow-xl active:scale-95">
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">No addresses saved</h3>
+                        <p className="text-gray-400 text-[11px] font-bold uppercase tracking-widest mb-8 max-w-[200px] mx-auto">Add your delivery address to get started.</p>
+                        <button onClick={() => setView('map')} className="w-full sm:w-auto px-10 py-4 bg-black text-white rounded-2xl font-bold text-[14px] uppercase tracking-widest hover:bg-gray-800 transition-all shadow-xl active:scale-95">
                             Add New Address
                         </button>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {addresses.map(addr => (
-                            <div key={addr.id} className="p-6 border border-gray-100 rounded-[28px] bg-white flex flex-col items-start gap-4 hover:border-black transition-all group relative overflow-hidden">
+                            <div key={addr.id} className="p-6 border border-gray-100 rounded-[32px] bg-white flex flex-col items-start gap-4 hover:border-black transition-all group relative overflow-hidden shadow-sm">
                                 {addr.isCurrentLocation && (
-                                    <div className="absolute top-4 right-4 bg-red-100 text-red-600 px-2 py-0.5 rounded text-[8px] font-bold uppercase er">Current</div>
+                                    <div className="absolute top-4 right-4 bg-emerald-100 text-emerald-600 px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider">Current</div>
                                 )}
                                 <div className="flex items-center gap-4 w-full">
-                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all shadow-sm">
+                                    <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center group-hover:bg-black group-hover:text-white transition-all shadow-sm">
                                         {addr.type === 'Home' ? <Home size={20} className="stroke-[2.5]" /> : <Briefcase size={20} className="stroke-[2.5]" />}
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-0.5">
-                                            <span className="font-bold text-gray-900 uppercase ">{addr.name}</span>
-                                            <span className="text-[9px] font-bold bg-gray-100 px-1.5 py-0.5 rounded uppercase  text-gray-500">{addr.type}</span>
+                                            <span className="font-black text-gray-900 uppercase tracking-tight">{addr.name}</span>
+                                            <span className="text-[9px] font-black bg-gray-100 px-1.5 py-0.5 rounded uppercase tracking-wider text-gray-500">{addr.type}</span>
                                         </div>
-                                        <p className="text-[11px] font-bold text-gray-400 uppercase">Mobile: {addr.phone || addr.mobile || 'N/A'}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mobile: {addr.phone || addr.mobile || 'N/A'}</p>
                                     </div>
                                 </div>
                                 <div className="w-full pt-4 border-t border-gray-50">
-                                    <p className="text-[13px] font-medium text-gray-600 leading-relaxed mb-3 pr-4">
-                                        {addr.address}, {addr.locality}, {addr.city}, {addr.state} - <span className="text-gray-900 font-extrabold">{addr.zipCode || addr.pincode || 'N/A'}</span>
+                                    <p className="text-[13px] font-bold text-gray-600 leading-relaxed mb-4 pr-4">
+                                        {addr.address}, {addr.locality}, {addr.city}, {addr.state} - <span className="text-gray-900 font-black">{addr.zipCode || addr.pincode || 'N/A'}</span>
                                     </p>
-                                    <div className="flex gap-3">
-                                        <button className="text-[10px] font-bold uppercase text-gray-400 hover:text-black transition-colors">Edit</button>
+                                    <div className="flex gap-4">
+                                        <button className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-black transition-colors">Edit</button>
                                         <button
                                             onClick={async () => {
                                                 if (window.confirm('Delete this address?')) {
@@ -505,7 +503,7 @@ const AddressesPage = () => {
                                                     toast.success('Address deleted');
                                                 }
                                             }}
-                                            className="text-[10px] font-bold uppercase text-gray-400 hover:text-red-500 transition-colors"
+                                            className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-colors"
                                         >
                                             Delete
                                         </button>
@@ -513,11 +511,11 @@ const AddressesPage = () => {
                                 </div>
                             </div>
                         ))}
-                        <button onClick={() => setView('map')} className="md:col-span-1 h-[200px] border-2 border-dashed border-gray-100 rounded-[28px] flex flex-col items-center justify-center gap-3 text-gray-400 hover:border-black hover:text-black transition-all bg-gray-50">
-                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-                                <Plus size={24} />
+                        <button onClick={() => setView('map')} className="md:col-span-1 h-[220px] border-2 border-dashed border-gray-100 rounded-[32px] flex flex-col items-center justify-center gap-4 text-gray-400 hover:border-black hover:text-black transition-all bg-gray-50 group">
+                            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:bg-black group-hover:text-white transition-all">
+                                <Plus size={28} />
                             </div>
-                            <span className="text-[12px] font-bold uppercase">Add New Address</span>
+                            <span className="text-[11px] font-black uppercase tracking-widest">Add New Address</span>
                         </button>
                     </div>
                 )}

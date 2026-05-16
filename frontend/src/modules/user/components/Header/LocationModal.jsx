@@ -365,7 +365,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                     <ChevronLeft size={18} className="rotate-180 text-emerald-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
                                 </button>
 
-                                {activeAddress ? (
+                                {user && (activeAddress ? (
                                     <button
                                         onClick={handleAddNew}
                                         className="w-full bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group active:scale-[0.98] transition-all hover:border-black/10"
@@ -390,7 +390,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                             Enter address manually
                                         </button>
                                     </div>
-                                )}
+                                ))}
                             </div>
 
                             {/* Saved List */}
