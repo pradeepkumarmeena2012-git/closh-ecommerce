@@ -364,8 +364,8 @@ export const sendOTP = asyncHandler(async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const staticNumber = '7879363299';
-    const otp = normalizedPhone === staticNumber ? '123456' : String(Math.floor(100000 + Math.random() * 900000));
+    const testNumbers = ['7894561230', '1234567890', '7879363299'];
+    const otp = testNumbers.includes(normalizedPhone) ? '123456' : String(Math.floor(100000 + Math.random() * 900000));
     
     deliveryBoy.resetOtp = otp;
     deliveryBoy.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes for easier testing
@@ -374,7 +374,7 @@ export const sendOTP = asyncHandler(async (req, res) => {
 
     // Send OTP via SMS
     try {
-        if (normalizedPhone === staticNumber) {
+        if (testNumbers.includes(normalizedPhone)) {
             console.log(`🔐 [Static Bypass] OTP for ${normalizedPhone}: ${otp}`);
         } else {
             const { sendSmsOtp } = await import('../../../services/sms.service.js');
@@ -403,9 +403,9 @@ export const verifyOTPAndLogin = asyncHandler(async (req, res) => {
     }
 
     const deliveryBoy = await DeliveryBoy.findOne({ phone: normalizedPhone }).select('+resetOtp +resetOtpExpiry +refreshTokenHash +refreshTokenExpiresAt');
-    const staticNumber = '7879363299';
+    const testNumbers = ['7894561230', '1234567890', '7879363299'];
     const staticOtp = '123456';
-    const isStaticAuth = normalizedPhone === staticNumber && String(otp) === staticOtp;
+    const isStaticAuth = testNumbers.includes(normalizedPhone) && String(otp) === staticOtp;
 
     if (!isStaticAuth) {
         if (!deliveryBoy.resetOtp || !deliveryBoy.resetOtpExpiry) {

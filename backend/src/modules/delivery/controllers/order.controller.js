@@ -631,14 +631,11 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         }
         order.pickupPhoto = pickupPhoto;
 
-        // Emit events
-        emitEvent(`user_${order.userId}`, 'order_picked_up', { orderId: order.orderId });
-        order.vendorItems.forEach(vi => emitEvent(`vendor_${vi.vendorId}`, 'order_picked_up', { orderId: order.orderId }));
+        // Status update logic continues below
     }
 
     if (status === 'out_for_delivery') {
-        // Emit event to notify user that order is on the way
-        emitEvent(`user_${order.userId}`, 'order_out_for_delivery', { orderId: order.orderId });
+        // Handled by OrderNotificationService
     }
 
     if (status === 'delivered') {
@@ -729,15 +726,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
 
         await order.save();
 
-        // Emit socket event for real-time tracking updates
-        emitEvent(`order_${order.orderId}`, 'order_status_updated', {
-            orderId: order.orderId,
-            status: 'delivered',
-        });
-        emitEvent(`user_${order.userId}`, 'order_delivered', {
-            orderId: order.orderId,
-            status: 'delivered',
-        });
+        await order.save();
 
         const updatedRider = await DeliveryBoy.findById(req.user.id).select('name availableBalance totalEarnings totalDeliveries');
         

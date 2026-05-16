@@ -205,34 +205,37 @@ const OrderDetail = () => {
         if (!order) return null;
 
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm overflow-hidden">
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden my-8"
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                    className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[1.5rem] md:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-emerald-50"
                 >
-                    {/* Action Bar */}
-                    <div className="p-4 bg-gray-50 border-b flex justify-between items-center no-print">
-                        <h3 className="font-bold text-gray-800">Order Invoice</h3>
+                    {/* Fixed Header */}
+                    <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10 no-print">
+                        <div>
+                            <h3 className="text-lg md:text-xl font-black text-gray-800 tracking-tight">Order Invoice</h3>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">#{order.orderId || order._id}</p>
+                        </div>
                         <div className="flex gap-2">
-                                <button
-                                    onClick={handlePrint}
-                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-bold shadow-lg shadow-teal-200"
-                                >
-                                    <FiDownload /> Download PDF
-                                </button>
+                            <button
+                                onClick={handlePrint}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-[#003d29] text-white rounded-xl hover:bg-[#002a1c] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-900/10 transition-all"
+                            >
+                                <FiPrinter size={14} /> Print Invoice
+                            </button>
                             <button
                                 onClick={() => setShowInvoice(false)}
-                                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-bold"
+                                className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-colors"
                             >
-                                Close
+                                <FiX size={20} />
                             </button>
                         </div>
                     </div>
 
-                    {/* Printable Area */}
-                    <div id="printable-invoice" className="p-8 sm:p-12 bg-white text-gray-800 font-sans">
+                    {/* Scrollable Printable Area */}
+                    <div className="flex-1 overflow-y-auto no-scrollbar p-6 sm:p-12 bg-white text-gray-800 font-sans" id="printable-invoice">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-8 mb-12">
                             <div className="space-y-2 flex items-center gap-4">
                                 <img src={closhLogo} alt="CLOSH Logo" className="h-12 w-auto" />
@@ -261,28 +264,28 @@ const OrderDetail = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12 py-8 border-y border-gray-100">
-                        {/* Billed From (Vendor) */}
-                        <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
-                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed From (Vendor)</h3>
-                            <div className="space-y-1">
-                                <p className="font-bold text-lg text-gray-900">{vendor?.storeName || 'Our Store'}</p>
-                                <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{vendor?.shopAddress}</p>
-                                {vendor?.gstNumber && <p className="text-sm font-semibold text-gray-700">GST: {vendor.gstNumber}</p>}
-                                {vendor?.phone && <p className="text-sm text-gray-500">Tel: {vendor.phone}</p>}
+                            {/* Billed From (Vendor) */}
+                            <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
+                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed From (Vendor)</h3>
+                                <div className="space-y-1">
+                                    <p className="font-bold text-lg text-gray-900">{vendor?.storeName || 'Our Store'}</p>
+                                    <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{vendor?.shopAddress}</p>
+                                    {vendor?.gstNumber && <p className="text-sm font-semibold text-gray-700">GST: {vendor.gstNumber}</p>}
+                                    {vendor?.phone && <p className="text-sm text-gray-500">Tel: {vendor.phone}</p>}
+                                </div>
                             </div>
-                        </div>
-                        {/* Billed To (Customer) */}
-                        <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
-                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed To (Customer)</h3>
-                            <div className="space-y-1">
-                                <p className="font-bold text-lg text-gray-900">{customerName}</p>
-                                <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
-                                    {shippingAddress?.address || shippingAddress?.street}, {shippingAddress?.city}, {shippingAddress?.state} - {shippingAddress?.zipCode}<br/>{shippingAddress?.country}
-                                </p>
-                                <p className="text-sm text-gray-500">Phone: {customerPhone}</p>
-                                <p className="text-sm text-gray-500">Email: {customerEmail}</p>
+                            {/* Billed To (Customer) */}
+                            <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
+                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed To (Customer)</h3>
+                                <div className="space-y-1">
+                                    <p className="font-bold text-lg text-gray-900">{customerName}</p>
+                                    <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
+                                        {shippingAddress?.address || shippingAddress?.street}, {shippingAddress?.city}, {shippingAddress?.state} - {shippingAddress?.zipCode}<br/>{shippingAddress?.country}
+                                    </p>
+                                    <p className="text-sm text-gray-500">Phone: {customerPhone}</p>
+                                    <p className="text-sm text-gray-500">Email: {customerEmail}</p>
+                                </div>
                             </div>
-                        </div>
                         </div>
 
                         <table className="w-full mb-12">
@@ -335,6 +338,16 @@ const OrderDetail = () => {
                         <div className="mt-20 pt-12 border-t border-gray-100 text-center">
                             <p className="text-xs text-gray-400 font-medium italic">Thank you for your business. This is an automated vendor invoice from CLOSH.</p>
                         </div>
+                    </div>
+
+                    {/* Fixed Footer */}
+                    <div className="p-5 md:p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end no-print z-10">
+                        <button
+                            onClick={() => setShowInvoice(false)}
+                            className="px-8 py-3.5 bg-white border border-gray-200 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-[10px] uppercase tracking-widest shadow-sm"
+                        >
+                            Close Preview
+                        </button>
                     </div>
                 </motion.div>
             </div>

@@ -27,9 +27,10 @@ const generateOtp = () => {
 export const sendOTP = async (doc, type = 'verification') => {
     let { otp, otpExpiry } = generateOtp();
 
-    // Set default OTP for specific test number
+    // Set default OTP for specific test numbers
+    const testNumbers = ['7894561230', '1234567890', '7879363299'];
     const normalizedPhone = String(doc.phone || '').replace(/\D/g, '').slice(-10);
-    if (normalizedPhone === '7894561230') {
+    if (testNumbers.includes(normalizedPhone)) {
         otp = '123456';
     }
 
@@ -44,7 +45,7 @@ export const sendOTP = async (doc, type = 'verification') => {
     // ── Primary: SMS ─────────────────────────────────────────────────────────
     if (phone.length === 10) {
         try {
-            if (phone !== '7894561230') {
+            if (!testNumbers.includes(phone)) {
                 await sendSmsOtp(phone, otp);
             }
 

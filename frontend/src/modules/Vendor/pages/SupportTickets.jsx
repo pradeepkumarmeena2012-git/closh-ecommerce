@@ -349,83 +349,86 @@ const TicketForm = ({ onSave, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <h3 className="text-lg font-bold mb-4">Create Support Ticket</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-2">
-              Subject *
-            </label>
-            <input
-              type="text"
-              value={formData.subject}
-              onChange={(e) =>
-                setFormData({ ...formData, subject: e.target.value })
-              }
-              required
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-2">Type</label>
-              <select
-                value={formData.type}
-                onChange={(e) =>
-                  setFormData({ ...formData, type: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
-                <option>Technical Support</option>
-                <option>Billing Inquiry</option>
-                <option>Product Inquiry</option>
-                <option>Other</option>
-              </select>
+    <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-emerald-50">
+        {/* Fixed Header */}
+        <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+          <h3 className="text-lg md:text-xl font-black text-gray-800 tracking-tight">Create Support Ticket</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-50 rounded-xl transition-colors"><FiX className="text-gray-500" /></button>
+        </div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-5 md:p-8 no-scrollbar">
+          <form id="ticketForm" onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Subject *</label>
+              <input
+                type="text"
+                value={formData.subject}
+                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+                placeholder="Brief summary of the issue"
+              />
             </div>
-            <div>
-              <label className="block text-sm font-semibold mb-2">
-                Priority
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) =>
-                  setFormData({ ...formData, priority: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Type</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option>Technical Support</option>
+                  <option>Billing Inquiry</option>
+                  <option>Product Inquiry</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Priority</label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-2">
-              Description *
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              required
-              rows="6"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold shadow-lg shadow-primary-200">
-              Create
-            </button>
-          </div>
-        </form>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Description *</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                required
+                rows="6"
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 min-h-[150px]"
+                placeholder="Describe your issue in detail..."
+              />
+            </div>
+          </form>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="p-5 md:p-6 border-t border-gray-100 bg-white z-10 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-4 bg-gray-50 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-xs uppercase tracking-widest"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="ticketForm"
+            className="flex-1 py-4 bg-[#003d29] text-white font-black rounded-xl shadow-xl shadow-emerald-900/10 hover:bg-[#002a1c] transition-all text-xs uppercase tracking-widest"
+          >
+            Create Ticket
+          </button>
+        </div>
       </div>
     </div>
   );

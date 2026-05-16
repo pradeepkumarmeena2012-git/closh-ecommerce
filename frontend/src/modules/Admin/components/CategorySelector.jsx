@@ -19,11 +19,17 @@ const CategorySelector = ({
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredCategoryId, setHoveredCategoryId] = useState(null);
   const [hoveredSubcategoryId, setHoveredSubcategoryId] = useState(null);
+  const [isTouch, setIsTouch] = useState(false);
   const containerRef = useRef(null);
   const parentDropdownRef = useRef(null);
   const subcategoryDropdownRef = useRef(null);
   const grandCategoryDropdownRef = useRef(null);
   const closeTimeoutRef = useRef(null);
+
+  // Detect touch device
+  useEffect(() => {
+    setIsTouch('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
 
   // Get root categories (parent categories)
   const rootCategories = useMemo(() => {
@@ -115,11 +121,11 @@ const CategorySelector = ({
         const viewportWidth = window.innerWidth;
         const dropdownWidth = 200; 
 
-        let left = parentDropdownRect.right - containerRect.left + 8;
+        let left = parentDropdownRect.right - containerRect.left;
         let top = elementRect.top - containerRect.top;
 
-        if (parentDropdownRect.right + dropdownWidth + 8 > viewportWidth - 20) {
-          left = parentDropdownRect.left - containerRect.left - dropdownWidth - 8;
+        if (parentDropdownRect.right + dropdownWidth > viewportWidth - 20) {
+          left = parentDropdownRect.left - containerRect.left - dropdownWidth;
         }
 
         if (top < 0) top = 0;
@@ -147,11 +153,11 @@ const CategorySelector = ({
         const viewportWidth = window.innerWidth;
         const dropdownWidth = 200;
 
-        let left = subDropdownRect.right - containerRect.left + 8;
+        let left = subDropdownRect.right - containerRect.left;
         let top = elementRect.top - containerRect.top;
 
-        if (subDropdownRect.right + dropdownWidth + 8 > viewportWidth - 20) {
-          left = subDropdownRect.left - containerRect.left - dropdownWidth - 8;
+        if (subDropdownRect.right + dropdownWidth > viewportWidth - 20) {
+          left = subDropdownRect.left - containerRect.left - dropdownWidth;
         }
 
         if (top < 0) top = 0;
@@ -284,7 +290,14 @@ const CategorySelector = ({
                               ? "bg-primary-50 text-primary-600 font-bold"
                               : "text-gray-900"
                           }`}
-                          onClick={() => handleCategorySelect(category.id)}
+                          onClick={(e) => {
+                            if (hasChildren && hoveredCategoryId !== category.id) {
+                              setHoveredCategoryId(category.id);
+                              setHoveredSubcategoryId(null);
+                            } else {
+                              handleCategorySelect(category.id);
+                            }
+                          }}
                           onMouseEnter={() => {
                             if (closeTimeoutRef.current) {
                               clearTimeout(closeTimeoutRef.current);
@@ -294,6 +307,7 @@ const CategorySelector = ({
                             setHoveredSubcategoryId(null); // Reset Level 1 hover
                           }}
                           onMouseLeave={(e) => {
+                            if (isTouch) return;
                             if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
                             closeTimeoutRef.current = setTimeout(() => {
                               setHoveredCategoryId(null);
@@ -326,6 +340,7 @@ const CategorySelector = ({
                   }
                 }}
                 onMouseLeave={() => {
+                  if (isTouch) return;
                   if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
                   closeTimeoutRef.current = setTimeout(() => {
                     setHoveredCategoryId(null);
@@ -343,7 +358,13 @@ const CategorySelector = ({
                     return (
                       <div key={subcategory.id} data-category-id={subcategory.id}>
                         <motion.div
-                          onClick={() => handleSubcategorySelect(subcategory.id, hoveredCategoryId)}
+                          onClick={() => {
+                            if (hasChildren && hoveredSubcategoryId !== subcategory.id) {
+                              setHoveredSubcategoryId(subcategory.id);
+                            } else {
+                              handleSubcategorySelect(subcategory.id, hoveredCategoryId);
+                            }
+                          }}
                           onMouseEnter={() => setHoveredSubcategoryId(subcategory.id)}
                           whileHover={{ backgroundColor: "rgba(249, 250, 251, 1)" }}
                           className={`px-4 py-2.5 cursor-pointer flex items-center justify-between transition-colors duration-150 ${
@@ -375,6 +396,7 @@ const CategorySelector = ({
                   }
                 }}
                 onMouseLeave={() => {
+                  if (isTouch) return;
                   if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
                   closeTimeoutRef.current = setTimeout(() => {
                     setHoveredCategoryId(null);

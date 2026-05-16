@@ -364,16 +364,18 @@ const ProductReviews = () => {
       {/* Review Detail Modal */}
       {selectedReview && (
         <div
-          className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm"
           onClick={() => {
             setSelectedReview(null);
             setResponseText("");
           }}>
           <div
-            className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-emerald-50"
             onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-800">
+            
+            {/* Fixed Header */}
+            <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+              <h3 className="text-lg md:text-xl font-black text-gray-800 tracking-tight">
                 Review Details
               </h3>
               <button
@@ -381,106 +383,125 @@ const ProductReviews = () => {
                   setSelectedReview(null);
                   setResponseText("");
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                className="p-2 hover:bg-gray-50 rounded-xl transition-colors">
                 <FiX className="text-xl text-gray-600" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Product
-                </label>
-                <p className="text-base text-gray-800 mt-1">
-                  {selectedReview.productName}
-                </p>
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-5 md:p-8 no-scrollbar space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">
+                    Product
+                  </label>
+                  <div className="p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+                    <p className="font-bold text-gray-800">
+                      {selectedReview.productName}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">
+                    Customer
+                  </label>
+                  <div className="p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+                    <p className="font-bold text-gray-800">
+                      {selectedReview.customerName}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Customer
-                </label>
-                <p className="text-base text-gray-800 mt-1">
-                  {selectedReview.customerName}
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">
                   Rating
                 </label>
-                <div className="mt-1">{renderStars(selectedReview.rating)}</div>
+                <div className="p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+                   {renderStars(selectedReview.rating)}
+                </div>
               </div>
 
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Review
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">
+                  Review Comment
                 </label>
-                <p className="text-base text-gray-800 mt-1 whitespace-pre-wrap">
-                  {selectedReview.comment || "No comment provided"}
-                </p>
+                <div className="p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+                  <p className="text-sm font-medium text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {selectedReview.comment || "No comment provided"}
+                  </p>
+                </div>
               </div>
 
               {selectedReview.vendorResponse && (
-                <div>
-                  <label className="text-sm font-semibold text-gray-600">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">
                     Your Response
                   </label>
-                  <p className="text-base text-gray-800 mt-1 bg-white p-3 rounded-lg">
-                    {selectedReview.vendorResponse}
-                  </p>
+                  <div className="p-4 bg-emerald-50/30 rounded-xl border border-emerald-100">
+                    <p className="text-sm font-bold text-emerald-800 leading-relaxed">
+                      {selectedReview.vendorResponse}
+                    </p>
+                  </div>
                 </div>
               )}
 
               {!selectedReview.vendorResponse && (
-                <div>
-                  <label className="text-sm font-semibold text-gray-600 mb-2 block">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-1">
                     Respond to Review
                   </label>
                   <textarea
                     value={responseText}
                     onChange={(e) => setResponseText(e.target.value)}
-                    placeholder="Write your response..."
-                    className="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Write your professional response..."
+                    className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500 min-h-[120px]"
                     rows="4"
                   />
                   <button
                     onClick={() => handleResponse(selectedReview.id)}
                     disabled={!responseText.trim()}
-                    className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                    className="mt-3 w-full py-4 bg-[#003d29] text-white font-black rounded-xl shadow-xl shadow-emerald-900/10 hover:bg-[#002a1c] transition-all text-xs uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed">
                     <FiMessageSquare className="inline mr-2" />
                     Submit Response
                   </button>
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
-                {selectedReview.status !== "approved" && (
-                  <button
-                    onClick={() => handleModerate(selectedReview.id, "approve")}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-sm">
-                    Approve Review
-                  </button>
-                )}
-                {selectedReview.status !== "hidden" && (
-                  <button
-                    onClick={() => handleModerate(selectedReview.id, "hide")}
-                    className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors font-semibold text-sm">
-                    Hide Review
-                  </button>
-                )}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block mb-2">
+                  Moderation Controls
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  {selectedReview.status !== "approved" && (
+                    <button
+                      onClick={() => handleModerate(selectedReview.id, "approve")}
+                      className="flex-1 px-4 py-3 bg-green-50 text-green-700 border border-green-100 rounded-xl hover:bg-green-100 transition-all font-black text-[10px] uppercase tracking-widest">
+                      Approve Review
+                    </button>
+                  )}
+                  {selectedReview.status !== "hidden" && (
+                    <button
+                      onClick={() => handleModerate(selectedReview.id, "hide")}
+                      className="flex-1 px-4 py-3 bg-yellow-50 text-yellow-700 border border-yellow-100 rounded-xl hover:bg-yellow-100 transition-all font-black text-[10px] uppercase tracking-widest">
+                      Hide Review
+                    </button>
+                  )}
+                </div>
               </div>
+            </div>
 
-              <div className="flex justify-end pt-4 border-t border-gray-200 gap-2">
-                <button
-                  onClick={() => {
-                    setSelectedReview(null);
-                    setResponseText("");
-                  }}
-                  className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold">
-                  Close
-                </button>
-              </div>
+            {/* Fixed Footer */}
+            <div className="p-5 md:p-6 border-t border-gray-100 bg-white z-10">
+              <button
+                onClick={() => {
+                  setSelectedReview(null);
+                  setResponseText("");
+                }}
+                className="w-full py-4 bg-gray-50 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-xs uppercase tracking-widest">
+                Close
+              </button>
             </div>
           </div>
         </div>

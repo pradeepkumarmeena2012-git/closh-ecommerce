@@ -438,134 +438,141 @@ const StockUpdateModal = ({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">
-                    Update Stock
-                  </h2>
-                  <button
-                    onClick={onClose}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                    <FiX className="text-gray-500" />
-                  </button>
-                </div>
-                <div className="flex items-center gap-3">
+            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden border border-emerald-50">
+              {/* Fixed Header */}
+              <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+                <h2 className="text-lg md:text-xl font-black text-gray-800">
+                  Update Stock
+                </h2>
+                <button
+                  onClick={onClose}
+                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                  <FiX className="text-gray-500" />
+                </button>
+              </div>
+
+              {/* Scrollable Body */}
+              <div className="flex-1 overflow-y-auto p-5 md:p-8 no-scrollbar">
+                <div className="flex items-center gap-4 mb-6 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
                   <img
                     src={product.image || product.images?.[0] || "https://via.placeholder.com/100x100?text=Product"}
                     alt={product.name}
-                    className="w-16 h-16 object-cover rounded-lg"
+                    className="w-16 h-16 object-cover rounded-xl shadow-sm"
                     onError={(e) => {
                       e.target.src = "https://via.placeholder.com/100x100?text=Product";
                     }}
                   />
                   <div>
-                    <h3 className="font-semibold text-gray-800">
+                    <h3 className="font-bold text-gray-800 text-sm">
                       {product.name}
                     </h3>
-                    <p className="text-sm text-gray-600">
-                      Current Stock: {product.stockQuantity || 0}
+                    <p className="text-xs font-bold text-gray-400 uppercase">
+                      In Stock: {product.stockQuantity || 0}
                     </p>
                   </div>
                 </div>
-              </div>
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Adjustment Type
-                  </label>
-                  <AnimatedSelect
-                    value={adjustmentType}
-                    onChange={(e) => setAdjustmentType(e.target.value)}
-                    options={[
-                      { value: "set", label: "Set Quantity" },
-                      { value: "add", label: "Add Stock" },
-                      { value: "subtract", label: "Subtract Stock" },
-                    ]}
-                  />
-                </div>
-
-                {adjustmentType === "set" ? (
+                <form id="stockUpdateForm" onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      New Stock Quantity
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">
+                      Adjustment Type
                     </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => quickAdjust(-10)}
-                        className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg">
-                        <FiMinus />
-                      </button>
-                      <input
-                        type="number"
-                        value={stockQuantity}
-                        onChange={(e) =>
-                          setStockQuantity(
-                            Math.max(0, parseInt(e.target.value) || 0)
-                          )
-                        }
-                        min="0"
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => quickAdjust(10)}
-                        className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg">
-                        <FiPlus />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {adjustmentType === "add" ? "Add" : "Subtract"} Quantity
-                    </label>
-                    <input
-                      type="number"
-                      value={stockAdjustment}
-                      onChange={(e) => setStockAdjustment(e.target.value)}
-                      min="0"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    <AnimatedSelect
+                      value={adjustmentType}
+                      onChange={(e) => setAdjustmentType(e.target.value)}
+                      options={[
+                        { value: "set", label: "Set Quantity" },
+                        { value: "add", label: "Add Stock" },
+                        { value: "subtract", label: "Subtract Stock" },
+                      ]}
                     />
                   </div>
-                )}
 
-                <div className="p-4 bg-white rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">
-                    New Stock Status:
-                  </p>
-                  <p className="text-xs text-gray-500 mb-2">
-                    Threshold used: {effectiveThreshold}
-                  </p>
-                  <Badge
-                    variant={
-                      newStockStatus === "in_stock"
-                        ? "success"
-                        : newStockStatus === "low_stock"
-                          ? "warning"
-                          : "error"
-                    }>
-                    {newStockStatus.replace("_", " ").toUpperCase()}
-                  </Badge>
-                </div>
+                  {adjustmentType === "set" ? (
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">
+                        New Stock Quantity
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={() => quickAdjust(-10)}
+                          className="size-11 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+                          <FiMinus className="text-gray-600" />
+                        </button>
+                        <input
+                          type="number"
+                          value={stockQuantity}
+                          onChange={(e) =>
+                            setStockQuantity(
+                              Math.max(0, parseInt(e.target.value) || 0)
+                            )
+                          }
+                          min="0"
+                          className="flex-1 h-11 bg-gray-50 border-none rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => quickAdjust(10)}
+                          className="size-11 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+                          <FiPlus className="text-gray-600" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-2 block">
+                        {adjustmentType === "add" ? "Add" : "Subtract"} Quantity
+                      </label>
+                      <input
+                        type="number"
+                        value={stockAdjustment}
+                        onChange={(e) => setStockAdjustment(e.target.value)}
+                        min="0"
+                        className="w-full h-11 px-4 bg-gray-50 border-none rounded-xl font-bold focus:ring-2 focus:ring-gray-200"
+                      />
+                    </div>
+                  )}
 
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-white hover:text-black transition-colors font-semibold">
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold">
-                    Update Stock
-                  </button>
-                </div>
-              </form>
+                  <div className="p-4 bg-emerald-50/30 rounded-2xl border border-emerald-50 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black text-emerald-800 uppercase mb-1">
+                        New Status
+                      </p>
+                      <Badge
+                        variant={
+                          newStockStatus === "in_stock"
+                            ? "success"
+                            : newStockStatus === "low_stock"
+                              ? "warning"
+                              : "error"
+                        }>
+                        {newStockStatus.replace("_", " ").toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div className="text-right text-[9px] font-bold text-emerald-600">
+                      THRESHOLD: {effectiveThreshold}
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              {/* Fixed Footer */}
+              <div className="p-5 md:p-6 border-t border-gray-100 bg-white z-10 flex gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-4 bg-gray-50 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-xs uppercase tracking-widest">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  form="stockUpdateForm"
+                  className="flex-1 py-4 bg-[#003d29] text-white font-black rounded-xl shadow-xl shadow-emerald-900/10 hover:bg-[#002a1c] transition-all text-xs uppercase tracking-widest">
+                  Update Stock
+                </button>
+              </div>
             </div>
           </motion.div>
         </>
@@ -698,122 +705,119 @@ const ManualSaleModal = ({ isOpen, product, type, onClose, onUpdate }) => {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed inset-0 z-[10001] flex items-center justify-center p-4 pointer-events-none"
+        className="fixed inset-0 z-[10001] flex items-center justify-center p-2 sm:p-4 pointer-events-none"
       >
-        <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden pointer-events-auto border border-gray-100">
+        <div className="bg-white rounded-[2rem] shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden pointer-events-auto border border-emerald-50">
           {/* Header */}
-          <div className={`p-6 border-b border-gray-100 ${type === "offline" ? "bg-emerald-50/30" : "bg-blue-50/30"}`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${type === "offline" ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"}`}>
-                  {type === "offline" ? <FiShoppingBag size={24} /> : <FiShoppingCart size={24} />}
-                </div>
-                <div>
-                  <h2 className="text-xl font-black text-gray-800 tracking-tight">
-                    Record {type === "offline" ? "Offline" : "Online"} Sale
-                  </h2>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Manual Stock Deduction</p>
-                </div>
+          <div className={`p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-2xl ${type === "offline" ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"}`}>
+                {type === "offline" ? <FiShoppingBag size={22} /> : <FiShoppingCart size={22} />}
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white/50 rounded-xl transition-colors"
-              >
-                <FiX className="text-gray-500" />
-              </button>
+              <div>
+                <h2 className="text-lg md:text-xl font-black text-gray-800 tracking-tight leading-none">
+                  Record {type === "offline" ? "Offline" : "Online"} Sale
+                </h2>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Manual Stock Deduction</p>
+              </div>
             </div>
+            <button onClick={onClose} className="p-2 hover:bg-gray-50 rounded-xl transition-colors"><FiX className="text-gray-500" /></button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 space-y-6">
-            {/* Product Info */}
-            <div className="flex items-center gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
-              <img
-                src={product.image || product.images?.[0] || "https://via.placeholder.com/100x100?text=Product"}
-                alt={product.name}
-                className="w-16 h-16 object-cover rounded-xl shadow-sm"
-              />
-              <div className="min-w-0">
-                <h3 className="font-bold text-gray-800 text-sm truncate">{product.name}</h3>
-                <p className="text-xs font-bold text-emerald-600">Total Stock: {product.stockQuantity || 0}</p>
-              </div>
-            </div>
-
-            {hasVariants && (
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                  Select Size / Variant
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {combinations.map((variant) => (
-                    <button
-                      key={variant.key}
-                      type="button"
-                      onClick={() => setSelectedVariant(variant.key)}
-                      className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-start gap-1 ${
-                        selectedVariant === variant.key
-                          ? `${type === "offline" ? "border-emerald-500 bg-emerald-50/50" : "border-blue-500 bg-blue-50/50"}`
-                          : "border-gray-100 hover:border-gray-200 bg-white"
-                      }`}
-                    >
-                      <span className={`text-[10px] font-black ${selectedVariant === variant.key ? "text-gray-900" : "text-gray-600"}`}>
-                        {variant.label}
-                      </span>
-                      <span className="text-[9px] font-bold text-gray-400">Stock: {variant.stock}</span>
-                    </button>
-                  ))}
+          {/* Scrollable Body */}
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 no-scrollbar">
+            <form id="manualSaleForm" onSubmit={handleSubmit} className="space-y-6">
+              <div className="flex items-center gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+                <img
+                  src={product.image || product.images?.[0] || "https://via.placeholder.com/100x100?text=Product"}
+                  alt={product.name}
+                  className="w-16 h-16 object-cover rounded-xl shadow-sm"
+                />
+                <div className="min-w-0">
+                  <h3 className="font-bold text-gray-800 text-sm truncate">{product.name}</h3>
+                  <p className="text-xs font-bold text-emerald-600 mt-0.5">Total Stock: {product.stockQuantity || 0}</p>
                 </div>
               </div>
-            )}
 
-            <div className="space-y-3">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-                Quantity to Deduct
-              </label>
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="size-12 rounded-2xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                >
-                  <FiMinus className="text-gray-600" />
-                </button>
-                <input
-                  type="number"
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="flex-1 h-12 bg-gray-50 border-none rounded-2xl text-center font-black text-lg focus:ring-2 focus:ring-gray-200"
-                />
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.min(currentVariantStock, quantity + 1))}
-                  className="size-12 rounded-2xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-                >
-                  <FiPlus className="text-gray-600" />
-                </button>
+              {hasVariants && (
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                    Select Size / Variant
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {combinations.map((variant) => (
+                      <button
+                        key={variant.key}
+                        type="button"
+                        onClick={() => setSelectedVariant(variant.key)}
+                        className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-start gap-1 ${
+                          selectedVariant === variant.key
+                            ? `${type === "offline" ? "border-emerald-500 bg-emerald-50/50" : "border-blue-500 bg-blue-50/50"}`
+                            : "border-gray-100 hover:border-gray-200 bg-white"
+                        }`}
+                      >
+                        <span className={`text-[10px] font-black ${selectedVariant === variant.key ? "text-gray-900" : "text-gray-600"}`}>
+                          {variant.label}
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-400">Stock: {variant.stock}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                  Quantity to Deduct
+                </label>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="size-12 rounded-2xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    <FiMinus className="text-gray-600" />
+                  </button>
+                  <input
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="flex-1 h-12 bg-gray-50 border-none rounded-2xl text-center font-black text-lg focus:ring-2 focus:ring-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.min(currentVariantStock, quantity + 1))}
+                    className="size-12 rounded-2xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    <FiPlus className="text-gray-600" />
+                  </button>
+                </div>
               </div>
-            </div>
+            </form>
+          </div>
 
-            <div className="pt-4 flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 py-4 bg-gray-50 text-gray-600 font-black rounded-2xl hover:bg-gray-100 transition-all text-sm uppercase tracking-widest"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || (hasVariants && !selectedVariant) || currentVariantStock === 0}
-                className={`flex-1 py-4 text-white font-black rounded-2xl transition-all shadow-xl text-sm uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed ${
-                  type === "offline" 
-                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" 
-                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
-                }`}
-              >
-                {isSubmitting ? "Processing..." : "Confirm Sale"}
-              </button>
-            </div>
-          </form>
+          {/* Fixed Footer */}
+          <div className="p-6 md:p-8 border-t border-gray-100 bg-white z-10 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-4 bg-gray-50 text-gray-600 font-black rounded-2xl hover:bg-gray-100 transition-all text-xs uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="manualSaleForm"
+              disabled={isSubmitting || (hasVariants && !selectedVariant) || currentVariantStock === 0}
+              className={`flex-1 py-4 text-white font-black rounded-2xl transition-all shadow-xl text-xs uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed ${
+                type === "offline" 
+                  ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" 
+                  : "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
+              }`}
+            >
+              {isSubmitting ? "Processing..." : "Confirm Sale"}
+            </button>
+          </div>
         </div>
       </motion.div>
     </AnimatePresence>
@@ -928,10 +932,10 @@ const VariantStockDrawer = ({ isOpen, product, onClose, onUpdate }) => {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-[9999] shadow-2xl flex flex-col"
+            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-[9999] shadow-2xl flex flex-col overflow-hidden"
           >
-            {/* Header */}
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0">
+            {/* Fixed Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
               <div>
                 <h2 className="text-xl font-bold text-gray-800">Variant Stock Details</h2>
                 <p className="text-sm text-gray-500 truncate max-w-[250px]">{product.name}</p>
@@ -944,8 +948,8 @@ const VariantStockDrawer = ({ isOpen, product, onClose, onUpdate }) => {
               </button>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6 no-scrollbar">
               <div className="flex items-center gap-4 mb-8 bg-gray-50 p-4 rounded-xl border border-dashed border-gray-200">
                 <img
                   src={product.image || product.images?.[0] || "https://via.placeholder.com/100x100?text=Product"}
@@ -954,12 +958,12 @@ const VariantStockDrawer = ({ isOpen, product, onClose, onUpdate }) => {
                 />
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Total Stock</p>
-                  <p className="text-2xl font-bold text-primary-600">{totalStock}</p>
+                  <p className="text-2xl font-bold text-emerald-600">{totalStock}</p>
                 </div>
               </div>
 
               <div className="space-y-6">
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest border-l-4 border-primary-500 pl-3">
+                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-l-4 border-emerald-500 pl-3">
                   Stock by Variant
                 </h3>
                 
@@ -973,7 +977,7 @@ const VariantStockDrawer = ({ isOpen, product, onClose, onUpdate }) => {
                     {combinations.map((combo) => (
                       <div
                         key={combo.key}
-                        className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50/30 hover:bg-white hover:border-primary-100 transition-all group"
+                        className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50/30 hover:bg-white hover:border-emerald-100 transition-all group"
                       >
                         <span className="font-semibold text-gray-600 group-hover:text-gray-900 transition-colors">
                           {combo.label}
@@ -984,7 +988,7 @@ const VariantStockDrawer = ({ isOpen, product, onClose, onUpdate }) => {
                             min="0"
                             value={localStockMap[combo.key] ?? 0}
                             onChange={(e) => handleStockChange(combo.key, e.target.value)}
-                            className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm text-center font-bold text-gray-800 focus:ring-2 focus:ring-primary-500 focus:outline-none transition-all"
+                            className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm text-center font-bold text-gray-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
                           />
                         </div>
                       </div>
@@ -994,20 +998,20 @@ const VariantStockDrawer = ({ isOpen, product, onClose, onUpdate }) => {
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
+            {/* Fixed Footer */}
+            <div className="p-6 border-t border-gray-100 bg-white flex gap-3 z-10">
               <button
                 onClick={onClose}
-                className="flex-1 py-4 bg-white text-gray-600 font-bold rounded-xl border border-gray-200 hover:bg-gray-50 transition-all"
+                className="flex-1 py-4 bg-gray-50 text-gray-600 font-bold rounded-xl border border-gray-200 hover:bg-gray-100 transition-all text-xs uppercase tracking-widest"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex-1 py-4 gradient-green text-white font-bold rounded-xl shadow-lg hover:shadow-glow-green transition-all disabled:opacity-50"
+                className="flex-1 py-4 bg-[#003d29] text-white font-bold rounded-xl shadow-lg shadow-emerald-900/10 hover:bg-[#002a1c] transition-all disabled:opacity-50 text-xs uppercase tracking-widest"
               >
-                {isSaving ? "Saving..." : "Update Variant Stock"}
+                {isSaving ? "Saving..." : "Update Stock"}
               </button>
             </div>
           </motion.div>

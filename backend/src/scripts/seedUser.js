@@ -25,7 +25,7 @@ const seedUser = async () => {
             name: 'Test Customer',
             email: 'user@test.com',
             password: 'password123',
-            phone: '9876543210',
+            phone: '7894561230',
             role: 'customer',
             isVerified: true,
             isActive: true
@@ -36,12 +36,13 @@ const seedUser = async () => {
         if (existing) {
             existing.password = userData.password;
             existing.name = userData.name;
-            existing.phone = userData.phone;
+            existing.phone = '1234567890';
             existing.isVerified = userData.isVerified;
             existing.isActive = userData.isActive;
             await existing.save();
             console.log(`✅ User updated: ${userData.email} / ${userData.password}`);
         } else {
+            userData.phone = '1234567890';
             await User.create(userData);
             console.log(`✅ User created: ${userData.email} / ${userData.password}`);
         }

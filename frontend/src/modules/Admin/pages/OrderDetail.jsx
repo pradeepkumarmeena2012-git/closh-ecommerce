@@ -41,6 +41,7 @@ const OrderDetail = () => {
   const [status, setStatus] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
+  const [showInvoice, setShowInvoice] = useState(false);
 
   useEffect(() => {
     const fetchOrderData = async () => {
@@ -132,7 +133,6 @@ const OrderDetail = () => {
     return 'https://via.placeholder.com/100x100?text=Product';
   };
 
-  const [showInvoice, setShowInvoice] = useState(false);
 
   const handlePrint = () => {
     const printContent = document.getElementById('printable-invoice');

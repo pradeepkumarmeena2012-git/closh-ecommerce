@@ -129,8 +129,52 @@ export const OrderNotificationService = {
                 orderId: order.orderId, 
                 status,
                 total: order.total,
-                customerName: order.shippingAddress?.name
+                customerName: order.shippingAddress?.name,
+                deliveryBoy: order.deliveryBoyId ? {
+                    id: order.deliveryBoyId._id,
+                    name: order.deliveryBoyId.name,
+                    phone: order.deliveryBoyId.phone
+                } : null
             };
+
+            // 4. Global Socket Updates (Ensures UI synchronization)
+            // Notify the specific order room
+            const rooms = [`order_${order._id}`, `order_${order.orderId}`];
+            rooms.forEach(room => {
+                emitEvent(room, 'order_status_updated', notificationData);
+                emitEvent(room, 'order_updated', notificationData);
+                // Also emit specific milestone events
+                if (status === 'picked_up') emitEvent(room, 'order_picked_up', notificationData);
+                if (status === 'out_for_delivery') emitEvent(room, 'order_out_for_delivery', notificationData);
+                if (status === 'delivered') emitEvent(room, 'order_delivered', notificationData);
+                if (status === 'assigned') emitEvent(room, 'order_assigned', notificationData);
+            });
+
+            // Role-specific socket rooms for dashboard refreshes
+            if (order.userId) {
+                const userRoom = `user_${order.userId}`;
+                emitEvent(userRoom, 'order_updated', notificationData);
+                emitEvent(userRoom, 'order_status_updated', notificationData);
+                if (status === 'assigned') emitEvent(userRoom, 'order_assigned', notificationData);
+                if (status === 'picked_up') emitEvent(userRoom, 'order_picked_up', notificationData);
+                if (status === 'out_for_delivery') emitEvent(userRoom, 'order_out_for_delivery', notificationData);
+                if (status === 'delivered') emitEvent(userRoom, 'order_delivered', notificationData);
+            }
+
+            vendorIds.forEach(vId => {
+                const vendorRoom = `vendor_${vId}`;
+                emitEvent(vendorRoom, 'order_updated', notificationData);
+                emitEvent(vendorRoom, 'order_status_updated', notificationData);
+                if (status === 'picked_up') emitEvent(vendorRoom, 'order_picked_up', notificationData);
+                if (status === 'delivered') emitEvent(vendorRoom, 'order_delivered', notificationData);
+            });
+
+            if (order.deliveryBoyId) {
+                const deliveryId = order.deliveryBoyId._id || order.deliveryBoyId;
+                const deliveryRoom = `delivery_${deliveryId}`;
+                emitEvent(deliveryRoom, 'order_updated', notificationData);
+                emitEvent(deliveryRoom, 'order_status_updated', notificationData);
+            }
             
             // Execute notifications (DB persistence + Push via createNotification)
             const tasks = recipients

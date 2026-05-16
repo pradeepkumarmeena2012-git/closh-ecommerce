@@ -33,7 +33,19 @@ import {
 } from "../../services/vendorService";
 import MultiSelect from "../../../Admin/components/MultiSelect";
 import { PRODUCT_SIZES } from "../../../../shared/utils/constants";
+import { useCategoryStore } from "../../../../shared/store/categoryStore";
+import { useBrandStore } from "../../../../shared/store/brandStore";
+import CategorySelector from "../../../Admin/components/CategorySelector";
+import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
+import { 
+  buildVariantCombinations, 
+  syncVariantPricesWithAxes, 
+  buildVariantPayload, 
+  normalizeVariantStateForForm,
+  parseVariantAxis
+} from "../../utils/variantHelpers";
 import toast from "react-hot-toast";
+import { uploadVendorImage } from "../../services/vendorService";
 
 const OfflineSales = () => {
   const { vendor } = useVendorAuthStore();
@@ -48,9 +60,14 @@ const OfflineSales = () => {
   const [saleSelection, setSaleSelection] = useState({});
   const [saleQuantity, setSaleQuantity] = useState(1);
 
+  const { categories, initialize: initCategories } = useCategoryStore();
+  const { brands, initialize: initBrands } = useBrandStore();
+
   useEffect(() => {
     fetchProducts();
-  }, []);
+    initCategories();
+    initBrands();
+  }, [initCategories, initBrands]);
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -73,7 +90,9 @@ const OfflineSales = () => {
         sizes: p.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.values || p.variants?.sizes || [],
         date: p.createdAt,
         variants: p.variants,
-        sold: p.offlineSold || 0 // Assuming backend might have this, or default to 0
+        originalPrice: p.originalPrice,
+        sold: p.offlineSold || 0,
+        rawProduct: p
       }));
       setSales(products);
     } catch (error) {
@@ -85,20 +104,83 @@ const OfflineSales = () => {
 
   const [formData, setFormData] = useState({
     productName: "",
-    unit: "",
-    category: "",
-    brand: "",
+    unit: "Piece",
+    categoryId: null,
+    subcategoryId: null,
+    brandId: null,
+    division: "Unisex",
     description: "",
     price: "",
     originalPrice: "",
     discount: 0,
-    stock: 0,
+    stock: "in_stock",
+    stockQuantity: "",
     image: null,
-    colors: [],
-    sizes: [],
-    showColorAttr: true,
-    showSizeAttr: true
+    images: [],
+    variants: {
+      sizes: [],
+      attributes: [],
+      prices: {},
+      stockMap: {},
+      imageMap: {},
+      defaultVariant: { size: "" },
+      defaultSelection: {}
+    },
+    flashSale: false,
+    isNewArrival: false,
+    isFeatured: false,
+    isVisible: true,
+    codAllowed: true,
+    returnable: true,
+    cancelable: true,
+    taxIncluded: false,
+    hsnCode: "",
+    warrantyPeriod: "",
+    guaranteePeriod: "",
+    taxRate: 18,
+    seoTitle: "",
+    seoDescription: "",
+    tags: [],
+    faqs: []
   });
+
+  const variantCombinations = useMemo(() => {
+    return buildVariantCombinations(
+      formData.variants?.sizes || [],
+      [],
+      formData.variants?.attributes || []
+    );
+  }, [formData.variants?.sizes, formData.variants?.attributes]);
+
+  // Auto-calculate total stock from variants
+  useEffect(() => {
+    if (variantCombinations.length > 0 && formData.variants?.stockMap) {
+      const total = Object.values(formData.variants.stockMap).reduce((sum, val) => {
+        const num = parseInt(val, 10);
+        return sum + (isNaN(num) ? 0 : num);
+      }, 0);
+      if (parseInt(formData.stockQuantity || 0, 10) !== total) {
+        setFormData(prev => ({ ...prev, stockQuantity: total }));
+      }
+    }
+  }, [formData.variants?.stockMap, variantCombinations]);
+
+  // Auto-calculate discount
+  useEffect(() => {
+    const price = parseFloat(formData.price);
+    const originalPrice = parseFloat(formData.originalPrice);
+    
+    if (originalPrice && price && originalPrice > price) {
+      const discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+      if (formData.discount !== discount) {
+        setFormData(prev => ({ ...prev, discount }));
+      }
+    } else if (originalPrice && price && originalPrice <= price) {
+      if (formData.discount !== 0) {
+        setFormData(prev => ({ ...prev, discount: 0 }));
+      }
+    }
+  }, [formData.price, formData.originalPrice]);
 
   const [currentColor, setCurrentColor] = useState("");
 
@@ -111,40 +193,89 @@ const OfflineSales = () => {
 
   const handleOpenModal = (sale = null) => {
     if (sale) {
+      const p = sale.rawProduct || sale;
       setEditingSale(sale);
+      
+      const normalizedVariants = normalizeVariantStateForForm(
+        p.variants || {},
+        p.vendorPrice || p.price || ""
+      );
+
       setFormData({
-        productName: sale.productName || "",
-        unit: sale.unit || "",
-        category: sale.category || "",
-        brand: sale.brand || "",
-        description: sale.description || "",
-        price: sale.price || "",
-        originalPrice: sale.originalPrice || "",
-        discount: sale.discount || 0,
-        stock: sale.stock || 0,
-        image: sale.image || null,
-        colors: sale.colors || [],
-        sizes: sale.sizes || [],
-        showColorAttr: true,
-        showSizeAttr: true
+        productName: p.name || "",
+        unit: p.unit || "Piece",
+        categoryId: p.categoryId?._id || p.categoryId || null,
+        subcategoryId: p.subcategoryId?._id || p.subcategoryId || null,
+        brandId: p.brandId?._id || p.brandId || null,
+        division: p.division || "Unisex",
+        description: p.description || "",
+        price: p.vendorPrice || p.price || "",
+        originalPrice: p.originalPrice || "",
+        discount: p.discount || 0,
+        stock: p.stock || "in_stock",
+        stockQuantity: p.stockQuantity || 0,
+        image: p.image || null,
+        images: p.images || [],
+        variants: normalizedVariants,
+        flashSale: p.flashSale || false,
+        isNewArrival: p.isNewArrival || false,
+        isFeatured: p.isFeatured || false,
+        isVisible: p.isVisible !== undefined ? p.isVisible : true,
+        codAllowed: p.codAllowed !== undefined ? p.codAllowed : true,
+        returnable: p.returnable !== undefined ? p.returnable : true,
+        cancelable: p.cancelable !== undefined ? p.cancelable : true,
+        taxIncluded: p.taxIncluded || false,
+        hsnCode: p.hsnCode || "",
+        warrantyPeriod: p.warrantyPeriod || "",
+        guaranteePeriod: p.guaranteePeriod || "",
+        taxRate: p.taxRate || 18,
+        seoTitle: p.seoTitle || "",
+        seoDescription: p.seoDescription || "",
+        tags: p.tags || [],
+        faqs: p.faqs || []
       });
     } else {
       setEditingSale(null);
       setFormData({
         productName: "",
-        unit: "",
-        category: "",
-        brand: "",
+        unit: "Piece",
+        categoryId: null,
+        subcategoryId: null,
+        brandId: null,
+        division: "Unisex",
         description: "",
         price: "",
         originalPrice: "",
         discount: 0,
-        stock: 0,
+        stock: "in_stock",
+        stockQuantity: "",
         image: null,
-        colors: [],
-        sizes: [],
-        showColorAttr: true,
-        showSizeAttr: true
+        images: [],
+        variants: {
+          sizes: [],
+          attributes: [],
+          prices: {},
+          stockMap: {},
+          imageMap: {},
+          defaultVariant: { size: "" },
+          defaultSelection: {}
+        },
+        flashSale: false,
+        isNewArrival: false,
+        isFeatured: false,
+        isVisible: true,
+        codAllowed: true,
+        returnable: true,
+        cancelable: true,
+        taxIncluded: false,
+        hsnCode: "",
+        warrantyPeriod: "",
+        guaranteePeriod: "",
+        taxRate: 18,
+        seoTitle: "",
+        seoDescription: "",
+        tags: [],
+        faqs: []
       });
     }
     setIsModalOpen(true);
@@ -169,51 +300,71 @@ const OfflineSales = () => {
     }
   };
 
-  const handleAddTag = (type) => {
-    if (type === "color" && currentColor.trim()) {
-      if (!formData.colors.includes(currentColor.trim())) {
-        setFormData({ ...formData, colors: [...formData.colors, currentColor.trim()] });
+  const updateVariantAxes = (axis, rawText) => {
+    const parsed = parseVariantAxis(rawText);
+    const nextSizes = axis === "sizes" ? parsed : (formData.variants?.sizes || []);
+    const synced = syncVariantPricesWithAxes(
+      formData.variants?.prices || {},
+      formData.variants?.stockMap || {},
+      formData.variants?.imageMap || {},
+      nextSizes,
+      [],
+      formData.variants?.attributes || [],
+      formData.price
+    );
+
+    setFormData(prev => ({
+      ...prev,
+      variants: {
+        ...prev.variants,
+        sizes: nextSizes,
+        prices: synced.prices,
+        stockMap: synced.stockMap,
+        imageMap: synced.imageMap,
       }
-      setCurrentColor("");
-    }
+    }));
   };
 
-  const handleRemoveTag = (type, value) => {
-    if (type === "color") {
-      setFormData({ ...formData, colors: formData.colors.filter(c => c !== value) });
-    }
+  const updateVariantAttributes = (nextAttributes) => {
+    const synced = syncVariantPricesWithAxes(
+      formData.variants?.prices || {},
+      formData.variants?.stockMap || {},
+      formData.variants?.imageMap || {},
+      formData.variants?.sizes || [],
+      [],
+      nextAttributes,
+      formData.price
+    );
+
+    setFormData(prev => ({
+      ...prev,
+      variants: {
+        ...prev.variants,
+        attributes: nextAttributes,
+        prices: synced.prices,
+        stockMap: synced.stockMap,
+        imageMap: synced.imageMap,
+      }
+    }));
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!formData.productName || !formData.price) {
-      toast.error("Required: Name & Selling Price");
+    if (!formData.productName || !formData.price || !formData.categoryId) {
+      toast.error("Required: Name, Selling Price & Category");
       return;
     }
 
     setIsLoading(true);
     try {
       const payload = {
+        ...formData,
         name: formData.productName,
-        unit: formData.unit,
-        description: formData.description,
-        price: formData.price,
-        originalPrice: formData.originalPrice,
-        discount: formData.discount,
-        stockQuantity: formData.stock,
-        image: formData.image,
-        // For new products, we might need a default category/brand if not provided
-        // In a real app, we would have a dropdown for these
-        categoryId: editingSale?.variants?.categoryId || "654321098765432109876543", // Placeholder or existing
-        brandId: editingSale?.variants?.brandId || "654321098765432109876542", // Placeholder or existing
-        variants: {
-          ...(editingSale?.variants || {}),
-          sizes: formData.sizes,
-          attributes: [
-            { name: "Color", values: formData.colors },
-            { name: "Size", values: formData.sizes }
-          ]
-        }
+        price: parseFloat(formData.price),
+        originalPrice: formData.originalPrice === "" ? null : parseFloat(formData.originalPrice),
+        stockQuantity: parseInt(formData.stockQuantity || 0),
+        categoryId: formData.subcategoryId || formData.categoryId,
+        variants: buildVariantPayload(formData.variants)
       };
 
       if (editingSale && editingSale.productId) {
@@ -594,171 +745,314 @@ const OfflineSales = () => {
               className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" 
             />
             
-            {/* Content Wrapper with padding for nav clearance */}
-            <div className="relative inset-0 h-full w-full flex items-center justify-center p-4 pb-28 md:pb-4 pointer-events-none">
+            {/* Content Wrapper */}
+            <div className="relative inset-0 h-full w-full flex items-center justify-center p-2 sm:p-4 pb-24 md:pb-4 pointer-events-none">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 20 }} 
                 animate={{ opacity: 1, scale: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.95, y: 20 }} 
-                className="relative bg-white w-full max-w-4xl max-h-[90vh] md:max-h-[96vh] overflow-y-auto rounded-[2rem] p-4 md:p-8 shadow-2xl no-scrollbar border border-emerald-50 pointer-events-auto"
+                className="relative bg-white w-full max-w-4xl max-h-[92vh] flex flex-col rounded-[1.5rem] md:rounded-[2rem] shadow-2xl border border-emerald-50 pointer-events-auto overflow-hidden"
               >
-                <div className="flex items-center justify-between mb-3 sticky top-0 bg-white z-10 pb-2 border-b border-emerald-50">
+                {/* Fixed Header */}
+                <div className="flex items-center justify-between p-4 md:p-6 border-b border-emerald-50 bg-white z-20">
                   <h2 className="text-base md:text-xl font-black text-[#003d29] tracking-tight flex items-center gap-2">
                     <FiShoppingBag className="text-emerald-600" /> {editingSale ? "Edit" : "New"} Product
                   </h2>
-                  <button onClick={() => setIsModalOpen(false)} className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#003d29] rounded-lg transition-colors"><FiX size={18} /></button>
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 bg-emerald-50 hover:bg-emerald-100 text-[#003d29] rounded-xl transition-colors"><FiX size={20} /></button>
                 </div>
 
-              <form onSubmit={handleSave} className="space-y-4 md:space-y-6">
-                {/* 1. Basic Info - More Compact */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-                  <div className="sm:col-span-2 space-y-1">
+                {/* Scrollable Body */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar">
+                  <form onSubmit={handleSave} className="space-y-6">
+                {/* 1. Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="md:col-span-2 space-y-1">
                      <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Product Name *</label>
-                     <input type="text" required value={formData.productName} onChange={(e) => setFormData({ ...formData, productName: e.target.value })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-base font-bold" placeholder="T-Shirt..." />
+                     <input type="text" required value={formData.productName} onChange={(e) => setFormData({ ...formData, productName: e.target.value })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="T-Shirt..." />
                   </div>
                   <div className="space-y-1">
                      <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Unit</label>
                      <input type="text" value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="Piece/Box" />
                   </div>
                   <div className="space-y-1">
-                     <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Category *</label>
-                     <input 
-                       type="text" 
-                       required 
-                       value={formData.category} 
-                       onChange={(e) => setFormData({ ...formData, category: e.target.value })} 
-                       className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" 
-                       placeholder="e.g. Apparel" 
-                     />
+                    <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Division *</label>
+                    <AnimatedSelect
+                      value={formData.division}
+                      onChange={(e) => setFormData({ ...formData, division: e.target.value })}
+                      options={[
+                        { value: "Men", label: "Men" },
+                        { value: "Women", label: "Women" },
+                        { value: "Boys", label: "Boys" },
+                        { value: "Girls", label: "Girls" },
+                        { value: "Unisex", label: "Unisex" },
+                      ]}
+                    />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 md:gap-5">
-                   <div className="space-y-1">
-                      <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Brand</label>
-                      <input 
-                        type="text" 
-                        value={formData.brand} 
-                        onChange={(e) => setFormData({ ...formData, brand: e.target.value })} 
-                        className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" 
-                        placeholder="e.g. Closh" 
-                      />
-                   </div>
-                   <div className="sm:col-span-3 space-y-1">
-                      <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Short Description</label>
-                      <input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="Briefly describe..." />
-                   </div>
-                </div>
-
-                {/* 2. Variants - Side by Side Tags */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5">
-                  {/* Colors */}
-                  <div className="bg-emerald-50/10 p-3 md:p-5 rounded-2xl border border-emerald-50 space-y-3">
-                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                       <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase flex items-center gap-1 shrink-0">
-                         <div className="size-2 rounded-full bg-emerald-500"></div> Colors
-                       </label>
-                       <div className="relative w-full sm:w-32">
-                          <input 
-                            placeholder="Add..." 
-                            value={currentColor} 
-                            onChange={(e) => setCurrentColor(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag('color'))}
-                            className="w-full pl-2 pr-7 py-1.5 bg-white border border-emerald-100 rounded-lg focus:ring-1 focus:ring-emerald-500 text-xs font-bold" 
-                          />
-                          <button type="button" onClick={() => handleAddTag('color')} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 bg-[#003d29] text-white rounded-md">
-                            <FiPlus size={12} />
-                          </button>
-                       </div>
-                     </div>
-                     <div className="flex flex-wrap gap-1.5 min-h-[28px]">
-                       <AnimatePresence>
-                         {formData.colors.map(color => (
-                           <motion.span key={color} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="px-3 py-1 bg-white text-[#003d29] rounded-lg text-[10px] md:text-xs font-black border border-emerald-100 flex items-center gap-2 shadow-sm">
-                             {color.toUpperCase()} <FiX className="cursor-pointer text-red-400" size={12} onClick={() => handleRemoveTag('color', color)} />
-                           </motion.span>
-                         ))}
-                       </AnimatePresence>
-                     </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Category *</label>
+                    <CategorySelector
+                      value={formData.categoryId}
+                      subcategoryId={formData.subcategoryId}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        [e.target.name]: e.target.value 
+                      }))}
+                      required
+                    />
                   </div>
-
-                  {/* Sizes */}
-                  <div className="bg-emerald-50/10 p-3 md:p-5 rounded-2xl border border-emerald-50 space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                        <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase flex items-center gap-1 shrink-0">
-                          <FiMaximize className="text-emerald-500" size={12} /> Sizes
-                        </label>
-                      </div>
-                      <div className="mt-1">
-                        <MultiSelect
-                          value={formData.sizes || []}
-                          onChange={(e) => setFormData({ ...formData, sizes: e.target.value })}
-                          options={PRODUCT_SIZES}
-                          placeholder="Select sizes..."
-                          searchable={true}
-                        />
-                      </div>
-                   </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Brand</label>
+                    <AnimatedSelect
+                      value={formData.brandId || ""}
+                      onChange={(e) => setFormData({ ...formData, brandId: e.target.value || null })}
+                      placeholder="Select Brand"
+                      options={[
+                        { value: "", label: "No Brand" },
+                        ...brands.map(b => ({ value: b._id || b.id, label: b.name }))
+                      ]}
+                    />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+                <div className="space-y-1">
+                  <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Description</label>
+                  <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" rows={2} placeholder="Briefly describe..." />
+                </div>
+
+                {/* 2. Pricing & Stock */}
+                <div className="bg-emerald-50/10 p-4 rounded-2xl border border-emerald-50 space-y-4">
+                  <h3 className="text-xs font-black text-emerald-800 uppercase">Pricing & Base Inventory</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-1">
-                       <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Your Price *</label>
-                       <input type="number" required value={formData.price} onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="0.00" />
+                       <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Selling Price *</label>
+                       <input type="number" required value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-3 py-2.5 bg-white border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="0.00" />
                     </div>
-                   <div className="space-y-1">
-                      <label className="text-[10px] md:text-xs font-black text-gray-400 uppercase ml-1">MRP</label>
-                      <input type="number" value={formData.originalPrice} onChange={(e) => setFormData({ ...formData, originalPrice: parseFloat(e.target.value) })} className="w-full px-3 py-2.5 bg-gray-50/50 border border-gray-100 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="0.00" />
-                   </div>
-                   <div className="space-y-1">
-                      <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Disc %</label>
-                      <input type="number" value={formData.discount} onChange={(e) => setFormData({ ...formData, discount: parseInt(e.target.value) })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="0" />
-                   </div>
-                   <div className="space-y-1">
-                      <label className="text-[10px] md:text-xs font-black text-[#003d29] uppercase ml-1">Stock</label>
-                      <input type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value) })} className="w-full px-3 py-2.5 bg-emerald-600/5 border border-emerald-200 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold text-[#003d29]" />
-                   </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] md:text-xs font-black text-gray-400 uppercase ml-1">MRP</label>
+                        <input type="number" value={formData.originalPrice} onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })} className="w-full px-3 py-2.5 bg-white border border-gray-100 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="0.00" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Discount (%)</label>
+                        <input type="number" readOnly value={formData.discount} className="w-full px-3 py-2.5 bg-emerald-50/50 border border-emerald-50 rounded-xl text-emerald-600 text-xs md:text-sm font-black" placeholder="0" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Stock Quantity *</label>
+                        <input 
+                          type="number" 
+                          required 
+                          readOnly={variantCombinations.length > 0}
+                          value={formData.stockQuantity} 
+                          onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })} 
+                          className={`w-full px-3 py-2.5 bg-white border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold ${variantCombinations.length > 0 ? 'bg-emerald-50/50 text-emerald-600' : ''}`} 
+                        />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Stock Status</label>
+                      <AnimatedSelect
+                        value={formData.stock}
+                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                        options={[
+                          { value: 'in_stock', label: 'In Stock' },
+                          { value: 'low_stock', label: 'Low Stock' },
+                          { value: 'out_of_stock', label: 'Out of Stock' },
+                        ]}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* 4. Small Media Upload */}
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                  />
-                  <div className="p-2 md:p-4 border-2 border-dashed border-emerald-100 rounded-xl text-center hover:border-emerald-300 transition-all bg-emerald-50/10 flex items-center justify-center gap-2 min-h-[60px]">
-                    {formData.image ? (
-                      <div className="flex items-center gap-3 w-full px-2">
-                        <img src={formData.image} alt="Preview" className="w-10 h-10 rounded-lg object-cover border border-emerald-200" />
-                        <div className="text-left flex-1 min-w-0">
-                          <p className="text-[11px] md:text-sm font-black text-[#003d29] truncate">Image Selected</p>
-                          <p className="text-[9px] text-emerald-500 font-bold uppercase tracking-tight">Click to Change</p>
+                {/* 3. Variants Section */}
+                <div className="bg-emerald-50/10 p-4 rounded-2xl border border-emerald-50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black text-emerald-800 uppercase">Product Variants</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = formData.variants?.attributes || [];
+                        updateVariantAttributes([...current, { name: "", values: [] }]);
+                      }}
+                      className="px-3 py-1 bg-[#003d29] text-white rounded-lg text-[10px] font-bold uppercase"
+                    >
+                      Add Attribute
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Sizes MultiSelect */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-emerald-700 uppercase">Standard Sizes</label>
+                      <MultiSelect
+                        value={formData.variants?.sizes || []}
+                        onChange={(e) => updateVariantAxes('sizes', e.target.value.join(', '))}
+                        options={PRODUCT_SIZES}
+                        placeholder="Select sizes..."
+                      />
+                    </div>
+
+                    {/* Dynamic Attributes */}
+                    {(formData.variants?.attributes || []).map((attr, index) => (
+                      <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                        <div className="md:col-span-3 space-y-1">
+                          <label className="text-[9px] font-bold text-gray-500 uppercase">Attr Name</label>
+                          <input 
+                            type="text" 
+                            value={attr.name} 
+                            onChange={(e) => {
+                              const next = [...formData.variants.attributes];
+                              next[index].name = e.target.value;
+                              updateVariantAttributes(next);
+                            }}
+                            className="w-full px-2 py-1.5 bg-white border border-emerald-50 rounded-lg text-xs font-bold" 
+                            placeholder="e.g. Material"
+                          />
                         </div>
-                        <FiUpload className="size-3.5 md:size-4 text-emerald-300" />
+                        <div className="md:col-span-8 space-y-1">
+                          <label className="text-[9px] font-bold text-gray-500 uppercase">Values (comma separated)</label>
+                          <input 
+                            type="text" 
+                            value={(attr.values || []).join(', ')} 
+                            onChange={(e) => {
+                              const next = [...formData.variants.attributes];
+                              next[index].values = parseVariantAxis(e.target.value);
+                              updateVariantAttributes(next);
+                            }}
+                            className="w-full px-2 py-1.5 bg-white border border-emerald-50 rounded-lg text-xs font-bold"
+                            placeholder="Cotton, Silk..."
+                          />
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => updateVariantAttributes(formData.variants.attributes.filter((_, i) => i !== index))}
+                          className="md:col-span-1 p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
+                        >
+                          <FiX size={14} className="mx-auto" />
+                        </button>
                       </div>
-                    ) : (
-                      <>
-                        <FiUpload className="size-3.5 md:size-5 text-emerald-300" />
-                        <div>
-                          <p className="text-[11px] md:text-sm font-black text-[#003d29]">Upload Product Image</p>
-                        </div>
-                      </>
+                    ))}
+
+                    {/* Variant Price/Stock Grid */}
+                    {variantCombinations.length > 0 && (
+                      <div className="mt-4 border border-emerald-100 rounded-xl overflow-hidden bg-white">
+                        <table className="w-full text-left text-[10px] md:text-xs">
+                          <thead className="bg-emerald-50/50 text-emerald-800 font-black uppercase">
+                            <tr>
+                              <th className="px-3 py-2">Variant</th>
+                              <th className="px-3 py-2">Price (Optional)</th>
+                              <th className="px-3 py-2">Stock</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-emerald-50">
+                            {variantCombinations.map((combo) => (
+                              <tr key={combo.key}>
+                                <td className="px-3 py-2 font-bold text-gray-700">{combo.label}</td>
+                                <td className="px-3 py-2">
+                                  <input 
+                                    type="number" 
+                                    value={formData.variants.prices[combo.key] ?? ""} 
+                                    onChange={(e) => setFormData(prev => ({
+                                      ...prev,
+                                      variants: { ...prev.variants, prices: { ...prev.variants.prices, [combo.key]: e.target.value } }
+                                    }))}
+                                    className="w-full px-2 py-1 bg-emerald-50/20 border border-emerald-50 rounded focus:ring-1 focus:ring-emerald-500" 
+                                    placeholder="Base"
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <input 
+                                    type="number" 
+                                    value={formData.variants.stockMap[combo.key] ?? ""} 
+                                    onChange={(e) => setFormData(prev => ({
+                                      ...prev,
+                                      variants: { ...prev.variants, stockMap: { ...prev.variants.stockMap, [combo.key]: e.target.value } }
+                                    }))}
+                                    className="w-full px-2 py-1 bg-emerald-50/20 border border-emerald-50 rounded focus:ring-1 focus:ring-emerald-500" 
+                                    placeholder="0"
+                                  />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="pt-1 sticky bottom-0 bg-white shadow-[0_-10px_20px_-10px_rgba(255,255,255,0.8)]">
-                  <button type="submit" className="w-full py-3 bg-[#003d29] text-white rounded-xl md:rounded-[1.25rem] font-black text-[11px] md:text-sm tracking-widest hover:bg-[#002a1c] transition-all uppercase flex items-center justify-center gap-2">
-                    <FiCheck className="size-3.5" /> Save Product
+                {/* 4. Media & Additional Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Product Media</label>
+                    <div className="relative border-2 border-dashed border-emerald-100 rounded-xl bg-emerald-50/10 p-4 text-center cursor-pointer hover:border-emerald-300">
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                      {formData.image ? (
+                        <div className="flex items-center gap-3">
+                          <img src={formData.image} className="w-12 h-12 rounded-lg object-cover" />
+                          <div className="text-left"><p className="text-xs font-black">Main Image Set</p><p className="text-[10px] text-emerald-500 font-bold uppercase">Change</p></div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <FiUpload className="text-emerald-300" size={20} />
+                          <p className="text-xs font-black">Upload Main Image</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                     <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Settings & SEO</label>
+                     <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400">HSN CODE</label>
+                          <input type="text" value={formData.hsnCode} onChange={(e) => setFormData({...formData, hsnCode: e.target.value})} className="w-full px-2 py-1.5 bg-white border border-gray-100 rounded-lg text-xs" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-gray-400">TAX RATE (%)</label>
+                          <input type="number" value={formData.taxRate} onChange={(e) => setFormData({...formData, taxRate: e.target.value})} className="w-full px-2 py-1.5 bg-white border border-gray-100 rounded-lg text-xs" />
+                        </div>
+                     </div>
+                  </div>
+                </div>
+
+                {/* Tags & Options */}
+                <div className="flex flex-wrap gap-4">
+                   <div className="flex-1 min-w-[200px] space-y-1">
+                      <label className="text-[10px] font-bold text-emerald-800 uppercase">Tags (Comma separated)</label>
+                      <input 
+                        type="text" 
+                        value={formData.tags.join(', ')} 
+                        onChange={(e) => setFormData({...formData, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean)})}
+                        className="w-full px-3 py-2 bg-emerald-50/10 border border-emerald-50 rounded-xl text-xs font-bold" 
+                        placeholder="shoes, adidas, sporty..."
+                      />
+                   </div>
+                   <div className="flex items-center gap-4 pt-4">
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <input type="checkbox" checked={formData.flashSale} onChange={(e) => setFormData({...formData, flashSale: e.target.checked})} className="w-4 h-4 rounded border-emerald-200 text-emerald-600 focus:ring-emerald-500" />
+                        <span className="text-[10px] font-bold text-gray-600 uppercase group-hover:text-emerald-600 transition-colors">Flash Sale</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <input type="checkbox" checked={formData.isVisible} onChange={(e) => setFormData({...formData, isVisible: e.target.checked})} className="w-4 h-4 rounded border-emerald-200 text-emerald-600 focus:ring-emerald-500" />
+                        <span className="text-[10px] font-bold text-gray-600 uppercase group-hover:text-emerald-600 transition-colors">Visible</span>
+                      </label>
+                   </div>
+                </div>
+
+                  </form>
+                </div>
+
+                {/* Fixed Footer */}
+                <div className="p-4 md:p-6 border-t border-emerald-50 bg-white z-20">
+                  <button type="submit" onClick={handleSave} disabled={isLoading} className="w-full py-4 bg-[#003d29] text-white rounded-[1.25rem] font-black text-sm tracking-widest hover:bg-[#002a1c] transition-all uppercase flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-emerald-900/10">
+                    <FiCheck className="size-4" /> {isLoading ? "Saving..." : "Save Product"}
                   </button>
                 </div>
-              </form>
-            </motion.div>
+              </motion.div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
       <AnimatePresence>
         {isSaleConfirmOpen && saleProduct && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -771,9 +1065,10 @@ const OfflineSales = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-md rounded-[2rem] p-6 md:p-8 shadow-2xl border border-emerald-50 overflow-hidden"
+              className="relative bg-white w-full max-w-md max-h-[90vh] flex flex-col rounded-[2rem] shadow-2xl border border-emerald-50 overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-6">
+              {/* Fixed Header */}
+              <div className="flex items-center justify-between p-6 md:p-8 border-b border-emerald-50 bg-white z-10">
                 <h3 className="text-xl font-black text-[#003d29] flex items-center gap-2">
                   <FiShoppingCart className="text-emerald-600" /> Confirm Sale
                 </h3>
@@ -781,6 +1076,9 @@ const OfflineSales = () => {
                   <FiX size={20} />
                 </button>
               </div>
+
+              {/* Scrollable Body */}
+              <div className="flex-1 overflow-y-auto p-6 md:p-8 no-scrollbar">
 
               <div className="flex items-center gap-4 mb-8 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-50">
                 <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center overflow-hidden border border-emerald-100 shadow-sm">
@@ -877,13 +1175,17 @@ const OfflineSales = () => {
                   </div>
                 </div>
               </div>
+            </div>
 
-              <button 
-                onClick={confirmSale}
-                className="w-full py-4 bg-[#003d29] text-white rounded-2xl font-black text-sm tracking-widest hover:bg-[#002a1c] transition-all uppercase flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/20"
-              >
-                <FiCheck className="size-5" /> Record Sale
-              </button>
+            {/* Fixed Footer */}
+              <div className="p-6 md:p-8 border-t border-emerald-50 bg-white">
+                <button 
+                  onClick={confirmSale}
+                  className="w-full py-4 bg-[#003d29] text-white rounded-2xl font-black text-sm tracking-widest hover:bg-[#002a1c] transition-all uppercase flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/20"
+                >
+                  <FiCheck className="size-5" /> Record Sale
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

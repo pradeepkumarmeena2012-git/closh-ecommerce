@@ -218,6 +218,8 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, order, 'Order status updated.'));
 });
 
+import Vendor from '../../../models/Vendor.model.js';
+
 // GET /api/vendor/earnings
 export const getEarnings = asyncHandler(async (req, res) => {
     const {
@@ -267,7 +269,7 @@ export const getEarnings = asyncHandler(async (req, res) => {
                     totalEarnings: { 
                         $sum: { 
                             $cond: [
-                                { $nin: ["$order.status", ["return requested", "returned", "cancelled"]] }, 
+                                { $not: [{ $in: ["$order.status", ["return requested", "returned", "cancelled"]] }] }, 
                                 "$vendorEarnings", 
                                 0
                             ] 
@@ -276,7 +278,7 @@ export const getEarnings = asyncHandler(async (req, res) => {
                     totalCommission: { 
                         $sum: { 
                             $cond: [
-                                { $nin: ["$order.status", ["return requested", "returned", "cancelled"]] }, 
+                                { $not: [{ $in: ["$order.status", ["return requested", "returned", "cancelled"]] }] }, 
                                 "$commission", 
                                 0
                             ] 
@@ -288,7 +290,7 @@ export const getEarnings = asyncHandler(async (req, res) => {
                                 { 
                                     $and: [
                                         { $eq: ["$status", "pending"] },
-                                        { $nin: ["$order.status", ["return requested", "returned", "cancelled"]] }
+                                        { $not: [{ $in: ["$order.status", ["return requested", "returned", "cancelled"]] }] }
                                     ]
                                 }, 
                                 "$vendorEarnings", 
@@ -302,7 +304,7 @@ export const getEarnings = asyncHandler(async (req, res) => {
                     totalOrders: { 
                         $sum: { 
                             $cond: [
-                                { $nin: ["$order.status", ["return requested", "returned", "cancelled"]] }, 
+                                { $not: [{ $in: ["$order.status", ["return requested", "returned", "cancelled"]] }] }, 
                                 1, 
                                 0
                             ] 
@@ -335,7 +337,7 @@ export const getEarnings = asyncHandler(async (req, res) => {
         }
     ]);
 
-    const currentVendor = await mongoose.model('Vendor').findById(req.user.id).select('availableBalance pendingBalance').lean();
+    const currentVendor = await Vendor.findById(req.user.id).select('availableBalance pendingBalance').lean();
     const stats = aggregationResult[0] || { totalEarnings: 0, pendingStatusEarnings: 0, paidEarnings: 0, cancelledEarnings: 0, totalCommission: 0, totalOrders: 0, requestedEarnings: 0 };
     const breakdown = summaryBreakdown[0] || { pendingAmount: 0, readyAmount: 0 };
     
@@ -386,27 +388,27 @@ export const getEarnings = asyncHandler(async (req, res) => {
         };
     });
 
-    res.status(200).json(
-        new ApiResponse(
-            200,
-            {
-                summary,
-                commissions,
-                settlements,
-                pagination: {
-                    totalCommissions,
-                    page: numericPage,
-                    limit: numericLimit,
-                    pages: Math.max(1, Math.ceil(totalCommissions / numericLimit)),
+        res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    summary,
+                    commissions,
+                    settlements,
+                    pagination: {
+                        totalCommissions,
+                        page: numericPage,
+                        limit: numericLimit,
+                        pages: Math.max(1, Math.ceil(totalCommissions / numericLimit)),
+                    },
+                    settlementsPagination: {
+                        totalSettlements,
+                        page: numericSettlementsPage,
+                        limit: numericSettlementsLimit,
+                        pages: Math.max(1, Math.ceil(totalSettlements / numericSettlementsLimit)),
+                    },
                 },
-                settlementsPagination: {
-                    totalSettlements,
-                    page: numericSettlementsPage,
-                    limit: numericSettlementsLimit,
-                    pages: Math.max(1, Math.ceil(totalSettlements / numericSettlementsLimit)),
-                },
-            },
-            'Earnings fetched.'
-        )
-    );
+                'Earnings fetched.'
+            )
+        );
 });

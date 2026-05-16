@@ -322,55 +322,68 @@ const ShippingZoneForm = ({ zone, onSave, onClose, isSaving }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-6 max-w-md w-full">
-        <h3 className="text-lg font-bold mb-4">
-          {zone?._id ? "Edit Zone" : "Add Zone"}
-        </h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-2">Zone Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-2">
-              Countries (comma-separated)
-            </label>
-            <input
-              type="text"
-              value={formData.countries.join(", ")}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  countries: e.target.value.split(",").map((c) => c.trim()),
-                })
-              }
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-100 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-60"
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </form>
+    <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden border border-emerald-50">
+        {/* Fixed Header */}
+        <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+          <h3 className="text-lg md:text-xl font-black text-gray-800 tracking-tight">
+            {zone?._id ? "Edit Shipping Zone" : "Add Shipping Zone"}
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-50 rounded-xl transition-colors"><FiX className="text-gray-500" /></button>
+        </div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-5 md:p-8 no-scrollbar">
+          <form id="zoneForm" onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Zone Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+                placeholder="e.g., North India, Global"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">
+                Countries (comma-separated)
+              </label>
+              <input
+                type="text"
+                value={formData.countries.join(", ")}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    countries: e.target.value.split(",").map((c) => c.trim()),
+                  })
+                }
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+                placeholder="India, USA, UK"
+              />
+            </div>
+          </form>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="p-5 md:p-6 border-t border-gray-100 bg-white z-10 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-4 bg-gray-50 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-xs uppercase tracking-widest"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="zoneForm"
+            disabled={isSaving}
+            className="flex-1 py-4 bg-[#003d29] text-white font-black rounded-xl shadow-xl shadow-emerald-900/10 hover:bg-[#002a1c] transition-all text-xs uppercase tracking-widest disabled:opacity-60"
+          >
+            {isSaving ? "Saving..." : "Save Zone"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -399,87 +412,101 @@ const ShippingRateForm = ({ rate, zones, onSave, onClose, isSaving }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-6 max-w-md w-full">
-        <h3 className="text-lg font-bold mb-4">
-          {rate?._id ? "Edit Rate" : "Add Rate"}
-        </h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-2">Zone</label>
-            <select
-              value={formData.zoneId}
-              onChange={(e) => setFormData({ ...formData, zoneId: e.target.value })}
-              required
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            >
-              <option value="">Select Zone</option>
-              {zones.map((zone) => (
-                <option key={zone._id} value={zone._id}>
-                  {zone.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-2">Method Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-2">Rate</label>
-            <input
-              type="number"
-              value={formData.rate}
-              onChange={(e) =>
-                setFormData({ ...formData, rate: parseFloat(e.target.value) || 0 })
-              }
-              required
-              min="0"
-              step="0.01"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-2">
-              Free Shipping Threshold (optional)
-            </label>
-            <input
-              type="number"
-              value={formData.freeShippingThreshold}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  freeShippingThreshold: parseFloat(e.target.value) || 0,
-                })
-              }
-              min="0"
-              step="0.01"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-100 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-60"
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </form>
+    <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden border border-emerald-50">
+        {/* Fixed Header */}
+        <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+          <h3 className="text-lg md:text-xl font-black text-gray-800 tracking-tight">
+            {rate?._id ? "Edit Shipping Rate" : "Add Shipping Rate"}
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-50 rounded-xl transition-colors"><FiX className="text-gray-500" /></button>
+        </div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-5 md:p-8 no-scrollbar">
+          <form id="rateForm" onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Zone</label>
+              <select
+                value={formData.zoneId}
+                onChange={(e) => setFormData({ ...formData, zoneId: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">Select Zone</option>
+                {zones.map((zone) => (
+                  <option key={zone._id} value={zone._id}>
+                    {zone.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Method Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+                placeholder="e.g., Standard, Express"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Rate</label>
+                <input
+                  type="number"
+                  value={formData.rate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, rate: parseFloat(e.target.value) || 0 })
+                  }
+                  required
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">
+                  Free Threshold
+                </label>
+                <input
+                  type="number"
+                  value={formData.freeShippingThreshold}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      freeShippingThreshold: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="p-5 md:p-6 border-t border-gray-100 bg-white z-10 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-4 bg-gray-50 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-xs uppercase tracking-widest"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="rateForm"
+            disabled={isSaving}
+            className="flex-1 py-4 bg-[#003d29] text-white font-black rounded-xl shadow-xl shadow-emerald-900/10 hover:bg-[#002a1c] transition-all text-xs uppercase tracking-widest disabled:opacity-60"
+          >
+            {isSaving ? "Saving..." : "Save Rate"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -27,6 +27,7 @@ const seedDeliveryBoy = async () => {
         if (existing) {
             existing.password = 'driver123';
             existing.name = 'Test Delivery Boy';
+            existing.phone = '7894561230';
             existing.applicationStatus = 'approved';
             existing.isActive = true;
             existing.isAvailable = true;
@@ -37,7 +38,7 @@ const seedDeliveryBoy = async () => {
                 name: 'Test Delivery Boy',
                 email: email,
                 password: 'driver123',
-                phone: '0987654321',
+                phone: '7894561230',
                 applicationStatus: 'approved',
                 isActive: true,
                 isAvailable: true

@@ -193,72 +193,90 @@ const DocumentUploadForm = ({ onSave, onClose, isSaving }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl p-6 max-w-md w-full">
-        <h3 className="text-lg font-bold mb-4">Upload Document</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-2">Document Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-2">Category</label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            >
-              <option>License</option>
-              <option>Certificate</option>
-              <option>Tax Document</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-2">
-              Expiry Date (optional)
-            </label>
-            <input
-              type="date"
-              value={formData.expiryDate}
-              onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-              min={new Date().toISOString().split("T")[0]}
-              onKeyDown={(e) => e.preventDefault()}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-2">Upload File</label>
-            <input
-              type="file"
-              accept=".pdf,image/*"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-100 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-60"
-            >
-              {isSaving ? "Uploading..." : "Upload"}
-            </button>
-          </div>
-        </form>
+    <div className="fixed inset-0 bg-black/60 z-[10000] flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden border border-emerald-50">
+        {/* Fixed Header */}
+        <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+          <h3 className="text-lg md:text-xl font-black text-gray-800 tracking-tight">Upload Document</h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-50 rounded-xl transition-colors"><FiX className="text-gray-500" /></button>
+        </div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto p-5 md:p-8 no-scrollbar">
+          <form id="docUploadForm" onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Document Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+                placeholder="e.g. GST Certificate"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Category</label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+              >
+                <option>License</option>
+                <option>Certificate</option>
+                <option>Tax Document</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">
+                Expiry Date (optional)
+              </label>
+              <input
+                type="date"
+                value={formData.expiryDate}
+                onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+                min={new Date().toISOString().split("T")[0]}
+                onKeyDown={(e) => e.preventDefault()}
+                className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 block">Upload File</label>
+              <div className="relative border-2 border-dashed border-emerald-100 rounded-xl bg-emerald-50/10 p-6 text-center cursor-pointer hover:border-emerald-300 transition-all">
+                <input
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+                <div className="flex flex-col items-center gap-2">
+                  <FiUpload className="text-emerald-400" size={24} />
+                  <p className="text-xs font-black text-gray-600">{file ? file.name : "Click to select or drag PDF/Image"}</p>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="p-5 md:p-6 border-t border-gray-100 bg-white z-10 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-4 bg-gray-50 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-xs uppercase tracking-widest"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="docUploadForm"
+            disabled={isSaving}
+            className="flex-1 py-4 bg-[#003d29] text-white font-black rounded-xl shadow-xl shadow-emerald-900/10 hover:bg-[#002a1c] transition-all text-xs uppercase tracking-widest disabled:opacity-50"
+          >
+            {isSaving ? "Uploading..." : "Upload Now"}
+          </button>
+        </div>
       </div>
     </div>
   );
