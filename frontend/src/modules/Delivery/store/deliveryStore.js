@@ -6,14 +6,14 @@ const normalizeDeliveryBoy = (input) => {
   if (!input) return null;
   // Handle ApiResponse wrapper
   const raw = input.data && input.statusCode ? input.data : input;
-  
+
   const id = raw.id || raw._id;
   // Prioritize status, if missing use isAvailable to decide
   const status = raw.status || (raw.isAvailable === true ? 'available' : 'offline');
-  return { 
-    ...raw, 
-    id, 
-    _id: id, 
+  return {
+    ...raw,
+    id,
+    _id: id,
     status,
     bankDetails: raw.bankDetails || {},
     upiId: raw.upiId || '',
@@ -50,12 +50,12 @@ const normalizeOrder = (raw) => {
   const guestInfo = raw?.guestInfo || {};
   const backendStatus = raw?.status || 'pending';
   const uiStatus = mapBackendStatusToUI(backendStatus);
-  const itemCount = Array.isArray(raw?.items) 
+  const itemCount = Array.isArray(raw?.items)
     ? raw.items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
     : (typeof raw?.items === 'number' ? raw.items : 0);
   const vendorFirst = Array.isArray(raw?.vendorItems) && raw.vendorItems.length > 0 ? raw.vendorItems[0] : null;
   const vendorData = vendorFirst?.vendorId || {};
-  
+
   let vendorAddress = vendorData.shopAddress || (vendorData.address?.street ? `${vendorData.address.street}, ${vendorData.address.city || ''}` : (vendorFirst?.vendorName ? 'Address in notes' : 'Address unavailable'));
 
   const dropoffCoords = raw?.dropoffLocation?.coordinates;
@@ -66,12 +66,12 @@ const normalizeOrder = (raw) => {
   const vendorDataCoords = vendorData?.shopLocation?.coordinates;
 
   // Priority: Latest Shop Profile > Order Snapshot
-  const vendorLat = Array.isArray(vendorDataCoords) && vendorDataCoords.length === 2 && vendorDataCoords[1] !== 0 
-    ? vendorDataCoords[1] 
+  const vendorLat = Array.isArray(vendorDataCoords) && vendorDataCoords.length === 2 && vendorDataCoords[1] !== 0
+    ? vendorDataCoords[1]
     : (Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[1] !== 0 ? pickupCoords[1] : null);
 
-  const vendorLng = Array.isArray(vendorDataCoords) && vendorDataCoords.length === 2 && vendorDataCoords[0] !== 0 
-    ? vendorDataCoords[0] 
+  const vendorLng = Array.isArray(vendorDataCoords) && vendorDataCoords.length === 2 && vendorDataCoords[0] !== 0
+    ? vendorDataCoords[0]
     : (Array.isArray(pickupCoords) && pickupCoords.length === 2 && pickupCoords[0] !== 0 ? pickupCoords[0] : null);
 
   return {
@@ -211,21 +211,21 @@ export const useDeliveryAuthStore = create(
           const current = get().deliveryBoy;
           if (current?.id) {
             // Attempt to notify backend to go offline
-            await api.patch('/delivery/auth/profile', { status: 'offline', isAvailable: false }).catch(() => {});
+            await api.patch('/delivery/auth/profile', { status: 'offline', isAvailable: false }).catch(() => { });
           }
           const rt = localStorage.getItem('delivery-refresh-token');
           if (rt) await api.post('/delivery/auth/logout', { refreshToken: rt }).catch(() => { });
         } catch (err) {
           console.error('[DeliveryStore] Logout cleanup error:', err);
         } finally {
-          set({ 
-            deliveryBoy: null, 
-            token: null, 
-            refreshToken: null, 
-            isAuthenticated: false, 
-            orders: [], 
+          set({
+            deliveryBoy: null,
+            token: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            orders: [],
             returns: [],
-            isExplicitlyOffline: false 
+            isExplicitlyOffline: false
           });
           localStorage.removeItem('delivery-token');
           localStorage.removeItem('delivery-refresh-token');
@@ -240,7 +240,7 @@ export const useDeliveryAuthStore = create(
         try {
           const res = await api.get('/delivery/auth/profile');
           const user = normalizeDeliveryBoy(res.data || res);
-          
+
           // 🛡️ STATUS LOCK: If user manually went offline, ignore 'available' from server
           const currentExplicitlyOffline = get().isExplicitlyOffline;
           if (currentExplicitlyOffline && user.status === 'available') {
@@ -249,7 +249,7 @@ export const useDeliveryAuthStore = create(
             return get().deliveryBoy;
           }
 
-          set({ deliveryBoy: user, isLoading: false }); 
+          set({ deliveryBoy: user, isLoading: false });
           return user;
         } catch (e) { set({ isLoading: false }); throw e; }
       },
@@ -264,8 +264,8 @@ export const useDeliveryAuthStore = create(
             // 🛡️ STATUS LOCK: Maintain local offline preference
             const currentExplicitlyOffline = get().isExplicitlyOffline;
             if (currentExplicitlyOffline) {
-               merged.status = 'offline';
-               merged.isAvailable = false;
+              merged.status = 'offline';
+              merged.isAvailable = false;
             }
 
             set({ deliveryBoy: merged });
@@ -312,36 +312,36 @@ export const useDeliveryAuthStore = create(
       updateStatus: async (status) => {
         const current = get().deliveryBoy;
         if (!current) return false;
-        
+
         const previousStatus = current.status;
         const isGoingOffline = status === 'offline';
 
         // 🚀 Optimistic Update
-        set({ 
-          isUpdatingStatus: true, 
+        set({
+          isUpdatingStatus: true,
           isExplicitlyOffline: isGoingOffline,
-          deliveryBoy: normalizeDeliveryBoy({ ...current, status }) 
+          deliveryBoy: normalizeDeliveryBoy({ ...current, status })
         });
 
         try {
-          const res = await api.put('/delivery/auth/profile', { 
-            isAvailable: status === 'available', 
-            status 
+          const res = await api.put('/delivery/auth/profile', {
+            isAvailable: status === 'available',
+            status
           });
           const payload = res.data || res;
-          set({ 
-            deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload, status }), 
-            isUpdatingStatus: false 
+          set({
+            deliveryBoy: normalizeDeliveryBoy({ ...current, ...payload, status }),
+            isUpdatingStatus: false
           });
           return true;
-        } catch (e) { 
+        } catch (e) {
           // ⚠️ Rollback on failure
-          set({ 
-            deliveryBoy: normalizeDeliveryBoy({ ...current, status: previousStatus }), 
+          set({
+            deliveryBoy: normalizeDeliveryBoy({ ...current, status: previousStatus }),
             isExplicitlyOffline: previousStatus === 'offline',
-            isUpdatingStatus: false 
-          }); 
-          throw e; 
+            isUpdatingStatus: false
+          });
+          throw e;
         }
       },
       _lastLocationUpdate: 0,
@@ -396,25 +396,25 @@ export const useDeliveryAuthStore = create(
           const res = await api.get(`/delivery/orders/${id}`);
           const order = normalizeOrder(res.data || res);
           set({ selectedOrder: order, isLoadingOrder: false }); return order;
-        } catch (e) { 
+        } catch (e) {
           try {
             const res = await api.get(`/delivery/returns/${id}`);
             const ret = normalizeReturn(res.data?.data || res.data || res);
             set({ selectedOrder: ret, isLoadingOrder: false }); return ret;
           } catch (retError) {
-            set({ isLoadingOrder: false }); 
-            throw e; 
+            set({ isLoadingOrder: false });
+            throw e;
           }
         }
       },
       acceptOrder: async (id) => {
         const currentOrders = get().orders || [];
         const targetedOrder = currentOrders.find(o => o.id === id);
-        
+
         // 🚀 Optimistic Update: Move order to active state immediately if possible
         if (targetedOrder) {
-          set({ 
-            orders: currentOrders.map(o => o.id === id ? { ...o, status: 'accepted' } : o) 
+          set({
+            orders: currentOrders.map(o => o.id === id ? { ...o, status: 'accepted' } : o)
           });
         }
 
@@ -422,17 +422,17 @@ export const useDeliveryAuthStore = create(
         try {
           const res = await api.post(`/delivery/orders/${id}/accept`);
           const order = normalizeOrder(res.data || res);
-          
-          set({ 
+
+          set({
             orders: [order, ...get().orders.filter(o => o.id !== id)],
-            isUpdatingOrderStatus: false 
-          }); 
+            isUpdatingOrderStatus: false
+          });
           return order;
-        } catch (e) { 
+        } catch (e) {
           // ⚠️ Rollback: Fetch orders again or revert if we have local copy
           set({ isUpdatingOrderStatus: false });
-          get().fetchAvailableOrders(); 
-          throw e; 
+          get().fetchAvailableOrders();
+          throw e;
         }
       },
       cancelOrder: async (id, reason) => {
@@ -440,14 +440,14 @@ export const useDeliveryAuthStore = create(
         try {
           const res = await api.post(`/delivery/orders/${id}/cancel`, { reason });
           const order = normalizeOrder(res.data || res);
-          set({ 
+          set({
             orders: get().orders.map(o => o.id === id ? order : o),
-            isUpdatingOrderStatus: false 
+            isUpdatingOrderStatus: false
           });
           return order;
-        } catch (e) { 
-          set({ isUpdatingOrderStatus: false }); 
-          throw e; 
+        } catch (e) {
+          set({ isUpdatingOrderStatus: false });
+          throw e;
         }
       },
       updateOrderStatus: async (id, status, opt = {}) => {
@@ -579,12 +579,12 @@ export const useDeliveryAuthStore = create(
     {
       name: 'delivery-auth-storage',
       storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ 
-        token: s.token, 
-        refreshToken: s.refreshToken, 
-        deliveryBoy: s.deliveryBoy, 
+      partialize: (s) => ({
+        token: s.token,
+        refreshToken: s.refreshToken,
+        deliveryBoy: s.deliveryBoy,
         isAuthenticated: s.isAuthenticated,
-        isExplicitlyOffline: s.isExplicitlyOffline 
+        isExplicitlyOffline: s.isExplicitlyOffline
       }),
     }
   )

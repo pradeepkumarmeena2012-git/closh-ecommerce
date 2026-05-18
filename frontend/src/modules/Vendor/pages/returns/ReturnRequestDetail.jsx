@@ -300,8 +300,8 @@ const ReturnRequestDetail = () => {
                     returnRequest.refundStatus === "processed"
                       ? "success"
                       : returnRequest.refundStatus === "failed"
-                      ? "error"
-                      : "warning"
+                        ? "error"
+                        : "warning"
                   }
                   className="text-xs">
                   {returnRequest.refundStatus}
@@ -473,8 +473,8 @@ const ReturnRequestDetail = () => {
                     returnRequest.refundStatus === "processed"
                       ? "success"
                       : returnRequest.refundStatus === "failed"
-                      ? "error"
-                      : "warning"
+                        ? "error"
+                        : "warning"
                   }>
                   {returnRequest.refundStatus}
                 </Badge>

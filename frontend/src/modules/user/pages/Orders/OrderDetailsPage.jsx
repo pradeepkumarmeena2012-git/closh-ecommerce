@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
-import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw, CheckCircle, Truck, Store } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 import socketService from '../../../../shared/utils/socket';
@@ -187,7 +187,7 @@ const OrderDetailsPage = () => {
                         <div style="font-weight: 800; text-transform: uppercase; color: #000;">${order.paymentMethod || 'Pay on Delivery'}</div>
                         <div style="margin-top: 25px;">
                             <div class="section-title">ORDER STATUS</div>
-                            <div class="badge">${order.status}</div>
+                            <div class="badge">${String(order.status || '').toLowerCase() === 'assigned' ? 'ASSIGNED TO PICKUP' : String(order.status || '').toLowerCase() === 'ready_for_pickup' ? 'READY FOR PICKUP' : String(order.status || '').toLowerCase() === 'picked_up' ? 'PICKED UP' : String(order.status || '').toLowerCase() === 'out_for_delivery' ? 'OUT FOR DELIVERY' : String(order.status || '').toUpperCase()}</div>
                         </div>
                     </div>
                 </div>
@@ -363,7 +363,7 @@ const OrderDetailsPage = () => {
                             <span className="text-[10px] font-bold uppercase  hidden xs:inline">Invoice</span>
                         </button>
                         <span className="text-[9px] md:text-[10px] font-bold bg-black text-white px-3 py-1.5 rounded-full uppercase ">
-                            {order.status}
+                            {order.status?.toLowerCase() === 'assigned' ? 'assigned to pickup' : order.status?.toLowerCase() === 'ready_for_pickup' ? 'ready for pickup' : order.status?.toLowerCase() === 'picked_up' ? 'picked up' : order.status?.toLowerCase() === 'out_for_delivery' ? 'out for delivery' : order.status}
                         </span>
                     </div>
                 </div>
@@ -469,89 +469,221 @@ const OrderDetailsPage = () => {
                     </div>
 
                     {/* Order Timeline */}
-                    <div className="bg-white rounded-2xl border border-gray-100 p-3 md:p-6 shadow-sm font-bold">
-                        <h3 className="text-[10px] md:text-sm font-bold uppercase mb-4 flex items-center gap-2 text-gray-400">
-                            <Clock size={14} /> Tracking
+                    <div className="bg-white rounded-3xl border border-slate-100 p-6 md:p-8 shadow-sm font-sans">
+                        <h3 className="text-xs md:text-sm font-black uppercase mb-6 flex items-center gap-2 text-slate-400 tracking-wider">
+                            <Clock size={16} className="text-slate-400" /> Live Tracking Journey
                         </h3>
 
                         {(() => {
                             const status = order.status?.toLowerCase() || 'pending';
                             const isCancelled = status === 'cancelled' || status === 'canceled';
 
-                            let step = 1; // Default to Ordered (1)
-                            const midStatuses = ['processing', 'ready_for_pickup', 'accepted', 'assigned', 'picked_up', 'out_for_delivery', 'shipped'];
-                            if (midStatuses.includes(status)) step = 2;
-                            if (status === 'delivered') step = 3;
-                            if (isCancelled) step = 0; // Special case
+                            const getStepState = (stepIndex) => {
+                                if (isCancelled) return 'pending';
+                                const statusRank = {
+                                    'pending': 0,
+                                    'accepted': 1,
+                                    'searching': 1,
+                                    'assigned': 1,
+                                    'ready_for_pickup': 2,
+                                    'picked_up': 3,
+                                    'out_for_delivery': 4,
+                                    'delivered': 5
+                                };
+                                const currentRank = statusRank[status] ?? 0;
+                                if (currentRank >= stepIndex) return 'completed';
+                                if (currentRank === stepIndex - 1) return 'active';
+                                return 'pending';
+                            };
+
+                            const formatDate = (dateString) => {
+                                if (!dateString) return '';
+                                const date = new Date(dateString);
+                                if (isNaN(date.getTime())) return '';
+                                return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                            };
+
+                            const steps = [
+                                {
+                                    label: 'Confirm',
+                                    subtitle: 'Vendor confirmed',
+                                    icon: CheckCircle,
+                                    date: order.vendorAcceptedAt || order.createdAt,
+                                    state: getStepState(1)
+                                },
+                                {
+                                    label: 'Ready for Pickup',
+                                    subtitle: 'Prepared at shop',
+                                    icon: Package,
+                                    date: order.readyAt,
+                                    state: getStepState(2)
+                                },
+                                {
+                                    label: 'Picked Up',
+                                    subtitle: 'Collected by rider',
+                                    icon: Store,
+                                    date: order.pickedUpAt,
+                                    state: getStepState(3)
+                                },
+                                {
+                                    label: 'Out for Delivery',
+                                    subtitle: 'On the way to you',
+                                    icon: Truck,
+                                    date: (status === 'out_for_delivery' || status === 'delivered') ? (order.updatedAt || order.pickedUpAt) : null,
+                                    state: getStepState(4)
+                                },
+                                {
+                                    label: 'Delivered',
+                                    subtitle: 'Arrived safely',
+                                    icon: MapPin,
+                                    date: order.deliveredAt,
+                                    state: getStepState(5)
+                                }
+                            ];
 
                             return (
-                                <div className="px-1 mt-2">
+                                <div className="w-full">
                                     {isCancelled ? (
-                                        <div className="text-center py-4 bg-red-50 rounded-2xl border border-red-100">
-                                            <p className="text-red-500 text-[11px] font-black uppercase tracking-widest">Order Cancelled</p>
+                                        <div className="text-center py-6 bg-red-50 rounded-2xl border border-red-100/50">
+                                            <p className="text-red-500 text-xs font-black uppercase tracking-widest">Order Cancelled</p>
+                                            <p className="text-slate-400 text-[10px] mt-1">This order was cancelled by the customer or vendor.</p>
                                         </div>
                                     ) : (
-                                        <>
-                                            <div className="flex items-center relative h-10">
-                                                {/* Progress Line Background */}
-                                                <div className="absolute top-1/2 left-0 w-full h-[4px] bg-gray-100 -translate-y-1/2 z-0 rounded-full"></div>
+                                        <div>
+                                            {/* DESKTOP HORIZONTAL TIMELINE */}
+                                            <div className="hidden md:flex items-center justify-between relative px-4 py-6">
+                                                {/* Background track line */}
+                                                <div className="absolute top-[48px] left-[10%] right-[10%] h-[3px] bg-slate-100 z-0 rounded-full" />
 
-                                                {/* Active Progress Line */}
-                                                <div
-                                                    className="absolute top-1/2 left-0 h-[4px] bg-emerald-500 -translate-y-1/2 z-0 rounded-full transition-all duration-700"
-                                                    style={{ width: step === 3 ? '100%' : step === 2 ? '50%' : '0%' }}
-                                                ></div>
+                                                {/* Completed track line */}
+                                                {(() => {
+                                                    const completedSteps = steps.filter(s => s.state === 'completed').length;
+                                                    let widthPercentage = '0%';
+                                                    if (completedSteps >= 5) widthPercentage = '100%';
+                                                    else if (completedSteps === 4) widthPercentage = '75%';
+                                                    else if (completedSteps === 3) widthPercentage = '50%';
+                                                    else if (completedSteps === 2) widthPercentage = '25%';
+                                                    else if (completedSteps === 1) widthPercentage = '0%';
 
-                                                {/* Step 1: Ordered */}
-                                                <div className={`relative z-10 w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-500 ${step >= 1 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-110' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <Package size={16} strokeWidth={2.5} />
-                                                </div>
+                                                    return (
+                                                        <div
+                                                            className="absolute top-[48px] left-[10%] h-[3px] bg-emerald-500 z-0 rounded-full transition-all duration-700 ease-out"
+                                                            style={{ width: `calc(${widthPercentage} * 0.8)` }}
+                                                        />
+                                                    );
+                                                })()}
 
-                                                {/* Spacer */}
-                                                <div className="flex-1"></div>
+                                                {steps.map((step, idx) => {
+                                                    const Icon = step.icon;
+                                                    const isCompleted = step.state === 'completed';
+                                                    const isActive = step.state === 'active';
 
-                                                {/* Step 2: Shipped */}
-                                                <div className={`relative z-10 w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-500 ${step >= 2 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-110' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <CreditCard size={16} strokeWidth={2.5} />
-                                                </div>
+                                                    return (
+                                                        <div key={idx} className="flex flex-col items-center flex-1 relative z-10">
+                                                            {/* Step Node */}
+                                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 relative ${isCompleted
+                                                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                                                : isActive
+                                                                    ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/30 scale-110 animate-pulse'
+                                                                    : 'bg-slate-50 text-slate-300 border border-slate-100'
+                                                                }`}>
+                                                                <Icon size={20} strokeWidth={2.2} />
 
-                                                {/* Spacer */}
-                                                <div className="flex-1"></div>
+                                                                {/* Pulse ring for active status */}
+                                                                {isActive && (
+                                                                    <div className="absolute inset-0 rounded-2xl border-2 border-slate-950 animate-ping opacity-70" />
+                                                                )}
+                                                            </div>
 
-                                                {/* Step 3: Delivered */}
-                                                <div className={`relative z-10 w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-500 ${step >= 3 ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-110' : 'bg-gray-100 text-gray-400'}`}>
-                                                    <Package size={16} strokeWidth={2.5} />
-                                                </div>
+                                                            {/* Labels */}
+                                                            <div className="text-center mt-3 max-w-[120px]">
+                                                                <p className={`text-[11px] font-black tracking-wide uppercase ${isCompleted ? 'text-emerald-600' : isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                                                                    {step.label}
+                                                                </p>
+                                                                <p className="text-[9px] text-slate-400 font-medium leading-tight mt-0.5">{step.subtitle}</p>
+                                                                {step.date && (
+                                                                    <span className="inline-block mt-1 bg-slate-50 border border-slate-100 text-slate-500 text-[8px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                                                                        {formatDate(step.date)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
 
-                                            <div className="flex justify-between text-[9px] font-black uppercase mt-4 tracking-widest">
-                                                <span className={step >= 1 ? 'text-emerald-600' : 'text-gray-400'}>Confirmed</span>
-                                                <span className={step >= 2 ? 'text-emerald-600 text-center' : 'text-gray-400 text-center'}>Transit</span>
-                                                <span className={step >= 3 ? 'text-emerald-600 text-right' : 'text-gray-400 text-right'}>Arrival</span>
+                                            {/* MOBILE VERTICAL TIMELINE */}
+                                            <div className="md:hidden space-y-6 py-2 px-1">
+                                                {steps.map((step, idx) => {
+                                                    const Icon = step.icon;
+                                                    const isCompleted = step.state === 'completed';
+                                                    const isActive = step.state === 'active';
+
+                                                    return (
+                                                        <div key={idx} className="flex gap-4 relative">
+                                                            {/* Timeline Vertical line */}
+                                                            {idx !== steps.length - 1 && (
+                                                                <div className={`absolute left-5 top-10 w-[2px] h-12 z-0 ${isCompleted ? 'bg-emerald-500' : 'bg-slate-100'
+                                                                    }`} />
+                                                            )}
+
+                                                            {/* Icon container */}
+                                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 z-10 transition-all duration-300 relative ${isCompleted
+                                                                ? 'bg-emerald-500 text-white shadow-md'
+                                                                : isActive
+                                                                    ? 'bg-slate-900 text-white shadow-lg scale-105'
+                                                                    : 'bg-slate-50 text-slate-300 border border-slate-100'
+                                                                }`}>
+                                                                <Icon size={18} strokeWidth={2.2} />
+                                                                {isActive && (
+                                                                    <div className="absolute inset-0 rounded-xl border-2 border-slate-900 animate-ping opacity-60" />
+                                                                )}
+                                                            </div>
+
+                                                            {/* Content */}
+                                                            <div className="flex-1 pt-1">
+                                                                <div className="flex items-start justify-between">
+                                                                    <div>
+                                                                        <h4 className={`text-[12px] font-black uppercase tracking-wider ${isActive ? 'text-slate-900' : isCompleted ? 'text-slate-700' : 'text-slate-400'
+                                                                            }`}>
+                                                                            {step.label}
+                                                                        </h4>
+                                                                        <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">{step.subtitle}</p>
+                                                                    </div>
+                                                                    {step.date && (
+                                                                        <span className="shrink-0 bg-slate-50 border border-slate-100 text-slate-500 text-[8px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                                                                            {formatDate(step.date)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        </>
+                                        </div>
                                     )}
                                 </div>
                             );
                         })()}
 
                         {(order.orderType || order.deliveryType) && (
-                            <div className="flex items-center justify-center gap-2 mt-4 px-3 py-1.5 bg-white rounded-full w-fit mx-auto border border-gray-100">
-                                <ShieldCheck size={14} className="text-black" />
-                                <span className="text-[10px] font-bold uppercase  text-black">
-                                    Delivery Type: <span className="text-[#ffcc00]">{(order.orderType || order.deliveryType).replace(/_/g, ' ')}</span>
+                            <div className="flex items-center justify-center gap-2 mt-6 px-4 py-2 bg-slate-50 border border-slate-100 rounded-full w-fit mx-auto">
+                                <ShieldCheck size={14} className="text-slate-700" />
+                                <span className="text-[9px] font-black uppercase text-slate-700 tracking-wider">
+                                    Delivery Option: <span className="text-indigo-600">{(order.orderType || order.deliveryType).replace(/_/g, ' ')}</span>
                                 </span>
                             </div>
                         )}
 
-                        <p className="text-[10px] md:text-xs font-bold text-gray-500 mt-4 text-center">
-                            Instant Delivery (60 Mins)
+                        <p className="text-[9px] font-bold text-slate-400 mt-4 text-center tracking-widest uppercase">
+                            Fast Delivery Guaranteed
                         </p>
 
                         {order.deliveryOtpDebug && user && (
-                            <div className="mt-6 p-4 bg-emerald-50 rounded-2xl border-2 border-emerald-100 border-dashed text-center">
-                                <p className="text-[10px] font-bold uppercase  text-emerald-600 mb-1">Share this OTP with delivery partner</p>
-                                <p className="text-2xl font-bold text-emerald-700">{order.deliveryOtpDebug}</p>
+                            <div className="mt-6 p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 border-dashed text-center">
+                                <p className="text-[9px] font-black uppercase text-emerald-600 mb-1 tracking-widest">Share this OTP with delivery partner</p>
+                                <p className="text-2xl font-black text-emerald-700 tracking-wider">{order.deliveryOtpDebug}</p>
                             </div>
                         )}
                     </div>

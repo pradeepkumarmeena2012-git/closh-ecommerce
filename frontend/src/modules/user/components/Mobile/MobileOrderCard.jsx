@@ -95,7 +95,7 @@ const MobileOrderCard = ({ order }) => {
               order.status
             )}`}
           >
-            {order.status || 'Pending'}
+            {order.status?.toLowerCase() === 'assigned' ? 'Assigned to Pickup' : order.status?.toLowerCase() === 'ready_for_pickup' ? 'Ready for Pickup' : order.status?.toLowerCase() === 'picked_up' ? 'Picked Up' : order.status?.toLowerCase() === 'out_for_delivery' ? 'Out for Delivery' : (order.status || 'Pending')}
           </span>
           <span className="text-xs text-gray-500">View Details</span>
         </div>

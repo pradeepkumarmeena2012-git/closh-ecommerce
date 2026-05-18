@@ -114,18 +114,62 @@ const TrackOrderPage = () => {
     const trackingNumber = order.trackingNumber || `TRK${String(order.orderId || orderId).slice(-8).toUpperCase()}`;
     const address = order.shippingAddress;
 
-    // Determine current step
-    let currentStep = 1;
-    if (['processing', 'ready_for_pickup', 'accepted'].includes(status)) currentStep = 2;
-    if (['shipped', 'out_for_delivery', 'picked_up', 'assigned'].includes(status)) currentStep = 3;
-    if (status === 'delivered') currentStep = 4;
-    if (status === 'cancelled') currentStep = 0;
+    const isCancelled = status === 'cancelled' || status === 'canceled';
+
+    const getStepState = (stepIndex) => {
+        if (isCancelled) return 'pending';
+        const statusRank = {
+            'pending': 0,
+            'accepted': 1,
+            'searching': 1,
+            'assigned': 1,
+            'ready_for_pickup': 2,
+            'picked_up': 3,
+            'out_for_delivery': 4,
+            'delivered': 5
+        };
+        const currentRank = statusRank[status] ?? 0;
+        if (currentRank >= stepIndex) return 'completed';
+        if (currentRank === stepIndex - 1) return 'active';
+        return 'pending';
+    };
 
     const steps = [
-        { label: 'Order Placed', date: order.createdAt, icon: CheckCircle },
-        { label: 'Processing', date: currentStep >= 2 ? 'Completed' : 'Pending', icon: Package },
-        { label: 'Out for Delivery', date: currentStep >= 3 ? 'In Transit' : 'Pending', icon: Truck },
-        { label: 'Delivered', date: status === 'delivered' ? order.deliveredAt : 'Pending', icon: MapPin },
+        {
+            label: 'Confirm',
+            subtitle: 'Vendor confirmed',
+            icon: CheckCircle,
+            date: order.vendorAcceptedAt || order.createdAt,
+            state: getStepState(1)
+        },
+        {
+            label: 'Ready for Pickup',
+            subtitle: 'Prepared at shop',
+            icon: Package,
+            date: order.readyAt,
+            state: getStepState(2)
+        },
+        {
+            label: 'Picked Up',
+            subtitle: 'Collected by rider',
+            icon: Store,
+            date: order.pickedUpAt,
+            state: getStepState(3)
+        },
+        {
+            label: 'Out for Delivery',
+            subtitle: 'On the way to you',
+            icon: Truck,
+            date: (status === 'out_for_delivery' || status === 'delivered') ? (order.updatedAt || order.pickedUpAt) : null,
+            state: getStepState(4)
+        },
+        {
+            label: 'Delivered',
+            subtitle: 'Arrived safely',
+            icon: MapPin,
+            date: order.deliveredAt,
+            state: getStepState(5)
+        }
     ];
 
     const getStatusColor = () => {
@@ -189,7 +233,7 @@ const TrackOrderPage = () => {
                         <h2 className="text-sm md:text-base font-black text-slate-900">#{order.orderId || orderId}</h2>
                     </div>
                     <div className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm ${status === 'delivered' ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white'}`}>
-                        {status.replace(/_/g, ' ')}
+                        {status === 'assigned' ? 'assigned to pickup' : status.replace(/_/g, ' ')}
                     </div>
                 </div>
             </div>
@@ -307,27 +351,39 @@ const TrackOrderPage = () => {
                         </div>
                         
                         <div className="space-y-8 px-2">
-                            {steps.map((step, index) => {
-                                const isCompleted = index < currentStep;
-                                const isCurrent = index === currentStep;
+                            {steps.map((step, idx) => {
                                 const Icon = step.icon;
+                                const isCompleted = step.state === 'completed';
+                                const isActive = step.state === 'active';
                                 return (
-                                    <div key={index} className="flex gap-5 relative">
-                                        {index !== steps.length - 1 && (
+                                    <div key={idx} className="flex gap-5 relative">
+                                        {idx !== steps.length - 1 && (
                                             <div className={`absolute left-[21px] top-12 w-[2px] h-10 ${isCompleted ? 'bg-emerald-500' : 'bg-slate-100'}`} />
                                         )}
-                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 z-10 transition-all duration-300 ${
-                                            isCompleted ? 'bg-emerald-500 text-white shadow-md' 
-                                            : isCurrent ? 'bg-slate-900 text-white shadow-lg' 
-                                            : 'bg-slate-50 text-slate-300'}`}>
+                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 z-10 transition-all duration-300 relative ${
+                                            isCompleted ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/10' 
+                                            : isActive ? 'bg-slate-900 text-white shadow-lg' 
+                                            : 'bg-slate-50 text-slate-300 border border-slate-100'}`}>
                                             <Icon size={20} />
+                                            {isActive && (
+                                                <div className="absolute inset-0 rounded-xl border border-slate-900 animate-ping opacity-60" />
+                                            )}
                                         </div>
                                         <div className="flex-1 pt-1.5">
-                                            <div className="flex items-center justify-between">
-                                                <h4 className={`text-[13px] font-bold uppercase tracking-tight ${isCurrent ? 'text-slate-900' : isCompleted ? 'text-slate-700' : 'text-slate-400'}`}>
-                                                    {step.label}
-                                                </h4>
-                                                <span className={`text-[11px] font-bold ${isCurrent ? 'text-slate-900' : 'text-slate-400'}`}>{formatDate(step.date)}</span>
+                                            <div className="flex items-start justify-between">
+                                                <div>
+                                                    <h4 className={`text-[13px] font-black uppercase tracking-wider ${
+                                                        isActive ? 'text-slate-900' : isCompleted ? 'text-slate-700' : 'text-slate-400'
+                                                    }`}>
+                                                        {step.label}
+                                                    </h4>
+                                                    <p className="text-[10px] text-slate-400 font-medium leading-tight mt-0.5">{step.subtitle}</p>
+                                                </div>
+                                                {step.date && (
+                                                    <span className={`text-[10px] font-bold ${isActive ? 'text-slate-900' : 'text-slate-400'} bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-md`}>
+                                                        {formatDate(step.date)}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

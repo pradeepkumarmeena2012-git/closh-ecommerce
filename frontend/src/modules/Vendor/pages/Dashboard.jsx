@@ -311,7 +311,10 @@ const VendorDashboard = () => {
             <div className="space-y-4">
               {recentOrders.map((order) => {
                 const currentVendorId = vendorId?.toString();
-                const vendorItem = order.vendorItems?.find(vi => (vi.vendorId?.toString() === currentVendorId) || (vi.vendorId === currentVendorId));
+                const vendorItem = order.vendorItems?.find(vi => {
+                  const vId = vi.vendorId?._id || vi.vendorId;
+                  return vId?.toString() === currentVendorId;
+                });
                 const displayStatus = (vendorItem?.status || order.status || 'pending').toLowerCase();
                 if (['pending', 'accepted', 'processing'].includes(displayStatus)) {
                   return <SwipeOrderCard key={order._id ?? order.orderId} order={order} onStatusUpdate={() => loadDashboardData()} />;

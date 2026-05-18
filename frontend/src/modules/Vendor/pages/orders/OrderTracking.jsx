@@ -95,9 +95,10 @@ const OrderTracking = () => {
   };
 
   const getVendorOrderData = (order) => {
-    const vendorItem = order.vendorItems?.find(
-      (vi) => vi.vendorId?.toString() === vendorId?.toString()
-    );
+    const vendorItem = order.vendorItems?.find((vi) => {
+      const vId = vi.vendorId?._id || vi.vendorId;
+      return vId?.toString() === vendorId?.toString();
+    });
     if (vendorItem) {
       return {
         itemCount: vendorItem.items?.length || 0,
@@ -106,9 +107,10 @@ const OrderTracking = () => {
     }
 
     const vendorItems =
-      order.items?.filter(
-        (item) => item.vendorId?.toString() === vendorId?.toString()
-      ) || [];
+      order.items?.filter((item) => {
+        const vId = item.vendorId?._id || item.vendorId;
+        return vId?.toString() === vendorId?.toString();
+      }) || [];
     return {
       itemCount: vendorItems.length,
       subtotal: vendorItems.reduce(
@@ -166,9 +168,10 @@ const OrderTracking = () => {
             const vendorData = getVendorOrderData(order);
             const orderId = order.orderId ?? order._id;
             const orderStatus =
-              order.vendorItems?.find(
-                (vi) => vi.vendorId?.toString() === vendorId?.toString()
-              )?.status ?? order.status;
+              order.vendorItems?.find((vi) => {
+                const vId = vi.vendorId?._id || vi.vendorId;
+                return vId?.toString() === vendorId?.toString();
+              })?.status ?? order.status;
 
             return (
               <motion.div

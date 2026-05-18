@@ -24,10 +24,17 @@ import { geocodeAddress, getDistanceMatrix } from '../../../services/googleMaps.
 import { applyActiveCampaigns } from '../../../utils/productUtils.js';
 import { validateCoupon } from '../../../services/coupon.service.js';
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+const getRazorpayInstance = () => {
+    const key_id = process.env.RAZORPAY_KEY_ID;
+    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!key_id || !key_secret) {
+        console.warn('⚠️ Razorpay keys missing. Online payments will fail.');
+        return null;
+    }
+
+    return new Razorpay({ key_id, key_secret });
+};
 
 
 const normalizeVariantPart = (value) => String(value || '').trim().toLowerCase();
@@ -66,10 +73,10 @@ const resolveVariantSelection = (product, selectedVariant) => {
 
     const priceEntries = toVariantPriceEntries(product?.variants?.prices);
     const stockEntries = toVariantStockEntries(product?.variants?.stockMap);
-    
+
     // Resolve the best matching key from both Price and Stock maps
     const variantKey = resolveOrderItemVariantKey(product, { variant: selectedVariant });
-    
+
     const sizes = Array.isArray(product?.variants?.sizes) ? product.variants.sizes : [];
     const colors = Array.isArray(product?.variants?.colors) ? product.variants.colors : [];
     const attributes = Array.isArray(product?.variants?.attributes) ? product.variants.attributes : [];
@@ -79,11 +86,11 @@ const resolveVariantSelection = (product, selectedVariant) => {
         // Try to find price for this key
         const priceMatch = priceEntries.find(([k]) => String(k).trim() === variantKey);
         const price = priceMatch ? Number(priceMatch[1]) : basePrice;
-        
-        return { 
-            price: (Number.isFinite(price) && price >= 0) ? price : basePrice, 
-            variantKey, 
-            hasVariantAxes 
+
+        return {
+            price: (Number.isFinite(price) && price >= 0) ? price : basePrice,
+            variantKey,
+            hasVariantAxes
         };
     }
 
@@ -144,7 +151,7 @@ const resolveOrderItemVariantKey = (product, orderItem) => {
 // POST /api/user/orders
 export const placeOrder = asyncHandler(async (req, res) => {
     const { items, shippingAddress, paymentMethod, couponCode, shippingOption, orderType, deliveryType, deviceToken, dropoffLocation } = req.body;
-    
+
     const userId = req.user?._id || req.user?.id;
 
     // 1. Check serviceability (Service is not yet delivered/available in the zone check)
@@ -178,7 +185,12 @@ export const placeOrder = asyncHandler(async (req, res) => {
         : `guest:${normalizedGuestEmail || normalizedGuestPhone || 'anonymous'}`;
 
     if (idempotencyKey) {
-        const existingOrder = await Order.findOne({ idempotencyScope, idempotencyKey })
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        const existingOrder = await Order.findOne({
+            idempotencyScope,
+            idempotencyKey,
+            createdAt: { $gte: fifteenMinutesAgo }
+        })
             .select('orderId total trackingNumber')
             .lean();
         if (existingOrder) {
@@ -220,10 +232,10 @@ export const placeOrder = asyncHandler(async (req, res) => {
         if (productDoc.vendorId && productDoc.vendorId.isOnline === false) {
             throw new ApiError(400, `The store "${productDoc.vendorId.storeName}" is currently offline. Orders cannot be placed at this time.`);
         }
-        
+
         // Apply active campaigns to ensure order pricing matches catalog pricing
         const product = await applyActiveCampaigns(productDoc);
-        
+
         console.log(`🛒 [ITEM] ${product.name} x${item.quantity}, Price: ${product.price}, Vendor: ${product.vendorId.storeName}`);
 
         if (product.stock === 'out_of_stock') throw new ApiError(400, `${product.name} is out of stock.`);
@@ -231,7 +243,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
         // Always trust server-side product pricing; never trust client-sent item.price.
         const { price: itemPrice, variantKey, hasVariantAxes } = resolveVariantSelection(product, item.variant);
-        
+
         if (hasVariantAxes && !variantKey) {
             throw new ApiError(400, `Please select a valid variant for ${product.name}.`);
         }
@@ -344,7 +356,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
     const tax = 0; // Tax is currently 0 as per user requirements
     const platformFee = 20; // Standard platform fee
     const total = parseFloat((subtotal - couponDiscount + shipping + tax + platformFee).toFixed(2));
-    
+
     console.log(`💰 [TOTALS] Subtotal: ₹${subtotal}, Shipping: ₹${shipping}, Discount: ₹${couponDiscount}, Tax: ₹${tax}, Grand Total: ₹${total}`);
 
 
@@ -377,7 +389,12 @@ export const placeOrder = asyncHandler(async (req, res) => {
     try {
         await session.withTransaction(async () => {
             if (idempotencyKey) {
-                const existingOrder = await Order.findOne({ idempotencyScope, idempotencyKey })
+                const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+                const existingOrder = await Order.findOne({
+                    idempotencyScope,
+                    idempotencyKey,
+                    createdAt: { $gte: fifteenMinutesAgo }
+                })
                     .select('orderId total trackingNumber')
                     .session(session);
                 if (existingOrder) {
@@ -446,7 +463,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
                     const availableTotal = currentProduct?.stockQuantity || 0;
                     const rawVarStock = variantKey ? (currentProduct?.variants?.stockMap?.get?.(variantKey) ?? currentProduct?.variants?.stockMap?.[variantKey]) : null;
                     const availableVariant = variantKey ? (rawVarStock ?? 0) : 'N/A';
-                    
+
                     throw new ApiError(400, `Stock changed for ${item.name}. Requested: ${quantity}, Available Total: ${availableTotal}, Available Variant [${variantKey || 'None'}]: ${availableVariant}. Please refresh and try again.`);
                 }
 
@@ -467,12 +484,15 @@ export const placeOrder = asyncHandler(async (req, res) => {
             // If payment method is prepaid, create Razorpay order
             if (normalizedPaymentMethod === 'prepaid') {
                 try {
+                    const razorpay = getRazorpayInstance();
+                    if (!razorpay) throw new ApiError(500, "Payment gateway not configured.");
+
                     const razorpayOrder = await razorpay.orders.create({
                         amount: Math.round(total * 100), // Razorpay expects amount in paise
                         currency: 'INR',
                         receipt: order.orderId,
                     });
-                    
+
                     order.razorpayOrderId = razorpayOrder.id;
                     await order.save({ session });
                 } catch (razorError) {
@@ -560,12 +580,12 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     order.paymentStatus = 'paid';
     order.razorpayPaymentId = razorpayPaymentId;
     order.razorpaySignature = razorpaySignature;
-    
+
     // Auto-confirm order if it was pending
     if (order.status === 'pending') {
         order.status = 'pending'; // Keep as pending, but mark as paid
     }
-    
+
     await order.save();
 
     res.status(200).json(new ApiResponse(200, { orderId: order.orderId }, "Payment verified successfully."));
@@ -683,7 +703,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
                 { session }
             );
         });
-        
+
         // Unified Notification to all parties
         await OrderNotificationService.notifyOrderUpdate(order._id, 'cancelled', {
             excludeRecipientId: req.user.id,
@@ -740,7 +760,7 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         const deliveredDate = new Date(order.deliveredAt);
         const now = new Date();
         const diffInHours = (now - deliveredDate) / (1000 * 60 * 60);
-        
+
         if (diffInHours > 24) {
             throw new ApiError(400, 'Return validity has expired. Returns must be requested within 24 hours of delivery.');
         }
@@ -750,7 +770,7 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         const now = new Date();
         const diffInHours = (now - updatedDate) / (1000 * 60 * 60);
         if (diffInHours > 24) {
-             throw new ApiError(400, 'Return validity has expired. Returns must be requested within 24 hours of delivery.');
+            throw new ApiError(400, 'Return validity has expired. Returns must be requested within 24 hours of delivery.');
         }
     }
 
@@ -841,8 +861,8 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
     await order.save();
 
     // 10. Unified Notifications for Return Request
-    const adminNotificationTask = Admin.find({ isActive: true }).then(admins => 
-        Promise.all(admins.map(admin => 
+    const adminNotificationTask = Admin.find({ isActive: true }).then(admins =>
+        Promise.all(admins.map(admin =>
             createNotification({
                 recipientId: admin._id,
                 recipientType: 'admin',
@@ -1018,7 +1038,7 @@ export const submitReturnUPI = asyncHandler(async (req, res) => {
 
     returnReq.upiId = upiId;
     await returnReq.save();
-    
+
     emitEvent(`return_${returnReq._id}`, 'return_status_updated', returnReq);
 
     res.status(200).json(new ApiResponse(200, returnReq, 'UPI ID submitted successfully'));

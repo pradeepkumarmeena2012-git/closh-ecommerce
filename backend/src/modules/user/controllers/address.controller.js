@@ -29,8 +29,8 @@ export const addAddress = asyncHandler(async (req, res) => {
     const { isDefault } = req.body;
     const payload = buildAddressPayload(req.body);
 
-    if (payload.phone && !/^[6-9]\d{9}$/.test(payload.phone)) {
-        throw new ApiError(400, 'Invalid phone number format. Must be exactly 10 digits starting with 6-9.');
+    if (payload.phone && !/^\d{10}$/.test(payload.phone)) {
+        throw new ApiError(400, 'Invalid phone number format. Must be exactly 10 digits.');
     }
 
     if (payload.zipCode && !/^\d{6}$/.test(payload.zipCode)) {
@@ -76,8 +76,8 @@ export const updateAddress = asyncHandler(async (req, res) => {
             }
             if (field === 'phone') {
                 const p = toPhone(req.body.phone);
-                if (p && !/^[6-9]\d{9}$/.test(p)) {
-                    throw new ApiError(400, 'Invalid phone number format. Must be exactly 10 digits starting with 6-9.');
+                if (p && !/^\d{10}$/.test(p)) {
+                    throw new ApiError(400, 'Invalid phone number format. Must be exactly 10 digits.');
                 }
                 payload.phone = p;
                 return;

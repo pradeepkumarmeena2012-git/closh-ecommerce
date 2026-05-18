@@ -53,6 +53,10 @@ const normalizePublicTrackingOrder = (order) =>
   });
 
 const buildIdempotencyKey = (payload, userId = null) => {
+  // Use a 15-minute window for identical order key stabilization.
+  // This prevents double-clicks/quick retries but allows subsequent purchases.
+  const timeWindow = Math.floor(Date.now() / (15 * 60 * 1000));
+
   const base = JSON.stringify({
     userId: userId || null,
     items: (payload?.items || []).map(i => ({ productId: i.productId, quantity: i.quantity, variant: i.variant })),
@@ -61,6 +65,7 @@ const buildIdempotencyKey = (payload, userId = null) => {
     couponCode: payload?.couponCode || "",
     orderType: payload?.orderType || "check_and_buy",
     dropoffLocation: payload?.dropoffLocation || null,
+    timeWindow,
   });
 
   let hash = 0;
@@ -68,7 +73,7 @@ const buildIdempotencyKey = (payload, userId = null) => {
     hash = (hash << 5) - hash + base.charCodeAt(i);
     hash |= 0;
   }
-  
+
   // Use a stable key per unique order intent for better duplicate detection
   return `ord-${Math.abs(hash)}-${payload?.items?.length || 0}`;
 };
@@ -102,8 +107,8 @@ export const useOrderStore = create(
           const payload = {
             items: orderData.items.map((item) => {
               // Extract original Mongo ID if it's an upsell item (format: upsell-ID-timestamp)
-              const productId = String(item.id || item.productId || item._id).startsWith('upsell-') 
-                ? (item.id || item.productId || item._id).split('-')[1] 
+              const productId = String(item.id || item.productId || item._id).startsWith('upsell-')
+                ? (item.id || item.productId || item._id).split('-')[1]
                 : (item.id || item.productId || item._id);
 
               return {
@@ -133,11 +138,11 @@ export const useOrderStore = create(
           console.log("Order Store - API Raw Response:", response);
           const payloadData = response?.data || response;
           console.log("Order Store - payloadData extracted:", payloadData);
-          
+
           // Support both flattened and wrapped response structures
           const createdOrderId = payloadData?.orderId || response?.orderId || response?.data?.orderId;
           console.log("Order Store - createdOrderId identified:", createdOrderId);
-          
+
           if (!createdOrderId) {
             throw new Error('Invalid order creation response from server.');
           }
@@ -373,9 +378,9 @@ export const useOrderStore = create(
       storage: createJSONStorage(() => localStorage),
       // Exclude high-volume 'orders' array from persistence to prevent QuotaExceededError (Storage Full)
       // Orders are re-fetched from the API on demand.
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         hasFetched: state.hasFetched,
-        orderPagination: state.orderPagination 
+        orderPagination: state.orderPagination
       }),
     }
   )

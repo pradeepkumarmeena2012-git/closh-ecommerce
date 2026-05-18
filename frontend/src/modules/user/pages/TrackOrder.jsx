@@ -335,7 +335,7 @@ const MobileTrackOrder = () => {
                 <h1 className="text-xl font-bold text-gray-800">Track Order</h1>
                 <p className="text-sm text-gray-600">Order #{displayOrderId}</p>
               </div>
-              <Badge variant={normalizedStatus}>{normalizedStatus.toUpperCase()}</Badge>
+              <Badge variant={normalizedStatus}>{normalizedStatus === 'assigned' ? 'ASSIGNED TO PICKUP' : normalizedStatus === 'ready_for_pickup' ? 'READY FOR PICKUP' : normalizedStatus === 'picked_up' ? 'PICKED UP' : normalizedStatus === 'out_for_delivery' ? 'OUT FOR DELIVERY' : normalizedStatus.toUpperCase()}</Badge>
             </div>
           </div>
 

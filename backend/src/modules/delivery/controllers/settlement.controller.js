@@ -7,10 +7,17 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import { cacheInvalidate } from './order.controller.js';
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+const getRazorpayInstance = () => {
+    const key_id = process.env.RAZORPAY_KEY_ID;
+    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+    
+    if (!key_id || !key_secret) {
+        console.warn('⚠️ Razorpay keys missing. Settlement orders will fail.');
+        return null;
+    }
+    
+    return new Razorpay({ key_id, key_secret });
+};
 
 /**
  * Initialize a cash settlement order
@@ -41,6 +48,9 @@ export const createSettlementOrder = asyncHandler(async (req, res) => {
     };
 
     try {
+        const razorpay = getRazorpayInstance();
+        if (!razorpay) throw new ApiError(500, 'Payment gateway not configured.');
+
         const order = await razorpay.orders.create(options);
 
         // Create a pending settlement record

@@ -210,7 +210,7 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
     if (status === 'approved' && request.status !== 'approved') {
         const vendor = await Vendor.findById(request.vendorId);
         const order = await Order.findById(request.orderId);
-        
+
         // 1. Set Pickup Location (Customer's address)
         if (order && order.shippingAddress) {
             request.pickupLocation = {
@@ -231,7 +231,7 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
 
         // 3. Notify nearby delivery boys within 8km of customer
         if (request.pickupLocation?.coordinates?.length === 2 && request.pickupLocation.coordinates[0] !== 0) {
-            await notifyNearbyDeliveryBoysForReturn(request).catch(err => 
+            await notifyNearbyDeliveryBoysForReturn(request).catch(err =>
                 console.error(`[Return Assignment] Failed to notify delivery boys for return ${request._id}:`, err)
             );
         }

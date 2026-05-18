@@ -41,7 +41,7 @@ const DeliveryReturnDetail = () => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [otp, setOtp] = useState('');
-  
+
   const pickupInputRef = useRef(null);
   const pickupGalleryRef = useRef(null);
   const deliveryInputRef = useRef(null);
@@ -68,13 +68,13 @@ const DeliveryReturnDetail = () => {
 
   useEffect(() => {
     loadReturn();
-    
+
     // Setup socket listeners
     const handleUpdate = () => loadReturn();
     socketService.on('return_status_updated', handleUpdate);
-    
+
     if (id) socketService.joinRoom(`return_${id}`);
-    
+
     return () => {
       socketService.off('return_status_updated');
     };
@@ -156,8 +156,8 @@ const DeliveryReturnDetail = () => {
   // Phase 2: Go to Vendor Address
   const customerCoords = returnReq.orderId?.dropoffLocation?.coordinates;
   const vendorCoords = returnReq.vendorId?.shopLocation?.coordinates;
-  
-  const targetCoords = currentPhase === 'customer_pickup' 
+
+  const targetCoords = currentPhase === 'customer_pickup'
     ? (Array.isArray(customerCoords) && customerCoords.length === 2 ? { lat: customerCoords[1], lng: customerCoords[0] } : null)
     : (Array.isArray(vendorCoords) && vendorCoords.length === 2 ? { lat: vendorCoords[1], lng: vendorCoords[0] } : null);
 

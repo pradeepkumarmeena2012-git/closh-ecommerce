@@ -180,7 +180,10 @@ const VendorLayout = () => {
       const currentVendorId = (vendor?.id || vendor?._id)?.toString();
       if (!currentVendorId) return;
 
-      const vendorItem = fullOrder.vendorItems?.find(vi => vi.vendorId?.toString() === currentVendorId);
+      const vendorItem = fullOrder.vendorItems?.find(vi => {
+        const vId = vi.vendorId?._id || vi.vendorId;
+        return vId?.toString() === currentVendorId;
+      });
       const vStatus = (vendorItem?.status || fullOrder.status || 'pending').toLowerCase();
       
       if (vStatus !== 'pending') {

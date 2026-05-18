@@ -136,11 +136,12 @@ const OrderDetail = () => {
             // Optimistically update local state
             setOrder((prev) => ({
                 ...prev,
-                vendorItems: prev.vendorItems?.map((vi) =>
-                    vi.vendorId?.toString() === vendorId?.toString()
+                vendorItems: prev.vendorItems?.map((vi) => {
+                    const vId = vi.vendorId?._id || vi.vendorId;
+                    return vId?.toString() === vendorId?.toString()
                         ? { ...vi, status: newStatus }
-                        : vi
-                ),
+                        : vi;
+                }),
                 status: newStatus,
             }));
             toast.success(`Order status updated to ${newStatus}`);
@@ -181,9 +182,10 @@ const OrderDetail = () => {
     };
 
     // Derive per-vendor status from vendorItems
-    const vendorItem = order?.vendorItems?.find(
-        (vi) => vi.vendorId?.toString() === vendorId?.toString()
-    );
+    const vendorItem = order?.vendorItems?.find((vi) => {
+        const vId = vi.vendorId?._id || vi.vendorId;
+        return vId?.toString() === vendorId?.toString();
+    });
     const currentStatus = String(vendorItem?.status ?? order?.status ?? 'pending').toLowerCase();
     const allowedStatuses = transitionMap[currentStatus] || [currentStatus];
     const visibleStatusOptions = statusOptions.filter((option) =>

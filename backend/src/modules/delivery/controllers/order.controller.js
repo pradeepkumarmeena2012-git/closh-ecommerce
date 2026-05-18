@@ -74,7 +74,7 @@ const sendDeliveryOtpEmail = async (order, otp) => {
 export const getAssignedOrders = asyncHandler(async (req, res) => {
     const { status, page, limit } = req.query;
     const filter = { deliveryBoyId: req.user.id, isDeleted: { $ne: true } };
-    
+
     if (status === 'open') {
         filter.status = { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] };
     } else if (status) {
@@ -229,12 +229,12 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     todayStart.setHours(0, 0, 0, 0);
 
     const [
-        statusStats, 
-        completedTodayCount, 
-        completedReturnsTodayCount, 
-        orderEarningsStats, 
-        returnEarningsStats, 
-        recentOrders, 
+        statusStats,
+        completedTodayCount,
+        completedReturnsTodayCount,
+        orderEarningsStats,
+        returnEarningsStats,
+        recentOrders,
         activeReturns
     ] = await Promise.all([
         Order.aggregate([
@@ -295,19 +295,19 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             isDeleted: { $ne: true },
             status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
         })
-        .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase createdAt updatedAt')
-        .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
-        .sort({ updatedAt: -1 })
-        .limit(10)
-        .lean(),
+            .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase createdAt updatedAt')
+            .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
+            .sort({ updatedAt: -1 })
+            .limit(10)
+            .lean(),
         ReturnRequest.find({
             deliveryBoyId,
             status: 'processing'
         })
-        .populate('orderId', 'orderId total shippingAddress')
-        .populate('userId', 'name email phone')
-        .populate('vendorId', 'storeName shopAddress shopLocation')
-        .lean()
+            .populate('orderId', 'orderId total shippingAddress')
+            .populate('userId', 'name email phone')
+            .populate('vendorId', 'storeName shopAddress shopLocation')
+            .lean()
     ]);
 
     const orderEarnings = Number(orderEarningsStats?.[0]?.totalDeliveryFees || 0);
@@ -321,7 +321,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     // Augment recentOrders with batchId from Delivery model
     const orderIds = recentOrders.map(o => o._id);
     const deliveries = await Delivery.find({ orderId: { $in: orderIds }, status: { $ne: 'delivered' } }).populate('batchId');
-    
+
     const augmentedOrders = recentOrders.map(order => {
         const d = deliveries.find(del => String(del.orderId) === String(order._id));
         const orderObj = order.toObject ? order.toObject() : order;
@@ -353,8 +353,8 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     const cashRow = cashStats?.[0] || { cashInHand: 0, totalCashCollected: 0 };
 
     // Source of truth: Use the bulk balance from the rider model
-    const finalCashInHand = (rider.cashInHand !== undefined && rider.cashInHand !== null) 
-        ? rider.cashInHand 
+    const finalCashInHand = (rider.cashInHand !== undefined && rider.cashInHand !== null)
+        ? rider.cashInHand
         : Number(cashRow.cashInHand || 0);
 
     const finalTotalCollected = (rider.cashCollected !== undefined && rider.cashCollected !== null)
@@ -458,14 +458,14 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
         {
             $group: {
                 _id: null,
-                cashInHand: { 
-                    $sum: { 
+                cashInHand: {
+                    $sum: {
                         $cond: [
-                            { $ne: ['$isCashSettled', true] }, 
-                            { $ifNull: ['$deliveryFlow.finalAmount', '$total'] }, 
+                            { $ne: ['$isCashSettled', true] },
+                            { $ifNull: ['$deliveryFlow.finalAmount', '$total'] },
                             0
-                        ] 
-                    } 
+                        ]
+                    }
                 },
                 totalCashCollected: { $sum: { $ifNull: ['$deliveryFlow.finalAmount', '$total'] } }
             }
@@ -478,8 +478,8 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
 
     // Source of truth: Use the bulk balance from the rider model if it's been initialized/tracked.
     // Otherwise fallback to the aggregate of unsettled orders (for backward compatibility).
-    const finalCashInHand = (rider.cashInHand !== undefined && rider.cashInHand !== null) 
-        ? rider.cashInHand 
+    const finalCashInHand = (rider.cashInHand !== undefined && rider.cashInHand !== null)
+        ? rider.cashInHand
         : Number(cashRow.cashInHand || 0);
 
     const finalTotalCollected = (rider.cashCollected !== undefined && rider.cashCollected !== null)
@@ -488,20 +488,20 @@ export const getProfileSummary = asyncHandler(async (req, res) => {
 
     // Cache and return result
     // We include existing rider profile fields to avoid UI data loss on frontend merge
-    const profileData = { 
+    const profileData = {
         ...rider.toObject(),
-        totalDeliveries: Number(row.totalDeliveries || 0) + Number(rRow.totalReturns || 0), 
-        completedToday: Number(completedTodayCount || 0) + Number(returnTodayCount || 0), 
-        earnings: Number(row.earnings || 0) + Number(rRow.earnings || 0), 
-        totalEarnings: Number(rider.totalEarnings || 0), 
-        availableBalance: Number(rider.availableBalance || 0), 
-        cashInHand: finalCashInHand, 
+        totalDeliveries: Number(row.totalDeliveries || 0) + Number(rRow.totalReturns || 0),
+        completedToday: Number(completedTodayCount || 0) + Number(returnTodayCount || 0),
+        earnings: Number(row.earnings || 0) + Number(rRow.earnings || 0),
+        totalEarnings: Number(rider.totalEarnings || 0),
+        availableBalance: Number(rider.availableBalance || 0),
+        cashInHand: finalCashInHand,
         totalCashCollected: finalTotalCollected
     };
 
     // Note: We no longer sync from orders back to model here to avoid overwriting 
     // settlement-adjusted balances. Financial integrity is maintained via WalletService.
-    
+
     await cacheSet(profileCacheKey, profileData);
 
     return res.status(200).json(
@@ -692,7 +692,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         const dropoff = order.dropoffLocation?.coordinates || [0, 0];
 
         let distanceKm = order.deliveryDistance || 0;
-        
+
         // Re-verify distance for accuracy
         const matrix = await getDistanceMatrix(pickup, dropoff);
         if (matrix) {
@@ -700,7 +700,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         } else if (!distanceKm) {
             distanceKm = calculateDistance(pickup, dropoff);
         }
-        
+
         const riderEarnings = getDeliveryEarning(distanceKm);
 
         // Persist earnings and distance on the order
@@ -715,7 +715,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         if (order.deliveryFlow) {
             order.deliveryFlow.phase = 'delivered';
         }
-        
+
         // Sync vendorItems statuses
         if (order.vendorItems && order.vendorItems.length > 0) {
             order.vendorItems.forEach(group => {
@@ -729,7 +729,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         await order.save();
 
         const updatedRider = await DeliveryBoy.findById(req.user.id).select('name availableBalance totalEarnings totalDeliveries');
-        
+
         await OrderNotificationService.notifyOrderUpdate(order._id, status, {
             excludeRecipientId: req.user.id,
             title: `Order #${order.orderId} Delivered`,
@@ -757,7 +757,7 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     // ── CRITICAL: Actually persist the status change ──
     order.status = status;
     if (status === 'picked_up') order.pickedUpAt = new Date();
-    
+
     // Sync vendorItems statuses
     if (order.vendorItems && order.vendorItems.length > 0) {
         order.vendorItems.forEach(group => {
@@ -811,7 +811,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     order.status = 'cancelled';
     order.cancelledAt = new Date();
     order.cancellationReason = reason || 'Refused by customer at delivery';
-    
+
     // Update vendor items statuses
     if (order.vendorItems && order.vendorItems.length > 0) {
         order.vendorItems.forEach(group => {
@@ -837,12 +837,12 @@ export const cancelOrder = asyncHandler(async (req, res) => {
         status: 'cancelled',
         reason: order.cancellationReason
     });
-    
+
     // Notify vendors
     order.vendorItems.forEach(group => {
         emitEvent(`vendor_${group.vendorId}`, 'order_cancelled', {
-          orderId: order.orderId,
-          reason: order.cancellationReason
+            orderId: order.orderId,
+            reason: order.cancellationReason
         });
     });
 
@@ -884,13 +884,13 @@ export const resendDeliveryOtp = asyncHandler(async (req, res) => {
 
     const otp = DeliveryOtpService.generateOtp();
     const flow = ensureDeliveryFlow(order);
-    
+
     flow.otpHash = DeliveryOtpService.hashOtp(otp);
     flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
     flow.otpSentAt = new Date();
     flow.otpAttempts = 0;
     flow.otpDebug = otp;
-    
+
     // Sync legacy fields
     order.deliveryOtpHash = flow.otpHash;
     order.deliveryOtpExpiry = flow.otpExpiry;
@@ -928,7 +928,7 @@ export const markArrived = asyncHandler(async (req, res) => {
     // Generate Delivery OTP at Arrival
     const otp = DeliveryOtpService.generateOtp();
     const flow = ensureDeliveryFlow(order);
-    
+
     flow.otpHash = DeliveryOtpService.hashOtp(otp);
     flow.otpExpiry = new Date(Date.now() + DELIVERY_OTP_TTL_MS);
     flow.otpSentAt = new Date();
@@ -1019,9 +1019,9 @@ export const getCompanyQR = asyncHandler(async (req, res) => {
 const findOrderForRider = async (id, riderId, selectOtp = false) => {
     // Robustness: ensure we are using ObjectId for the query
     console.log(`[findOrderForRider] START - ID: ${id}, Rider: ${riderId}`);
-    
-    const riderObjectId = mongoose.Types.ObjectId.isValid(riderId) 
-        ? new mongoose.Types.ObjectId(riderId) 
+
+    const riderObjectId = mongoose.Types.ObjectId.isValid(riderId)
+        ? new mongoose.Types.ObjectId(riderId)
         : riderId;
 
     const query = {
@@ -1035,9 +1035,9 @@ const findOrderForRider = async (id, riderId, selectOtp = false) => {
 
     let q = Order.findOne(query).populate('vendorItems.vendorId');
     if (selectOtp) q = q.select('+deliveryOtpHash +deliveryOtpExpiry +deliveryOtpDebug +deliveryFlow.otpHash +deliveryFlow.otpDebug');
-    
+
     const order = await q;
-    
+
     if (!order) {
         console.error(`[findOrderForRider] FAIL - Query:`, JSON.stringify(query));
         // Fallback: check if the order exists at all without rider filter for better error msgs
@@ -1091,7 +1091,7 @@ export const markArrivedAtVendor = asyncHandler(async (req, res) => {
 
     // Notify Vendor
     (order.vendorItems || []).forEach(vi =>
-        emitEvent(`vendor_${vi.vendorId}`, 'rider_arrived_at_store', { 
+        emitEvent(`vendor_${vi.vendorId}`, 'rider_arrived_at_store', {
             orderId: order.orderId,
             riderName: order.deliveryBoyId?.name || 'Delivery Partner'
         })
@@ -1101,7 +1101,7 @@ export const markArrivedAtVendor = asyncHandler(async (req, res) => {
         excludeRecipientId: req.user.id,
         title: `Partner Arrived`,
         message: `Delivery partner has arrived at your store for order #${order.orderId}.`,
-    }).catch(() => {});
+    }).catch(() => { });
 
     res.status(200).json(new ApiResponse(200, order, 'Marked as arrived at vendor.'));
 });
@@ -1143,7 +1143,7 @@ export const handlePickup = asyncHandler(async (req, res) => {
         excludeRecipientId: req.user.id,
         title: `Order #${order.orderId} Picked Up`,
         message: `Delivery partner has picked up your order.`,
-    }).catch(() => {});
+    }).catch(() => { });
 
     res.status(200).json(new ApiResponse(200, order, 'Pickup confirmed.'));
 });
@@ -1175,7 +1175,7 @@ export const handleStartDelivery = asyncHandler(async (req, res) => {
         excludeRecipientId: req.user.id,
         title: `Order #${order.orderId} On The Way`,
         message: `Your order is out for delivery.`,
-    }).catch(() => {});
+    }).catch(() => { });
 
     res.status(200).json(new ApiResponse(200, order, 'Delivery started. Tracking active.'));
 });
@@ -1214,7 +1214,7 @@ export const handleArrivedAtCustomer = asyncHandler(async (req, res) => {
     let otp = '';
     // If we're already arrived, keep existing OTP to avoid spamming the customer ("baar baar")
     const isNewArrival = !flow.otpHash || flow.otpExpiry < new Date();
-    
+
     if (isNewArrival) {
         otp = DeliveryOtpService.generateOtp();
         flow.otpHash = DeliveryOtpService.hashOtp(otp);
@@ -1222,7 +1222,7 @@ export const handleArrivedAtCustomer = asyncHandler(async (req, res) => {
         flow.otpSentAt = new Date();
         flow.otpAttempts = 0;
         flow.otpDebug = otp;
-        
+
         // Keep legacy OTP fields in sync for mixed-version compatibility
         order.deliveryOtpHash = flow.otpHash;
         order.deliveryOtpExpiry = flow.otpExpiry;
@@ -1258,7 +1258,7 @@ export const handleArrivedAtCustomer = asyncHandler(async (req, res) => {
     OrderNotificationService.notifyOrderUpdate(order._id, 'arrived', {
         excludeRecipientId: req.user.id,
         title: `Rider Arrived`, message: `Rider has arrived at the delivery location.`,
-    }).catch(() => {});
+    }).catch(() => { });
 
     res.status(200).json(new ApiResponse(200, order, 'Rider arrived. OTP sent to customer.'));
 });
@@ -1272,7 +1272,7 @@ export const handleTryAndBuy = asyncHandler(async (req, res) => {
 
     const order = await findOrderForRider(req.params.id, req.user.id);
     const isSpecializedOrder = order.orderType === 'try_and_buy' || order.orderType === 'check_and_buy';
-    
+
     if (!isSpecializedOrder) {
         throw new ApiError(400, 'This order type does not support item selection.');
     }
@@ -1292,11 +1292,11 @@ export const handleTryAndBuy = asyncHandler(async (req, res) => {
     flow.tryAndBuyItems = tryItems;
     flow.tryAndBuyCompletedAt = new Date();
     flow.phase = 'try_and_buy';
-    
+
     const acceptedItems = tryItems.filter(i => i.decision === 'accepted');
 
     // Recalculate final amount from accepted items plus fixed fees (shipping, platform fee)
-const acceptedSubtotal = acceptedItems.reduce((sum, i) => sum + ((i.price || 0) * (i.quantity || 1)), 0);
+    const acceptedSubtotal = acceptedItems.reduce((sum, i) => sum + ((i.price || 0) * (i.quantity || 1)), 0);
     const originalSubtotal = order.subtotal || acceptedSubtotal;
     const subtotalRatio = originalSubtotal > 0 ? (acceptedSubtotal / originalSubtotal) : 1;
 
@@ -1318,8 +1318,8 @@ const acceptedSubtotal = acceptedItems.reduce((sum, i) => sum + ((i.price || 0) 
     // Synchronize vendorItems to reflect item rejections
     if (order.vendorItems) {
         order.vendorItems.forEach(vi => {
-            const matchingTryItem = tryItems.find(ti => 
-                String(ti.productId) === String(vi.productId) && 
+            const matchingTryItem = tryItems.find(ti =>
+                String(ti.productId) === String(vi.productId) &&
                 getVariantSignature(ti.variant || {}) === getVariantSignature(vi.variant || {})
             );
             if (matchingTryItem && matchingTryItem.decision === 'rejected') {
@@ -1339,7 +1339,7 @@ const acceptedSubtotal = acceptedItems.reduce((sum, i) => sum + ((i.price || 0) 
     for (const item of rejectedItems) {
         const qty = Number(item.quantity || 1);
         const variantKey = item.variantKey;
-        
+
         const incUpdate = { stockQuantity: qty };
         if (variantKey) {
             incUpdate[`variants.stockMap.${variantKey}`] = qty;
@@ -1372,12 +1372,12 @@ export const handlePayment = asyncHandler(async (req, res) => {
 
     const isTryAndBuyFlow = order.orderType === 'try_and_buy';
     const isCheckAndBuyFlow = order.orderType === 'check_and_buy';
-    
+
     // Now both types can go through the selection flow which sets the phase to 'try_and_buy'
     const validFrom = (isTryAndBuyFlow || isCheckAndBuyFlow)
         ? ['try_and_buy', 'payment_pending']
         : ['arrived', 'payment_pending'];
-    
+
     if (!validFrom.includes(flow.phase)) {
         throw new ApiError(409, `Cannot set payment from phase "${flow.phase}". Valid phases: ${validFrom.join(', ')}`);
     }
@@ -1440,7 +1440,7 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
 
     const isMatch = otpHash === DeliveryOtpService.hashOtp(normalizedOtp);
     const isDebugMatch = !IS_PRODUCTION && (flow.otpDebug === normalizedOtp || order.deliveryOtpDebug === normalizedOtp);
-    
+
     if (!isMatch && !isDebugMatch) {
         flow.otpAttempts = (flow.otpAttempts || 0) + 1;
         await order.save();
@@ -1464,7 +1464,7 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     order.deliveryOtpVerifiedAt = new Date();
     if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash' || order.paymentMethod === 'prepaid') {
         order.paymentStatus = 'paid';
-        
+
         // For COD/Cash, we track settlement; for Prepaid, the platform already has the funds.
         if (order.paymentMethod === 'cod' || order.paymentMethod === 'cash') {
             order.isCashSettled = false;
@@ -1700,9 +1700,9 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
     if (status === 'picked_up') {
         const normalizedOtp = String(otp || '').trim();
         const otpHash = DeliveryOtpService.hashOtp(normalizedOtp);
-        
+
         const isValidOtp = otpHash === returnReq.pickupOtpHash || (!IS_PRODUCTION && normalizedOtp === returnReq.pickupOtpDebug);
-        
+
         if (!isValidOtp) {
             throw new ApiError(400, 'Invalid OTP for pickup.');
         }
@@ -1712,7 +1712,7 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
         }
         returnReq.status = 'processing';
         returnReq.pickupPhoto = pickupPhoto;
-        
+
         const dOtp = DeliveryOtpService.generateOtp();
         returnReq.deliveryOtpHash = DeliveryOtpService.hashOtp(dOtp);
         returnReq.deliveryOtpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -1726,15 +1726,15 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
             type: 'order',
             data: { returnId: String(returnReq._id), otp: dOtp }
         });
-        
+
         emitEvent(`user_${returnReq.userId?._id}`, 'return_picked_up', { returnId: returnReq._id });
         emitEvent(`vendor_${returnReq.vendorId}`, 'return_picked_up', { returnId: returnReq._id });
     } else if (status === 'completed') {
         const normalizedOtp = String(otp || '').trim();
         const otpHash = DeliveryOtpService.hashOtp(normalizedOtp);
-        
+
         const isValidOtp = otpHash === returnReq.deliveryOtpHash || (!IS_PRODUCTION && normalizedOtp === returnReq.deliveryOtpDebug);
-        
+
         if (!isValidOtp) {
             throw new ApiError(400, 'Invalid OTP for vendor handover.');
         }
@@ -1748,23 +1748,23 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
         try {
             const rider = await DeliveryBoy.findById(deliveryBoyId);
             const riderCoords = rider?.currentLocation?.coordinates;
-            
+
             const order = await Order.findById(returnReq.orderId);
             const customerCoords = order?.dropoffLocation?.coordinates;
-            
+
             const vendor = await Vendor.findById(returnReq.vendorId);
             const vendorCoords = vendor?.shopLocation?.coordinates;
-            
+
             if (riderCoords && customerCoords && vendorCoords) {
                 const dist1 = calculateDistance(riderCoords, customerCoords);
                 const dist2 = calculateDistance(customerCoords, vendorCoords);
                 const totalDistance = parseFloat((dist1 + dist2).toFixed(2));
-                
+
                 const earnings = getDeliveryEarning(totalDistance);
-                
+
                 returnReq.deliveryDistance = totalDistance;
                 returnReq.deliveryEarnings = earnings;
-                
+
                 if (earnings > 0) {
                     await DeliveryBoy.findByIdAndUpdate(
                         deliveryBoyId,
@@ -1807,7 +1807,7 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
     }
 
     await returnReq.save();
-    
+
     emitEvent(`return_${returnReq._id}`, 'return_status_updated', returnReq);
 
     res.status(200).json(new ApiResponse(200, returnReq, 'Return status updated.'));

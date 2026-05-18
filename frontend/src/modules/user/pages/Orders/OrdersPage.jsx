@@ -91,7 +91,7 @@ const OrdersPage = () => {
                                     <div className="w-full sm:w-auto">
                                         <div className="flex items-center flex-wrap gap-2 mb-2">
                                             <span className="text-[9px] font-black bg-emerald-500 text-white px-2 py-1 rounded-lg uppercase tracking-wider">
-                                                {order.status || 'Pending'}
+                                                {order.status?.toLowerCase() === 'assigned' ? 'Assigned to Pickup' : order.status?.toLowerCase() === 'ready_for_pickup' ? 'Ready for Pickup' : order.status?.toLowerCase() === 'picked_up' ? 'Picked Up' : order.status?.toLowerCase() === 'out_for_delivery' ? 'Out for Delivery' : (order.status || 'Pending')}
                                             </span>
                                             {order.deliveryType && order.deliveryType !== 'standard' && (
                                                 <span className="text-[9px] font-black bg-amber-400 text-black px-2 py-1 rounded-lg uppercase tracking-wider">

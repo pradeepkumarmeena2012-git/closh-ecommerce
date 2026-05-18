@@ -68,12 +68,12 @@ const MobileOrderDetail = () => {
     socketService.on('order_status_updated', handleUpdate);
     socketService.on('rider_assigned', handleUpdate);
     socketService.on('delivery_otp_sent', (data) => {
-        toast.success('🔐 New Delivery OTP received!', { id: `otp-${orderId}` });
-        handleUpdate(data);
+      toast.success('🔐 New Delivery OTP received!', { id: `otp-${orderId}` });
+      handleUpdate(data);
     });
     socketService.on('rider_nearby', (data) => {
-        toast.success('🛵 Your rider is nearby!', { id: `nearby-${orderId}` });
-        handleUpdate(data);
+      toast.success('🛵 Your rider is nearby!', { id: `nearby-${orderId}` });
+      handleUpdate(data);
     });
 
     return () => {
@@ -221,29 +221,29 @@ const MobileOrderDetail = () => {
     } finally {
       setIsSubmittingReturn(false);
     }
-  const handleSubmitUpi = async () => {
-    if (!userUpiId) {
-      toast.error('Please enter a valid UPI ID');
-      return;
-    }
-    setIsSubmittingUpi(true);
-    try {
-      await useOrderStore.getState().submitReturnUPI(order.returnRequest._id, userUpiId);
-      toast.success('UPI ID submitted successfully!');
-      if (orderId) {
-        await fetchOrderById(orderId);
+    const handleSubmitUpi = async () => {
+      if (!userUpiId) {
+        toast.error('Please enter a valid UPI ID');
+        return;
       }
-    } catch (error) {
-      console.error("UPI submission failed:", error);
-      toast.error(error.message || 'Failed to submit UPI ID');
-    } finally {
-      setIsSubmittingUpi(false);
-    }
-  };
+      setIsSubmittingUpi(true);
+      try {
+        await useOrderStore.getState().submitReturnUPI(order.returnRequest._id, userUpiId);
+        toast.success('UPI ID submitted successfully!');
+        if (orderId) {
+          await fetchOrderById(orderId);
+        }
+      } catch (error) {
+        console.error("UPI submission failed:", error);
+        toast.error(error.message || 'Failed to submit UPI ID');
+      } finally {
+        setIsSubmittingUpi(false);
+      }
+    };
 
-  return (
-    <PageTransition>
-      <MobileLayout showBottomNav={false} showCartBar={true}>
+    return (
+      <PageTransition>
+        <MobileLayout showBottomNav={false} showCartBar={true}>
           <div className="w-full pb-24">
             {/* Header */}
             <div className="px-4 py-4 bg-white border-b border-gray-200 sticky top-1 z-30">
@@ -258,7 +258,7 @@ const MobileOrderDetail = () => {
                   <h1 className="text-xl font-bold text-gray-800">Order Details</h1>
                   <p className="text-sm text-gray-600">Order #{order.id}</p>
                 </div>
-                <Badge variant={order.status}>{order.status.toUpperCase()}</Badge>
+                <Badge variant={order.status}>{order.status?.toLowerCase() === 'assigned' ? 'ASSIGNED TO PICKUP' : order.status?.toLowerCase() === 'ready_for_pickup' ? 'READY FOR PICKUP' : order.status?.toLowerCase() === 'picked_up' ? 'PICKED UP' : order.status?.toLowerCase() === 'out_for_delivery' ? 'OUT FOR DELIVERY' : order.status?.toUpperCase()}</Badge>
               </div>
             </div>
 
@@ -365,10 +365,10 @@ const MobileOrderDetail = () => {
                             {formatPrice(item.price)} x {item.quantity}
                           </p>
                           {formatVariantLabel(item?.variant) && (
-                                  <p className="text-[11px] text-gray-500">
-                                    {formatVariantLabel(item?.variant)}
-                                  </p>
-                                )}
+                            <p className="text-[11px] text-gray-500">
+                              {formatVariantLabel(item?.variant)}
+                            </p>
+                          )}
                         </div>
                         <p className="font-bold text-gray-800 text-sm">
                           {formatPrice(item.price * item.quantity)}
@@ -607,12 +607,12 @@ const MobileOrderDetail = () => {
               </motion.div>
             </motion.div>
           )}
-      </MobileLayout>
-    </PageTransition>
-  );
-};
+        </MobileLayout>
+      </PageTransition>
+    );
+  };
 
-export default MobileOrderDetail;
+  export default MobileOrderDetail;
 
 
 

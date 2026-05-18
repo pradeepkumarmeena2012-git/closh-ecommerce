@@ -138,7 +138,7 @@ const DeliveryOrderDetail = () => {
           .filter(i => i.decision !== 'rejected')
           .map(i => i.productId || i._id);
         setSelectedItemIds(new Set(accepted));
-        setPaymentSelection(response.paymentMethod);
+        setPaymentSelection(response.deliveryFlow?.paymentMethod || null);
       }
       if (response?.deliveryFlow?.arrivedAtVendor) {
         setHasArrivedAtVendor(true);
@@ -722,10 +722,26 @@ const DeliveryOrderDetail = () => {
             ((currentPhase === 'pickup' && pickupPhoto) || (currentPhase === 'delivery' && hasArrived)) ? (
               <button 
                   onClick={currentPhase === 'pickup' ? () => handleUpdateStatus('picked_up', 'Items picked up!', { pickupPhoto }) : handleFinalize}
-                  disabled={isUpdatingOrderStatus || (currentPhase === 'delivery' && (otpValue.length < 6 || !deliveryPhoto || (isCod && (!paymentSelection))))}
+                  disabled={
+                      isUpdatingOrderStatus || 
+                      (currentPhase === 'delivery' && (
+                          otpValue.length < 6 || 
+                          !deliveryPhoto || 
+                          (isCod && (!paymentSelection || !['cash', 'qr'].includes(paymentSelection))) ||
+                          (order.isTryAndBuy && !order.tryAndBuyCompleted)
+                      ))
+                  }
                   className="w-full h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 disabled:opacity-20 active:scale-95 transition-all"
               >
-                  {isUpdatingOrderStatus ? 'WAITING...' : (currentPhase === 'pickup' ? 'MARk AS PICKED UP' : 'DELIVERED SUCCESSFULLY')}
+                  {isUpdatingOrderStatus ? 'WAITING...' : (
+                      currentPhase === 'pickup' 
+                          ? 'MARk AS PICKED UP' 
+                          : (order.isTryAndBuy && !order.tryAndBuyCompleted)
+                              ? 'CONFIRM SELECTION FIRST'
+                              : (isCod && (!paymentSelection || !['cash', 'qr'].includes(paymentSelection)))
+                                  ? 'SELECT PAYMENT METHOD'
+                                  : 'DELIVERED SUCCESSFULLY'
+                  )}
               </button>
             ) : (
               <div className="text-center py-2">

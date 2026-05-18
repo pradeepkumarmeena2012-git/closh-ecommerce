@@ -53,13 +53,13 @@ const AllOrders = () => {
       fetchOrders();
     };
 
-    socketService.on('new_order', handleRealTimeUpdate);
+    socketService.on('order_created', handleRealTimeUpdate);
     socketService.on('order_status_updated', handleRealTimeUpdate);
     socketService.on('order_picked_up', handleRealTimeUpdate);
     socketService.on('order_delivered', handleRealTimeUpdate);
 
     return () => {
-      socketService.off('new_order');
+      socketService.off('order_created');
       socketService.off('order_status_updated');
       socketService.off('order_picked_up');
       socketService.off('order_delivered');
@@ -82,9 +82,10 @@ const AllOrders = () => {
 
     if (selectedStatus !== 'all') {
       filtered = filtered.filter((order) => {
-        const vendorItem = order.vendorItems?.find(
-          (vi) => vi.vendorId?.toString() === vendorId?.toString()
-        );
+        const vendorItem = order.vendorItems?.find((vi) => {
+          const vId = vi.vendorId?._id || vi.vendorId;
+          return vId?.toString() === vendorId?.toString();
+        });
         // Fallback to order.status if vendorItem status is missing
         const status = (vendorItem?.status || order.status || 'pending').toLowerCase();
         return status === selectedStatus.toLowerCase();
@@ -96,18 +97,20 @@ const AllOrders = () => {
 
   // Get per-vendor subtotal from vendorItems
   const getVendorSubtotal = (order) => {
-    const vendorItem = order.vendorItems?.find(
-      (vi) => vi.vendorId?.toString() === vendorId?.toString()
-    );
+    const vendorItem = order.vendorItems?.find((vi) => {
+      const vId = vi.vendorId?._id || vi.vendorId;
+      return vId?.toString() === vendorId?.toString();
+    });
     // Prioritize price (selling price) over vendorPrice (cost price)
     return vendorItem?.items?.reduce((sum, it) => sum + (it.price ?? it.vendorPrice ?? 0) * (it.quantity ?? 1), 0) ??
            vendorItem?.subtotal ?? 0;
   };
 
   const getOrderStatus = (order) => {
-    const vendorItem = order.vendorItems?.find(
-      (vi) => vi.vendorId?.toString() === vendorId?.toString()
-    );
+    const vendorItem = order.vendorItems?.find((vi) => {
+      const vId = vi.vendorId?._id || vi.vendorId;
+      return vId?.toString() === vendorId?.toString();
+    });
     return vendorItem?.status ?? order.status ?? 'pending';
   };
 
@@ -119,11 +122,12 @@ const AllOrders = () => {
           if ((o.orderId ?? o._id) !== orderId) return o;
           return {
             ...o,
-            vendorItems: o.vendorItems?.map((vi) =>
-              vi.vendorId?.toString() === vendorId?.toString()
+            vendorItems: o.vendorItems?.map((vi) => {
+              const vId = vi.vendorId?._id || vi.vendorId;
+              return vId?.toString() === vendorId?.toString()
                 ? { ...vi, status: newStatus }
-                : vi
-            ),
+                : vi;
+            }),
             status: newStatus,
           };
         })
@@ -160,9 +164,10 @@ const AllOrders = () => {
       label: 'Items',
       sortable: false,
       render: (_, row) => {
-        const vendorItem = row.vendorItems?.find(
-          (vi) => vi.vendorId?.toString() === vendorId?.toString()
-        );
+        const vendorItem = row.vendorItems?.find((vi) => {
+          const vId = vi.vendorId?._id || vi.vendorId;
+          return vId?.toString() === vendorId?.toString();
+        });
         const items = vendorItem?.items || [];
         if (items.length === 0) return <span className="text-sm text-gray-500">N/A</span>;
         
