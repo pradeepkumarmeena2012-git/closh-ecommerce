@@ -47,7 +47,7 @@ const WishlistPage = () => {
                 onClose={() => setIsLocationModalOpen(false)}
             />
 
-            <div className="container mx-auto px-2 py-2 md:px-4 md:py-8">
+            <div className="container mx-auto px-2 sm:px-3 py-2 md:px-4 md:py-8">
                 {/* Desktop-only title if needed, or keeping it clean for mobile */}
                 <div className="hidden md:flex flex-col mb-8 px-2 md:px-0">
                     <h1 className="text-base md:text-xl font-black uppercase text-gray-900 tracking-tighter">Wishlist Items</h1>
@@ -86,18 +86,18 @@ const WishlistPage = () => {
                                 </div>
 
                                 <div className="px-0.5 flex-1">
-                                    <div className="text-[8px] md:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0">{product.brand}</div>
+                                    <div className="text-[8px] md:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0">
+                                        {(product.brand && product.brand !== 'AAPZETO' && product.brand !== 'Appzeto') ? product.brand : ((product.brandName && product.brandName !== 'AAPZETO' && product.brandName !== 'Appzeto') ? product.brandName : 'CLOSH')}
+                                    </div>
                                     <h3 className="text-[11px] md:text-[13px] font-bold text-gray-800 leading-tight line-clamp-1 mb-0.5 md:mb-1">{product.name}</h3>
                                     <div className="flex items-center gap-1.5 md:gap-2 mb-2 md:mb-4">
                                         <span className="text-[12px] md:text-[14px] font-extrabold text-black">₹{product.discountedPrice || product.price}</span>
-                                        {product.originalPrice && product.originalPrice > (product.discountedPrice || product.price) && (
+                                        {(product.originalPrice || product.mrp) && Number(product.originalPrice || product.mrp) > (product.discountedPrice || product.price) && (
                                             <>
-                                                <span className="text-[9px] md:text-[12px] font-bold text-gray-400 line-through">₹{product.originalPrice}</span>
-                                                {product.discount && (
-                                                    <span className="text-[8px] md:text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1 md:px-2 py-0.5 rounded-full">
-                                                        {product.discount}
-                                                    </span>
-                                                )}
+                                                <span className="text-[9px] md:text-[12px] font-bold text-gray-400 line-through">₹{product.originalPrice || product.mrp}</span>
+                                                <span className="text-[8px] md:text-[11px] font-bold text-emerald-600 bg-emerald-50 px-1 md:px-2 py-0.5 rounded-full">
+                                                    {`${Math.round(((Number(product.originalPrice || product.mrp) - (product.discountedPrice || product.price)) / Number(product.originalPrice || product.mrp)) * 100)}% OFF`}
+                                                </span>
                                             </>
                                         )}
                                     </div>

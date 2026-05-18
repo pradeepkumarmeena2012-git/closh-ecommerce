@@ -48,11 +48,7 @@ const AccountLayout = ({ children, isMenuPage = false, hideHeader = false }) => 
                         <button
                             onClick={() => {
                                 if (isMenuPage) {
-                                    if (window.history.length > 2) {
-                                        navigate(-1);
-                                    } else {
-                                        navigate('/');
-                                    }
+                                    navigate('/');
                                 } else {
                                     navigate('/account');
                                 }

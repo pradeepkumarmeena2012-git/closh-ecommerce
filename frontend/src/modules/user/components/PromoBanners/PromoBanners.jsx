@@ -77,22 +77,21 @@ const PromoBanners = () => {
 
     return (
         <div className="w-full bg-[#FAFAFA] py-8 md:py-12 overflow-hidden">
-            <div className="max-w-[1600px] mx-auto px-4 md:px-8 relative">
-                {/* Navigation Arrows */}
-                <button
-                    onClick={prevSlide}
-                    className={`absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/80 backdrop-blur-md shadow-lg flex items-center justify-center transition-all hover:bg-black hover:text-white ${currentIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-                >
-                    <FiChevronLeft size={20} />
-                </button>
-                <button
-                    onClick={nextSlide}
-                    className={`absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-white/80 backdrop-blur-md shadow-lg flex items-center justify-center transition-all hover:bg-black hover:text-white ${currentIndex === maxIndex ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-                >
-                    <FiChevronRight size={20} />
-                </button>
-
-                <div className="relative overflow-hidden">
+            <div className="max-w-[1600px] mx-auto px-0 md:px-8 relative">
+                <div className="relative overflow-hidden px-4 md:px-0">
+                    {/* Navigation Arrows */}
+                    <button
+                        onClick={prevSlide}
+                        className={`absolute left-6 md:left-4 top-1/2 -translate-y-1/2 z-30 w-7 h-7 md:w-10 md:h-10 rounded-full bg-white/80 backdrop-blur-md shadow-lg flex items-center justify-center transition-all hover:bg-black hover:text-white ${currentIndex === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                    >
+                        <FiChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
+                    <button
+                        onClick={nextSlide}
+                        className={`absolute right-6 md:right-4 top-1/2 -translate-y-1/2 z-30 w-7 h-7 md:w-10 md:h-10 rounded-full bg-white/80 backdrop-blur-md shadow-lg flex items-center justify-center transition-all hover:bg-black hover:text-white ${currentIndex === maxIndex ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                    >
+                        <FiChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+                    </button>
                     <div
                         className="flex transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
                         style={{
@@ -103,8 +102,11 @@ const PromoBanners = () => {
                         {activeDeals.map((deal, i) => (
                             <div
                                 key={deal.id || i}
-                                onClick={() => deal.link && navigate(deal.link)}
-                                className={`flex-shrink-0 h-[240px] md:h-[280px] rounded-2xl md:rounded-[32px] overflow-hidden relative cursor-pointer shadow-md group/card ${deal.bg || 'bg-gray-100'}`}
+                                onClick={() => {
+                                    const targetLink = deal.link === '/product' ? '/products' : (deal.link || '/products');
+                                    navigate(targetLink);
+                                }}
+                                className={`flex-shrink-0 h-[200px] sm:h-[240px] md:h-[280px] rounded-2xl md:rounded-[32px] overflow-hidden relative cursor-pointer shadow-md group/card ${deal.bg || 'bg-gray-100'}`}
                                 style={{ width: `calc(${100 / visibleCards}% - ${visibleCards === 1 ? 0 : 20 - (20 / visibleCards)}px)` }}
                             >
                                 {/* Background Image with Overlay */}
@@ -115,19 +117,19 @@ const PromoBanners = () => {
                                 <div className="absolute inset-0 bg-black/20 group-hover/card:bg-black/30 transition-colors" />
 
                                 {/* Content Layer */}
-                                <div className="absolute inset-0 p-6 md:p-10 flex flex-col items-start justify-center">
+                                <div className="absolute inset-0 p-4 sm:p-6 md:p-10 flex flex-col items-start justify-center">
                                     {/* Brand / Logo Area */}
-                                    <div className="mb-3 md:mb-5 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/20">
-                                        <span className="text-white text-[10px] md:text-[12px] font-black tracking-[0.2em] uppercase">
+                                    <div className="mb-2 sm:mb-3 md:mb-5 bg-white/10 backdrop-blur-md px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl border border-white/20">
+                                        <span className="text-white text-[8px] sm:text-[10px] md:text-[12px] font-black tracking-[0.2em] uppercase">
                                             {deal.brand || 'Boutique'}
                                         </span>
                                     </div>
 
                                     {/* Title - Serif style */}
-                                    <h3 className="text-white text-3xl md:text-5xl font-serif italic font-bold leading-none mb-1 drop-shadow-xl">
+                                    <h3 className="text-white text-2xl sm:text-3xl md:text-5xl font-serif italic font-bold leading-none mb-1 drop-shadow-xl">
                                         {deal.title}
                                     </h3>
-                                    <p className="text-white text-[13px] md:text-[16px] font-medium opacity-90 mb-6 drop-shadow-md">
+                                    <p className="text-white text-[11px] sm:text-[13px] md:text-[16px] font-medium opacity-90 mb-4 sm:mb-6 drop-shadow-md">
                                         {deal.subtitle}
                                     </p>
 
@@ -136,9 +138,10 @@ const PromoBanners = () => {
                                         <button 
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                deal.link && navigate(deal.link);
+                                                const targetLink = deal.link === '/product' ? '/products' : (deal.link || '/products');
+                                                navigate(targetLink);
                                             }}
-                                            className="bg-white text-black font-black text-[11px] md:text-[13px] px-8 py-3 rounded-xl shadow-xl hover:bg-black hover:text-white transition-all transform hover:-translate-y-1"
+                                            className="bg-white text-black font-black text-[9px] md:text-[13px] px-5 py-2 md:px-8 md:py-3 rounded-lg md:rounded-xl shadow-xl hover:bg-black hover:text-white transition-all transform hover:-translate-y-1"
                                         >
                                             SHOP NOW
                                         </button>

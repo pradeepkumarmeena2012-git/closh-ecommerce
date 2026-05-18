@@ -65,7 +65,7 @@ const HeroSection = () => {
     return (
         <section className={`w-full bg-gradient-to-b ${currentHeroBg} transition-colors duration-700`}>
             <div className="max-w-[1600px] mx-auto px-0 md:px-6 lg:px-8 py-0 md:py-4">
-                <div className="relative h-[180px] md:h-[260px] lg:h-[300px] w-full overflow-hidden rounded-none md:rounded-[24px] shadow-lg group">
+                <div className="relative h-[160px] sm:h-[180px] md:h-[260px] lg:h-[300px] w-full overflow-hidden rounded-none md:rounded-[24px] shadow-lg group">
                     
                     {/* Main Banner Slider */}
                     {slides.map((banner, index) => (
@@ -86,7 +86,7 @@ const HeroSection = () => {
                             <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/30 to-transparent" />
 
                             {/* Content Layer */}
-                            <div className="absolute inset-0 z-20 px-5 py-4 md:px-12 lg:px-16 flex flex-col justify-center">
+                            <div className="absolute inset-0 z-20 px-4 py-3 sm:px-5 sm:py-4 md:px-12 lg:px-16 flex flex-col justify-center">
                                 <div className={`h-full flex flex-col transition-all duration-700 transform ${index === currentSlide ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
                                     
                                     {/* Top Content: Title & Badge */}
@@ -96,7 +96,7 @@ const HeroSection = () => {
                                                 <div className="h-[1.5px] w-4 bg-white/40" />
                                                 <span className="text-[8px] font-bold text-white tracking-[0.3em] uppercase opacity-60">Featured Collection</span>
                                             </div>
-                                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-white leading-tight mb-2 md:mb-3 tracking-tighter drop-shadow-xl max-w-[160px] md:max-w-xl">
+                                            <h2 className="text-lg sm:text-xl md:text-3xl lg:text-4xl font-black text-white leading-tight mb-1.5 sm:mb-2 md:mb-3 tracking-tighter drop-shadow-xl max-w-[140px] sm:max-w-[160px] md:max-w-xl">
                                                 {banner.title}
                                             </h2>
                                         </div>
@@ -121,7 +121,7 @@ const HeroSection = () => {
                                                 const targetLink = banner.link === '/product' ? '/products' : banner.link;
                                                 navigate(targetLink);
                                             }}
-                                            className="bg-white text-black py-2.5 px-6 rounded-lg font-black text-[10px] md:text-[12px] uppercase hover:bg-black hover:text-white transition-all shadow-[0_10px_20px_rgba(0,0,0,0.4)] active:scale-95"
+                                            className="bg-white text-black py-2 px-5 sm:py-2.5 sm:px-6 rounded-lg font-black text-[9px] sm:text-[10px] md:text-[12px] uppercase hover:bg-black hover:text-white transition-all shadow-[0_10px_20px_rgba(0,0,0,0.4)] active:scale-95"
                                         >
                                             {banner.cta || "Shop Now"}
                                         </button>

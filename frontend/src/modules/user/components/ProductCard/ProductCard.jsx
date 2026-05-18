@@ -56,7 +56,7 @@ const ProductCard = ({ product }) => {
                     {/* Content Area - Matching Image 2 Minimalist Style */}
                     <div className="pt-2.5 pb-1.5 flex flex-col flex-1 items-start text-left">
                         <h3 className="text-[11px] md:text-[13px] font-black text-gray-900 uppercase tracking-tight mb-0.5 truncate w-full">
-                            {product.brand || 'Premium'}
+                            {(product.brand && product.brand !== 'AAPZETO' && product.brand !== 'Appzeto') ? product.brand : ((product.brandName && product.brandName !== 'AAPZETO' && product.brandName !== 'Appzeto') ? product.brandName : 'CLOSH')}
                         </h3>
 
                         <p className="text-[10px] md:text-[12px] font-medium text-gray-500 line-clamp-1 mb-1 w-full">

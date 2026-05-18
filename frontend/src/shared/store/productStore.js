@@ -26,7 +26,7 @@ export const normalizeProduct = (p) => {
         discount: discountDisplay,
         image: p.image || p.images?.[0] || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=500&fit=crop',
         images: Array.isArray(p.images) && p.images.length > 0 ? p.images : (p.image ? [p.image] : []),
-        brand: p.brandName || p.brandId?.name || p.brand || 'Appzeto',
+        brand: (p.brandName && p.brandName !== 'AAPZETO' && p.brandName !== 'Appzeto') ? p.brandName : ((p.brandId?.name && p.brandId?.name !== 'AAPZETO' && p.brandId?.name !== 'Appzeto') ? p.brandId.name : ((p.brand && p.brand !== 'AAPZETO' && p.brand !== 'Appzeto') ? p.brand : 'CLOSH')),
         category: p.categoryName || p.categoryId?.name || p.category || 'General',
         vendor: p.vendorName || p.vendorId?.storeName || 'Clothify'
     };

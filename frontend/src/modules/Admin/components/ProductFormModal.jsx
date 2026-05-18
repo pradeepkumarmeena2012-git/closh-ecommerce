@@ -35,6 +35,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     colors: "",
   });
   const [tagInput, setTagInput] = useState("");
+  const [targetStock, setTargetStock] = useState("");
+  const [manuallyEditedVariants, setManuallyEditedVariants] = useState({});
 
   const [formData, setFormData] = useState({
     name: "",
@@ -88,165 +90,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     if (typeof value === "string") return value;
     if (typeof value === "object") return value._id || value.id || "";
     return String(value);
-  };
-
-  useEffect(() => {
-    initCategories();
-    initBrands();
-  }, [initCategories, initBrands]);
-
-  useEffect(() => {
-    const fetchVendors = async () => {
-      try {
-        const response = await getAllVendors({ status: "approved", limit: 200 });
-        const vendorRows = response.data?.vendors || [];
-        setVendors(vendorRows);
-      } catch (error) {
-        setVendors([]);
-      }
-    };
-
-    fetchVendors();
-  }, []);
-
-  useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const response = await getProductById(productId);
-        const product = response.data;
-
-        if (product) {
-          const productCategoryId = extractId(product.categoryId);
-          const productBrandId = extractId(product.brandId);
-          const productVendorId = extractId(product.vendorId);
-
-          // Determine if categoryId is a subcategory
-          const category = categories.find(
-            (cat) => String(cat.id) === String(productCategoryId) || String(cat._id) === String(productCategoryId)
-          );
-          const isSubcategory = category && category.parentId;
-
-          setFormData({
-            name: product.name || "",
-            unit: product.unit || "",
-            price: product.price || "",
-            originalPrice: product.originalPrice || product.price || "",
-            image: product.image || "",
-            images: product.images || [],
-            categoryId: isSubcategory
-              ? category.parentId
-              : productCategoryId || null,
-            subcategoryId: isSubcategory
-              ? productCategoryId
-              : product.subcategoryId || null,
-            brandId: productBrandId || null,
-            warrantyPeriod: product.warrantyPeriod || "",
-            guaranteePeriod: product.guaranteePeriod || "",
-            hsnCode: product.hsnCode || "",
-            flashSale: product.flashSale || false,
-            isNewArrival: product.isNewArrival || false,
-            isFeatured: product.isFeatured || false,
-            isVisible: product.isVisible !== undefined ? product.isVisible : true,
-            codAllowed:
-              product.codAllowed !== undefined ? product.codAllowed : true,
-            returnable:
-              product.returnable !== undefined ? product.returnable : true,
-            cancelable:
-              product.cancelable !== undefined ? product.cancelable : true,
-            taxIncluded:
-              product.taxIncluded !== undefined ? product.taxIncluded : false,
-            description: product.description || "",
-            tags: product.tags || [],
-            variants: {
-              sizes: product.variants?.sizes || [],
-              colors: product.variants?.colors || [],
-              materials: product.variants?.materials || [],
-              attributes: product.variants?.attributes || [],
-              prices: product.variants?.prices || {},
-              stockMap: product.variants?.stockMap || {},
-              imageMap: product.variants?.imageMap || {},
-              defaultVariant: product.variants?.defaultVariant || {},
-              defaultSelection: product.variants?.defaultSelection || {},
-            },
-            seoTitle: product.seoTitle || "",
-            seoDescription: product.seoDescription || "",
-            relatedProducts: product.relatedProducts || [],
-            faqs: Array.isArray(product.faqs) ? product.faqs : [],
-            approvalStatus: product.approvalStatus || "pending",
-            stock: product.stock || "in_stock",
-            stockQuantity: product.stockQuantity || 0,
-            totalAllowedQuantity: product.totalAllowedQuantity || "",
-            minimumOrderQuantity: product.minimumOrderQuantity || "",
-            vendorPrice: product.vendorPrice || product.originalPrice || "",
-            vendorId: product.vendorId?._id || product.vendorId || null
-          });
-          setTagInput((product.tags || []).join(", "));
-        }
-      } catch (error) {
-        toast.error("Failed to fetch product details");
-        onClose();
-      }
-    };
-
-    if (isOpen && isEdit && productId && categories.length > 0) {
-      fetchProduct();
-    } else if (isOpen && !isEdit) {
-      // Reset form for new product
-      setFormData({
-        name: "",
-        unit: "",
-        price: "",
-        originalPrice: "",
-        image: "",
-        images: [],
-        categoryId: null,
-        subcategoryId: null,
-        brandId: null,
-        vendorId: "",
-        stock: "in_stock",
-        stockQuantity: "",
-        totalAllowedQuantity: "",
-        minimumOrderQuantity: "",
-        warrantyPeriod: "",
-        guaranteePeriod: "",
-        hsnCode: "",
-        flashSale: false,
-        isNewArrival: false,
-        isFeatured: false,
-        isVisible: true,
-        codAllowed: true,
-        returnable: true,
-        cancelable: true,
-        taxIncluded: false,
-        description: "",
-        tags: [],
-        variants: {
-          sizes: [],
-          colors: [],
-          materials: [],
-          attributes: [],
-          prices: {},
-          stockMap: {},
-          imageMap: {},
-          defaultVariant: {},
-          defaultSelection: {},
-        },
-        seoTitle: "",
-        seoDescription: "",
-        relatedProducts: [],
-        faqs: [],
-        approvalStatus: "pending",
-      });
-      setTagInput("");
-    }
-  }, [isOpen, isEdit, productId, onClose, categories]);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
   };
 
   const normalizeVariantPart = (value) => String(value || "").trim().toLowerCase();
@@ -317,6 +160,395 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     return [];
   })();
 
+  useEffect(() => {
+    initCategories();
+    initBrands();
+  }, [initCategories, initBrands]);
+
+  useEffect(() => {
+    const fetchVendors = async () => {
+      try {
+        const response = await getAllVendors({ status: "approved", limit: 200 });
+        const vendorRows = response.data?.vendors || [];
+        setVendors(vendorRows);
+      } catch (error) {
+        setVendors([]);
+      }
+    };
+
+    fetchVendors();
+  }, []);
+
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const response = await getProductById(productId);
+        const product = response.data;
+
+        if (product) {
+          const productCategoryId = extractId(product.categoryId);
+          const productBrandId = extractId(product.brandId);
+          const productVendorId = extractId(product.vendorId);
+
+          // Determine if categoryId is a subcategory
+          const category = categories.find(
+            (cat) => String(cat.id) === String(productCategoryId) || String(cat._id) === String(productCategoryId)
+          );
+          const isSubcategory = category && category.parentId;
+
+          const getCanonicalKey = (rawKey) => {
+            if (!rawKey) return "";
+            return String(rawKey)
+              .trim()
+              .toLowerCase()
+              .split("|")
+              .map(part => {
+                if (part.includes("=")) {
+                  return part.split("=")[1].trim();
+                }
+                return part.trim();
+              })
+              .filter(Boolean)
+              .sort()
+              .join("|");
+          };
+
+          const buildCombinationsForProduct = (variants) => {
+            const sizes = Array.isArray(variants?.sizes) ? variants.sizes : [];
+            const colors = Array.isArray(variants?.colors) ? variants.colors : [];
+            const attributes = Array.isArray(variants?.attributes)
+              ? variants.attributes
+                .map((attr) => ({
+                  name: String(attr?.name || "").trim(),
+                  key: normalizeVariantPart(attr?.name || ""),
+                  values: Array.isArray(attr?.values) ? attr.values.filter(Boolean) : [],
+                }))
+                .filter((attr) => attr.name && attr.key && attr.values.length > 0)
+              : [];
+            if (attributes.length > 0) {
+              let combos = [{}];
+              attributes.forEach((attr) => {
+                const next = [];
+                combos.forEach((selection) => {
+                  attr.values.forEach((value) => next.push({ ...selection, [attr.key]: value }));
+                });
+                combos = next;
+              });
+              return combos.map((selection) => ({
+                key: Object.entries(selection)
+                  .map(([axis, value]) => [normalizeVariantPart(axis), normalizeVariantPart(value)])
+                  .sort((a, b) => a[0].localeCompare(b[0]))
+                  .map(([axis, value]) => `${axis}=${value}`)
+                  .join("|"),
+              }));
+            }
+            if (sizes.length > 0 && colors.length > 0) {
+              return sizes.flatMap((size) =>
+                colors.map((color) => ({ key: createVariantKey(size, color) }))
+              );
+            }
+            if (sizes.length > 0) {
+              return sizes.map((size) => ({ key: createVariantKey(size, "") }));
+            }
+            if (colors.length > 0) {
+              return colors.map((color) => ({ key: createVariantKey("", color) }));
+            }
+            return [];
+          };
+
+          const productCombos = buildCombinationsForProduct(product.variants);
+
+          const normalizeVariantMap = (map) => {
+            if (!map) return {};
+            const normalized = {};
+            Object.entries(map).forEach(([key, value]) => {
+              const canonicalKey = getCanonicalKey(key);
+              const matchingCombo = productCombos.find(c => getCanonicalKey(c.key) === canonicalKey);
+              if (matchingCombo) {
+                normalized[matchingCombo.key] = value;
+              } else {
+                const normalizedKey = key.split('|')
+                  .map(part => part.trim().toLowerCase())
+                  .filter(Boolean)
+                  .sort()
+                  .join('|');
+                normalized[normalizedKey] = value;
+              }
+            });
+            return normalized;
+          };
+
+          let discountVal = product.discount;
+          if ((discountVal === undefined || discountVal === null || discountVal === "" || discountVal === 0) && product.originalPrice && product.price) {
+            const mrp = parseFloat(product.originalPrice);
+            const selling = parseFloat(product.price);
+            if (mrp > 0 && selling <= mrp) {
+              discountVal = Math.round(((mrp - selling) / mrp) * 100);
+            }
+          }
+
+          setFormData({
+            name: product.name || "",
+            unit: product.unit || "",
+            price: product.price || "",
+            originalPrice: product.originalPrice || product.price || "",
+            image: product.image || "",
+            images: product.images || [],
+            categoryId: isSubcategory
+              ? category.parentId
+              : productCategoryId || null,
+            subcategoryId: isSubcategory
+              ? productCategoryId
+              : product.subcategoryId || null,
+            brandId: productBrandId || null,
+            warrantyPeriod: product.warrantyPeriod || "",
+            guaranteePeriod: product.guaranteePeriod || "",
+            hsnCode: product.hsnCode || "",
+            flashSale: product.flashSale || false,
+            isNewArrival: product.isNewArrival || false,
+            isFeatured: product.isFeatured || false,
+            isVisible: product.isVisible !== undefined ? product.isVisible : true,
+            codAllowed:
+              product.codAllowed !== undefined ? product.codAllowed : true,
+            returnable:
+              product.returnable !== undefined ? product.returnable : true,
+            cancelable:
+              product.cancelable !== undefined ? product.cancelable : true,
+            taxIncluded:
+              product.taxIncluded !== undefined ? product.taxIncluded : false,
+            description: product.description || "",
+            tags: product.tags || [],
+            variants: {
+              sizes: product.variants?.sizes || [],
+              colors: product.variants?.colors || [],
+              materials: product.variants?.materials || [],
+              attributes: product.variants?.attributes || [],
+              prices: normalizeVariantMap(product.variants?.prices),
+              stockMap: normalizeVariantMap(product.variants?.stockMap),
+              imageMap: product.variants?.imageMap || {},
+              defaultVariant: product.variants?.defaultVariant || {},
+              defaultSelection: product.variants?.defaultSelection || {},
+            },
+            seoTitle: product.seoTitle || "",
+            seoDescription: product.seoDescription || "",
+            relatedProducts: product.relatedProducts || [],
+            faqs: Array.isArray(product.faqs) ? product.faqs : [],
+            approvalStatus: product.approvalStatus || "pending",
+            stock: product.stock || "in_stock",
+            stockQuantity: product.stockQuantity || 0,
+            totalAllowedQuantity: product.totalAllowedQuantity || "",
+            minimumOrderQuantity: product.minimumOrderQuantity || "",
+            vendorPrice: product.vendorPrice || product.originalPrice || "",
+            vendorId: product.vendorId?._id || product.vendorId || null,
+            discount: discountVal || 0,
+          });
+          setTagInput((product.tags || []).join(", "));
+
+          // Initialize targetStock and manual edits
+          setTargetStock(product.stockQuantity || "");
+          const initialManual = {};
+          if (product.variants?.stockMap) {
+            Object.entries(product.variants.stockMap).forEach(([key, val]) => {
+              if (val !== undefined && val !== "" && val !== null) {
+                initialManual[key] = true;
+              }
+            });
+          }
+          setManuallyEditedVariants(initialManual);
+        }
+      } catch (error) {
+        toast.error("Failed to fetch product details");
+        onClose();
+      }
+    };
+
+    if (isOpen && isEdit && productId && categories.length > 0) {
+      fetchProduct();
+    } else if (isOpen && !isEdit) {
+      // Reset form for new product
+      setFormData({
+        name: "",
+        unit: "",
+        price: "",
+        originalPrice: "",
+        image: "",
+        images: [],
+        categoryId: null,
+        subcategoryId: null,
+        brandId: null,
+        vendorId: "",
+        stock: "in_stock",
+        stockQuantity: "",
+        totalAllowedQuantity: "",
+        minimumOrderQuantity: "",
+        warrantyPeriod: "",
+        guaranteePeriod: "",
+        hsnCode: "",
+        flashSale: false,
+        isNewArrival: false,
+        isFeatured: false,
+        isVisible: true,
+        codAllowed: true,
+        returnable: true,
+        cancelable: true,
+        taxIncluded: false,
+        description: "",
+        tags: [],
+        variants: {
+          sizes: [],
+          colors: [],
+          materials: [],
+          attributes: [],
+          prices: {},
+          stockMap: {},
+          imageMap: {},
+          defaultVariant: {},
+          defaultSelection: {},
+        },
+        seoTitle: "",
+        seoDescription: "",
+        relatedProducts: [],
+        faqs: [],
+        approvalStatus: "pending",
+      });
+      setTagInput("");
+      setTargetStock("");
+      setManuallyEditedVariants({});
+    }
+  }, [isOpen, isEdit, productId, onClose, categories]);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (name === "stockQuantity") {
+      setTargetStock(value);
+    }
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      };
+
+      // Synchronization Logic for Price / Original Price / Discount
+      if (name === "price") {
+        const sellingPrice = parseFloat(value) || 0;
+        const mrp = parseFloat(prev.originalPrice) || 0;
+        if (mrp > 0 && sellingPrice <= mrp) {
+          next.discount = Math.max(0, Math.min(100, Math.round(((mrp - sellingPrice) / mrp) * 100)));
+        } else {
+          next.discount = 0;
+        }
+      } else if (name === "originalPrice") {
+        const mrp = parseFloat(value) || 0;
+        const sellingPrice = parseFloat(prev.price) || 0;
+        if (mrp > 0 && sellingPrice <= mrp) {
+          next.discount = Math.max(0, Math.min(100, Math.round(((mrp - sellingPrice) / mrp) * 100)));
+        } else if (mrp > 0 && prev.discount !== "" && prev.discount > 0) {
+          const discountPct = parseFloat(prev.discount) || 0;
+          next.price = Number((mrp * (1 - discountPct / 100)).toFixed(2));
+        } else {
+          next.discount = 0;
+        }
+      } else if (name === "discount") {
+        const discountPct = parseFloat(value) || 0;
+        const mrp = parseFloat(prev.originalPrice) || 0;
+        if (mrp > 0) {
+          next.price = Number((mrp * (1 - discountPct / 100)).toFixed(2));
+        }
+      }
+
+      return next;
+    });
+  };
+
+  const autoRecommendStocks = (currentStockMap, manualMap, currentTargetStock, combos) => {
+    if (!currentTargetStock || isNaN(Number(currentTargetStock)) || Number(currentTargetStock) <= 0) {
+      return currentStockMap;
+    }
+    if (!combos || combos.length === 0) {
+      return currentStockMap;
+    }
+
+    const target = Number(currentTargetStock);
+    const nextStockMap = { ...currentStockMap };
+
+    // Find all combos that are not manually edited
+    const nonManualCombos = combos.filter(c => !manualMap[c.key]);
+
+    // If there is exactly one non-manually edited variant, auto-fill it with the remaining stock
+    if (nonManualCombos.length === 1) {
+      const lastCombo = nonManualCombos[0];
+      const sumOfManual = combos
+        .filter(c => c.key !== lastCombo.key)
+        .reduce((sum, c) => {
+          const val = nextStockMap[c.key];
+          const num = parseInt(val, 10);
+          return sum + (isNaN(num) ? 0 : num);
+        }, 0);
+
+      const remaining = target - sumOfManual;
+      if (remaining >= 0) {
+        nextStockMap[lastCombo.key] = remaining;
+      }
+    }
+
+    return nextStockMap;
+  };
+
+  const getRecommendedPlaceholder = (comboKey) => {
+    if (!targetStock || isNaN(Number(targetStock)) || Number(targetStock) <= 0) {
+      return formData.stockQuantity || "Stock";
+    }
+    const target = Number(targetStock);
+    const stockMap = formData.variants?.stockMap || {};
+
+    // Sum of all other variants
+    const sumOfOthers = variantCombinations
+      .filter(c => c.key !== comboKey)
+      .reduce((sum, c) => {
+        const val = stockMap[c.key];
+        const num = parseInt(val, 10);
+        return sum + (isNaN(num) ? 0 : num);
+      }, 0);
+
+    const remaining = target - sumOfOthers;
+    return remaining >= 0 ? `${remaining} (recom.)` : (formData.stockQuantity || "Stock");
+  };
+
+  // Sync / Auto-fill effect
+  useEffect(() => {
+    if (!targetStock || isNaN(Number(targetStock)) || Number(targetStock) <= 0) return;
+    if (variantCombinations.length === 0) return;
+
+    setFormData((prev) => {
+      const currentStockMap = prev.variants?.stockMap || {};
+      const nextStockMap = autoRecommendStocks(
+        currentStockMap,
+        manuallyEditedVariants,
+        targetStock,
+        variantCombinations
+      );
+
+      // Check if there is any actual difference
+      let hasChanges = false;
+      variantCombinations.forEach((combo) => {
+        if (currentStockMap[combo.key] !== nextStockMap[combo.key]) {
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        return {
+          ...prev,
+          variants: {
+            ...prev.variants,
+            stockMap: nextStockMap,
+          },
+        };
+      }
+      return prev;
+    });
+  }, [targetStock, manuallyEditedVariants, variantCombinations]);
+
   const [marginInput, setMarginInput] = useState("0");
   const marginInputRef = useRef(null);
 
@@ -362,8 +594,14 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         ...prev,
         stockQuantity: total,
       }));
+
+      // If all variants are manually edited, update targetStock
+      const nonManualCombos = variantCombinations.filter(c => !manuallyEditedVariants[c.key]);
+      if (nonManualCombos.length === 0) {
+        setTargetStock(total);
+      }
     }
-  }, [formData.variants?.stockMap, variantCombinations.length]);
+  }, [formData.variants?.stockMap, variantCombinations.length, manuallyEditedVariants]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -731,13 +969,41 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.price) {
-      toast.error("Please fill in Name and Price");
-      return;
+    // Comprehensive custom validation
+    const missingFields = [];
+    if (!formData.name?.trim()) {
+      missingFields.push({ label: "Product Name", name: "name" });
+    }
+    
+    const parsedPrice = parseFloat(formData.price || 0);
+    if (!formData.price || isNaN(parsedPrice) || parsedPrice < 0) {
+      missingFields.push({ label: "Selling Price", name: "price" });
     }
 
-    if (Number(formData.price) < 0) {
-      toast.error("Price cannot be negative");
+    const finalCategoryId = formData.subcategoryId || formData.categoryId || null;
+    if (!finalCategoryId) {
+      missingFields.push({ label: "Category", name: "categoryId" });
+    }
+
+    if (!formData.vendorId) {
+      missingFields.push({ label: "Vendor", name: "vendorId" });
+    }
+
+    if (missingFields.length > 0) {
+      toast.error(`Please fill in the remaining required fields: ${missingFields.map((f) => f.label).join(", ")}`);
+      
+      // Auto-scroll smoothly to the first missing field inside the modal scroll container
+      const firstMissing = missingFields[0];
+      let elementToScroll = document.getElementsByName(firstMissing.name)[0];
+      if (firstMissing.name === "categoryId") {
+        elementToScroll = document.getElementById("category-selector-button") || document.querySelector(".relative button");
+      } else if (firstMissing.name === "vendorId") {
+        elementToScroll = document.getElementsByName("vendorId")[0] || document.querySelector('select[name="vendorId"]');
+      }
+      if (elementToScroll) {
+        elementToScroll.scrollIntoView({ behavior: "smooth", block: "center" });
+        elementToScroll.focus?.();
+      }
       return;
     }
 
@@ -756,13 +1022,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       return;
     }
 
-    const finalCategoryId = formData.subcategoryId || formData.categoryId || null;
-
-    if (!finalCategoryId) {
-      toast.error("Please select a category");
-      return;
-    }
-
     const hasInvalidFaq = (formData.faqs || []).some((faq) => {
       const question = String(faq?.question || "").trim();
       const answer = String(faq?.answer || "").trim();
@@ -770,11 +1029,6 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     });
     if (hasInvalidFaq) {
       toast.error("Each FAQ must have both question and answer");
-      return;
-    }
-
-    if (!formData.vendorId) {
-      toast.error("Please select a vendor");
       return;
     }
 
@@ -1092,7 +1346,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
 
               {/* Form Content - Scrollable */}
               <div className="overflow-y-auto flex-1 p-4 sm:p-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} noValidate className="space-y-6">
                   {/* Basic Information */}
                   <div>
                     <h3 className="text-lg font-bold text-gray-800 mb-4">
@@ -1665,8 +1919,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                               <button
                                 type="button"
                                 onClick={() => syncAllVariants('stock', formData.stockQuantity)}
-                                disabled={!!formData.vendorId}
-                                className={`text-[10px] font-bold px-2 py-1 border rounded-md transition-colors ${formData.vendorId ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed" : "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100"}`}
+                                className="text-[10px] font-bold px-2 py-1 bg-primary-50 text-primary-700 border border-primary-200 rounded-md hover:bg-primary-100 transition-colors"
                               >
                                 Use Main Stock For All
                               </button>
@@ -1737,6 +1990,18 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                                             value={vStock ?? ""}
                                             onChange={(e) => {
                                               const nextValue = e.target.value;
+                                              const isCleared = nextValue === "";
+                                              
+                                              setManuallyEditedVariants((prev) => {
+                                                const next = { ...prev };
+                                                if (isCleared) {
+                                                  delete next[combo.key];
+                                                } else {
+                                                  next[combo.key] = true;
+                                                }
+                                                return next;
+                                              });
+
                                               setFormData((prev) => ({
                                                 ...prev,
                                                 variants: {
@@ -1749,7 +2014,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                                               }));
                                             }}
                                             className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm font-medium"
-                                            placeholder={formData.stockQuantity || "Stock"}
+                                            placeholder={getRecommendedPlaceholder(combo.key)}
                                           />
                                           <button
                                             type="button"

@@ -62,8 +62,8 @@ const Footer = () => {
             <div className="flex flex-col md:hidden w-full relative pb-[80px]">
 
                 {/* Brand & Social/App Block */}
-                <div className="py-12 px-6 flex flex-col items-center bg-gray-100">
-                    <h1 className="text-[36px] font-bold  drop-shadow-md text-gray-900 mb-8">
+                <div className="py-8 sm:py-12 px-4 sm:px-6 flex flex-col items-center bg-gray-100">
+                    <h1 className="text-[28px] sm:text-[36px] font-bold  drop-shadow-md text-gray-900 mb-6 sm:mb-8">
                         CLOSH<span className="text-black">.</span>
                     </h1>
 

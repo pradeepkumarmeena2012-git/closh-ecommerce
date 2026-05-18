@@ -192,7 +192,7 @@ const DeliveryLogin = () => {
               <p className="text-sm font-medium text-gray-500">
                 New delivery partner?{' '}
                 <Link to="/delivery/register" className="text-[#0f172a] hover:underline font-black">
-                  Apply Now
+                  Register Now
                 </Link>
               </p>
             </div>

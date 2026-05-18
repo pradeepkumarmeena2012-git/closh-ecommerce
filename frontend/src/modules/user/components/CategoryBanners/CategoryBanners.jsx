@@ -28,14 +28,14 @@ const CategoryBanners = () => {
 
     return (
         <div className="py-5 md:py-8 bg-white border-b border-gray-50">
-            <div className="px-5 mx-auto max-w-[1600px]">
+            <div className="px-4 md:px-5 mx-auto max-w-[1600px]">
                 {/* Dynamic Categories Row */}
-                <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 gap-4 md:gap-8">
+                <div className="flex overflow-x-auto scrollbar-hide md:grid md:grid-cols-6 gap-4 sm:gap-6 md:gap-8 pb-2">
                     {activeCategories.map((category) => (
                         <div
                             key={category.id}
                             onClick={() => handleCategoryClick(category.name)}
-                            className="flex flex-col items-center cursor-pointer transition-all group"
+                            className="flex flex-col items-center cursor-pointer transition-all group min-w-[76px] sm:min-w-[84px] md:min-w-0 flex-shrink-0"
                         >
                             <div className="w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-full p-[2px] bg-white shadow-[0_6px_16px_rgba(0,0,0,0.12)] mb-2 md:mb-3">
                                 <div className="w-full h-full rounded-full overflow-hidden bg-gray-100">

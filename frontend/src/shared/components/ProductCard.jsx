@@ -64,7 +64,7 @@ const ProductCard = ({ product }) => {
         <div className="pt-2 pb-0.5 flex flex-col">
           <Link to={productLink} className="flex flex-col gap-0.5">
             <span className="text-[#1A1A1A] text-[10px] md:text-[14px] font-black uppercase tracking-tight line-clamp-1">
-              {product.brandName || product.vendorName || "Premium"}
+              {(product.brandName && product.brandName !== 'AAPZETO' && product.brandName !== 'Appzeto') ? product.brandName : ((product.brand && product.brand !== 'AAPZETO' && product.brand !== 'Appzeto') ? product.brand : 'CLOSH')}
             </span>
             <h3 className="text-gray-500 text-[9px] md:text-[13px] font-medium line-clamp-1 leading-tight">
               {product.name}

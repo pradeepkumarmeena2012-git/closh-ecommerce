@@ -80,6 +80,8 @@ const AddProduct = () => {
   const [variantAxisInput, setVariantAxisInput] = useState({
     colors: "",
   });
+  const [targetStock, setTargetStock] = useState("");
+  const [manuallyEditedVariants, setManuallyEditedVariants] = useState({});
   const variantCombinations = useMemo(
     () =>
       buildVariantCombinations(
@@ -116,11 +118,170 @@ const AddProduct = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    if (name === "stockQuantity") {
+      setTargetStock(value);
+    }
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      };
+
+      // Synchronization Logic for Price / Original Price / Discount
+      if (name === "price") {
+        const sellingPrice = parseFloat(value) || 0;
+        const mrp = parseFloat(prev.originalPrice) || 0;
+        if (mrp > 0 && sellingPrice <= mrp) {
+          next.discount = Math.max(0, Math.min(100, Math.round(((mrp - sellingPrice) / mrp) * 100)));
+        } else {
+          next.discount = 0;
+        }
+      } else if (name === "originalPrice") {
+        const mrp = parseFloat(value) || 0;
+        const sellingPrice = parseFloat(prev.price) || 0;
+        if (mrp > 0 && sellingPrice <= mrp) {
+          next.discount = Math.max(0, Math.min(100, Math.round(((mrp - sellingPrice) / mrp) * 100)));
+        } else if (mrp > 0 && prev.discount !== "" && prev.discount > 0) {
+          const discountPct = parseFloat(prev.discount) || 0;
+          next.price = Number((mrp * (1 - discountPct / 100)).toFixed(2));
+        } else {
+          next.discount = 0;
+        }
+      } else if (name === "discount") {
+        const discountPct = parseFloat(value) || 0;
+        const mrp = parseFloat(prev.originalPrice) || 0;
+        if (mrp > 0) {
+          next.price = Number((mrp * (1 - discountPct / 100)).toFixed(2));
+        }
+      }
+
+      return next;
+    });
   };
+
+  const autoRecommendStocks = (currentStockMap, manualMap, currentTargetStock, combos) => {
+    if (!currentTargetStock || isNaN(Number(currentTargetStock)) || Number(currentTargetStock) <= 0) {
+      return currentStockMap;
+    }
+    if (!combos || combos.length === 0) {
+      return currentStockMap;
+    }
+
+    const target = Number(currentTargetStock);
+    const nextStockMap = { ...currentStockMap };
+
+    // Find all combos that are not manually edited
+    const nonManualCombos = combos.filter(c => !manualMap[c.key]);
+
+    // If there is exactly one non-manually edited variant, auto-fill it with the remaining stock
+    if (nonManualCombos.length === 1) {
+      const lastCombo = nonManualCombos[0];
+      const sumOfManual = combos
+        .filter(c => c.key !== lastCombo.key)
+        .reduce((sum, c) => {
+          const val = nextStockMap[c.key];
+          const num = parseInt(val, 10);
+          return sum + (isNaN(num) ? 0 : num);
+        }, 0);
+
+      const remaining = target - sumOfManual;
+      if (remaining >= 0) {
+        nextStockMap[lastCombo.key] = remaining;
+      }
+    }
+
+    return nextStockMap;
+  };
+
+  const getRecommendedPlaceholder = (comboKey) => {
+    if (!targetStock || isNaN(Number(targetStock)) || Number(targetStock) <= 0) {
+      return "Variant stock";
+    }
+    const target = Number(targetStock);
+    const stockMap = formData.variants?.stockMap || {};
+
+    // Sum of all other variants
+    const sumOfOthers = variantCombinations
+      .filter(c => c.key !== comboKey)
+      .reduce((sum, c) => {
+        const val = stockMap[c.key];
+        const num = parseInt(val, 10);
+        return sum + (isNaN(num) ? 0 : num);
+      }, 0);
+
+    const remaining = target - sumOfOthers;
+    return remaining >= 0 ? `${remaining} (recom.)` : "Variant stock";
+  };
+
+  // Sync / Auto-fill effect
+  useEffect(() => {
+    if (!targetStock || isNaN(Number(targetStock)) || Number(targetStock) <= 0) return;
+    if (variantCombinations.length === 0) return;
+
+    setFormData((prev) => {
+      const currentStockMap = prev.variants?.stockMap || {};
+      const nextStockMap = autoRecommendStocks(
+        currentStockMap,
+        manuallyEditedVariants,
+        targetStock,
+        variantCombinations
+      );
+
+      // Check if there is any actual difference
+      let hasChanges = false;
+      variantCombinations.forEach((combo) => {
+        if (currentStockMap[combo.key] !== nextStockMap[combo.key]) {
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        return {
+          ...prev,
+          variants: {
+            ...prev.variants,
+            stockMap: nextStockMap,
+          },
+        };
+      }
+      return prev;
+    });
+  }, [targetStock, manuallyEditedVariants, variantCombinations]);
+
+  // Auto-calculate total stock from variants (Centralized Logic)
+  useEffect(() => {
+    const hasVariants =
+      (formData.variants?.sizes?.length > 0) ||
+      (formData.variants?.colors?.length > 0) ||
+      (formData.variants?.attributes?.length > 0);
+
+    if (hasVariants && formData.variants?.stockMap) {
+      const total = Object.values(formData.variants.stockMap).reduce((sum, val) => {
+        const num = parseInt(val, 10);
+        return sum + (isNaN(num) ? 0 : num);
+      }, 0);
+
+      if (parseInt(formData.stockQuantity || 0, 10) !== total) {
+        setFormData((prev) => ({
+          ...prev,
+          stockQuantity: total,
+        }));
+
+        // If all variants are manually edited, update targetStock
+        const nonManualCombos = variantCombinations.filter(c => !manuallyEditedVariants[c.key]);
+        if (nonManualCombos.length === 0) {
+          setTargetStock(total);
+        }
+      }
+    }
+  }, [
+    formData.variants?.stockMap,
+    formData.variants?.sizes,
+    formData.variants?.colors,
+    formData.variants?.attributes,
+    manuallyEditedVariants,
+    variantCombinations,
+  ]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -380,8 +541,38 @@ const AddProduct = () => {
       return;
     }
 
-    if (!formData.name || !formData.price || !formData.stockQuantity || !formData.categoryId) {
-      toast.error("Please fill in all required fields (Name, Price, Stock, Category)");
+    // Comprehensive custom validation
+    const missingFields = [];
+    if (!formData.name?.trim()) {
+      missingFields.push({ label: "Product Name", name: "name" });
+    }
+    if (!formData.categoryId) {
+      missingFields.push({ label: "Category", name: "categoryId" });
+    }
+    
+    const parsedPrice = parseFloat(formData.price || 0);
+    if (!formData.price || isNaN(parsedPrice) || parsedPrice < 0) {
+      missingFields.push({ label: "Your Selling Price", name: "price" });
+    }
+
+    const parsedStockQuantity = parseInt(formData.stockQuantity || 0, 10);
+    if (formData.stockQuantity === "" || formData.stockQuantity === undefined || formData.stockQuantity === null || isNaN(parsedStockQuantity) || parsedStockQuantity < 0) {
+      missingFields.push({ label: "Stock Quantity", name: "stockQuantity" });
+    }
+
+    if (missingFields.length > 0) {
+      toast.error(`Please fill in the remaining required fields: ${missingFields.map((f) => f.label).join(", ")}`);
+      
+      // Auto-scroll smoothly to the first missing field
+      const firstMissing = missingFields[0];
+      let elementToScroll = document.getElementsByName(firstMissing.name)[0];
+      if (firstMissing.name === "categoryId") {
+        elementToScroll = document.getElementById("category-selector-button") || document.querySelector(".relative button");
+      }
+      if (elementToScroll) {
+        elementToScroll.scrollIntoView({ behavior: "smooth", block: "center" });
+        elementToScroll.focus?.();
+      }
       return;
     }
 
@@ -401,11 +592,9 @@ const AddProduct = () => {
       ? formData.subcategoryId
       : formData.categoryId ?? null;
 
-    const parsedPrice = parseFloat(formData.price || 0);
     const parsedOriginalPrice = (formData.originalPrice === "" || formData.originalPrice === null)
       ? null
       : parseFloat(formData.originalPrice);
-    const parsedStockQuantity = parseInt(formData.stockQuantity || 0, 10);
     const parsedTotalAllowedQuantity = (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
       ? null
       : parseInt(formData.totalAllowedQuantity, 10);
@@ -473,6 +662,7 @@ const AddProduct = () => {
       {/* Form */}
       <form
         onSubmit={handleSubmit}
+        noValidate
         className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-200 space-y-4">
         {/* Basic Information */}
         <div>
@@ -613,7 +803,7 @@ const AddProduct = () => {
 
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Discount
+                Discount Percent
               </label>
               <input
                 type="number"
@@ -766,6 +956,11 @@ const AddProduct = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                 placeholder="0"
               />
+              {variantCombinations.length > 0 && (
+                <p className="mt-1 text-[10px] font-bold text-primary-600 uppercase tracking-tighter">
+                  Enter target stock here to auto-recommend variant stocks below
+                </p>
+              )}
             </div>
 
             <div>
@@ -1015,6 +1210,18 @@ const AddProduct = () => {
                         value={formData.variants?.stockMap?.[combo.key] ?? ""}
                         onChange={(e) => {
                           const nextValue = e.target.value;
+                          const isCleared = nextValue === "";
+
+                          setManuallyEditedVariants((prev) => {
+                            const next = { ...prev };
+                            if (isCleared) {
+                              delete next[combo.key];
+                            } else {
+                              next[combo.key] = true;
+                            }
+                            return next;
+                          });
+
                           setFormData((prev) => ({
                             ...prev,
                             variants: {
@@ -1027,7 +1234,7 @@ const AddProduct = () => {
                           }));
                         }}
                         className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
-                        placeholder="Variant stock"
+                        placeholder={getRecommendedPlaceholder(combo.key)}
                       />
                       <div className="flex items-center gap-2">
                         <input

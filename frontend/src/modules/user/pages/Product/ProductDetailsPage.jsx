@@ -261,15 +261,10 @@ const ProductDetailsPage = () => {
                         <ChevronLeft size={24} className="text-gray-900" />
                     </button>
                     <div className="flex-1 flex justify-center">
-                        <h1 className="text-sm font-semibold truncate max-w-[150px]">{product.brandId?.name || product.brand}</h1>
+                        <h1 className="text-sm font-semibold truncate max-w-[150px]">{product.brand}</h1>
                     </div>
                     <div className="flex items-center gap-3 md:gap-4 shrink-0">
-                        <button
-                            onClick={() => toggleWishlist(product)}
-                            className="relative transition-colors p-1"
-                        >
-                            <Heart size={20} className={isInWishlist(product?.id) ? 'fill-[#D4AF37] text-black' : 'text-gray-900'} />
-                        </button>
+
                         <Link to="/cart" className="relative p-1">
                             <ShoppingCart size={20} className="text-gray-900" />
                             {cartCount > 0 && (
@@ -409,7 +404,7 @@ const ProductDetailsPage = () => {
                     <div className="flex-1 w-full max-w-2xl">
                         <div className="mb-3 md:mb-6">
                             <div className="flex items-center justify-between mb-1">
-                                <h2 className="text-[10px] md:text-[12px] font-semibold text-gray-500 uppercase tracking-wider">{product.brandId?.name || product.brand}</h2>
+                                <h2 className="text-[10px] md:text-[12px] font-semibold text-gray-500 uppercase tracking-wider">{product.brand}</h2>
                                 <div className="hidden md:flex items-center gap-4">
                                     <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><Share2 size={20} className="text-gray-900" /></button>
                                     <button
@@ -440,7 +435,7 @@ const ProductDetailsPage = () => {
                                                 ₹{product.originalPrice || product.mrp}
                                             </span>
                                             <span className="text-emerald-600 font-black text-[10px] bg-emerald-50 px-2 py-1 rounded-lg uppercase tracking-tight ml-2">
-                                                {product.discount || `${Math.round(((Number(product.originalPrice || product.mrp) - currentPrice) / Number(product.originalPrice || product.mrp)) * 100)}% OFF`}
+                                                {`${Math.round(((Number(product.originalPrice || product.mrp) - currentPrice) / Number(product.originalPrice || product.mrp)) * 100)}% OFF`}
                                             </span>
                                         </>
                                     )}

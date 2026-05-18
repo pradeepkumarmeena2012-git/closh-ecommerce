@@ -51,17 +51,17 @@ const CartPage = () => {
     return (
         <div className="bg-white text-gray-900 min-h-screen pb-32 md:pb-12">
             {/* Mobile Header Nav */}
-            <div className="md:hidden sticky top-0 bg-white/90 backdrop-blur-xl z-40 border-b border-gray-100 px-4 py-4 flex items-center gap-4 shadow-sm">
+            <div className="md:hidden sticky top-0 bg-white/90 backdrop-blur-xl z-40 border-b border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm">
                 <button onClick={() => {
                     if (window.history.length > 2) {
                         navigate(-1);
                     } else {
                         navigate('/products');
                     }
-                }} className="p-3 -ml-2 rounded-full hover:bg-gray-50 transition-colors"><ArrowLeft size={20} className="text-gray-900" /></button>
+                }} className="p-2 -ml-1 rounded-full hover:bg-gray-50 transition-colors"><ArrowLeft size={18} className="text-gray-900" /></button>
                 <div className="flex-1">
-                    <h1 className="text-base font-bold uppercase  text-gray-900">Shopping cart</h1>
-                    <p className="text-[10px] font-bold text-black uppercase ">{cart.length} Items</p>
+                    <h1 className="text-sm font-bold uppercase  text-gray-900">Shopping cart</h1>
+                    <p className="text-[9px] font-bold text-black uppercase ">{cart.length} Items</p>
                 </div>
             </div>
 
@@ -238,14 +238,14 @@ const CartPage = () => {
 
             {/* Mobile Bottom Action Bar */}
              {/* Mobile Bottom Action Bar - Shifted up to avoid overlap with BottomNav */}
-             <div className="lg:hidden fixed bottom-16 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 px-6 py-4 z-50 flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.06)]">
+             <div className="lg:hidden fixed bottom-16 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 sm:px-6 py-3 z-50 flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.06)]">
                 <div>
                     <p className="text-[10px] font-bold text-gray-500 uppercase ">Total to Pay</p>
                     <p className="text-xl font-bold text-gray-900 ">₹{getCartTotal().toFixed(2)}</p>
                 </div>
                  <button
                     onClick={() => navigate('/checkout')}
-                    className="px-10 py-4 bg-black text-white text-[12px] font-bold uppercase  rounded-2xl active:scale-95 transition-all shadow-[0_0_20px_rgba(212,175,55,0.2)] flex items-center justify-center min-w-[160px]"
+                    className="px-8 sm:px-10 py-3.5 sm:py-4 bg-black text-white text-[11px] sm:text-[12px] font-bold uppercase  rounded-2xl active:scale-95 transition-all shadow-[0_0_20px_rgba(212,175,55,0.2)] flex items-center justify-center min-w-[140px] sm:min-w-[160px]"
                 >
                     Checkout <ChevronRight className="inline-block ml-2 w-4 h-4" />
                 </button>

@@ -125,6 +125,37 @@ const resolveCombinationPrice = (rawPrices, size, color) => {
   return null;
 };
 
+export const getCanonicalKey = (rawKey) => {
+  if (!rawKey) return "";
+  return String(rawKey)
+    .trim()
+    .toLowerCase()
+    .split("|")
+    .map(part => {
+      if (part.includes("=")) {
+        return part.split("=")[1].trim();
+      }
+      return part.trim();
+    })
+    .filter(Boolean)
+    .sort()
+    .join("|");
+};
+
+export const resolveVariantMapValue = (map, comboKey) => {
+  if (!map || typeof map !== "object") return undefined;
+  
+  if (map[comboKey] !== undefined) return map[comboKey];
+  
+  const targetCanonical = getCanonicalKey(comboKey);
+  for (const [key, value] of Object.entries(map)) {
+    if (getCanonicalKey(key) === targetCanonical) {
+      return value;
+    }
+  }
+  return undefined;
+};
+
 export const normalizeVariantStateForForm = (rawVariants = {}, basePrice = "") => {
   const sizes = uniqueClean(rawVariants?.sizes || []);
   const attributes = normalizeAttributes(rawVariants?.attributes || []).map((attr) => ({
@@ -138,14 +169,22 @@ export const normalizeVariantStateForForm = (rawVariants = {}, basePrice = "") =
   const stockMap = {};
   const imageMap = {};
   combinations.forEach(({ size, key }) => {
-    const resolved = resolveCombinationPrice(rawVariants?.prices, size, "");
-    if (resolved !== null) prices[key] = resolved;
-    else if (fallbackPrice !== null) prices[key] = fallbackPrice;
+    const priceRaw = resolveVariantMapValue(rawVariants?.prices, key);
+    const resolved = parsePriceValue(priceRaw);
+    if (resolved !== null) {
+      prices[key] = resolved;
+    } else {
+      const comboResolved = resolveCombinationPrice(rawVariants?.prices, size, "");
+      if (comboResolved !== null) prices[key] = comboResolved;
+      else if (fallbackPrice !== null) prices[key] = fallbackPrice;
+    }
 
-    const stockValue = parsePriceValue(rawVariants?.stockMap?.[key]);
+    const stockRaw = resolveVariantMapValue(rawVariants?.stockMap, key);
+    const stockValue = parsePriceValue(stockRaw);
     if (stockValue !== null) stockMap[key] = stockValue;
 
-    const imageValue = String(rawVariants?.imageMap?.[key] || "").trim();
+    const imageRaw = resolveVariantMapValue(rawVariants?.imageMap, key);
+    const imageValue = String(imageRaw || "").trim();
     if (imageValue) imageMap[key] = imageValue;
   });
 
@@ -180,9 +219,9 @@ export const syncVariantPricesWithAxes = (
   const parsedFallback = parsePriceValue(fallbackPrice);
 
   combinations.forEach(({ key }) => {
-    const parsedCurrentPrice = parsePriceValue(currentPrices[key]);
-    const parsedCurrentStock = parsePriceValue(currentStockMap[key]);
-    const currentImage = String(currentImageMap[key] || "").trim();
+    const parsedCurrentPrice = parsePriceValue(resolveVariantMapValue(currentPrices, key));
+    const parsedCurrentStock = parsePriceValue(resolveVariantMapValue(currentStockMap, key));
+    const currentImage = String(resolveVariantMapValue(currentImageMap, key) || "").trim();
 
     if (parsedCurrentPrice !== null) {
       nextPrices[key] = parsedCurrentPrice;

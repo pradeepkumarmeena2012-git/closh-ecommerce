@@ -40,15 +40,15 @@ const ProductGrid = () => {
 
     return (
         <section id="product-grid" className="py-4 md:py-8 bg-[#FAFAFA] transition-colors duration-500">
-            <div className="max-w-[1600px] mx-auto px-5 md:px-8">
-                <div className="flex flex-row justify-between items-end mb-5 gap-2 px-0.5">
-                    <div className="flex flex-col">
-                        <h2 className="text-[18px] md:text-[32px] font-black uppercase tracking-tight text-gray-900 leading-none">
+            <div className="max-w-[1600px] mx-auto px-3 sm:px-4 md:px-8">
+                <div className="flex flex-row justify-between items-end mb-4 md:mb-5 gap-3 px-0.5">
+                    <div className="flex flex-col flex-1 min-w-0">
+                        <h2 className="text-[14px] sm:text-[16px] md:text-[32px] font-black uppercase tracking-tight text-gray-900 leading-none whitespace-nowrap truncate">
                             {dynamicTitle}
                         </h2>
-                        <div className="w-10 h-1 bg-black mt-1.5 md:mt-3" />
+                        <div className="w-8 md:w-10 h-[3px] md:h-1 bg-black mt-1.5 md:mt-3 shrink-0" />
                     </div>
-                    <button className="text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-black transition-colors flex items-center gap-1.5 group mb-1" onClick={() => navigate('/shop')}>
+                    <button className="text-gray-400 font-black text-[9px] md:text-[10px] uppercase tracking-widest hover:text-black transition-colors flex items-center gap-1 group mb-0.5 shrink-0 whitespace-nowrap" onClick={() => navigate('/shop')}>
                         View All <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
                     </button>
                 </div>

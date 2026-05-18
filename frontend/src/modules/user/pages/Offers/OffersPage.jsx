@@ -78,8 +78,8 @@ const OffersPage = () => {
 
     // Get brand name from populated or direct field
     const getBrandName = (product) => {
-        if (product?.brandId && typeof product.brandId === 'object') return product.brandId.name;
-        return product?.brandName || '';
+        const name = (product?.brandId && typeof product.brandId === 'object') ? product.brandId.name : (product?.brandName || product?.brand || '');
+        return (name && name !== 'AAPZETO' && name !== 'Appzeto') ? name : 'CLOSH';
     };
 
     // Get vendor name from populated or direct field

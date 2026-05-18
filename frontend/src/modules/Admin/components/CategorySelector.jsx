@@ -217,6 +217,7 @@ const CategorySelector = ({
       {/* Selected Value Display */}
       <button
         type="button"
+        id="category-selector-button"
         onClick={() => {
           setIsOpen(!isOpen);
           // Clear any pending timeout when toggling

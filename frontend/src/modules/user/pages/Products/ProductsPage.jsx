@@ -481,7 +481,7 @@ const ProductsPage = () => {
                 onClose={() => setIsLocationModalOpen(false)}
             />
 
-            <div className="container mx-auto px-4 py-8 pb-32 md:pb-8">
+            <div className="container mx-auto px-2 sm:px-3 md:px-4 py-4 sm:py-6 md:py-8 pb-32 md:pb-8">
                 {/* Desktop Breadcrumbs & Tools - Hidden on Mobile */}
                 <div className="hidden md:flex flex-col mb-8 border-b border-gray-200 pb-4">
                     <div className="flex items-center justify-between">
