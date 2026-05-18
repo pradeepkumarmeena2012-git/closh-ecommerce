@@ -204,10 +204,10 @@ const OrderDetailsPage = () => {
                     </thead>
                     <tbody>
                         ${order.items.map(item => {
-                            const price = item.discountedPrice || item.price || 0;
-                            const qty = item.quantity || 1;
-                            const total = price * qty;
-                            return `
+            const price = item.discountedPrice || item.price || 0;
+            const qty = item.quantity || 1;
+            const total = price * qty;
+            return `
                                 <tr>
                                     <td>
                                         <div style="font-weight: 800; font-size: 15px;">${item.name}</div>
@@ -219,7 +219,7 @@ const OrderDetailsPage = () => {
                                     <td style="text-align: right; font-weight: 800;">₹${total}</td>
                                 </tr>
                             `;
-                        }).join('')}
+        }).join('')}
                     </tbody>
                 </table>
 
@@ -571,7 +571,7 @@ const OrderDetailsPage = () => {
                                     <span>Reason:</span>
                                     <span>{order.returnRequest.reason}</span>
                                 </div>
-                                
+
                                 {order.returnRequest.isUpiRequested && (
                                     <div className="mt-3 pt-3 border-t border-amber-200">
                                         {order.returnRequest.upiId ? (

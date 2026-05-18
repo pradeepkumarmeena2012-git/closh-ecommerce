@@ -407,12 +407,6 @@ const ProductDetailsPage = () => {
                                 <h2 className="text-[10px] md:text-[12px] font-semibold text-gray-500 uppercase tracking-wider">{product.brand}</h2>
                                 <div className="hidden md:flex items-center gap-4">
                                     <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><Share2 size={20} className="text-gray-900" /></button>
-                                    <button
-                                        onClick={() => toggleWishlist(product)}
-                                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                                    >
-                                        <Heart size={22} className={isInWishlist(product?.id) ? 'fill-[#D4AF37] text-black border-none' : 'text-gray-900'} />
-                                    </button>
                                 </div>
                             </div>
                             <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mb-2 md:mb-3">{product.name}</h1>

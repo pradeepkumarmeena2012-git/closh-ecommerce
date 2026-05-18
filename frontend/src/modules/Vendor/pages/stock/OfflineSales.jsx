@@ -16,7 +16,9 @@ import {
   FiType,
   FiMaximize,
   FiBox,
-  FiCheck
+  FiCheck,
+  FiEyeOff,
+  FiEye
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import DataTable from "../../../Admin/components/DataTable";
@@ -383,6 +385,240 @@ const OfflineSales = () => {
     }
   };
 
+  const getSelectedVariantStock = (product, selection) => {
+    if (!product) return 0;
+    const hasVariants = product.variants && (
+      (product.variants.attributes && product.variants.attributes.length > 0) || 
+      (product.variants.sizes && product.variants.sizes.length > 0)
+    );
+    if (!hasVariants) {
+      return product.stock || 0;
+    }
+    const stockMap = product.variants.stockMap || {};
+    let key = "";
+    const attributes = product.variants.attributes || [];
+    if (attributes.length > 0) {
+      const relevantSelection = {};
+      attributes.forEach(attr => {
+        const val = selection[attr.name];
+        if (val) relevantSelection[attr.name] = val;
+      });
+      key = Object.entries(relevantSelection)
+        .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()))
+        .map(([attr, val]) => `${attr.toLowerCase().trim().replace(/\s+/g, '_')}=${String(val).toLowerCase().trim()}`)
+        .join('|');
+    } else {
+      const size = selection['Size'] || selection['size'] || Object.values(selection)[0] || "";
+      key = `${String(size).toLowerCase().trim()}|`;
+    }
+
+    if (stockMap[key] === undefined) {
+      const keys = Object.keys(stockMap);
+      const foundKey = keys.find(k => k.toLowerCase().trim() === key.toLowerCase().trim());
+      if (foundKey) key = foundKey;
+    }
+
+    return stockMap[key] !== undefined ? stockMap[key] : 0;
+  };
+
+  const handleToggleStockStatus = async (product) => {
+    const isCurrentlyInStock = product.stock > 0;
+    if (isCurrentlyInStock) {
+      if (window.confirm(`Are you sure you want to mark ${product.productName} as Out of Stock?`)) {
+        setIsLoading(true);
+        try {
+          await updateVendorStock(product.productId, 0);
+          
+          let updatedVariants = product.variants;
+          if (product.variants && product.variants.stockMap) {
+            const newStockMap = { ...product.variants.stockMap };
+            Object.keys(newStockMap).forEach(key => {
+              newStockMap[key] = 0;
+            });
+            await updateVendorVariantStock(product.productId, newStockMap);
+            updatedVariants = { ...product.variants, stockMap: newStockMap };
+          }
+          
+          setSales(sales.map(s => s.id === product.id ? { 
+            ...s, 
+            stock: 0,
+            variants: updatedVariants
+          } : s));
+          
+          toast.success(`${product.productName} marked as Out of Stock!`);
+        } catch (error) {
+          toast.error("Failed to update stock to Out of Stock");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    } else {
+      const newStockInput = window.prompt(`Enter stock quantity to mark ${product.productName} as In Stock:`, "10");
+      if (newStockInput !== null) {
+        const quantity = parseInt(newStockInput, 10);
+        if (isNaN(quantity) || quantity <= 0) {
+          toast.error("Invalid stock quantity");
+          return;
+        }
+        setIsLoading(true);
+        try {
+          await updateVendorStock(product.productId, quantity);
+          
+          let updatedVariants = product.variants;
+          if (product.variants && product.variants.stockMap) {
+            const newStockMap = { ...product.variants.stockMap };
+            const keys = Object.keys(newStockMap);
+            if (keys.length > 0) {
+              const perVariant = Math.max(1, Math.floor(quantity / keys.length));
+              keys.forEach((key, idx) => {
+                newStockMap[key] = idx === keys.length - 1 ? quantity - (perVariant * (keys.length - 1)) : perVariant;
+              });
+              await updateVendorVariantStock(product.productId, newStockMap);
+            }
+            updatedVariants = { ...product.variants, stockMap: newStockMap };
+          }
+          
+          setSales(sales.map(s => s.id === product.id ? { 
+            ...s, 
+            stock: quantity,
+            variants: updatedVariants
+          } : s));
+          
+          toast.success(`${product.productName} marked as In Stock with ${quantity} units!`);
+        } catch (error) {
+          toast.error("Failed to update stock to In Stock");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    }
+  };
+
+  const handleToggleSelectedVariantStock = async () => {
+    if (!saleProduct) return;
+    
+    const hasVariants = saleProduct.variants && (
+      (saleProduct.variants.attributes && saleProduct.variants.attributes.length > 0) || 
+      (saleProduct.variants.sizes && saleProduct.variants.sizes.length > 0)
+    );
+
+    if (!hasVariants) {
+      await handleToggleStockStatus(saleProduct);
+      return;
+    }
+
+    const currentVariantStock = getSelectedVariantStock(saleProduct, saleSelection);
+    const isCurrentlyInStock = currentVariantStock > 0;
+
+    if (isCurrentlyInStock) {
+      if (window.confirm(`Are you sure you want to mark the selected variant of ${saleProduct.productName} as Out of Stock?`)) {
+        setIsLoading(true);
+        try {
+          const stockMap = { ...(saleProduct.variants.stockMap || {}) };
+          let key = "";
+          const attributes = saleProduct.variants.attributes || [];
+          if (attributes.length > 0) {
+            const relevantSelection = {};
+            attributes.forEach(attr => {
+              const val = saleSelection[attr.name];
+              if (val) relevantSelection[attr.name] = val;
+            });
+            key = Object.entries(relevantSelection)
+              .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()))
+              .map(([attr, val]) => `${attr.toLowerCase().trim().replace(/\s+/g, '_')}=${String(val).toLowerCase().trim()}`)
+              .join('|');
+          } else {
+            const size = saleSelection['Size'] || saleSelection['size'] || Object.values(saleSelection)[0] || "";
+            key = `${String(size).toLowerCase().trim()}|`;
+          }
+
+          if (stockMap[key] === undefined) {
+            const keys = Object.keys(stockMap);
+            const foundKey = keys.find(k => k.toLowerCase().trim() === key.toLowerCase().trim());
+            if (foundKey) key = foundKey;
+          }
+
+          stockMap[key] = 0;
+
+          const newTotalStock = Object.values(stockMap).reduce((sum, val) => sum + (parseInt(val, 10) || 0), 0);
+
+          await updateVendorStock(saleProduct.productId, newTotalStock);
+          await updateVendorVariantStock(saleProduct.productId, stockMap);
+
+          const updatedProduct = {
+            ...saleProduct,
+            stock: newTotalStock,
+            variants: { ...saleProduct.variants, stockMap }
+          };
+
+          setSales(sales.map(s => s.id === saleProduct.id ? updatedProduct : s));
+          setSaleProduct(updatedProduct);
+          toast.success(`Selected variant marked as Out of Stock!`);
+        } catch (error) {
+          toast.error("Failed to update variant stock");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    } else {
+      const newStockInput = window.prompt(`Enter stock quantity for the selected variant:`, "10");
+      if (newStockInput !== null) {
+        const quantity = parseInt(newStockInput, 10);
+        if (isNaN(quantity) || quantity <= 0) {
+          toast.error("Invalid stock quantity");
+          return;
+        }
+        setIsLoading(true);
+        try {
+          const stockMap = { ...(saleProduct.variants.stockMap || {}) };
+          let key = "";
+          const attributes = saleProduct.variants.attributes || [];
+          if (attributes.length > 0) {
+            const relevantSelection = {};
+            attributes.forEach(attr => {
+              const val = saleSelection[attr.name];
+              if (val) relevantSelection[attr.name] = val;
+            });
+            key = Object.entries(relevantSelection)
+              .sort((a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()))
+              .map(([attr, val]) => `${attr.toLowerCase().trim().replace(/\s+/g, '_')}=${String(val).toLowerCase().trim()}`)
+              .join('|');
+          } else {
+            const size = saleSelection['Size'] || saleSelection['size'] || Object.values(saleSelection)[0] || "";
+            key = `${String(size).toLowerCase().trim()}|`;
+          }
+
+          if (stockMap[key] === undefined) {
+            const keys = Object.keys(stockMap);
+            const foundKey = keys.find(k => k.toLowerCase().trim() === key.toLowerCase().trim());
+            if (foundKey) key = foundKey;
+          }
+
+          stockMap[key] = quantity;
+
+          const newTotalStock = Object.values(stockMap).reduce((sum, val) => sum + (parseInt(val, 10) || 0), 0);
+
+          await updateVendorStock(saleProduct.productId, newTotalStock);
+          await updateVendorVariantStock(saleProduct.productId, stockMap);
+
+          const updatedProduct = {
+            ...saleProduct,
+            stock: newTotalStock,
+            variants: { ...saleProduct.variants, stockMap }
+          };
+
+          setSales(sales.map(s => s.id === saleProduct.id ? updatedProduct : s));
+          setSaleProduct(updatedProduct);
+          toast.success(`Selected variant stock updated to ${quantity}!`);
+        } catch (error) {
+          toast.error("Failed to update variant stock");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    }
+  };
+
   const handleDelete = (id) => {
     if (window.confirm("Are you sure?")) {
       setSales(sales.filter(s => s.id !== id));
@@ -392,7 +628,7 @@ const OfflineSales = () => {
 
   const handleSale = (id) => {
     const target = sales.find(s => s.id === id);
-    if (target && target.stock > 0) {
+    if (target) {
       setSaleProduct(target);
       const initialSelection = {};
       
@@ -415,7 +651,7 @@ const OfflineSales = () => {
       setSaleQuantity(1);
       setIsSaleConfirmOpen(true);
     } else {
-      toast.error("Out of Stock!");
+      toast.error("Product not found!");
     }
   };
 
@@ -572,6 +808,13 @@ const OfflineSales = () => {
           <button onClick={() => handleOpenModal(row)} className="text-emerald-600 hover:text-emerald-800 transition-colors p-2 hover:bg-emerald-50 rounded-lg"><FiEdit size={20} /></button>
           <button onClick={() => handleDelete(row.id)} className="text-red-500 hover:text-red-700 transition-colors p-2 hover:bg-red-50 rounded-lg"><FiTrash2 size={20} /></button>
           <button onClick={() => handleSale(row.id)} title="Quick Sale" className="text-blue-500 hover:text-blue-700 transition-colors p-2 hover:bg-blue-50 rounded-lg"><FiShoppingCart size={20} /></button>
+          <button 
+            onClick={() => handleToggleStockStatus(row)} 
+            title={row.stock > 0 ? "Mark Out of Stock" : "Mark In Stock"} 
+            className={`transition-colors p-2 rounded-lg ${row.stock > 0 ? 'text-amber-500 hover:text-amber-700 hover:bg-amber-50' : 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50'}`}
+          >
+            {row.stock > 0 ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+          </button>
         </div>
       )
     }
@@ -719,6 +962,13 @@ const OfflineSales = () => {
                       </button>
                       <button onClick={() => handleSale(sale.id)} className="text-blue-500 hover:text-blue-700 transition-transform active:scale-90 p-2 bg-blue-50 rounded-xl">
                          <FiShoppingCart size={20} />
+                      </button>
+                      <button 
+                        onClick={() => handleToggleStockStatus(sale)} 
+                        title={sale.stock > 0 ? "Mark Out of Stock" : "Mark In Stock"} 
+                        className={`transition-transform active:scale-90 p-2 rounded-xl ${sale.stock > 0 ? 'text-amber-500 bg-amber-50' : 'text-emerald-500 bg-emerald-50'}`}
+                      >
+                        {sale.stock > 0 ? <FiEyeOff size={20} /> : <FiEye size={20} />}
                       </button>
                    </div>
                 </div>
@@ -1174,6 +1424,44 @@ const OfflineSales = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Stock Stats Display */}
+                {saleSelection && (
+                  <div className="space-y-3 mt-4">
+                    <div className="grid grid-cols-2 gap-3 p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50">
+                      <div className="text-center p-2 bg-white rounded-xl shadow-sm border border-blue-100/30">
+                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-wider mb-1">Available Stock</p>
+                        <p className="text-sm font-black text-blue-800">{getSelectedVariantStock(saleProduct, saleSelection)} Pcs</p>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded-xl shadow-sm border border-blue-100/30">
+                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-wider mb-1">Remaining Stock</p>
+                        <p className={`text-sm font-black ${getSelectedVariantStock(saleProduct, saleSelection) - saleQuantity < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {Math.max(0, getSelectedVariantStock(saleProduct, saleSelection) - saleQuantity)} Pcs
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectedVariantStock}
+                      className={`w-full py-3 rounded-xl font-black text-xs tracking-wider transition-all uppercase flex items-center justify-center gap-2 border ${
+                        getSelectedVariantStock(saleProduct, saleSelection) > 0
+                        ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                      }`}
+                    >
+                      {getSelectedVariantStock(saleProduct, saleSelection) > 0 ? (
+                        <>
+                          <FiEyeOff size={14} /> Mark Selected Size Out of Stock
+                        </>
+                      ) : (
+                        <>
+                          <FiEye size={14} /> Restock Selected Size
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -570,8 +570,8 @@ const DeliveryOrderDetail = () => {
               <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-4">
                  <div>
                     <div className="flex items-center justify-between mb-3">
-                       <p className="text-[9px] font-bold text-slate-800 uppercase tracking-widest">Verification Proof</p>
-                       <span className="text-[8px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded leading-none uppercase">{(currentPhase || 'Phase').toUpperCase()}</span>
+                       <p className="text-[11px] font-bold text-slate-800 uppercase tracking-widest">Verification Proof</p>
+                       <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded leading-none uppercase">{(currentPhase || 'Phase').toUpperCase()}</span>
                     </div>
                     
                     <div className="grid grid-cols-1 gap-4">
@@ -600,7 +600,7 @@ const DeliveryOrderDetail = () => {
 
                         {currentPhase === 'delivery' && (
                            <div className="space-y-3 pt-3 border-t border-slate-50">
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter italic opacity-60">Optional: Item Inspection Photo</p>
+                              <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest italic">Optional: Item Inspection Photo</p>
                               <div className="relative aspect-[16/9] bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 flex items-center justify-center group shadow-inner">
                                  {openBoxPhoto ? (
                                     <>
