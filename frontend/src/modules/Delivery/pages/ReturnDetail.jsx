@@ -386,11 +386,6 @@ const DeliveryReturnDetail = () => {
                 placeholder={currentPhase === 'customer_pickup' ? "ENTER CUSTOMER PICKUP OTP" : "ENTER VENDOR HANDOVER OTP"}
                 className="w-full h-11 px-4 text-center text-sm font-bold tracking-[0.2em] bg-slate-50 border border-slate-200 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-slate-400 placeholder:text-[9px] placeholder:tracking-wider placeholder:font-bold"
               />
-              {returnReq?.pickupOtpDebug && currentPhase === 'customer_pickup' && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-amber-500 bg-amber-50 px-2 py-1 rounded-lg">
-                  OTP: {returnReq.pickupOtpDebug}
-                </div>
-              )}
               {returnReq?.deliveryOtpDebug && currentPhase === 'vendor_dropoff' && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-amber-500 bg-amber-50 px-2 py-1 rounded-lg">
                   OTP: {returnReq.deliveryOtpDebug}
