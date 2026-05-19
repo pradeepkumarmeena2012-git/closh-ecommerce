@@ -52,6 +52,8 @@ export const assignBatch = asyncHandler(async (req, res) => {
             }));
         }
         await order.save();
+        emitEvent(`user_${customerId}`, 'order_assigned', { orderId: order._id });
+        emitEvent(`user_${customerId}`, 'order_updated', { orderId: order._id });
     }
 
     const savedDeliveries = await Delivery.insertMany(newDeliveries);
@@ -110,6 +112,9 @@ export const pickupBatch = asyncHandler(async (req, res) => {
         { _id: { $in: orderIds } },
         { status: 'picked_up' }
     );
+    orderIds.forEach(id => {
+        emitEvent(`user_${batch.customerId}`, 'order_picked_up', { orderId: id });
+    });
     
     batch.status = 'picked_up';
     await batch.save();
@@ -136,6 +141,9 @@ export const startBatchDelivery = asyncHandler(async (req, res) => {
          { _id: { $in: orderIds } },
          { status: 'out_for_delivery' }
      );
+     orderIds.forEach(id => {
+         emitEvent(`user_${batch.customerId}`, 'order_out_for_delivery', { orderId: id });
+     });
      
      batch.status = 'out_for_delivery';
      await batch.save();
@@ -177,6 +185,9 @@ export const markBatchArrived = asyncHandler(async (req, res) => {
          { _id: { $in: orderIds } },
          { status: 'out_for_delivery' } // Orders usually stay in 'out_for_delivery' until final completion or 'arrived' if supported
      );
+     orderIds.forEach(id => {
+         emitEvent(`user_${batch.customerId}`, 'rider_arrived', { orderId: id, otp: generatedOtp });
+     });
      
      await batch.save();
 
@@ -300,6 +311,8 @@ export const completeBatchDelivery = asyncHandler(async (req, res) => {
          
          // Credit earnings
          await WalletService.processOrderCompletion(order).catch(e => console.error(`[Batch Earnings] Failed for ${order._id}:`, e.message));
+         
+         emitEvent(`user_${batch.customerId}`, 'order_delivered', { orderId: order._id });
      }
 
      batch.status = 'delivered';

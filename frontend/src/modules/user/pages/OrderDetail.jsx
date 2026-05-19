@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiPackage, FiTruck, FiMapPin, FiCreditCard, FiRotateCw, FiArrowLeft, FiShoppingBag, FiX } from 'react-icons/fi';
+import { FiPackage, FiTruck, FiMapPin, FiCreditCard, FiRotateCw, FiArrowLeft, FiShoppingBag, FiX, FiThumbsUp, FiUserCheck, FiCheckCircle, FiClock } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import MobileLayout from "../components/Layout/MobileLayout";
 import { useOrderStore } from '../../../shared/store/orderStore';
@@ -85,6 +85,25 @@ const MobileOrderDetail = () => {
       socketService.off('rider_nearby');
     };
   }, [orderId, fetchOrderById]);
+
+  // Real-time return request updates via sockets
+  useEffect(() => {
+    if (!orderId || !order?.returnRequest?._id) return;
+
+    socketService.joinRoom(`return_${order.returnRequest._id}`);
+
+    const handleReturnUpdate = () => {
+      console.log('🔄 Return status updated via socket, refreshing order details...');
+      fetchOrderById(orderId);
+    };
+
+    socketService.on('return_status_updated', handleReturnUpdate);
+
+    return () => {
+      socketService.leaveRoom(`return_${order.returnRequest._id}`);
+      socketService.off('return_status_updated', handleReturnUpdate);
+    };
+  }, [orderId, order?.returnRequest?._id, fetchOrderById]);
 
   useEffect(() => {
     if (!isResolving && !order) {
@@ -452,6 +471,180 @@ const MobileOrderDetail = () => {
                 </div>
               </div>
 
+              {/* Return Live Tracking Timeline */}
+              {order.returnRequest && (
+                <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm font-sans mt-4">
+                  <h3 className="text-sm font-black uppercase mb-6 flex items-center gap-2 text-slate-400 tracking-wider">
+                    <FiClock className="text-base animate-spin" style={{ animationDuration: '4s' }} /> Return Live Tracking
+                  </h3>
+
+                  {(() => {
+                    const retStatus = order.returnRequest.status?.toLowerCase() || 'pending';
+                    const hasRider = !!order.returnRequest.deliveryBoyId;
+                    const hasPickupPhoto = !!order.returnRequest.pickupPhoto;
+                    const hasDeliveryPhoto = !!order.returnRequest.deliveryPhoto;
+
+                    const getReturnStepState = (stepIndex) => {
+                      if (retStatus === 'rejected') return 'pending';
+
+                      if (stepIndex === 1) {
+                        if (retStatus === 'pending') return 'active';
+                        return 'completed';
+                      }
+                      if (stepIndex === 2) {
+                        if (retStatus === 'pending') return 'pending';
+                        if (retStatus === 'approved') return 'active';
+                        return 'completed';
+                      }
+                      if (stepIndex === 3) {
+                        if (['pending', 'approved'].includes(retStatus)) return 'pending';
+                        if (retStatus === 'processing' && !hasRider) return 'active';
+                        return 'completed';
+                      }
+                      if (stepIndex === 4) {
+                        if (['pending', 'approved'].includes(retStatus)) return 'pending';
+                        if (retStatus === 'processing' && !hasPickupPhoto) return 'active';
+                        return 'completed';
+                      }
+                      if (stepIndex === 5) {
+                        if (['pending', 'approved', 'processing'].includes(retStatus) && !hasPickupPhoto) return 'pending';
+                        if (retStatus === 'processing' && hasPickupPhoto && !hasDeliveryPhoto) return 'active';
+                        return 'completed';
+                      }
+                      if (stepIndex === 6) {
+                        if (['pending', 'approved', 'processing'].includes(retStatus) && !hasPickupPhoto) return 'pending';
+                        if (retStatus === 'processing' && hasPickupPhoto && !hasDeliveryPhoto) return 'active';
+                        return 'completed';
+                      }
+                      if (stepIndex === 7) {
+                        if (retStatus === 'completed') return 'completed';
+                        return 'pending';
+                      }
+                      return 'pending';
+                    };
+
+                    const formatReturnDate = (dateString) => {
+                      if (!dateString) return '';
+                      const date = new Date(dateString);
+                      if (isNaN(date.getTime())) return '';
+                      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    };
+
+                    const returnSteps = [
+                      {
+                        label: 'Requested',
+                        subtitle: 'Submitted by you',
+                        icon: FiPackage,
+                        date: order.returnRequest.createdAt,
+                        state: getReturnStepState(1)
+                      },
+                      {
+                        label: 'Approved',
+                        subtitle: 'Vendor approved',
+                        icon: FiThumbsUp,
+                        date: ['approved', 'processing', 'completed'].includes(retStatus) ? order.returnRequest.updatedAt : null,
+                        state: getReturnStepState(2)
+                      },
+                      {
+                        label: 'Assigned',
+                        subtitle: 'Partner assigned',
+                        icon: FiUserCheck,
+                        date: ['processing', 'completed'].includes(retStatus) && hasRider ? order.returnRequest.updatedAt : null,
+                        state: getReturnStepState(3)
+                      },
+                      {
+                        label: 'Arrived',
+                        subtitle: 'Rider reached',
+                        icon: FiMapPin,
+                        date: ['processing', 'completed'].includes(retStatus) && hasRider ? order.returnRequest.updatedAt : null,
+                        state: getReturnStepState(4)
+                      },
+                      {
+                        label: 'Picked Up',
+                        subtitle: 'Product collected',
+                        icon: FiPackage,
+                        date: hasPickupPhoto || retStatus === 'completed' ? order.returnRequest.updatedAt : null,
+                        state: getReturnStepState(5)
+                      },
+                      {
+                        label: 'At Store',
+                        subtitle: 'Reached vendor',
+                        icon: FiShoppingBag,
+                        date: hasPickupPhoto || retStatus === 'completed' ? order.returnRequest.updatedAt : null,
+                        state: getReturnStepState(6)
+                      },
+                      {
+                        label: 'Completed',
+                        subtitle: 'Refund processed',
+                        icon: FiCheckCircle,
+                        date: retStatus === 'completed' ? order.returnRequest.updatedAt : null,
+                        state: getReturnStepState(7)
+                      }
+                    ];
+
+                    return (
+                      <div className="w-full">
+                        {retStatus === 'rejected' ? (
+                          <div className="text-center py-6 bg-red-50 rounded-2xl border border-red-100/50">
+                            <p className="text-red-500 text-xs font-black uppercase tracking-widest">Return Request Rejected</p>
+                            <p className="text-slate-500 text-[10px] font-bold mt-1">
+                              Reason: {order.returnRequest.rejectionReason || 'Does not meet store guidelines.'}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-6 py-2 px-1">
+                            {returnSteps.map((step, idx) => {
+                              const Icon = step.icon;
+                              const isCompleted = step.state === 'completed';
+                              const isActive = step.state === 'active';
+
+                              return (
+                                <div key={idx} className="flex gap-4 relative">
+                                  {/* Timeline Vertical line */}
+                                  {idx !== returnSteps.length - 1 && (
+                                    <div className={`absolute left-5 top-10 w-[2px] h-12 z-0 ${isCompleted ? 'bg-amber-500' : 'bg-slate-100'}`} />
+                                  )}
+
+                                  {/* Icon container */}
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 z-10 transition-all duration-300 relative ${isCompleted
+                                    ? 'bg-amber-500 text-white shadow-md'
+                                    : isActive
+                                      ? 'bg-slate-900 text-white shadow-lg scale-105'
+                                      : 'bg-slate-50 text-slate-300 border border-slate-100'
+                                    }`}>
+                                    <Icon size={18} strokeWidth={2.2} />
+                                    {isActive && (
+                                      <div className="absolute inset-0 rounded-xl border-2 border-slate-900 animate-ping opacity-60" />
+                                    )}
+                                  </div>
+
+                                  {/* Content */}
+                                  <div className="flex-1 pt-1">
+                                    <div className="flex items-start justify-between">
+                                      <div>
+                                        <h4 className={`text-[12px] font-black uppercase tracking-wider ${isActive ? 'text-slate-900' : isCompleted ? 'text-slate-700' : 'text-slate-400'}`}>
+                                          {step.label}
+                                        </h4>
+                                        <p className="text-[10px] text-slate-400 font-bold leading-tight mt-0.5">{step.subtitle}</p>
+                                      </div>
+                                      {step.date && (
+                                        <span className="shrink-0 bg-slate-50 border border-slate-100 text-slate-500 text-[8px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                                          {formatReturnDate(step.date)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {/* Return Request & UPI Info */}
               {order.returnRequest && (
                 <div className="bg-amber-50 rounded-2xl p-4 shadow-sm font-bold mt-4">
@@ -467,6 +660,18 @@ const MobileOrderDetail = () => {
                       <span>Reason:</span>
                       <span>{order.returnRequest.reason}</span>
                     </div>
+
+                    {order.returnRequest.pickupOtpDebug && order.returnRequest.status !== 'completed' && (
+                      <div className="mt-4 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-amber-300 border-dashed text-center shadow-inner">
+                        <p className="text-[10px] font-black uppercase text-amber-800 mb-1 tracking-widest flex items-center justify-center gap-1.5">
+                          <FiRotateCw className="text-amber-700 animate-spin" style={{ animationDuration: '3s' }} /> Return Verification Code
+                        </p>
+                        <p className="text-2xl font-black text-amber-900 tracking-[0.2em] pl-2">{order.returnRequest.pickupOtpDebug}</p>
+                        <p className="text-[9px] text-amber-700/80 font-medium leading-tight mt-1">
+                          Share this OTP with the pickup partner only after they verify your return items.
+                        </p>
+                      </div>
+                    )}
 
                     {order.returnRequest.isUpiRequested && (
                       <div className="mt-3 pt-3 border-t border-amber-200">

@@ -260,10 +260,10 @@ const MobileTrackOrder = () => {
 
   const getTrackingSteps = () => {
     const isCancelled = normalizedStatus === 'cancelled';
-    const isAccepted = ['accepted', 'assigned', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
-    const isReady = ['assigned', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
-    const isPickedUp = ['picked_up', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
-    const isOut = ['out_for_delivery', 'delivered'].includes(normalizedStatus);
+    const isAccepted = ['accepted', 'searching', 'assigned', 'ready_for_pickup', 'picked_up', 'arrived', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
+    const isReady = ['searching', 'assigned', 'ready_for_pickup', 'picked_up', 'arrived', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
+    const isPickedUp = ['picked_up', 'arrived', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
+    const isOut = ['arrived', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
     const isDelivered = normalizedStatus === 'delivered';
 
     const steps = [
