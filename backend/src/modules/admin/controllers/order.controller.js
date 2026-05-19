@@ -10,6 +10,8 @@ import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import DeliveryBatch from '../../../models/DeliveryBatch.model.js';
+import { calculateDistance } from '../../../utils/geo.js';
 
 // GET /api/admin/orders
 export const getAllOrders = asyncHandler(async (req, res) => {
@@ -21,7 +23,7 @@ export const getAllOrders = asyncHandler(async (req, res) => {
 
     if (status && status !== 'all') filter.status = status;
     if (String(req.query.assignableOnly || '') === 'true' && !filter.status) {
-        filter.status = { $in: ['pending', 'processing', 'shipped'] };
+        filter.status = { $in: ['pending', 'processing', 'shipped', 'ready_for_pickup', 'all_vendors_ready', 'assigned'] };
     }
     if (search) {
         const regex = new RegExp(search, 'i');
@@ -252,7 +254,7 @@ export const assignDeliveryBoy = asyncHandler(async (req, res) => {
     const { deliveryBoyId } = req.body;
     if (!deliveryBoyId) throw new ApiError(400, 'deliveryBoyId is required.');
 
-    const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId).select('name isActive applicationStatus');
+    const deliveryBoy = await DeliveryBoy.findById(deliveryBoyId).select('name isActive applicationStatus currentLocation');
     if (!deliveryBoy) throw new ApiError(404, 'Delivery boy not found.');
     if (!deliveryBoy.isActive) throw new ApiError(400, 'Delivery boy is inactive.');
     if (deliveryBoy.applicationStatus !== 'approved') {
@@ -274,7 +276,9 @@ export const assignDeliveryBoy = asyncHandler(async (req, res) => {
     const isReassigned = previousDeliveryBoyId && previousDeliveryBoyId !== String(deliveryBoyId);
 
     order.deliveryBoyId = deliveryBoyId;
-    if (order.status === 'pending') {
+    if (['ready_for_pickup', 'all_vendors_ready'].includes(order.status)) {
+        order.status = 'assigned';
+    } else if (order.status === 'pending') {
         order.status = 'processing';
         // Keep vendor-facing status in sync with order lifecycle.
         order.vendorItems = (order.vendorItems || []).map((vi) => {
@@ -283,6 +287,83 @@ export const assignDeliveryBoy = asyncHandler(async (req, res) => {
             return { ...vi.toObject(), status: 'processing' };
         });
     }
+
+    // ── Multi-Vendor Stop Setup & DeliveryBatch creation ──
+    if (order.isMultiVendor || order.vendorPickups?.length > 0 || order.status === 'all_vendors_ready' || order.status === 'assigned') {
+        if (order.isMultiVendor || order.vendorPickups?.length > 0) {
+            try {
+                // Delete any existing DeliveryBatch for this order to avoid duplicates (especially on reassignment)
+                await DeliveryBatch.deleteMany({ customerId: order.userId, status: { $in: ['assigned', 'picked_up', 'arrived', 'try_and_buy', 'payment_pending'] } });
+
+                const riderCoords = deliveryBoy.currentLocation?.coordinates;
+
+                const sortStopsNearestFirst = (stops, coords) => {
+                    if (!coords || coords.length < 2) return stops;
+                    return [...stops].sort((a, b) => {
+                        const distA = calculateDistance(coords, a.shopLocation?.coordinates || [0, 0]);
+                        const distB = calculateDistance(coords, b.shopLocation?.coordinates || [0, 0]);
+                        return distA - distB;
+                    });
+                };
+
+                let rawStops = order.vendorPickups || [];
+                if (rawStops.length === 0) {
+                    const populatedOrder = await Order.findById(order._id).populate('vendorItems.vendorId', 'storeName shopAddress shopLocation');
+                    rawStops = (populatedOrder?.vendorItems || []).map((vi, idx) => {
+                        const vendorDoc = vi.vendorId;
+                        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                        return {
+                            vendorId: vi.vendorId?._id || vi.vendorId,
+                            vendorName: vendorDoc?.storeName || vi.vendorName,
+                            shopLocation: vendorDoc?.shopLocation || { type: 'Point', coordinates: [0, 0] },
+                            shopAddress: vendorDoc?.shopAddress || '',
+                            sequence: idx,
+                            status: 'pending',
+                            handoverOtp: otp,
+                            handoverOtpHash: otp,
+                            handoverOtpDebug: otp,
+                            handoverOtpSentAt: new Date(),
+                        };
+                    });
+                    await Order.findByIdAndUpdate(order._id, { vendorPickups: rawStops });
+                    order.vendorPickups = rawStops;
+                }
+                const sortedStops = sortStopsNearestFirst(rawStops, riderCoords);
+                const pickupStops = sortedStops.map((stop, idx) => ({
+                    vendorId: stop.vendorId,
+                    vendorName: stop.vendorName,
+                    shopAddress: stop.shopAddress,
+                    location: stop.shopLocation,
+                    sequence: idx,
+                    status: 'pending',
+                    otpVerified: false,
+                }));
+
+                // Re-sequence vendorPickups on the order to match sorted stops
+                const resequencedPickups = sortedStops.map((stop, idx) => ({ ...stop.toObject?.() || stop, sequence: idx }));
+                order.vendorPickups = resequencedPickups;
+
+                // Create DeliveryBatch for this multi-vendor trip
+                const batchId = `MVBATCH-${Date.now()}`;
+                await DeliveryBatch.create({
+                    batchId,
+                    deliveryBoyId,
+                    customerId: order.userId,
+                    isMultiVendor: true,
+                    currentStopIndex: 0,
+                    pickupStops,
+                    customerLocation: order.dropoffLocation,
+                    customerAddress: order.shippingAddress,
+                    customerName: order.shippingAddress?.name,
+                    status: 'assigned',
+                });
+                console.log(`[MultiVendor Admin Assign] Successfully created DeliveryBatch for order ${order.orderId}`);
+            } catch (mvErr) {
+                console.error(`[MultiVendor Admin Assign] Error setting up batch:`, mvErr);
+            }
+        }
+    }
+
     await order.save();
     
     // Unified role-aware notifications for assignment
@@ -301,6 +382,8 @@ export const assignDeliveryBoy = asyncHandler(async (req, res) => {
         distance: order.deliveryDistance ? `${order.deliveryDistance} km` : '0 km',
         estimatedTime: 'N/A',
         deliveryFee: order.deliveryEarnings || 25,
+        isMultiVendor: order.isMultiVendor,
+        vendorPickups: order.vendorPickups,
         type: 'new_assignment_broadcast'
     };
     emitEvent(`delivery_${deliveryBoyId}`, 'order_ready_for_pickup', socketPayload);

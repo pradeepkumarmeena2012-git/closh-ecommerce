@@ -440,6 +440,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 total,
                 couponCode: couponCode?.toUpperCase(),
                 couponDiscount,
+                isMultiVendor: vendorItems.length > 1,
                 orderType,
                 pickupLocation: Object.values(vendorMap)[0]?.shopLocation || { type: 'Point', coordinates: [0, 0] },
                 dropoffLocation: { type: 'Point', coordinates: dropoffCoords },

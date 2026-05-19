@@ -5,11 +5,12 @@ import * as assignmentController from '../controllers/assignment.controller.js';
 import * as notificationController from '../controllers/notification.controller.js';
 import * as withdrawalController from '../controllers/withdrawal.controller.js';
 import * as settlementController from '../controllers/settlement.controller.js';
+import * as mvController from '../controllers/multiVendorPickup.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
 import { authLimiter } from '../../../middlewares/rateLimiter.js';
 import { validate } from '../../../middlewares/validate.js';
-import { uploadDeliveryDocuments } from '../../../middlewares/upload.js';
+import { uploadDeliveryDocuments, uploadSingle } from '../../../middlewares/upload.js';
 import {
     loginSchema,
     registerSchema,
@@ -77,6 +78,18 @@ router.patch('/orders/:id/try-buy', ...deliveryAuth, orderController.handleTryAn
 router.patch('/orders/:id/payment', ...deliveryAuth, orderController.handlePayment);
 router.patch('/orders/:id/complete', ...deliveryAuth, orderController.handleCompleteDelivery);
 router.patch('/batch/select', ...deliveryAuth, orderController.handleBatchSelect);
+
+// ── Multi-Vendor Pickup Flow ──
+router.get('/multi-vendor/available', ...deliveryAuth, mvController.getAvailableMultiVendorOrders);
+router.post('/multi-vendor/:orderId/accept', ...deliveryAuth, mvController.acceptMultiVendorOrder);
+router.get('/multi-vendor/:orderId/status', ...deliveryAuth, mvController.getMultiVendorOrderStatus);
+router.post('/multi-vendor/:orderId/stops/:vendorId/arrive', ...deliveryAuth, mvController.arriveAtVendorStop);
+router.post('/multi-vendor/:orderId/stops/:vendorId/verify-otp', ...deliveryAuth, mvController.verifyVendorHandoverOtp);
+router.post('/multi-vendor/:orderId/stops/:vendorId/pickup', ...deliveryAuth, mvController.confirmVendorPickup);
+router.post('/multi-vendor/:orderId/start-delivery', ...deliveryAuth, mvController.startFinalDelivery);
+router.post('/multi-vendor/:orderId/arrive-customer', ...deliveryAuth, mvController.arriveAtCustomer);
+router.post('/multi-vendor/:orderId/complete', ...deliveryAuth, mvController.completeMultiVendorDelivery);
+router.post('/uploads/image', ...deliveryAuth, uploadSingle('image'), mvController.uploadProofImage);
 
 // Returns
 router.get('/returns/available', ...deliveryAuth, orderController.getAvailableReturns);

@@ -125,6 +125,8 @@ export const triggerDeliveryAssignment = async (order) => {
             distance: estimatedDistance,
             estimatedTime: estimatedTime,
             isTryAndBuy: order.orderType === 'try_and_buy' || order.orderType === 'check_and_buy',
+            isMultiVendor: order.isMultiVendor,
+            vendorPickups: order.vendorPickups,
             type: 'new_assignment_broadcast'
         };
 

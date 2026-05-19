@@ -76,7 +76,7 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     const filter = { deliveryBoyId: req.user.id, isDeleted: { $ne: true } };
 
     if (status === 'open') {
-        filter.status = { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] };
+        filter.status = { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'ready_for_pickup', 'all_vendors_ready'] };
     } else if (status) {
         // Support comma-separated statuses (e.g. "delivered,cancelled")
         if (typeof status === 'string' && status.includes(',')) {
@@ -87,7 +87,7 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     }
 
     const hasPaginationParams = page !== undefined || limit !== undefined;
-    const selectFields = 'orderId status total deliveryEarnings deliveryDistance items.name items.image items.quantity orderType paymentMethod customer phone address shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.vendorName createdAt updatedAt';
+    const selectFields = 'orderId status total deliveryEarnings deliveryDistance items.name items.image items.quantity orderType paymentMethod customer phone address shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.vendorName isMultiVendor vendorPickups createdAt updatedAt';
 
     if (!hasPaginationParams) {
         const orders = await Order.find(filter)
@@ -169,7 +169,7 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
     }
 
     const filter = {
-        status: 'ready_for_pickup',
+        status: { $in: ['ready_for_pickup', 'all_vendors_ready'] },
         deliveryBoyId: { $exists: false },
         isDeleted: { $ne: true }
     };
@@ -186,7 +186,7 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
 
     const [orders, total] = await Promise.all([
         Order.find(filter)
-            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType paymentMethod createdAt shippingAddress.city shippingAddress.state')
+            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType paymentMethod isMultiVendor vendorPickups createdAt shippingAddress.city shippingAddress.state')
             .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -295,7 +295,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
             isDeleted: { $ne: true },
             status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
         })
-            .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase createdAt updatedAt')
+            .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase isMultiVendor vendorPickups createdAt updatedAt')
             .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
             .sort({ updatedAt: -1 })
             .limit(10)

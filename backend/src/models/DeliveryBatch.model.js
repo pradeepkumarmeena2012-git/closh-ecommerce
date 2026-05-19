@@ -27,7 +27,30 @@ const DeliveryBatchSchema = new mongoose.Schema({
   deliveryOtpExpiry: { type: Date },
   deliveryOtpSentAt: { type: Date },
   deliveryOtpAttempts: { type: Number, default: 0 },
-  deliveryOtpDebug: { type: String }
+  deliveryOtpDebug: { type: String },
+
+  // ── Multi-Vendor Pickup Support ──
+  isMultiVendor: { type: Boolean, default: false },
+  currentStopIndex: { type: Number, default: 0 },
+  pickupStops: [{
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+    vendorName: String,
+    shopAddress: String,
+    location: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], default: [0, 0] },
+    },
+    sequence: { type: Number, default: 0 },
+    status: {
+      type: String,
+      enum: ['pending', 'arrived', 'otp_verified', 'picked_up'],
+      default: 'pending',
+    },
+    arrivedAt: Date,
+    pickedUpAt: Date,
+    otpVerified: { type: Boolean, default: false },
+    proofPhoto: String,
+  }]
 }, { timestamps: true });
 
 const DeliveryBatch = mongoose.model('DeliveryBatch', DeliveryBatchSchema);

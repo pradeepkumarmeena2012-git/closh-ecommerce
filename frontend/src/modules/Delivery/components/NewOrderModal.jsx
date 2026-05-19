@@ -189,15 +189,29 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLoc
                                 {/* Connector Line */}
                                 <div className="absolute left-[19px] top-6 bottom-6 w-[2px] bg-slate-100 border-l-2 border-dashed border-slate-200" />
 
-                                {/* Pickup Location */}
-                                <div className="relative mb-10">
-                                    <div className="absolute -left-[35px] top-0 w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-200">
-                                        <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                                {/* Pickups list */}
+                                {order.isMultiVendor && order.vendorPickups && order.vendorPickups.length > 0 ? (
+                                    order.vendorPickups.map((stop, index) => (
+                                        <div key={index} className="relative mb-10">
+                                            <div className="absolute -left-[35px] top-0 w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-200">
+                                                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                                            </div>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pickup {index + 1}: {stop.vendorName || 'Vendor'}</p>
+                                            <h3 className="font-black text-slate-900 text-base mb-1">{stop.vendorName || 'Vendor Shop'}</h3>
+                                            <p className="text-slate-500 text-xs font-medium leading-relaxed">{stop.shopAddress || 'Address details in active task'}</p>
+                                        </div>
+                                    ))
+                                ) : (
+                                    /* Single Pickup Location */
+                                    <div className="relative mb-10">
+                                        <div className="absolute -left-[35px] top-0 w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-200">
+                                            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                                        </div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{pickupTitle}</p>
+                                        <h3 className="font-black text-slate-900 text-base mb-1">{pickupName}</h3>
+                                        <p className="text-slate-500 text-xs font-medium leading-relaxed">{pickupAddress}</p>
                                     </div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{pickupTitle}</p>
-                                    <h3 className="font-black text-slate-900 text-base mb-1">{pickupName}</h3>
-                                    <p className="text-slate-500 text-xs font-medium leading-relaxed">{pickupAddress}</p>
-                                </div>
+                                )}
 
                                 {/* Dropoff Location */}
                                 <div className="relative">

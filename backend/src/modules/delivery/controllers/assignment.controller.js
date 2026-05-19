@@ -3,12 +3,14 @@ import mongoose from 'mongoose';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import Order from '../../../models/Order.model.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
+import DeliveryBatch from '../../../models/DeliveryBatch.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import OrderNotificationService from '../../../services/orderNotification.service.js';
+import { calculateDistance } from '../../../utils/geo.js';
 
 
 /**
@@ -157,6 +159,8 @@ export const notifyNearbyDeliveryBoys = async (order) => {
         distance: estimatedDistance,
         estimatedTime: estimatedTime,
         deliveryFee: deliveryFee,
+        isMultiVendor: order.isMultiVendor,
+        vendorPickups: order.vendorPickups,
         type: 'new_assignment_broadcast'
     };
 
@@ -305,17 +309,26 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
     const deliveryBoyId = req.user.id;
 
     const idFilter = [{ orderId }];
+    let orderObjectId = null;
     if (mongoose.isValidObjectId(orderId)) {
-        idFilter.push({ _id: orderId });
+        orderObjectId = new mongoose.Types.ObjectId(orderId);
+        idFilter.push({ _id: orderObjectId });
     }
 
     // ── BLOCKER: Ensure rider doesn't already have an active mission (Order or Return) ──
+    const activeOrderQuery = {
+        deliveryBoyId: deliveryBoyId,
+        isDeleted: { $ne: true },
+        status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
+    };
+    if (orderObjectId) {
+        activeOrderQuery._id = { $ne: orderObjectId };
+    } else {
+        activeOrderQuery.orderId = { $ne: orderId };
+    }
+
     const [hasActiveOrder, hasActiveReturn] = await Promise.all([
-        Order.exists({
-            deliveryBoyId: deliveryBoyId,
-            isDeleted: { $ne: true },
-            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
-        }),
+        Order.exists(activeOrderQuery),
         ReturnRequest.exists({
             deliveryBoyId: deliveryBoyId,
             status: 'processing'
@@ -327,12 +340,20 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
     }
 
     // Atomic update to prevent double assignment
+    // Accepts both single-vendor (ready_for_pickup) and multi-vendor (all_vendors_ready) orders,
+    // and also allows orders pre-assigned by Admin or already assigned to the same delivery boy.
     const order = await Order.findOneAndUpdate(
         {
             $and: [
                 { $or: idFilter },
-                { status: 'ready_for_pickup' },
-                { $or: [{ deliveryBoyId: null }, { deliveryBoyId: { $exists: false } }] }
+                { status: { $in: ['ready_for_pickup', 'all_vendors_ready', 'processing', 'assigned'] } },
+                { 
+                    $or: [
+                        { deliveryBoyId: null }, 
+                        { deliveryBoyId: { $exists: false } },
+                        { deliveryBoyId: deliveryBoyId }
+                    ] 
+                }
             ]
         },
         {
@@ -346,6 +367,79 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
 
     if (!order) {
         throw new ApiError(409, 'Order is no longer available or has already been assigned.');
+    }
+
+    // ── Multi-Vendor Stop Setup & DeliveryBatch creation ──
+    if (order.isMultiVendor || order.vendorPickups?.length > 0 || order.status === 'all_vendors_ready') {
+        try {
+            // Get rider's current location for nearest-first sorting
+            const rider = await DeliveryBoy.findById(deliveryBoyId).select('currentLocation');
+            const riderCoords = rider?.currentLocation?.coordinates;
+
+            const sortStopsNearestFirst = (stops, coords) => {
+                if (!coords || coords.length < 2) return stops;
+                return [...stops].sort((a, b) => {
+                    const distA = calculateDistance(coords, a.shopLocation?.coordinates || [0, 0]);
+                    const distB = calculateDistance(coords, b.shopLocation?.coordinates || [0, 0]);
+                    return distA - distB;
+                });
+            };
+
+            let rawStops = order.vendorPickups || [];
+            if (rawStops.length === 0) {
+                const populatedOrder = await Order.findById(order._id).populate('vendorItems.vendorId', 'storeName shopAddress shopLocation');
+                rawStops = (populatedOrder?.vendorItems || []).map((vi, idx) => {
+                    const vendorDoc = vi.vendorId;
+                    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                    return {
+                        vendorId: vi.vendorId?._id || vi.vendorId,
+                        vendorName: vendorDoc?.storeName || vi.vendorName,
+                        shopLocation: vendorDoc?.shopLocation || { type: 'Point', coordinates: [0, 0] },
+                        shopAddress: vendorDoc?.shopAddress || '',
+                        sequence: idx,
+                        status: 'pending',
+                        handoverOtp: otp,
+                        handoverOtpHash: otp,
+                        handoverOtpDebug: otp,
+                        handoverOtpSentAt: new Date(),
+                    };
+                });
+                await Order.findByIdAndUpdate(order._id, { vendorPickups: rawStops });
+                order.vendorPickups = rawStops;
+            }
+            const sortedStops = sortStopsNearestFirst(rawStops, riderCoords);
+            const pickupStops = sortedStops.map((stop, idx) => ({
+                vendorId: stop.vendorId,
+                vendorName: stop.vendorName,
+                shopAddress: stop.shopAddress,
+                location: stop.shopLocation,
+                sequence: idx,
+                status: 'pending',
+                otpVerified: false,
+            }));
+
+            // Re-sequence vendorPickups on the order to match sorted stops
+            const resequencedPickups = sortedStops.map((stop, idx) => ({ ...stop.toObject?.() || stop, sequence: idx }));
+            await Order.findByIdAndUpdate(order._id, { vendorPickups: resequencedPickups });
+
+            // Create DeliveryBatch for this multi-vendor trip
+            const batchId = `MVBATCH-${Date.now()}`;
+            await DeliveryBatch.create({
+                batchId,
+                deliveryBoyId,
+                customerId: order.userId,
+                isMultiVendor: true,
+                currentStopIndex: 0,
+                pickupStops,
+                customerLocation: order.dropoffLocation,
+                customerAddress: order.shippingAddress,
+                customerName: order.shippingAddress?.name,
+                status: 'assigned',
+            });
+            console.log(`[MultiVendor] Successfully created DeliveryBatch for order ${order.orderId} via default accept route.`);
+        } catch (mvErr) {
+            console.error(`[MultiVendor] Error setting up batch in default accept route:`, mvErr);
+        }
     }
 
     // Unified Notification to all parties

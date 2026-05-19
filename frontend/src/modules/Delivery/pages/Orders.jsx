@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   FiPackage, 
   FiMapPin, 
@@ -15,7 +15,9 @@ import {
   FiActivity,
   FiTruck
 } from 'react-icons/fi';
+import { Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../../shared/utils/api';
 import PageTransition from '../../../shared/components/PageTransition';
 import { formatPrice } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
@@ -42,6 +44,8 @@ const DeliveryOrders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [selectedNewOrder, setSelectedNewOrder] = useState(null);
+  const [mvOrders, setMvOrders] = useState([]);
+  const [mvLoading, setMvLoading] = useState(false);
   const PAGE_SIZE = 20;
 
   const getBackendStatusFilter = (value) => {
@@ -94,7 +98,9 @@ const DeliveryOrders = () => {
             distance: data.distance || '-',
             estimatedTime: data.estimatedTime || '15 min',
             type: data.type || type,
-            isReturn: (data.type === 'return' || type === 'return')
+            isReturn: (data.type === 'return' || type === 'return'),
+            isMultiVendor: !!data.isMultiVendor,
+            vendorPickups: data.vendorPickups || []
           });
           setShowNewOrderModal(true);
           
@@ -112,6 +118,15 @@ const DeliveryOrders = () => {
 
     socketService.on('order_ready_for_pickup', (data) => handleInboundOrder(data, 'order'));
     socketService.on('return_ready_for_pickup', (data) => handleInboundOrder(data, 'return'));
+
+    // Fetch multi-vendor available orders
+    if (filter === 'multi-vendor' && isOnline) {
+      setMvLoading(true);
+      api.get('/delivery/multi-vendor/available')
+        .then(r => setMvOrders(r.data.data || []))
+        .catch(() => {})
+        .finally(() => setMvLoading(false));
+    }
 
     socketService.on('order_taken', (data) => {
       // Remove the order from local state immediately if another rider took it
@@ -142,13 +157,32 @@ const DeliveryOrders = () => {
     try {
       if (type === 'return') {
         await useDeliveryAuthStore.getState().acceptReturn(orderId);
+        toast.success('Mission assigned! Get started.');
+        navigate(`/delivery/returns/${orderId}`);
       } else {
-        await acceptOrder(orderId);
+        const res = await acceptOrder(orderId);
+        toast.success('Mission assigned! Get started.');
+        if (res?.isMultiVendor) {
+          navigate(`/delivery/multi-vendor/${orderId}`);
+        } else {
+          navigate(`/delivery/orders/${orderId}`);
+        }
       }
-      toast.success('Mission assigned! Get started.');
-      // Directly redirect to the mission start page (Order Detail)
-      navigate(type === 'return' ? `/delivery/returns/${orderId}` : `/delivery/orders/${orderId}`);
     } catch(err) {}
+  };
+
+  const handleAcceptMultiVendor = async (orderId) => {
+    const confirm = window.confirm("Accept this combined multi-vendor order? This will assign all pickups to you.");
+    if (!confirm) return;
+
+    try {
+      toast.loading("Assigning order...", { id: "mv-assign" });
+      await api.post(`/delivery/multi-vendor/${orderId}/accept`);
+      toast.success("Order assigned successfully!", { id: "mv-assign" });
+      navigate(`/delivery/multi-vendor/${orderId}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to accept order.", { id: "mv-assign" });
+    }
   };
 
   const handleCompleteOrder = async (orderId) => {
@@ -185,17 +219,18 @@ const DeliveryOrders = () => {
           </div>
 
           <div className="relative z-10 mt-6 flex gap-2 overflow-x-auto scrollbar-hide">
-             {['available', 'delivered'].filter(t => t !== 'available' || isOnline).map((tab) => (
+             {['available', 'multi-vendor', 'delivered'].filter(t => t !== 'available' || isOnline).map((tab) => (
                <button
                  key={tab}
                  onClick={() => { setFilter(tab); setCurrentPage(1); }}
-                 className={`px-5 py-2 rounded-xl text-[12px] font-bold tracking-tight transition-all duration-300 border ${
+                 className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-[12px] font-bold tracking-tight transition-all duration-300 border ${
                    filter === tab 
                    ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/30' 
                    : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-800'
                  }`}
                >
-                 {tab === 'available' ? 'Active Duty' : tab.charAt(0).toUpperCase() + String(tab || '').slice(1).replace('-', ' ')}
+                 {tab === 'multi-vendor' && <Layers size={12} />}
+                 {tab === 'available' ? 'Active Duty' : tab === 'multi-vendor' ? 'Multi-Vendor' : 'Delivered'}
                </button>
              ))}
           </div>
@@ -204,64 +239,121 @@ const DeliveryOrders = () => {
         {/* Task List Section */}
         <div className="px-4 sm:px-6 -mt-8 sm:-mt-12 relative z-20 pb-16 transition-all duration-500">
           <div className="space-y-3 sm:space-y-4">
-            {isLoadingOrders ? (
-              Array(6).fill(0).map((_, i) => <OrderCardSkeleton key={i} />)
-            ) : orders.length === 0 ? (
-              <div className="text-center py-12 sm:py-20 bg-white rounded-[32px] sm:rounded-[40px] border border-slate-100 shadow-sm">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                   <FiPackage size={30} className="text-slate-200 sm:hidden" />
-                   <FiPackage size={40} className="text-slate-200 hidden sm:block" />
+            {/* Multi-Vendor tab */}
+            {filter === 'multi-vendor' && (
+              mvLoading ? (
+                Array(3).fill(0).map((_, i) => <OrderCardSkeleton key={i} />)
+              ) : mvOrders.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-[32px] border border-slate-100 shadow-sm">
+                  <Layers className="text-slate-200 mx-auto mb-3" size={40} />
+                  <p className="text-slate-500 font-black text-base">No Combined Orders</p>
+                  <p className="text-slate-400 text-xs mt-1">Multi-vendor orders appear here when all vendors are ready.</p>
                 </div>
-                <p className="text-slate-500 font-black text-base sm:text-lg">Empty Queue</p>
-                <p className="text-slate-400 text-[11px] sm:text-sm mt-1">No orders matched your filter.</p>
-              </div>
-            ) : (
-              orders.map((order, index) => (
-                <motion.div
-                  key={order.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  onClick={() => navigate(order.type === 'return' ? `/delivery/returns/${order.id}` : `/delivery/orders/${order.id}`)}
-                  className="bg-white rounded-xl p-3 shadow-md shadow-slate-200/50 border border-slate-100 hover:border-slate-300 transition-all cursor-pointer group relative overflow-hidden"
-                >
-                  {/* Human-Centered Line 1: ID, Customer & Earnings */}
-                  <div className="flex justify-between items-center mb-1.5">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="text-[7.5px] font-bold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tighter shrink-0">#{String(order.id || order.orderId || '').slice(-6)}</span>
-                      <h3 className="font-bold text-slate-800 text-[13px] tracking-tight truncate">{order.customer || 'Guest User'}</h3>
+              ) : (
+                mvOrders.map((order, idx) => (
+                  <motion.div
+                    key={order._id}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.04 }}
+                    onClick={() => handleAcceptMultiVendor(order.orderId)}
+                    className="bg-white rounded-xl p-3 shadow-md border border-indigo-100 hover:border-indigo-300 cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+                        <Layers size={16} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-indigo-500 uppercase tracking-wider">Multi-Vendor</p>
+                        <p className="text-sm font-black text-slate-900">#{order.orderId}</p>
+                      </div>
+                      <div className="ml-auto text-right">
+                        <p className="text-sm font-black text-slate-900">{formatPrice(order.total)}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">{order.vendorItems?.length} vendors</p>
+                      </div>
                     </div>
-                    <p className={`font-bold text-[13px] shrink-0 ml-2 ${order.status === 'delivered' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                      {order.status === 'delivered' ? `+ ${formatPrice(order.deliveryEarnings || 0)}` : formatPrice(order.total || 0)}
-                    </p>
-                  </div>
+                    <div className="flex gap-1 flex-wrap">
+                      {(order.vendorItems || []).map((vi, i) => (
+                        <span key={i} className="text-[9px] bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-full font-bold">
+                          {vi.vendorName}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-[10px] text-slate-400 font-medium">{order.shippingAddress?.city}</p>
+                      <span className="text-[10px] font-black text-indigo-600 flex items-center gap-1">
+                        Accept & Start <FiChevronRight size={10} />
+                      </span>
+                    </div>
+                  </motion.div>
+                ))
+              )
+            )}
 
-                  {/* Proper Status & Metrics */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-1.5 overflow-hidden">
-                       <span className={`text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border ${order.paymentMethod === 'cod' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-sky-50 text-sky-700 border-sky-200'}`}>
-                          {order.paymentMethod?.toUpperCase()}
-                       </span>
-                       <span className={`text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border ${getStatusStyle(order.status)}`}>
-                         {order.status.replace(/_/g, ' ')}
-                       </span>
-                       <div className="h-3 w-[1px] bg-slate-200 mx-1" />
-                       <div className="flex items-center gap-2.5 text-slate-500 text-[9px] font-bold shrink-0">
-                          <span className="flex items-center gap-1"><FiPackage size={11} className="text-slate-400" /> {order.items?.length || 0}</span>
-                          <span className="flex items-center gap-1"><FiNavigation size={11} className="text-sky-600" /> {order.distance || '2.4 km'}</span>
-                       </div>
-                    </div>
-                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/10 relative">
-                      <FiTruck size={16} />
-                      {order.items?.length > 0 && (
-                        <div className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[7px] font-black min-w-[14px] h-[14px] rounded-full flex items-center justify-center px-0.5 border border-white">
-                          {order.items.length}
-                        </div>
-                      )}
-                    </div>
+            {/* Normal orders tab */}
+            {filter !== 'multi-vendor' && (
+              isLoadingOrders ? (
+                Array(6).fill(0).map((_, i) => <OrderCardSkeleton key={i} />)
+              ) : orders.length === 0 ? (
+                <div className="text-center py-12 sm:py-20 bg-white rounded-[32px] sm:rounded-[40px] border border-slate-100 shadow-sm">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                     <FiPackage size={30} className="text-slate-200 sm:hidden" />
+                     <FiPackage size={40} className="text-slate-200 hidden sm:block" />
                   </div>
-                </motion.div>
-              ))
+                  <p className="text-slate-500 font-black text-base sm:text-lg">Empty Queue</p>
+                  <p className="text-slate-400 text-[11px] sm:text-sm mt-1">No orders matched your filter.</p>
+                </div>
+              ) : (
+                orders.map((order, index) => (
+                  <motion.div
+                    key={order.id}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    onClick={() => {
+                      if (order.isMultiVendor) {
+                        navigate(`/delivery/multi-vendor/${order.orderId || order.id}`);
+                      } else {
+                        navigate(order.type === 'return' ? `/delivery/returns/${order.id}` : `/delivery/orders/${order.id}`);
+                      }
+                    }}
+                    className="bg-white rounded-xl p-3 shadow-md shadow-slate-200/50 border border-slate-100 hover:border-slate-300 transition-all cursor-pointer group relative overflow-hidden"
+                  >
+                    <div className="flex justify-between items-center mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-[7.5px] font-bold text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tighter shrink-0">#{String(order.id || order.orderId || '').slice(-6)}</span>
+                        <h3 className="font-bold text-slate-800 text-[13px] tracking-tight truncate">{order.customer || 'Guest User'}</h3>
+                      </div>
+                      <p className={`font-bold text-[13px] shrink-0 ml-2 ${order.status === 'delivered' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                        {order.status === 'delivered' ? `+ ${formatPrice(order.deliveryEarnings || 0)}` : formatPrice(order.total || 0)}
+                      </p>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1.5 overflow-hidden">
+                         <span className={`text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border ${order.paymentMethod === 'cod' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-sky-50 text-sky-700 border-sky-200'}`}>
+                            {order.paymentMethod?.toUpperCase()}
+                         </span>
+                         <span className={`text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border ${getStatusStyle(order.status)}`}>
+                           {order.status.replace(/_/g, ' ')}
+                         </span>
+                         <div className="h-3 w-[1px] bg-slate-200 mx-1" />
+                         <div className="flex items-center gap-2.5 text-slate-500 text-[9px] font-bold shrink-0">
+                            <span className="flex items-center gap-1"><FiPackage size={11} className="text-slate-400" /> {order.items?.length || 0}</span>
+                            <span className="flex items-center gap-1"><FiNavigation size={11} className="text-sky-600" /> {order.distance || '2.4 km'}</span>
+                         </div>
+                      </div>
+                      <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/10 relative">
+                        <FiTruck size={16} />
+                        {order.items?.length > 0 && (
+                          <div className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[7px] font-black min-w-[14px] h-[14px] rounded-full flex items-center justify-center px-0.5 border border-white">
+                            {order.items.length}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+              )
             )}
           </div>
         </div>

@@ -679,7 +679,35 @@ const OrderDetail = () => {
                         </div>
                     )}
 
+                    {order.isMultiVendor && currentStatus === 'ready_for_pickup' && (() => {
+                        const myPickup = (order.vendorPickups || []).find(vp => {
+                            const vpVendorId = vp.vendorId?._id || vp.vendorId;
+                            return String(vpVendorId) === String(vendorId);
+                        });
+                        const otp = myPickup?.handoverOtpDebug || myPickup?.handoverOtp;
+                        if (!otp) return null;
+                        return (
+                            <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl p-4 shadow-lg shadow-indigo-500/20 text-white">
+                                <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-indigo-200">
+                                    🔐 Vendor Handover OTP
+                                </p>
+                                <p className="text-4xl font-black tracking-[0.3em] text-center text-white mb-3">
+                                    {otp}
+                                </p>
+                                <p className="text-[10px] text-indigo-200 text-center leading-tight">
+                                    Share this OTP with the delivery partner when they arrive to collect your items.
+                                </p>
+                                <div className="mt-3 p-2 bg-white/10 rounded-lg">
+                                    <p className="text-[9px] font-bold text-indigo-100 text-center uppercase tracking-wider">
+                                        Stop: {myPickup?.status?.replace(/_/g, ' ') || 'Pending'}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {/* Payment Info */}
+
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                         <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                             <FiDollarSign className="text-emerald-500" />

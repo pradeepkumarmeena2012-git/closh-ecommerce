@@ -799,7 +799,9 @@ const AllOrders = () => {
             options={[
               { value: "all", label: "All Status" },
               { value: "pending", label: "Pending" },
+              { value: "all_vendors_ready", label: "🏪 Combined Orders (All Vendors Ready)" },
               { value: "processing", label: "Processing" },
+              { value: "assigned", label: "Assigned" },
               { value: "shipped", label: "Shipped" },
               { value: "delivered", label: "Delivered" },
               { value: "cancelled", label: "Cancelled" },

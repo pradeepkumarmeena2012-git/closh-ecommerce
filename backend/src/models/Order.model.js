@@ -31,10 +31,52 @@ const vendorItemGroupSchema = new mongoose.Schema({
     vendorEarnings: { type: Number, default: 0 },
     status: {
         type: String,
-        enum: ['pending', 'accepted', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled', 'return requested', 'returned'],
+        enum: [
+            'pending',
+            'accepted',
+            'processing',
+            'ready_for_pickup',
+            'all_vendors_ready',
+            'ready_for_delivery',
+            'searching',
+            'assigned',
+            'picked_up',
+            'shipped',
+            'out_for_delivery',
+            'delivered',
+            'cancelled',
+            'return requested',
+            'returned'
+        ],
         default: 'pending',
     },
 });
+
+// ──────────── Multi-Vendor Pickup Stop ────────────
+const vendorPickupStopSchema = new mongoose.Schema({
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
+    vendorName: String,
+    shopLocation: {
+        type: { type: String, enum: ['Point'], default: 'Point' },
+        coordinates: { type: [Number], default: [0, 0] },
+    },
+    shopAddress: String,
+    sequence: { type: Number, default: 0 }, // nearest-first sorted index
+    status: {
+        type: String,
+        enum: ['pending', 'arrived', 'otp_verified', 'picked_up'],
+        default: 'pending',
+    },
+    arrivedAt: Date,
+    pickedUpAt: Date,
+    handoverOtp: { type: String },
+    handoverOtpHash: { type: String },
+    handoverOtpDebug: { type: String }, // plain-text for dev
+    handoverOtpSentAt: Date,
+    handoverOtpVerifiedAt: Date,
+    handoverOtpAttempts: { type: Number, default: 0 },
+    proofPhoto: String,
+}, { _id: false });
 
 // ──────────── Delivery Flow (Antigravity Engine) ────────────
 const deliveryFlowItemSchema = new mongoose.Schema({
@@ -115,21 +157,28 @@ const orderSchema = new mongoose.Schema(
         status: {
             type: String,
             enum: [
-                'pending',           // Initial placement
-                'accepted',          // Vendor accepted
-                'ready_for_pickup',  // Vendor marked ready + uploaded photo
-                'searching',         // System searching for riders
-                'assigned',          // Rider claimed order
-                'picked_up',         // Rider picked up + OTP generated
-                'out_for_delivery',  // Rider out for delivery
-                'delivered',         // Order completed + user verified
-                'cancelled',         // Cancelled by any party or timeout
-                'return requested',   // Customer requested return
-                'returned'           // Order returned
+                'pending',              // Initial placement
+                'accepted',             // Vendor accepted
+                'processing',           // Processing / preparing
+                'ready_for_pickup',     // Vendor marked ready + uploaded photo
+                'all_vendors_ready',    // ALL vendors ready (multi-vendor orders only)
+                'ready_for_delivery',   // Ready for delivery
+                'searching',            // System searching for riders
+                'assigned',             // Rider claimed order
+                'picked_up',            // Rider picked up + OTP generated
+                'shipped',              // Shipped
+                'out_for_delivery',     // Rider out for delivery
+                'delivered',            // Order completed + user verified
+                'cancelled',            // Cancelled by any party or timeout
+                'return requested',     // Customer requested return
+                'returned'              // Order returned
             ],
             default: 'pending',
             index: true,
         },
+        // Multi-vendor: per-vendor pickup stops (populated when all vendors ready)
+        vendorPickups: [vendorPickupStopSchema],
+        isMultiVendor: { type: Boolean, default: false },
         orderType: {
             type: String,
             enum: ['check_and_buy', 'try_and_buy'],

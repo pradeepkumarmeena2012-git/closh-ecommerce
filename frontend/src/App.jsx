@@ -161,6 +161,7 @@ const DeliveryProfile = lazy(() => import("@modules/Delivery/pages/Profile"));
 const DeliveryNotifications = lazy(() => import("@modules/Delivery/pages/Notifications"));
 const DeliveryLiveTracking = lazy(() => import("@modules/Delivery/pages/LiveTracking"));
 const DeliveryPayouts = lazy(() => import("@modules/Delivery/pages/Payouts"));
+const MultiVendorPickup = lazy(() => import("@modules/Delivery/pages/MultiVendorPickup"));
 
 // Vendor Routes (Lazy Loaded)
 const VendorRegister = lazy(() => import("@modules/Vendor/pages/Register"));
@@ -370,6 +371,7 @@ const AppRoutes = () => {
           <Route path="orders" element={<DeliveryOrders />} />
           <Route path="orders/:id" element={<DeliveryOrderDetail />} />
           <Route path="returns/:id" element={<DeliveryReturnDetail />} />
+          <Route path="multi-vendor/:orderId" element={<MultiVendorPickup />} />
           <Route path="live-tracking/:orderId" element={<DeliveryLiveTracking />} />
           <Route path="notifications" element={<DeliveryNotifications />} />
           <Route path="payouts" element={<DeliveryPayouts />} />

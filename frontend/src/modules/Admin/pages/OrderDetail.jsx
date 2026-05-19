@@ -21,7 +21,7 @@ import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
-import { getOrderById, updateOrderStatus } from '../services/adminService';
+import { getOrderById, updateOrderStatus, getAllDeliveryBoys, assignDeliveryBoy } from '../services/adminService';
 import { formatVariantLabel } from '../../../shared/utils/variant';
 import toast from 'react-hot-toast';
 import { IMAGE_BASE_URL } from '../../../shared/utils/constants';
@@ -42,6 +42,58 @@ const OrderDetail = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [showInvoice, setShowInvoice] = useState(false);
+
+  const [deliveryBoys, setDeliveryBoys] = useState([]);
+  const [selectedRiderId, setSelectedRiderId] = useState('');
+  const [isAssigningRider, setIsAssigningRider] = useState(false);
+  const [isReassigning, setIsReassigning] = useState(false);
+
+  useEffect(() => {
+    const fetchRiders = async () => {
+      try {
+        const response = await getAllDeliveryBoys({
+          status: 'active',
+          applicationStatus: 'approved'
+        });
+        setDeliveryBoys(response?.data?.deliveryBoys || []);
+      } catch (err) {
+        console.error("Error fetching riders:", err);
+      }
+    };
+    fetchRiders();
+  }, []);
+
+  const handleAssignRider = async () => {
+    if (!selectedRiderId) {
+      toast.error("Please select a delivery partner");
+      return;
+    }
+    setIsAssigningRider(true);
+    try {
+      await assignDeliveryBoy(order.id, selectedRiderId);
+      toast.success("Delivery partner assigned successfully!");
+      // Reload order data to reflect assignment
+      const response = await getOrderById(id);
+      const o = response.data;
+      const normalizedOrder = {
+        ...o,
+        id: o.orderId || o._id,
+        customer: {
+          name: o.userId?.name || 'Unknown',
+          email: o.userId?.email || '',
+          phone: o.userId?.phone || ''
+        },
+        date: o.createdAt
+      };
+      setOrder(normalizedOrder);
+      setIsReassigning(false);
+    } catch (err) {
+      console.error("Rider assignment error:", err);
+      toast.error("Failed to assign delivery partner");
+    } finally {
+      setIsAssigningRider(false);
+    }
+  };
 
   useEffect(() => {
     const fetchOrderData = async () => {
@@ -682,6 +734,105 @@ const OrderDetail = () => {
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* Delivery Partner Assignment Card */}
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:border-primary-200 transition-all duration-300 relative overflow-hidden group">
+            {/* Top gradient highlight for premium aesthetic */}
+            <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary-400 to-indigo-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
+            
+            <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <FiTruck className="text-primary-600 text-lg animate-bounce-slow" />
+              Delivery Partner
+            </h2>
+
+            {order.deliveryBoyId && !isReassigning ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-2 bg-gradient-to-br from-primary-50/50 to-indigo-50/30 rounded-xl border border-primary-50">
+                  <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700 text-base shadow-sm uppercase">
+                    {order.deliveryBoyId.name?.slice(0, 2) || "R"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">{order.deliveryBoyId.name}</p>
+                    <p className="text-xs text-gray-500 font-medium">Active Partner</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-xs text-gray-600 px-1">
+                  {order.deliveryBoyId.phone && (
+                    <div className="flex items-center justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-400 flex items-center gap-1"><FiPhone className="text-gray-400" /> Phone</span>
+                      <a href={`tel:${order.deliveryBoyId.phone}`} className="font-semibold text-primary-600 hover:underline">{order.deliveryBoyId.phone}</a>
+                    </div>
+                  )}
+                  {order.deliveryBoyId.vehicleNumber && (
+                    <div className="flex items-center justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-400 flex items-center gap-1"><FiPackage className="text-gray-400" /> Vehicle</span>
+                      <span className="font-semibold text-gray-800 uppercase bg-gray-100 px-1.5 py-0.5 rounded text-[10px] tracking-wide">{order.deliveryBoyId.vehicleNumber} ({order.deliveryBoyId.vehicleType || "Bike"})</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-gray-400">Order Status</span>
+                    <Badge variant={order.status}>{order.status}</Badge>
+                  </div>
+                </div>
+
+                {['pending', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'assigned'].includes(order.status) && (
+                  <button
+                    onClick={() => {
+                      setSelectedRiderId(order.deliveryBoyId._id || order.deliveryBoyId.id || '');
+                      setIsReassigning(true);
+                    }}
+                    className="w-full mt-2 py-2 px-3 text-xs font-semibold rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 transition-all duration-200 text-center flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <FiEdit className="text-xs text-gray-500" />
+                    Reassign Partner
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                  {isReassigning 
+                    ? "Select a new delivery partner to reassign this order." 
+                    : "No delivery partner is assigned yet. Select an active rider to dispatch this order."}
+                </p>
+
+                <div className="relative">
+                  <select
+                    value={selectedRiderId}
+                    onChange={(e) => setSelectedRiderId(e.target.value)}
+                    className="w-full text-xs bg-gray-50 border border-gray-200 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 rounded-lg p-2.5 outline-none text-gray-700 font-medium transition-all"
+                  >
+                    <option value="">Select Delivery Partner</option>
+                    {deliveryBoys.map((boy) => (
+                      <option key={boy._id} value={boy._id}>
+                        {boy.name} ({boy.phone || "No Phone"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-2">
+                  {isReassigning && (
+                    <button
+                      onClick={() => setIsReassigning(false)}
+                      disabled={isAssigningRider}
+                      className="flex-1 py-2 text-xs font-bold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    onClick={handleAssignRider}
+                    disabled={isAssigningRider || !selectedRiderId}
+                    className="flex-[2] py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-primary-600 to-indigo-600 text-white hover:from-primary-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                  >
+                    {isAssigningRider ? "Assigning..." : (isReassigning ? "Confirm Reassign" : "Assign Rider")}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Order Summary */}
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
             <h2 className="text-sm font-bold text-gray-800 mb-3">Order Summary</h2>

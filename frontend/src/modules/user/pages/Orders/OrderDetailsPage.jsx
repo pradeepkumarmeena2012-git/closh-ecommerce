@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
-import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw, CheckCircle, Truck, Store, ThumbsUp, UserCheck, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw, CheckCircle, Truck, Store, ThumbsUp, UserCheck, CheckCircle2, Layers } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 import socketService from '../../../../shared/utils/socket';
@@ -505,6 +505,7 @@ const OrderDetailsPage = () => {
                                     'pending': 0,
                                     'accepted': 1,
                                     'ready_for_pickup': 2,
+                                    'all_vendors_ready': 2,
                                     'searching': 2,
                                     'assigned': 2,
                                     'picked_up': 3,
@@ -712,8 +713,109 @@ const OrderDetailsPage = () => {
                         )}
                     </div>
 
+                    {/* Multi-Vendor Combined Delivery Timeline */}
+                    {order.isMultiVendor && order.vendorItems?.length > 1 && (
+                        <div className="bg-white rounded-3xl border border-indigo-100 p-6 md:p-8 shadow-sm font-sans mt-6">
+                            <h3 className="text-xs md:text-sm font-black uppercase mb-6 flex items-center gap-2 text-indigo-500 tracking-wider">
+                                <Layers size={16} className="text-indigo-500" /> Multi-Vendor Combined Delivery
+                            </h3>
+
+                            {/* Vendor Readiness Grid */}
+                            <div className="grid grid-cols-1 gap-2 mb-6">
+                                {(order.vendorItems || []).map((vi, idx) => {
+                                    const vendorPickup = (order.vendorPickups || []).find(vp => String(vp.vendorId) === String(vi.vendorId));
+                                    const isReady = vi.status === 'ready_for_pickup' || vendorPickup?.status === 'picked_up';
+                                    const isPickedUp = vendorPickup?.status === 'picked_up';
+                                    return (
+                                        <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border ${isPickedUp ? 'bg-emerald-50 border-emerald-200' : isReady ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isPickedUp ? 'bg-emerald-500' : isReady ? 'bg-blue-500' : 'bg-slate-200'}`}>
+                                                    <Store size={13} className={isPickedUp || isReady ? 'text-white' : 'text-slate-400'} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black text-slate-800">{vi.vendorName}</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium">{vi.items?.length || 0} item{vi.items?.length !== 1 ? 's' : ''}</p>
+                                                </div>
+                                            </div>
+                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase ${isPickedUp ? 'bg-emerald-100 text-emerald-700' : isReady ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                {isPickedUp ? 'Picked Up ✓' : isReady ? 'Ready' : vi.status?.replace(/_/g, ' ') || 'Pending'}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Combined Pickup Timeline Steps */}
+                            {(() => {
+                                const s = order.status?.toLowerCase() || 'pending';
+                                const vendorPickups = order.vendorPickups || [];
+                                const pickedCount = vendorPickups.filter(vp => vp.status === 'picked_up').length;
+                                const totalVendors = order.vendorItems?.length || 1;
+
+                                const mvRank = {
+                                    'pending': 0, 'accepted': 0, 'all_vendors_ready': 1,
+                                    'assigned': 2, 'picked_up': 3 + pickedCount,
+                                    'out_for_delivery': 3 + totalVendors,
+                                    'delivered': 5 + totalVendors,
+                                };
+                                const mvCurrentRank = mvRank[s] ?? 0;
+
+                                const mvSteps = [
+                                    { label: 'All Vendors Ready', subtitle: 'Combined order confirmed', icon: CheckCircle },
+                                    { label: 'Rider Assigned', subtitle: 'Multi-stop trip started', icon: Truck },
+                                    ...(order.vendorItems || []).map((vi, i) => ({
+                                        label: `Pickup from ${vi.vendorName}`,
+                                        subtitle: 'OTP verified & collected',
+                                        icon: Package,
+                                        mvRankVal: 3 + i,
+                                        isVendorStop: true,
+                                        vendorPickup: vendorPickups.find(vp => String(vp.vendorId) === String(vi.vendorId)),
+                                    })),
+                                    { label: 'Out for Delivery', subtitle: 'Heading to your location', icon: MapPin, mvRankVal: 3 + totalVendors },
+                                    { label: 'Delivered', subtitle: 'OTP verified & received', icon: CheckCircle, mvRankVal: 4 + totalVendors },
+                                ];
+
+                                return (
+                                    <div className="space-y-3">
+                                        {mvSteps.map((step, idx) => {
+                                            const stepRank = step.mvRankVal ?? idx + 1;
+                                            const isComplete = mvCurrentRank >= stepRank;
+                                            const isActive = mvCurrentRank === stepRank - 1;
+                                            const Icon = step.icon;
+                                            return (
+                                                <div key={idx} className="flex items-start gap-3 relative">
+                                                    {idx < mvSteps.length - 1 && (
+                                                        <div className={`absolute left-[14px] top-8 w-0.5 h-8 ${isComplete ? 'bg-indigo-400' : 'bg-slate-100'}`} />
+                                                    )}
+                                                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 z-10 transition-all ${isComplete ? 'bg-indigo-600 text-white' : isActive ? 'bg-slate-900 text-white animate-pulse' : 'bg-slate-100 text-slate-300'}`}>
+                                                        <Icon size={13} />
+                                                    </div>
+                                                    <div className="pt-0.5 flex-1">
+                                                        <p className={`text-[11px] font-black uppercase tracking-wide ${isComplete ? 'text-indigo-700' : isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                                                            {step.label}
+                                                        </p>
+                                                        <p className="text-[9px] text-slate-400 font-medium">{step.subtitle}</p>
+                                                        {step.isVendorStop && step.vendorPickup?.pickedUpAt && (
+                                                            <span className="text-[8px] font-bold text-emerald-600">
+                                                                ✓ {new Date(step.vendorPickup.pickedUpAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {isComplete && (
+                                                        <CheckCircle size={13} className="text-indigo-500 shrink-0 mt-1" />
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    )}
+
                     {/* Return Live Tracking Timeline */}
                     {order.returnRequest && (
+
                         <div className="bg-white rounded-3xl border border-slate-100 p-6 md:p-8 shadow-sm font-sans mt-6">
                             <h3 className="text-xs md:text-sm font-black uppercase mb-6 flex items-center gap-2 text-slate-400 tracking-wider">
                                 <Clock size={16} className="text-slate-400 animate-spin" style={{ animationDuration: '4s' }} /> Return Live Tracking Timeline

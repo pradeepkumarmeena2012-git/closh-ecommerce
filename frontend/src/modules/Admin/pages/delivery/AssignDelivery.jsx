@@ -8,7 +8,7 @@ import AnimatedSelect from "../../components/AnimatedSelect";
 import { assignDeliveryBoy, getAllDeliveryBoys, getAllOrders } from "../../services/adminService";
 import { formatCurrency } from "../../utils/adminHelpers";
 
-const ASSIGNABLE_STATUSES = ["pending", "processing", "shipped"];
+const ASSIGNABLE_STATUSES = ["pending", "processing", "shipped", "ready_for_pickup", "all_vendors_ready", "assigned"];
 
 const AssignDelivery = () => {
   const [orders, setOrders] = useState([]);
@@ -190,6 +190,9 @@ const AssignDelivery = () => {
               { value: "pending", label: "Pending" },
               { value: "processing", label: "Processing" },
               { value: "shipped", label: "Shipped" },
+              { value: "ready_for_pickup", label: "Ready for Pickup" },
+              { value: "all_vendors_ready", label: "All Vendors Ready" },
+              { value: "assigned", label: "Assigned" },
             ]}
           />
           <div className="sm:col-span-2 flex justify-start sm:justify-end">

@@ -41,6 +41,8 @@ async function notifyEligibleRiders(order) {
         estimatedTime: 'Searching...',
         deliveryFee: 25,
         isReturn: false,
+        isMultiVendor: order.isMultiVendor,
+        vendorPickups: order.vendorPickups,
         type: 'new_assignment_broadcast'
     };
 
