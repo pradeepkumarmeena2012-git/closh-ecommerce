@@ -61,6 +61,7 @@ const vendorPickupStopSchema = new mongoose.Schema({
         coordinates: { type: [Number], default: [0, 0] },
     },
     shopAddress: String,
+    vendorPhone: String,
     sequence: { type: Number, default: 0 }, // nearest-first sorted index
     status: {
         type: String,
@@ -218,6 +219,7 @@ const orderSchema = new mongoose.Schema(
         razorpayPaymentId: { type: String, sparse: true },
         razorpaySignature: { type: String, sparse: true, select: false },
         deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBoy', index: true },
+        rejectedDeliveryBoys: [{ type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBoy' }],
         deliveryEarnings: { type: Number, default: 0 },
         deliveryDistance: { type: Number, default: 0 },
         deliveryTracking: {

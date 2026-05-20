@@ -94,18 +94,28 @@ export const acceptMultiVendorOrder = asyncHandler(async (req, res) => {
 
     if (!order) throw new ApiError(409, 'Order already taken or no longer available.');
 
+    if (!order.deliveryOtpDebug) {
+        order.generateDeliveryOtp();
+        await order.save();
+    }
+
     // Sort stops nearest-first and build DeliveryBatch pickupStops
     let rawStops = order.vendorPickups || [];
     if (rawStops.length === 0) {
-        const populatedOrder = await Order.findById(order._id).populate('vendorItems.vendorId', 'storeName shopAddress shopLocation');
+        const populatedOrder = await Order.findById(order._id).populate('vendorItems.vendorId', 'storeName shopAddress shopLocation phone address');
         rawStops = (populatedOrder?.vendorItems || []).map((vi, idx) => {
             const vendorDoc = vi.vendorId;
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const fullAddress = vendorDoc?.shopAddress 
+                || [vendorDoc?.address?.street, vendorDoc?.address?.city, vendorDoc?.address?.state, vendorDoc?.address?.zipCode]
+                    .filter(Boolean).join(', ') 
+                || '';
             return {
                 vendorId: vi.vendorId?._id || vi.vendorId,
                 vendorName: vendorDoc?.storeName || vi.vendorName,
                 shopLocation: vendorDoc?.shopLocation || { type: 'Point', coordinates: [0, 0] },
-                shopAddress: vendorDoc?.shopAddress || '',
+                shopAddress: fullAddress,
+                vendorPhone: vendorDoc?.phone || '',
                 sequence: idx,
                 status: 'pending',
                 handoverOtp: otp,
@@ -122,6 +132,7 @@ export const acceptMultiVendorOrder = asyncHandler(async (req, res) => {
         vendorId: stop.vendorId,
         vendorName: stop.vendorName,
         shopAddress: stop.shopAddress,
+        vendorPhone: stop.vendorPhone || '',
         location: stop.shopLocation,
         sequence: idx,
         status: 'pending',
@@ -186,7 +197,49 @@ export const getMultiVendorOrderStatus = asyncHandler(async (req, res) => {
         .lean();
     if (!order) throw new ApiError(404, 'Order not found or not assigned to you.');
 
-    const batch = await DeliveryBatch.findOne({ customerId: order.userId, deliveryBoyId, isMultiVendor: true }).lean();
+    // Find the ACTIVE batch (exclude delivered/cancelled), newest first
+    let batch = await DeliveryBatch.findOne({ 
+        customerId: order.userId, 
+        deliveryBoyId, 
+        isMultiVendor: true,
+        status: { $nin: ['delivered', 'cancelled'] }
+    }).sort({ createdAt: -1 }).lean();
+    if (!batch) {
+        batch = await DeliveryBatch.findOne({ 
+            deliveryBoyId, 
+            isMultiVendor: true, 
+            status: { $nin: ['delivered', 'cancelled'] } 
+        }).sort({ createdAt: -1 }).lean();
+    }
+
+    // Enrich vendorPickups with live vendor phone & address (for existing orders that may lack them)
+    if (order.vendorPickups?.length > 0) {
+        try {
+            const Vendor = mongoose.model('Vendor');
+            const vendorIds = order.vendorPickups.map(s => s.vendorId).filter(Boolean);
+            const vendors = await Vendor.find({ _id: { $in: vendorIds } })
+                .select('phone shopAddress address')
+                .lean();
+            const vendorMap = {};
+            vendors.forEach(v => { vendorMap[v._id.toString()] = v; });
+            
+            order.vendorPickups = order.vendorPickups.map(stop => {
+                const v = vendorMap[stop.vendorId?.toString()];
+                if (v) {
+                    if (!stop.vendorPhone) stop.vendorPhone = v.phone || '';
+                    if (!stop.shopAddress) {
+                        stop.shopAddress = v.shopAddress 
+                            || [v.address?.street, v.address?.city, v.address?.state, v.address?.zipCode]
+                                .filter(Boolean).join(', ') 
+                            || '';
+                    }
+                }
+                return stop;
+            });
+        } catch (enrichErr) {
+            console.error('[VendorPickup Enrich] Error:', enrichErr.message);
+        }
+    }
 
     res.status(200).json(new ApiResponse(200, { order, batch }, 'Multi-vendor order status.'));
 });

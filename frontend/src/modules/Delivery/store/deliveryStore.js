@@ -435,6 +435,20 @@ export const useDeliveryAuthStore = create(
           throw e;
         }
       },
+      rejectOrder: async (id) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+          const res = await api.post(`/delivery/orders/${id}/reject`);
+          set({
+            orders: get().orders.filter(o => o.id !== id),
+            isUpdatingOrderStatus: false
+          });
+          return res.data || res;
+        } catch (e) {
+          set({ isUpdatingOrderStatus: false });
+          throw e;
+        }
+      },
       cancelOrder: async (id, reason) => {
         set({ isUpdatingOrderStatus: true });
         try {

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../../shared/utils/api';
+import socketService from '../../../shared/utils/socket';
 import {
     Package, MapPin, CheckCircle, ChevronRight, Truck, ShieldCheck,
     Phone, Clock, AlertCircle, Loader2, Store, Navigation, QrCode
@@ -11,6 +13,14 @@ const STATUS_CONFIG = {
     arrived: { label: 'Arrived', color: 'bg-amber-100 text-amber-600', icon: Navigation },
     otp_verified: { label: 'OTP Verified', color: 'bg-blue-100 text-blue-600', icon: ShieldCheck },
     picked_up: { label: 'Picked Up', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle },
+};
+
+const READINESS_CONFIG = {
+    pending: { label: 'Preparing', color: 'bg-amber-50 text-amber-600 border-amber-200' },
+    accepted: { label: 'Accepted', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+    processing: { label: 'Processing', color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
+    ready_for_pickup: { label: 'Ready', color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+    cancelled: { label: 'Cancelled', color: 'bg-rose-50 text-rose-600 border-rose-200' },
 };
 
 export default function MultiVendorPickup() {
@@ -43,7 +53,24 @@ export default function MultiVendorPickup() {
         }
     }, [orderId]);
 
-    useEffect(() => { fetchOrder(); }, [fetchOrder]);
+    useEffect(() => {
+        fetchOrder();
+        
+        const handleStatusUpdate = (e) => {
+            const data = e.detail;
+            if (data && (data.batchId === batch?.batchId || data.batchId === batch?._id || data.batchId === orderId)) {
+                console.log("📡 [MultiVendorPickup] Received batch-vendor-status-updated event:", data);
+                setBatch(prev => prev ? { ...prev, pickupStops: data.pickupStops } : prev);
+                // Also trigger order reload to keep vendorPickups details synced
+                fetchOrder();
+            }
+        };
+
+        window.addEventListener('batch-vendor-status-updated', handleStatusUpdate);
+        return () => {
+            window.removeEventListener('batch-vendor-status-updated', handleStatusUpdate);
+        };
+    }, [fetchOrder, batch?.batchId, batch?._id, orderId]);
 
     const doAction = async (fn) => {
         setActionLoading(true);
@@ -107,6 +134,24 @@ export default function MultiVendorPickup() {
         api.post(`/delivery/multi-vendor/${orderId}/complete`, { otp: customerOtp })
     );
 
+    const handleRejectAssignment = async () => {
+        if (!window.confirm("Are you sure you want to reject this assignment? This order will be reassigned to another partner.")) {
+            return;
+        }
+        setActionLoading(true);
+        setError('');
+        try {
+            await api.post(`/delivery/orders/${orderId || order?._id || order?.id}/reject`);
+            toast.success("Assignment rejected. Returning to dashboard...");
+            navigate('/delivery/dashboard');
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to reject assignment.');
+            toast.error(err.response?.data?.message || 'Failed to reject assignment.');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     if (loading) return (
         <div className="flex items-center justify-center min-h-screen bg-slate-50">
             <Loader2 className="animate-spin text-slate-400" size={36} />
@@ -121,12 +166,30 @@ export default function MultiVendorPickup() {
         </div>
     );
 
-    const stops = order.vendorPickups || [];
+    const stops = [...(order.vendorPickups || [])].sort((a, b) => {
+        const aBatchStop = batch?.pickupStops?.find(s => String(s.vendorId) === String(a.vendorId));
+        const bBatchStop = batch?.pickupStops?.find(s => String(s.vendorId) === String(b.vendorId));
+        const seqA = aBatchStop ? aBatchStop.sequence : (a.sequence ?? 0);
+        const seqB = bBatchStop ? bBatchStop.sequence : (b.sequence ?? 0);
+        return seqA - seqB;
+    });
     const completedStops = stops.filter(s => s.status === 'picked_up').length;
-    const allPicked = completedStops === stops.length && stops.length > 0;
-    const progressPct = stops.length > 0 ? Math.round((completedStops / stops.length) * 100) : 0;
+    const activeStops = stops.filter(s => {
+        const batchStop = batch?.pickupStops?.find(bs => String(bs.vendorId) === String(s.vendorId));
+        return batchStop?.status !== 'cancelled';
+    });
+    const allPicked = completedStops >= activeStops.length && activeStops.length > 0;
+    const progressPct = activeStops.length > 0 ? Math.round((completedStops / activeStops.length) * 100) : 0;
 
-    const currentStop = stops.find(s => s.status !== 'picked_up');
+    const currentStop = stops.find(s => {
+        const batchStop = batch?.pickupStops?.find(bs => String(bs.vendorId) === String(s.vendorId));
+        // If batch exists and has matching stop, use batch status
+        if (batchStop) {
+            return s.status !== 'picked_up' && batchStop.status !== 'picked_up' && batchStop.status !== 'cancelled';
+        }
+        // Fallback: no batch or no matching batch stop — use order-level stop status only
+        return s.status !== 'picked_up';
+    });
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans pb-32">
@@ -190,42 +253,75 @@ export default function MultiVendorPickup() {
                 <p className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">Pickup Stops</p>
                 <div className="space-y-4">
                     {stops.map((stop, idx) => {
-                        const isActive = stop === currentStop;
-                        const isPicked = stop.status === 'picked_up';
-                        const statusCfg = STATUS_CONFIG[stop.status] || STATUS_CONFIG.pending;
+                        const batchStop = batch?.pickupStops?.find(s => String(s.vendorId) === String(stop.vendorId));
+                        const isCancelled = batchStop?.status === 'cancelled';
+                        const isActive = stop === currentStop && !isCancelled;
+                        const isPicked = stop.status === 'picked_up' && !isCancelled;
+                        
+                        const statusCfg = isCancelled
+                            ? { label: 'Cancelled', color: 'bg-rose-100 text-rose-700' }
+                            : (STATUS_CONFIG[stop.status] || STATUS_CONFIG.pending);
+                            
+                        const readiness = batchStop?.vendorReadinessStatus || stop.vendorReadinessStatus || 'pending';
+                        const readinessCfg = READINESS_CONFIG[readiness] || READINESS_CONFIG.pending;
                         const StatusIcon = statusCfg.icon;
 
                         const coords = stop.shopLocation?.coordinates || stop.location?.coordinates;
                         const [lng, lat] = coords || [];
-                        const mapsUrl = coords && coords[0] !== 0 ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null;
+                        const stopAddress = stop.shopAddress || batchStop?.shopAddress || '';
+                        const vendorPhone = stop.vendorPhone || batchStop?.vendorPhone || '';
+                        
+                        // Use address-based Google Maps search when address exists, fallback to coordinates
+                        let mapsUrl = null;
+                        if (stopAddress) {
+                            mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stopAddress)}`;
+                        } else if (coords && coords[0] !== 0) {
+                            mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+                        }
 
                         return (
                             <div
                                 key={String(stop.vendorId)}
                                 className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all duration-300 ${
-                                    isActive ? 'border-slate-900 shadow-slate-900/10' : isPicked ? 'border-emerald-200' : 'border-slate-100 opacity-60'
+                                    isCancelled ? 'border-rose-100 opacity-50 bg-rose-50/20' : isActive ? 'border-slate-900 shadow-slate-900/10' : isPicked ? 'border-emerald-200' : 'border-slate-100 opacity-60'
                                 }`}
                             >
                                 {/* Stop Header */}
-                                <div className={`flex items-center gap-3 p-4 ${isPicked ? 'bg-emerald-50' : isActive ? 'bg-slate-900' : 'bg-slate-50'}`}>
-                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-sm font-black ${isPicked ? 'bg-emerald-500 text-white' : isActive ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-500'}`}>
+                                <div className={`flex items-center gap-3 p-4 ${isPicked ? 'bg-emerald-50' : isCancelled ? 'bg-rose-50/50' : isActive ? 'bg-slate-900' : 'bg-slate-50'}`}>
+                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-sm font-black ${isPicked ? 'bg-emerald-500 text-white' : isCancelled ? 'bg-rose-200 text-rose-700' : isActive ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-500'}`}>
                                         {isPicked ? <CheckCircle size={16} /> : idx + 1}
                                     </div>
-                                    <div className="flex-1">
-                                        <p className={`text-sm font-black ${isActive ? 'text-white' : isPicked ? 'text-emerald-700' : 'text-slate-600'}`}>
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-sm font-black ${isActive ? 'text-white' : isPicked ? 'text-emerald-700' : isCancelled ? 'text-rose-700 line-through' : 'text-slate-600'}`}>
                                             {stop.vendorName}
                                         </p>
-                                        {stop.shopAddress && (
-                                            <p className={`text-[11px] font-medium mt-0.5 ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
-                                                {stop.shopAddress}
+                                        {stopAddress && (
+                                            <p className={`text-[11px] font-medium mt-0.5 truncate ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                                                📍 {stopAddress}
                                             </p>
+                                        )}
+                                        {vendorPhone && (
+                                            <a 
+                                                href={`tel:${vendorPhone}`} 
+                                                className={`flex items-center gap-1 text-[11px] font-bold mt-0.5 ${isActive ? 'text-blue-300' : 'text-blue-500'}`}
+                                            >
+                                                <Phone size={10} /> {vendorPhone}
+                                            </a>
                                         )}
                                     </div>
                                     <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${statusCfg.color}`}>
-                                            {statusCfg.label}
-                                        </span>
-                                        {mapsUrl && !isPicked && (
+                                        <div className="flex gap-1.5 items-center">
+                                            {/* Vendor Readiness Status */}
+                                            {!isPicked && !isCancelled && (
+                                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${readinessCfg.color}`}>
+                                                    {readinessCfg.label}
+                                                </span>
+                                            )}
+                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${statusCfg.color}`}>
+                                                {statusCfg.label}
+                                            </span>
+                                        </div>
+                                        {mapsUrl && !isPicked && !isCancelled && (
                                             <a
                                                 href={mapsUrl}
                                                 target="_blank"
@@ -356,9 +452,75 @@ export default function MultiVendorPickup() {
                 </div>
             </div>
 
+            {/* Reject Assignment Action */}
+            {order.status === 'assigned' && (
+                <div className="mx-4 mt-6">
+                    <button
+                        onClick={handleRejectAssignment}
+                        disabled={actionLoading}
+                        className="w-full py-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-rose-100 disabled:opacity-50"
+                    >
+                        {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <AlertCircle size={16} />}
+                        Reject Assignment
+                    </button>
+                </div>
+            )}
+
             {/* Final Delivery Actions */}
             {allPicked && (
                 <div className="mx-4 mt-5 space-y-3">
+                    {/* Customer Destination Card */}
+                    {(() => {
+                        const customerCoords = order.dropoffLocation?.coordinates;
+                        const [cLng, cLat] = customerCoords || [];
+                        const fullCustomerAddress = [order.shippingAddress?.address, order.shippingAddress?.city, order.shippingAddress?.state, order.shippingAddress?.zipCode]
+                            .filter(Boolean).join(', ');
+                        
+                        let customerMapsUrl = null;
+                        if (fullCustomerAddress && fullCustomerAddress.length > 5) {
+                            customerMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullCustomerAddress)}`;
+                        } else if (customerCoords && customerCoords[0] !== 0) {
+                            customerMapsUrl = `https://www.google.com/maps/search/?api=1&query=${cLat},${cLng}`;
+                        }
+
+                        return (
+                            <div className="bg-white rounded-2xl border border-slate-900 shadow-slate-900/10 shadow-sm overflow-hidden mb-4">
+                                <div className="flex items-center gap-3 p-4 bg-slate-900 text-white">
+                                    <div className="w-8 h-8 rounded-xl bg-white text-slate-900 flex items-center justify-center shrink-0">
+                                        <MapPin size={16} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Final Destination</p>
+                                        <p className="text-sm font-black text-white truncate">{order.shippingAddress?.name}</p>
+                                        {fullCustomerAddress && (
+                                            <p className="text-[11px] font-medium mt-0.5 truncate text-slate-300">
+                                                📍 {fullCustomerAddress}
+                                            </p>
+                                        )}
+                                        {order.shippingAddress?.phone && (
+                                            <a href={`tel:${order.shippingAddress.phone}`} className="flex items-center gap-1 text-[11px] font-bold mt-0.5 text-blue-300">
+                                                <Phone size={10} /> {order.shippingAddress.phone}
+                                            </a>
+                                        )}
+                                    </div>
+                                    {customerMapsUrl && (
+                                        <div className="shrink-0">
+                                            <a
+                                                href={customerMapsUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex flex-col items-center justify-center gap-1 px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-xl text-[10px] font-black transition-all active:scale-95"
+                                            >
+                                                <Navigation size={14} className="rotate-45" />
+                                                Navigate
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {order.status === 'picked_up' && (
                         <button
                             onClick={startDelivery}

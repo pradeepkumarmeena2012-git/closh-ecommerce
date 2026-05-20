@@ -10,6 +10,7 @@ import { notifyNearbyDeliveryBoys } from '../../delivery/controllers/assignment.
 import { emitEvent } from '../../../services/socket.service.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 import { WalletService } from '../../../services/wallet.service.js';
+import { calculateDistance } from '../../../utils/geo.js';
 
 const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
     const statuses = (vendorItems || [])
@@ -18,22 +19,36 @@ const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
 
     if (!statuses.length) return String(fallback || 'pending').toLowerCase();
 
+    // Preserve delivery-phase statuses — once a rider is assigned/in-transit, 
+    // vendor readiness updates must NOT regress the order status
+    const deliveryPhaseStatuses = ['assigned', 'picked_up', 'out_for_delivery', 'delivered'];
+    const currentFallback = String(fallback || 'pending').toLowerCase();
+
     if (statuses.every((s) => s === 'cancelled')) return 'cancelled';
     if (statuses.every((s) => s === 'delivered')) return 'delivered';
     if (statuses.includes('out_for_delivery')) return 'out_for_delivery';
     if (statuses.includes('picked_up')) return 'picked_up';
     // Multi-vendor: ALL vendors ready → special combined status
     if (statuses.length > 1) {
-        if (statuses.every((s) => s === 'ready_for_pickup')) return 'all_vendors_ready';
-        if (statuses.includes('pending')) return 'pending';
-        return 'processing';
+        if (statuses.every((s) => s === 'ready_for_pickup')) {
+            // If delivery boy already assigned (status is assigned or later), keep it
+            if (deliveryPhaseStatuses.includes(currentFallback)) {
+                return currentFallback;
+            }
+            return 'all_vendors_ready';
+        }
+        if (statuses.includes('pending')) return deliveryPhaseStatuses.includes(currentFallback) ? currentFallback : 'pending';
+        return deliveryPhaseStatuses.includes(currentFallback) ? currentFallback : 'processing';
     }
 
-    if (statuses.includes('ready_for_pickup')) return 'ready_for_pickup';
-    if (statuses.includes('accepted')) return 'accepted';
-    if (statuses.includes('pending')) return 'pending';
+    if (statuses.includes('ready_for_pickup')) {
+        if (deliveryPhaseStatuses.includes(currentFallback)) return currentFallback;
+        return 'ready_for_pickup';
+    }
+    if (statuses.includes('accepted')) return deliveryPhaseStatuses.includes(currentFallback) ? currentFallback : 'accepted';
+    if (statuses.includes('pending')) return deliveryPhaseStatuses.includes(currentFallback) ? currentFallback : 'pending';
 
-    return String(fallback || 'pending').toLowerCase();
+    return currentFallback;
 };
 
 // GET /api/vendor/orders
@@ -177,6 +192,61 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     console.log(`[VendorUpdate] New Group Status: ${status}, Overall Order Status: ${oldStatus} -> ${order.status}`);
     await order.save();
 
+    // ── Sync Vendor Status to active DeliveryBatch ──
+    try {
+        const DeliveryBatch = mongoose.model('DeliveryBatch');
+        const activeBatch = await DeliveryBatch.findOne({
+            customerId: order.userId || order.guestInfo?.phone, // Match user or guest
+            status: { $in: ['assigned', 'picked_up', 'arrived', 'try_and_buy', 'payment_pending'] }
+        });
+        
+        if (activeBatch) {
+            const stop = activeBatch.pickupStops.find(s => s.vendorId.toString() === req.user.id);
+            if (stop) {
+                stop.vendorReadinessStatus = status;
+                
+                // If vendor cancelled, mark or remove and recalculate sequence for remaining stops
+                if (status === 'cancelled') {
+                    stop.status = 'cancelled';
+                    
+                    // Recalculate sequences for non-cancelled stops
+                    const activeStops = activeBatch.pickupStops.filter(s => s.status !== 'cancelled');
+                    const DeliveryBoy = mongoose.model('DeliveryBoy');
+                    const rider = await DeliveryBoy.findById(activeBatch.deliveryBoyId);
+                    const riderCoords = rider?.currentLocation?.coordinates || [0, 0];
+                    
+                    // Sort remaining stops by distance
+                    const sorted = [...activeStops].sort((a, b) => {
+                        const distA = calculateDistance(riderCoords, a.location?.coordinates || [0, 0]);
+                        const distB = calculateDistance(riderCoords, b.location?.coordinates || [0, 0]);
+                        return distA - distB;
+                    });
+                    
+                    // Apply new sequences
+                    activeBatch.pickupStops.forEach(s => {
+                        if (s.status !== 'cancelled') {
+                            const newIdx = sorted.findIndex(sortedStop => sortedStop.vendorId.toString() === s.vendorId.toString());
+                            if (newIdx !== -1) s.sequence = newIdx;
+                        }
+                    });
+                }
+                
+                await activeBatch.save();
+                
+                // Notify the delivery boy
+                console.log(`📡 [Socket Emit] batch_vendor_status_update for rider: ${activeBatch.deliveryBoyId}`);
+                emitEvent(`delivery_${activeBatch.deliveryBoyId.toString()}`, 'batch_vendor_status_update', {
+                    batchId: activeBatch.batchId,
+                    vendorId: req.user.id,
+                    vendorReadinessStatus: status,
+                    pickupStops: activeBatch.pickupStops
+                });
+            }
+        }
+    } catch (batchSyncErr) {
+        console.error(`[DeliveryBatch Sync Error]`, batchSyncErr);
+    }
+
     // Restore stock if cancelled by vendor
     if (statusChangedToCancelled) {
         console.log(`[StockRestore] Vendor ${req.user.id} cancelled order ${order.orderId}. Restoring stock...`);
@@ -246,16 +316,21 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     if (order.status === 'all_vendors_ready' && !order.isMultiVendor) {
         try {
             // Mark as multi-vendor and build vendorPickups stops
-            const populatedOrder = await Order.findById(order._id).populate('vendorItems.vendorId', 'storeName shopAddress shopLocation');
+            const populatedOrder = await Order.findById(order._id).populate('vendorItems.vendorId', 'storeName shopAddress shopLocation phone address');
             const vendorPickups = (populatedOrder?.vendorItems || []).map((vi, idx) => {
                 const vendorDoc = vi.vendorId;
                 // Generate handover OTP for each vendor
                 const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                const fullAddress = vendorDoc?.shopAddress 
+                    || [vendorDoc?.address?.street, vendorDoc?.address?.city, vendorDoc?.address?.state, vendorDoc?.address?.zipCode]
+                        .filter(Boolean).join(', ') 
+                    || '';
                 return {
                     vendorId: vi.vendorId?._id || vi.vendorId,
                     vendorName: vendorDoc?.storeName || vi.vendorName,
                     shopLocation: vendorDoc?.shopLocation || { type: 'Point', coordinates: [0, 0] },
-                    shopAddress: vendorDoc?.shopAddress || '',
+                    shopAddress: fullAddress,
+                    vendorPhone: vendorDoc?.phone || '',
                     sequence: idx,
                     status: 'pending',
                     handoverOtp: otp,
@@ -293,6 +368,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                             vendorId: stop.vendorId,
                             vendorName: stop.vendorName,
                             shopAddress: stop.shopAddress,
+                            vendorPhone: stop.vendorPhone || '',
                             location: stop.shopLocation,
                             sequence: idx,
                             status: 'pending',

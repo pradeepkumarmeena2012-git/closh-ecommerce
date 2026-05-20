@@ -23,6 +23,7 @@ import { OrderNotificationService } from '../../../services/orderNotification.se
 import { geocodeAddress, getDistanceMatrix } from '../../../services/googleMaps.service.js';
 import { applyActiveCampaigns } from '../../../utils/productUtils.js';
 import { validateCoupon } from '../../../services/coupon.service.js';
+import { autoAssignDeliveryBoy } from '../../../services/autoAssignment.service.js';
 
 const getRazorpayInstance = () => {
     const key_id = process.env.RAZORPAY_KEY_ID;
@@ -530,6 +531,13 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 title: 'New Order Received!',
                 message: `You have a new ${orderType?.replace(/_/g, ' ') || 'order'} of Rs.${order.total}.`
             }).catch(err => console.error('[OrderDebug] Notification failed:', err));
+
+            // Auto-assign delivery boy instantly for COD / non-prepaid orders
+            if (order.paymentMethod !== 'prepaid') {
+                autoAssignDeliveryBoy(order._id).catch(err => {
+                    console.error("[AutoAssign Error in placeOrder]", err);
+                });
+            }
         }
     } catch (err) {
         if (idempotencyKey && err?.code === 11000) {
@@ -607,6 +615,11 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     }
 
     await order.save();
+
+    // Trigger auto assignment for prepaid order after payment succeeds
+    autoAssignDeliveryBoy(order._id).catch(err => {
+        console.error("[AutoAssign Error in verifyPayment]", err);
+    });
 
     res.status(200).json(new ApiResponse(200, { orderId: order.orderId }, "Payment verified successfully."));
 });

@@ -36,6 +36,7 @@ const DeliveryBatchSchema = new mongoose.Schema({
     vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
     vendorName: String,
     shopAddress: String,
+    vendorPhone: String,
     location: {
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], default: [0, 0] },
@@ -43,13 +44,14 @@ const DeliveryBatchSchema = new mongoose.Schema({
     sequence: { type: Number, default: 0 },
     status: {
       type: String,
-      enum: ['pending', 'arrived', 'otp_verified', 'picked_up'],
+      enum: ['pending', 'arrived', 'otp_verified', 'picked_up', 'cancelled'],
       default: 'pending',
     },
     arrivedAt: Date,
     pickedUpAt: Date,
     otpVerified: { type: Boolean, default: false },
     proofPhoto: String,
+    vendorReadinessStatus: { type: String, default: 'pending' },
   }]
 }, { timestamps: true });
 

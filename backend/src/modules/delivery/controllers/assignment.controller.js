@@ -11,6 +11,7 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import OrderNotificationService from '../../../services/orderNotification.service.js';
 import { calculateDistance } from '../../../utils/geo.js';
+import { autoAssignDeliveryBoy } from '../../../services/autoAssignment.service.js';
 
 
 /**
@@ -458,3 +459,65 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
 
     res.status(200).json(new ApiResponse(200, order, 'Order assigned successfully.'));
 });
+
+/**
+ * Handle delivery boy rejecting an auto-assigned order
+ */
+export const rejectOrderAssignment = asyncHandler(async (req, res) => {
+    const { id: orderId } = req.params;
+    const deliveryBoyId = req.user.id;
+
+    console.log(`[RejectAssignment] Rider ${deliveryBoyId} requested rejection for order: ${orderId}`);
+
+    const idFilter = [];
+    if (mongoose.isValidObjectId(orderId)) {
+        idFilter.push({ _id: new mongoose.Types.ObjectId(orderId) });
+    }
+    idFilter.push({ orderId });
+
+    const order = await Order.findOne({
+        $or: idFilter,
+        deliveryBoyId: deliveryBoyId
+    });
+
+    if (!order) {
+        throw new ApiError(404, 'Order assignment not found or already assigned/reassigned to another rider.');
+    }
+
+    // Prevent rejection if rider has already proceeded beyond assignment
+    if (['picked_up', 'shipped', 'out_for_delivery', 'delivered'].includes(order.status)) {
+        throw new ApiError(400, 'Cannot reject order assignment once pickup has started.');
+    }
+
+    // 1. Mark this delivery boy as rejected for this order
+    if (!order.rejectedDeliveryBoys.includes(deliveryBoyId)) {
+        order.rejectedDeliveryBoys.push(deliveryBoyId);
+    }
+
+    // 2. Clear assignment on the Order
+    order.deliveryBoyId = undefined;
+    order.status = 'searching';
+    order.vendorPickups = []; // Will be recalculated by new assignment
+    await order.save();
+
+    // 3. Re-enable rider availability
+    await DeliveryBoy.findByIdAndUpdate(deliveryBoyId, { status: 'available' });
+
+    // 4. Delete the DeliveryBatch
+    await DeliveryBatch.deleteMany({
+        customerId: order.userId,
+        deliveryBoyId: deliveryBoyId,
+        status: { $in: ['assigned', 'picked_up', 'arrived', 'try_and_buy', 'payment_pending'] }
+    });
+
+    // 5. Trigger auto assignment for the next nearest rider (excluding current one)
+    console.log(`[RejectAssignment] Triggering autoAssignment search excluding current rider ${deliveryBoyId}`);
+    autoAssignDeliveryBoy(order._id, [deliveryBoyId]).catch(err => {
+        console.error("[RejectAssignment] Background autoAssign trigger failed:", err);
+    });
+
+    await cacheInvalidate(`dash:${deliveryBoyId}`, `profile:${deliveryBoyId}`);
+
+    res.status(200).json(new ApiResponse(200, null, 'Assignment rejected. Searching for another partner.'));
+});
+

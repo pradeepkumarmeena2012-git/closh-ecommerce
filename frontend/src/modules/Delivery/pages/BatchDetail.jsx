@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import api from '../../../shared/utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiPackage, FiNavigation, FiMap, FiCheckCircle, FiInfo, FiChevronLeft, 
@@ -148,6 +149,31 @@ const BatchDetail = () => {
     } catch(err) {}
   };
 
+  const handleRejectAssignment = async () => {
+    if (!window.confirm("Are you sure you want to reject this assignment?")) return;
+    
+    // Find the order ID from deliveries
+    const firstDelivery = batch?.deliveries?.[0];
+    if (!firstDelivery) {
+      toast.error("No orders found in this batch to reject.");
+      return;
+    }
+    
+    const targetOrderId = firstDelivery.orderId?._id || firstDelivery.orderId;
+    if (!targetOrderId) {
+      toast.error("Order ID not found.");
+      return;
+    }
+    
+    try {
+      await api.post(`/delivery/orders/${targetOrderId}/reject`);
+      toast.success("Assignment rejected!");
+      navigate('/delivery/dashboard');
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to reject assignment.");
+    }
+  };
+
   // --- Render Nodes ---
 
   return (
@@ -206,6 +232,14 @@ const BatchDetail = () => {
                  className="w-full py-5 bg-emerald-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-200 disabled:opacity-50"
                >
                  {isUpdatingBatch ? 'Verifying...' : 'Complete Phase 1: Pickup'}
+               </button>
+
+               <button 
+                 onClick={handleRejectAssignment}
+                 disabled={isUpdatingBatch}
+                 className="w-full py-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-rose-100 transition-colors"
+               >
+                 <FiAlertCircle size={16} /> Reject Assignment
                </button>
             </motion.div>
           )}

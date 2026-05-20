@@ -3,6 +3,7 @@ import logo from "../../../../assets/animations/lottie/logo-removebg.png";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
 import { FiLogOut, FiTruck, FiPackage, FiHome, FiUser, FiMenu, FiBell, FiAlertCircle } from "react-icons/fi";
 import { useDeliveryAuthStore } from "../../store/deliveryStore";
+import { useDeliveryEngineStore } from "../../store/deliveryEngineStore";
 import { useDeliveryNotificationStore } from "../../store/deliveryNotificationStore";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -282,6 +283,29 @@ const DeliveryLayout = () => {
       useDeliveryAuthStore.getState().setBalance(data);
     });
 
+    const handleBatchVendorStatusUpdate = (data) => {
+      console.log('📡 [Socket] batch_vendor_status_update received:', data);
+      // Update active batch inside delivery engine store if matched
+      try {
+        const engineStore = useDeliveryEngineStore.getState();
+        if (engineStore.activeBatch && engineStore.activeBatch.batchId === data.batchId) {
+          useDeliveryEngineStore.setState({
+            activeBatch: {
+              ...engineStore.activeBatch,
+              pickupStops: data.pickupStops
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error updating active batch in store:', err);
+      }
+      
+      // Dispatch custom event so pages can update local state
+      window.dispatchEvent(new CustomEvent('batch-vendor-status-updated', { detail: data }));
+      toast.success('🏪 Vendor product readiness updated!');
+    };
+    socketService.on('batch_vendor_status_update', handleBatchVendorStatusUpdate);
+
     window.addEventListener('delivery-view-order', handleViewOrder);
 
     return () => {
@@ -290,6 +314,7 @@ const DeliveryLayout = () => {
       socketService.off('return_ready_for_pickup', handleNewReturn);
       socketService.off('order_taken');
       socketService.off('balance_updated');
+      socketService.off('batch_vendor_status_update', handleBatchVendorStatusUpdate);
       window.removeEventListener('delivery-view-order', handleViewOrder);
       stopBuzzer();
     };
