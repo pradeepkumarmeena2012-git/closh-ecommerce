@@ -153,6 +153,15 @@ const VendorLogin = () => {
             >
               {isLoading ? 'Connecting...' : 'Login to Dashboard'}
             </button>
+
+            <div className="mt-6 text-center">
+              <p className="text-gray-500 text-sm font-medium">
+                Don't have an account?{' '}
+                <Link to="/vendor/register" className="text-[#0f172a] font-black hover:underline">
+                  Register here
+                </Link>
+              </p>
+            </div>
           </form>
         </motion.div>
       </div>

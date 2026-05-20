@@ -10,7 +10,7 @@ const VendorRegister = () => {
   const navigate = useNavigate();
   const { register: registerVendor, isLoading } = useVendorAuthStore();
 
-  const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
@@ -25,9 +25,11 @@ const VendorRegister = () => {
       zipCode: '',
       country: 'USA',
     },
+    shopLocation: null,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -40,6 +42,63 @@ const VendorRegister = () => {
     } else {
       setFormData({ ...formData, [name]: value });
     }
+  };
+
+  const fetchLocation = () => {
+    if (!navigator.geolocation) {
+        toast.error("Geolocation is not supported by your browser");
+        return;
+    }
+    
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const { latitude, longitude } = position.coords;
+            const newShopLocation = {
+                type: 'Point',
+                coordinates: [longitude, latitude] // GeoJSON format: [lng, lat]
+            };
+            
+            try {
+                // Reverse geocoding with Nominatim (OpenStreetMap)
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                const data = await res.json();
+                
+                if (data && data.address) {
+                    // Use the full display name to ensure no street details are accidentally omitted.
+                    // The user can edit the field to remove redundant city/state info.
+                    const street = data.display_name;
+
+                    setFormData(prev => ({
+                        ...prev,
+                        shopLocation: newShopLocation,
+                        address: {
+                            ...prev.address,
+                            street: street || prev.address.street,
+                            city: data.address.city || data.address.town || data.address.village || data.address.county || prev.address.city,
+                            state: data.address.state || prev.address.state,
+                            zipCode: data.address.postcode || prev.address.zipCode,
+                            country: data.address.country || prev.address.country,
+                        }
+                    }));
+                    toast.success("Location and address fetched successfully!");
+                } else {
+                    setFormData(prev => ({ ...prev, shopLocation: newShopLocation }));
+                    toast.success("Location coordinates saved!");
+                }
+            } catch (error) {
+                setFormData(prev => ({ ...prev, shopLocation: newShopLocation }));
+                toast.success("Location coordinates saved! (Address lookup failed)");
+            } finally {
+                setIsLocating(false);
+            }
+        },
+        (error) => {
+            setIsLocating(false);
+            toast.error("Unable to retrieve your location. Please check browser permissions.");
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -65,9 +124,10 @@ const VendorRegister = () => {
         storeName: formData.storeName.trim(),
         storeDescription: formData.storeDescription.trim(),
         address: formData.address,
+        shopLocation: formData.shopLocation,
       });
       toast.success(result.message || 'Registration successful!');
-      navigate('/vendor/verification', { state: { email: formData.email } });
+      navigate('/vendor/verification', { state: { phone: formData.phone } });
     } catch (error) {
       toast.error(error.message || 'Registration failed. Please try again.');
     }
@@ -151,7 +211,18 @@ const VendorRegister = () => {
 
             {/* Section: Address */}
             <div className="space-y-6">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">HQ Address</h3>
+              <div className="flex items-center justify-between border-b pb-2">
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">HQ Address</h3>
+                <button 
+                  type="button" 
+                  onClick={fetchLocation}
+                  disabled={isLocating}
+                  className="text-[10px] font-black uppercase bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                >
+                  {isLocating ? <span className="animate-spin inline-block w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full" /> : <FiMapPin size={12} />}
+                  {formData.shopLocation ? 'Location Captured ✓' : 'Fetch Live Location'}
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
                   <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2">Street Address</label>

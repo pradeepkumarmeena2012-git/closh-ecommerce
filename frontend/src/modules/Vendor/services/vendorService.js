@@ -9,19 +9,19 @@ import api from '../../../shared/utils/api';
 export const registerVendor = (data) => api.post('/vendor/auth/register', data);
 
 /**
- * Verify email OTP after registration
- * @param {string} email
+ * Verify phone OTP after registration
+ * @param {string} phone
  * @param {string} otp
  */
-export const verifyVendorOTP = (email, otp) =>
-    api.post('/vendor/auth/verify-otp', { email, otp });
+export const verifyVendorOTP = (phone, otp) =>
+    api.post('/vendor/auth/verify-otp', { phone, otp });
 
 /**
- * Resend OTP to vendor email (vendor must still be unverified)
- * @param {string} email
+ * Resend OTP to vendor phone (vendor must still be unverified)
+ * @param {string} phone
  */
-export const resendVendorOTP = (email) =>
-    api.post('/vendor/auth/resend-otp', { email });
+export const resendVendorOTP = (phone) =>
+    api.post('/vendor/auth/resend-otp', { phone });
 
 /**
  * Request reset OTP for vendor forgot password flow

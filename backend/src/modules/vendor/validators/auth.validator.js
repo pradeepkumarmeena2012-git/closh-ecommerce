@@ -30,13 +30,15 @@ export const loginSchema = Joi.object({
 });
 
 export const verifyOtpSchema = Joi.object({
-    email: Joi.string().email().lowercase().required(),
+    phone: Joi.string().optional(),
+    email: Joi.string().email().lowercase().optional(),
     otp: Joi.string().pattern(/^\d{6}$/).required(),
-});
+}).or('phone', 'email');
 
 export const resendOtpSchema = Joi.object({
-    email: Joi.string().email().lowercase().required(),
-});
+    phone: Joi.string().optional(),
+    email: Joi.string().email().lowercase().optional(),
+}).or('phone', 'email');
 
 export const refreshTokenSchema = Joi.object({
     refreshToken: Joi.string().required(),

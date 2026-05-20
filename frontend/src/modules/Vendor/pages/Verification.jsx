@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiArrowLeft, FiCheck, FiMail } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck, FiSmartphone } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { verifyVendorOTP, resendVendorOTP } from '../services/vendorService';
 import toast from 'react-hot-toast';
@@ -13,7 +13,7 @@ const VendorVerification = () => {
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef([]);
 
-  const email = location.state?.email || '';
+  const phone = location.state?.phone || '';
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // Focus first input on mount
@@ -65,8 +65,8 @@ const VendorVerification = () => {
 
     setIsLoading(true);
     try {
-      await verifyVendorOTP(email, verificationCode);
-      toast.success('Email verified! Your account is pending admin approval.');
+      await verifyVendorOTP(phone, verificationCode);
+      toast.success('Phone number verified! Your account is pending admin approval.');
       navigate('/vendor/login');
     } catch {
       // Error toast is shown by api.js interceptor
@@ -76,10 +76,10 @@ const VendorVerification = () => {
   };
 
   const handleResend = async () => {
-    if (resendCooldown > 0 || !email) return;
+    if (resendCooldown > 0 || !phone) return;
     try {
-      await resendVendorOTP(email);
-      toast.success('OTP resent! Please check your email.');
+      await resendVendorOTP(phone);
+      toast.success('OTP resent! Please check your phone.');
       // Start 30 second cooldown
       setResendCooldown(30);
       const timer = setInterval(() => {
@@ -103,12 +103,12 @@ const VendorVerification = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 gradient-green rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-green">
-            <FiMail className="text-white text-2xl" />
+            <FiSmartphone className="text-white text-2xl" />
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Verify Your Email</h1>
+          <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Verify Phone Number</h1>
           <p className="text-gray-600">
             We've sent a verification code to <br />
-            <span className="font-semibold text-gray-800">{email}</span>
+            <span className="font-semibold text-gray-800">+91 {phone}</span>
           </p>
         </div>
 
@@ -157,7 +157,7 @@ const VendorVerification = () => {
             ) : (
               <>
                 <FiCheck />
-                Verify Email
+                Verify Phone Number
               </>
             )}
           </button>

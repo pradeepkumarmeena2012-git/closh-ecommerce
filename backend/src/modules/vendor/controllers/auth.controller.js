@@ -20,7 +20,7 @@ import { notifyWishlistUsersWhenVendorOnline } from '../../../services/vendorOnl
 
 // POST /api/vendor/auth/register
 export const register = asyncHandler(async (req, res) => {
-    const { name, email, password, phone, storeName, storeDescription, address } = req.body;
+    const { name, email, password, phone, storeName, storeDescription, address, shopLocation } = req.body;
 
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const existing = await Vendor.findOne({ email: normalizedEmail });
@@ -34,6 +34,7 @@ export const register = asyncHandler(async (req, res) => {
         storeName: String(storeName || '').trim(),
         storeDescription: String(storeDescription || '').trim(),
         address,
+        shopLocation,
         status: 'pending'
     });
     await sendOTP(vendor, 'vendor_verification');
@@ -57,14 +58,17 @@ export const register = asyncHandler(async (req, res) => {
         )
     );
 
-    res.status(201).json(new ApiResponse(201, { email: vendor.email }, 'Registration submitted. Please verify your email and await admin approval.'));
+    res.status(201).json(new ApiResponse(201, { phone: vendor.phone }, 'Registration submitted. Please verify your phone number and await admin approval.'));
 });
 
 // POST /api/vendor/auth/verify-otp
 export const verifyOTP = asyncHandler(async (req, res) => {
-    const { email, otp } = req.body;
+    const { phone, otp } = req.body;
+    
+    // Support email as fallback for backwards compatibility
+    const query = phone ? { phone } : { email: req.body.email };
 
-    const vendor = await Vendor.findOne({ email }).select('+otp +otpExpiry');
+    const vendor = await Vendor.findOne(query).select('+otp +otpExpiry');
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
     if (vendor.otp !== otp) throw new ApiError(400, 'Invalid OTP.');
     if (vendor.otpExpiry < Date.now()) throw new ApiError(400, 'OTP has expired.');
@@ -74,20 +78,22 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     vendor.otpExpiry = undefined;
     await vendor.save();
 
-    res.status(200).json(new ApiResponse(200, null, 'Email verified. Awaiting admin approval.'));
+    res.status(200).json(new ApiResponse(200, null, 'Phone number verified. Awaiting admin approval.'));
 });
 
 // POST /api/vendor/auth/resend-otp
 export const resendOTP = asyncHandler(async (req, res) => {
-    const { email } = req.body;
-    if (!email) throw new ApiError(400, 'Email is required.');
+    const { phone } = req.body;
+    const query = phone ? { phone } : { email: req.body.email };
+    
+    if (!phone && !req.body.email) throw new ApiError(400, 'Phone number is required.');
 
-    const vendor = await Vendor.findOne({ email });
+    const vendor = await Vendor.findOne(query);
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
-    if (vendor.isVerified) throw new ApiError(400, 'Email is already verified.');
+    if (vendor.isVerified) throw new ApiError(400, 'Phone number is already verified.');
 
     await sendOTP(vendor, 'vendor_verification');
-    res.status(200).json(new ApiResponse(200, null, 'OTP resent successfully. Please check your email.'));
+    res.status(200).json(new ApiResponse(200, null, 'OTP resent successfully. Please check your phone.'));
 });
 
 // POST /api/vendor/auth/forgot-password
