@@ -53,8 +53,15 @@ export const forgotPasswordSchema = Joi.object({
 });
 
 export const verifyResetOtpSchema = Joi.object({
-    email: Joi.string().email().lowercase().required(),
+    email: Joi.string().email().required(),
+    otp: Joi.string().pattern(/^\d{6}$/).required()
+});
+
+export const verifyLoginOtpSchema = Joi.object({
+    email: Joi.string().email().required(),
     otp: Joi.string().pattern(/^\d{6}$/).required(),
+    fcmToken: Joi.string().optional(),
+    deviceToken: Joi.string().optional()
 });
 
 export const resetPasswordSchema = Joi.object({

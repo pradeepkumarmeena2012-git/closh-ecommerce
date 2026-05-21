@@ -29,7 +29,8 @@ import {
     logoutSchema,
     forgotPasswordSchema,
     verifyResetOtpSchema,
-    resetPasswordSchema
+    resetPasswordSchema,
+    verifyLoginOtpSchema
 } from '../validators/auth.validator.js';
 import {
     createProductSchema,
@@ -50,6 +51,7 @@ router.post('/auth/forgot-password', authLimiter, validate(forgotPasswordSchema)
 router.post('/auth/verify-reset-otp', authLimiter, validate(verifyResetOtpSchema), authController.verifyResetOTP);
 router.post('/auth/reset-password', authLimiter, validate(resetPasswordSchema), authController.resetPassword);
 router.post('/auth/login', authLimiter, validate(loginSchema), authController.login);
+router.post('/auth/verify-login-otp', validate(verifyLoginOtpSchema), authController.verifyLoginOTP);
 router.post('/auth/refresh', validate(refreshTokenSchema), authController.refresh);
 router.post('/auth/logout', validate(logoutSchema), authController.logout);
 router.get('/auth/profile', ...vendorAuth, authController.getProfile);

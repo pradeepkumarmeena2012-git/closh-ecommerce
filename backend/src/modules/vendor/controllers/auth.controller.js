@@ -65,13 +65,21 @@ export const register = asyncHandler(async (req, res) => {
 export const verifyOTP = asyncHandler(async (req, res) => {
     const { phone, otp } = req.body;
     
-    // Support email as fallback for backwards compatibility
-    const query = phone ? { phone } : { email: req.body.email };
+    const query = phone ? { phone: String(phone).trim(), isVerified: false } : { email: String(req.body.email).trim().toLowerCase() };
 
-    const vendor = await Vendor.findOne(query).select('+otp +otpExpiry');
-    if (!vendor) throw new ApiError(404, 'Vendor not found.');
-    if (vendor.otp !== otp) throw new ApiError(400, 'Invalid OTP.');
-    if (vendor.otpExpiry < Date.now()) throw new ApiError(400, 'OTP has expired.');
+    const vendor = await Vendor.findOne(query).sort({ createdAt: -1 }).select('+otp +otpExpiry');
+    if (!vendor) throw new ApiError(404, 'Vendor not found or already verified.');
+    
+    const expectedOtp = String(vendor.otp || '').trim();
+    const providedOtp = String(otp || '').trim();
+    
+    if (expectedOtp !== providedOtp) {
+        throw new ApiError(400, 'Invalid OTP.');
+    }
+    
+    if (!vendor.otpExpiry || new Date(vendor.otpExpiry).getTime() < Date.now()) {
+        throw new ApiError(400, 'OTP has expired.');
+    }
 
     vendor.isVerified = true;
     vendor.otp = undefined;
@@ -84,11 +92,11 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 // POST /api/vendor/auth/resend-otp
 export const resendOTP = asyncHandler(async (req, res) => {
     const { phone } = req.body;
-    const query = phone ? { phone } : { email: req.body.email };
+    const query = phone ? { phone: String(phone).trim(), isVerified: false } : { email: String(req.body.email).trim().toLowerCase() };
     
     if (!phone && !req.body.email) throw new ApiError(400, 'Phone number is required.');
 
-    const vendor = await Vendor.findOne(query);
+    const vendor = await Vendor.findOne(query).sort({ createdAt: -1 });
     if (!vendor) throw new ApiError(404, 'Vendor not found.');
     if (vendor.isVerified) throw new ApiError(400, 'Phone number is already verified.');
 
@@ -112,12 +120,6 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
     let otp = crypto.randomInt(100000, 999999).toString();
 
-    // Default OTP for specific test number
-    const normalizedPhoneNum = String(vendor.phone || '').replace(/\D/g, '').slice(-10);
-    if (normalizedPhoneNum === '7894561230') {
-        otp = '123456';
-    }
-
     vendor.resetOtp = otp;
     vendor.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     vendor.resetOtpVerified = false;
@@ -128,10 +130,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     let smsSent = false;
     if (phone.length === 10) {
         try {
-            if (phone !== '7894561230') {
-                await sendSmsOtp(phone, otp);
-            }
-
+            await sendSmsOtp(phone, otp);
             smsSent = true;
         } catch (smsErr) {
             console.warn(`[Vendor ForgotPassword] SMS failed: ${smsErr.message}`);
@@ -208,6 +207,41 @@ export const login = asyncHandler(async (req, res) => {
     const isMatch = await vendor.comparePassword(password);
     if (!isMatch) throw new ApiError(401, 'Invalid credentials.');
 
+    // Instead of logging in directly, send OTP for 2FA
+    await sendOTP(vendor, 'login_verification');
+
+    res.status(200).json(new ApiResponse(200, {
+        is2FA: true,
+        email: vendor.email,
+        phone: vendor.phone
+    }, 'OTP sent to your registered contact. Please verify to login.'));
+});
+
+// POST /api/vendor/auth/verify-login-otp
+export const verifyLoginOTP = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    const vendor = await Vendor.findOne({ email: normalizedEmail }).select('+password +otp +otpExpiry');
+    if (!vendor) throw new ApiError(404, 'Vendor not found.');
+
+    const expectedOtp = String(vendor.otp || '').trim();
+    const providedOtp = String(otp || '').trim();
+
+    if (expectedOtp !== providedOtp) {
+        throw new ApiError(400, 'Invalid OTP.');
+    }
+
+    if (!vendor.otpExpiry || new Date(vendor.otpExpiry).getTime() < Date.now()) {
+        throw new ApiError(400, 'OTP has expired. Please login again.');
+    }
+
+    // Clear OTP
+    vendor.otp = undefined;
+    vendor.otpExpiry = undefined;
+    await vendor.save({ validateBeforeSave: false });
+
+    // Generate tokens
     const { accessToken, refreshToken } = generateTokens({ id: vendor._id, role: 'vendor', email: vendor.email });
     await persistRefreshSession(vendor, refreshToken);
 
@@ -221,13 +255,24 @@ export const login = asyncHandler(async (req, res) => {
             $push: { 
                 fcmTokens: { 
                     $each: [{ token: fcmToken, platform: 'web', lastUsed: new Date() }],
-                    $slice: -10 // Keep last 10 devices
+                    $slice: -10 
                 } 
             }
         });
     }
 
-    res.status(200).json(new ApiResponse(200, { accessToken, refreshToken, vendor: { id: vendor._id, name: vendor.name, storeName: vendor.storeName, email: vendor.email, storeLogo: vendor.storeLogo, isOnline: vendor.isOnline } }, 'Login successful.'));
+    res.status(200).json(new ApiResponse(200, { 
+        accessToken, 
+        refreshToken, 
+        vendor: { 
+            id: vendor._id, 
+            name: vendor.name, 
+            storeName: vendor.storeName, 
+            email: vendor.email, 
+            storeLogo: vendor.storeLogo, 
+            isOnline: vendor.isOnline 
+        } 
+    }, 'Login successful.'));
 });
 
 // POST /api/vendor/auth/refresh

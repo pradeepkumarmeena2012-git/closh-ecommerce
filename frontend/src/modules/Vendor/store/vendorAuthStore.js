@@ -42,6 +42,12 @@ export const useVendorAuthStore = create(
           });
           const body = response?.data || response || {};
           const authData = body.data || body;
+
+          if (authData.is2FA) {
+            set({ isLoading: false });
+            return { success: true, is2FA: true, email: authData.email, phone: authData.phone };
+          }
+
           const vendor = authData.vendor;
           const accessToken = authData.accessToken;
           const refreshToken = authData.refreshToken;
@@ -50,7 +56,6 @@ export const useVendorAuthStore = create(
             throw new Error("Invalid login response");
           }
 
-          // Normalize vendor object
           const normalizedVendor = get()._normalizeVendor(vendor);
 
           set({
@@ -61,7 +66,44 @@ export const useVendorAuthStore = create(
             isLoading: false,
           });
 
-          // Store tokens for vendor API requests
+          localStorage.setItem("vendor-token", accessToken);
+          localStorage.setItem("vendor-refresh-token", refreshToken);
+
+          return { success: true, vendor: normalizedVendor };
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      // Verify login OTP for 2FA
+      verifyLoginOtp: async (email, otp) => {
+        set({ isLoading: true });
+        try {
+          const response = await api.post("/vendor/auth/verify-login-otp", {
+            email,
+            otp,
+          });
+          const body = response?.data || response || {};
+          const authData = body.data || body;
+          const vendor = authData.vendor;
+          const accessToken = authData.accessToken;
+          const refreshToken = authData.refreshToken;
+
+          if (!vendor || !accessToken || !refreshToken) {
+            throw new Error("Invalid login response");
+          }
+
+          const normalizedVendor = get()._normalizeVendor(vendor);
+
+          set({
+            vendor: normalizedVendor,
+            token: accessToken,
+            refreshToken,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+
           localStorage.setItem("vendor-token", accessToken);
           localStorage.setItem("vendor-refresh-token", refreshToken);
 
