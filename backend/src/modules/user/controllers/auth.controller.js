@@ -90,14 +90,14 @@ export const verifyOTP = asyncHandler(async (req, res) => {
         $or: [
             { email: normalizedIdentifier },
             { phone: normalizedIdentifier }
-        ],
-        isVerified: false
-    }).sort({ createdAt: -1 }).select('+otp +otpExpiry');
+        ]
+    }).sort({ createdAt: -1 }).select('+otp +otpExpiry +isVerified +isActive');
 
     if (!user) {
         console.warn(`[VerifyOTP] User not found: ${normalizedIdentifier}`);
         throw new ApiError(404, 'User not found.');
     }
+    if (!user.isActive) throw new ApiError(403, 'Your account has been deactivated.');
 
     const expectedOtp = String(user.otp || '').trim();
     const providedOtp = String(otp || '').trim();
