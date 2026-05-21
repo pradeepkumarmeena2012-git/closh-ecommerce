@@ -193,15 +193,17 @@ export const useDeliveryAuthStore = create(
       register: async (data) => {
         set({ isLoading: true });
         try {
-          const formData = new FormData();
+          const fd = new FormData();
           Object.keys(data).forEach(key => {
-            if (data[key] !== null && data[key] !== undefined) {
-              formData.append(key, data[key]);
+            const val = data[key];
+            if (val !== null && val !== undefined) {
+              // File objects go as-is; strings/primitives go as strings
+              fd.append(key, val instanceof File ? val : String(val));
             }
           });
-          const res = await api.post('/delivery/auth/register', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          // ⚠️ Do NOT set Content-Type manually — Axios must auto-generate
+          // the multipart boundary, otherwise multer cannot parse the files
+          const res = await api.post('/delivery/auth/register', fd);
           set({ isLoading: false });
           return res.data || res;
         } catch (e) { set({ isLoading: false }); throw e; }
