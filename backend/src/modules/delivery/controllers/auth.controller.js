@@ -29,7 +29,9 @@ setInterval(() => {
 
 // POST /api/delivery/auth/register
 export const register = asyncHandler(async (req, res) => {
-    const { name, email, password, phone, emergencyContact, aadharNumber, address, vehicleType, vehicleNumber, fcmToken, platform = 'app' } = req.body;
+    const { name, email, password, phone, emergencyContact, aadharNumber, address, vehicleType, vehicleNumber, fcmToken, platform = 'app',
+        bankName, accountNumber, ifscCode, accountHolderName
+    } = req.body;
 
     const drivingLicenseFile = req.files?.drivingLicense?.[0];
     const drivingLicenseBackFile = req.files?.drivingLicenseBack?.[0];
@@ -89,6 +91,12 @@ export const register = asyncHandler(async (req, res) => {
                 drivingLicenseBack: drivingLicenseBackResult.url,
                 aadharCard: aadharCardResult.url,
                 aadharCardBack: aadharCardBackResult.url,
+            },
+            bankDetails: {
+                bankName: String(bankName || '').trim(),
+                accountNumber: String(accountNumber || '').trim(),
+                ifscCode: String(ifscCode || '').trim().toUpperCase(),
+                accountHolderName: String(accountHolderName || '').trim(),
             },
             applicationStatus: 'pending',
             isActive: false,

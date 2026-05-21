@@ -61,9 +61,9 @@ const refreshInFlight = {
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // ⚠️ Do NOT set Content-Type here — Axios auto-detects it.
+  // For JSON it sets application/json, for FormData it sets
+  // multipart/form-data with the correct boundary string.
 });
 
 const AUTH_REDIRECT_LOCK_KEY = 'auth-redirect-lock';

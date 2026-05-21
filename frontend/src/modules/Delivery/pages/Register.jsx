@@ -1,18 +1,59 @@
 import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiTruck, FiCamera, FiChevronRight, FiChevronLeft, FiCheck, FiFileText, FiShield } from 'react-icons/fi';
+import { FiMail, FiUser, FiPhone, FiTruck, FiCamera, FiChevronRight, FiChevronLeft, FiCheck, FiFileText, FiShield, FiUpload, FiNavigation, FiMapPin, FiCreditCard } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { compressImage } from '@shared/utils/imageHelper';
-import { requestCameraPermission } from '@shared/utils/permissionHelper';
 import logo from '../../../assets/animations/lottie/logo-removebg.png';
 
 const STEPS = [
   { id: 1, title: 'Personal Info', icon: FiUser },
   { id: 2, title: 'Documents', icon: FiFileText },
   { id: 3, title: 'Vehicle & Account', icon: FiTruck },
+  { id: 4, title: 'Bank Details', icon: FiCreditCard },
 ];
+
+// ✅ Defined OUTSIDE to prevent remount on every parent re-render
+const DocUploadCard = ({ name, label, previews = {}, fileInputRefs, handleChange }) => {
+  const handleCardClick = () => {
+    fileInputRefs.current[name]?.click();
+  };
+
+  return (
+    <div className="relative cursor-pointer group" onClick={handleCardClick}>
+      <input
+        ref={(el) => (fileInputRefs.current[name] = el)}
+        type="file"
+        name={name}
+        accept="image/*"
+        onChange={handleChange}
+        onClick={(e) => e.stopPropagation()}
+        className="hidden"
+      />
+      {previews[name] ? (
+        <div className="relative w-full h-36 sm:h-40 rounded-2xl overflow-hidden border-2 border-emerald-400 shadow-md">
+          <img src={previews[name]} alt={label} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+            <FiUpload className="text-white" size={20} />
+            <span className="text-white text-[10px] font-bold">Change</span>
+          </div>
+          <div className="absolute top-2 right-2 w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center shadow">
+            <FiCheck className="text-white" size={15} />
+          </div>
+        </div>
+      ) : (
+        <div className="w-full h-36 sm:h-40 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 group-hover:border-indigo-400 group-hover:bg-indigo-50/60 transition-all">
+          <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+            <FiCamera className="text-gray-400 group-hover:text-indigo-500" size={20} />
+          </div>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tap to Upload</span>
+        </div>
+      )}
+      <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider text-center mt-2">{label}</p>
+    </div>
+  );
+};
 
 const DeliveryRegister = () => {
   const navigate = useNavigate();
@@ -35,6 +76,11 @@ const DeliveryRegister = () => {
     drivingLicenseBack: null,
     aadharCard: null,
     aadharCardBack: null,
+    // Bank Details
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    accountHolderName: '',
   });
   
   const [phoneOtp, setPhoneOtp] = useState('');
@@ -44,6 +90,40 @@ const DeliveryRegister = () => {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const [previews, setPreviews] = useState({});
+  const [isFetchingAddress, setIsFetchingAddress] = useState(false);
+
+  const fetchLiveAddress = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+    setIsFetchingAddress(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+          const data = await res.json();
+          if (data?.display_name) {
+            setFormData((prev) => ({ ...prev, address: data.display_name }));
+            toast.success('Live address fetched!');
+          } else {
+            toast.error('Could not fetch address. Please enter manually.');
+          }
+        } catch {
+          toast.error('Failed to fetch address. Try again.');
+        } finally {
+          setIsFetchingAddress(false);
+        }
+      },
+      (err) => {
+        setIsFetchingAddress(false);
+        toast.error('Location access denied: ' + err.message);
+      },
+      { timeout: 10000 }
+    );
+  };
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -52,12 +132,22 @@ const DeliveryRegister = () => {
       if (file) {
         const toastId = toast.loading(`Processing document...`);
         compressImage(file, { maxWidth: 1280, quality: 0.7 })
-          .then(compressed => {
-            setFormData((prev) => ({ ...prev, [name]: compressed }));
-            setPreviews((prev) => ({ ...prev, [name]: compressed }));
-            toast.success("Ready!", { id: toastId });
+          .then(base64 => {
+            // Convert base64 back to Blob so multer can receive it as a file
+            const byteString = atob(base64.split(',')[1]);
+            const mimeType = base64.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+            const blob = new Blob([ab], { type: mimeType });
+            const compressedFile = new File([blob], file.name || `${name}.jpg`, { type: mimeType });
+
+            setFormData((prev) => ({ ...prev, [name]: compressedFile }));
+            setPreviews((prev) => ({ ...prev, [name]: base64 })); // base64 only for <img> preview
+            toast.success('Ready!', { id: toastId });
           })
           .catch(() => {
+            // fallback: use original file
             setFormData((prev) => ({ ...prev, [name]: file }));
             const url = URL.createObjectURL(file);
             setPreviews((prev) => ({ ...prev, [name]: url }));
@@ -144,21 +234,27 @@ const DeliveryRegister = () => {
         if (!formData.vehicleNumber.trim()) { toast.error('Vehicle number is required'); return false; }
         if (!formData.address.trim()) { toast.error('Full address is required'); return false; }
         return true;
+      case 4:
+        if (!formData.bankName.trim()) { toast.error('Bank name is required'); return false; }
+        if (!formData.accountHolderName.trim()) { toast.error('Account holder name is required'); return false; }
+        if (!formData.accountNumber.trim()) { toast.error('Account number is required'); return false; }
+        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifscCode.trim().toUpperCase())) { toast.error('Enter a valid IFSC code (e.g. SBIN0001234)'); return false; }
+        return true;
       default:
         return true;
     }
   };
 
   const nextStep = () => {
-    if (validateStep(currentStep)) setCurrentStep((s) => Math.min(s + 1, 3));
+    if (validateStep(currentStep)) setCurrentStep((s) => Math.min(s + 1, 4));
   };
 
   const prevStep = () => setCurrentStep((s) => Math.max(s - 1, 1));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (currentStep !== 3) return;
-    if (!validateStep(3)) return;
+    if (currentStep !== 4) return;
+    if (!validateStep(4)) return;
     try {
       const result = await register({
         name: formData.name.trim(),
@@ -169,67 +265,26 @@ const DeliveryRegister = () => {
         address: formData.address.trim(),
         vehicleType: formData.vehicleType,
         vehicleNumber: formData.vehicleNumber.trim(),
-        // password: formData.password,
         drivingLicense: formData.drivingLicense,
         drivingLicenseBack: formData.drivingLicenseBack,
         aadharCard: formData.aadharCard,
         aadharCardBack: formData.aadharCardBack,
+        bankName: formData.bankName.trim(),
+        accountNumber: formData.accountNumber.trim(),
+        ifscCode: formData.ifscCode.trim().toUpperCase(),
+        accountHolderName: formData.accountHolderName.trim(),
       });
-      toast.success(result.message || 'Registration submitted');
+      toast.success(result.message || 'Registration submitted successfully!');
       navigate('/delivery/login', { replace: true });
     } catch (error) {
       toast.error(error.message || 'Registration failed');
     }
   };
 
-  const DocUploadCard = ({ name, label }) => {
-    const handleDocClick = async () => {
-      const hasPermission = await requestCameraPermission();
-      if (!hasPermission) return;
-      fileInputRefs.current[name]?.click();
-    };
-
-    return (
-      <div
-        onClick={handleDocClick}
-        className="relative cursor-pointer group"
-      >
-        <input
-          ref={(el) => (fileInputRefs.current[name] = el)}
-          type="file"
-          name={name}
-          accept="image/*"
-          capture="environment" // Hint to use camera on mobile
-          onChange={handleChange}
-          className="hidden"
-        />
-        {previews[name] ? (
-          <div className="relative w-full h-36 sm:h-40 rounded-2xl overflow-hidden border-2 border-emerald-200 shadow-sm">
-            <img src={previews[name]} alt={label} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <FiCamera className="text-white" size={24} />
-            </div>
-            <div className="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
-              <FiCheck className="text-white" size={14} />
-            </div>
-          </div>
-        ) : (
-          <div className="w-full h-36 sm:h-40 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 group-hover:border-indigo-300 group-hover:bg-indigo-50/50 transition-all">
-            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-              <FiCamera className="text-gray-400 group-hover:text-indigo-500" size={20} />
-            </div>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tap to Upload</span>
-          </div>
-        )}
-        <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider text-center mt-2">{label}</p>
-      </div>
-    );
-  };
-
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
       e.preventDefault();
-      if (currentStep < 3) {
+      if (currentStep < 4) {
         nextStep();
       }
     }
@@ -431,15 +486,15 @@ const DeliveryRegister = () => {
                   <div>
                     <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2 mb-4">Driving License</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <DocUploadCard name="drivingLicense" label="License Front" />
-                      <DocUploadCard name="drivingLicenseBack" label="License Back" />
+                      <DocUploadCard name="drivingLicense" label="License Front" previews={previews} fileInputRefs={fileInputRefs} handleChange={handleChange} />
+                      <DocUploadCard name="drivingLicenseBack" label="License Back" previews={previews} fileInputRefs={fileInputRefs} handleChange={handleChange} />
                     </div>
                   </div>
                   <div>
                     <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2 mb-4">Aadhaar Card</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      <DocUploadCard name="aadharCard" label="Aadhaar Front" />
-                      <DocUploadCard name="aadharCardBack" label="Aadhaar Back" />
+                      <DocUploadCard name="aadharCard" label="Aadhaar Front" previews={previews} fileInputRefs={fileInputRefs} handleChange={handleChange} />
+                      <DocUploadCard name="aadharCardBack" label="Aadhaar Back" previews={previews} fileInputRefs={fileInputRefs} handleChange={handleChange} />
                     </div>
                   </div>
                   <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
@@ -477,13 +532,114 @@ const DeliveryRegister = () => {
                   </div>
                   <div>
                     <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Address</label>
-                    <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Your full address" className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:outline-none text-gray-900" />
+                    <div className="relative">
+                      <FiMapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        type="text"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleChange}
+                        placeholder="Your full address"
+                        className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:outline-none text-gray-900"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={fetchLiveAddress}
+                      disabled={isFetchingAddress}
+                      className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 active:scale-95"
+                    >
+                      <FiNavigation className={isFetchingAddress ? 'animate-pulse' : ''} size={14} />
+                      {isFetchingAddress ? 'Fetching your location...' : 'Use My Current Location'}
+                    </button>
                   </div>
 
                   <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4">
                     <p className="text-xs font-medium text-indigo-900">
                       <span className="font-black uppercase text-[9px] bg-indigo-600 text-white px-2 py-0.5 rounded-full mr-2">Info</span>
                       Approval takes 24-48 hours. You will receive an email notification.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* STEP 4: Bank Details */}
+              {currentStep === 4 && (
+                <motion.div
+                  key="step4"
+                  initial={{ opacity: 0, x: 30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -30 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5"
+                >
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-2">
+                    <p className="text-xs font-medium text-indigo-800">
+                      <span className="font-black uppercase text-[9px] bg-indigo-600 text-white px-2 py-0.5 rounded-full mr-2">Secure</span>
+                      Your bank details are encrypted and used only for earnings withdrawal.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Bank Name *</label>
+                    <div className="relative">
+                      <FiCreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        type="text"
+                        name="bankName"
+                        value={formData.bankName}
+                        onChange={handleChange}
+                        placeholder="e.g. State Bank of India"
+                        className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Account Holder Name *</label>
+                    <div className="relative">
+                      <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        type="text"
+                        name="accountHolderName"
+                        value={formData.accountHolderName}
+                        onChange={handleChange}
+                        placeholder="Name as per bank account"
+                        className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Account Number *</label>
+                    <input
+                      type="text"
+                      name="accountNumber"
+                      value={formData.accountNumber}
+                      onChange={handleChange}
+                      placeholder="Enter account number"
+                      maxLength={20}
+                      className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900 font-mono tracking-widest"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">IFSC Code *</label>
+                    <input
+                      type="text"
+                      name="ifscCode"
+                      value={formData.ifscCode.toUpperCase()}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ifscCode: e.target.value.toUpperCase() }))}
+                      placeholder="e.g. SBIN0001234"
+                      maxLength={11}
+                      className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900 font-mono tracking-widest uppercase"
+                    />
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+                    <p className="text-xs font-medium text-amber-800">
+                      <span className="font-black uppercase text-[9px] bg-amber-500 text-white px-2 py-0.5 rounded-full mr-2">Note</span>
+                      Approval takes 24-48 hours after submission. You will receive a confirmation email.
                     </p>
                   </div>
                 </motion.div>
@@ -500,13 +656,13 @@ const DeliveryRegister = () => {
                 <div />
               )}
 
-              {currentStep < 3 ? (
+              {currentStep < 4 ? (
                 <button type="button" onClick={nextStep} className="flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-[#0f172a] text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm hover:bg-slate-800 active:scale-95 transition-all shadow-xl">
                   Next <FiChevronRight size={18} />
                 </button>
               ) : (
                 <button type="submit" disabled={isLoading} className="flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-emerald-600 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-xl disabled:opacity-50">
-                  {isLoading ? 'Submitting...' : 'Submit Now'}
+                  {isLoading ? 'Submitting...' : 'Submit Application'}
                 </button>
               )}
             </div>

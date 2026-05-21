@@ -17,6 +17,11 @@ export const registerSchema = Joi.object({
     vehicleNumber: Joi.string().trim().allow('').optional(),
     fcmToken: Joi.string().trim().allow('').optional(),
     platform: Joi.string().trim().allow('').optional(),
+    // Bank Details
+    bankName: Joi.string().trim().allow('').optional(),
+    accountNumber: Joi.string().trim().allow('').optional(),
+    ifscCode: Joi.string().trim().uppercase().allow('').optional(),
+    accountHolderName: Joi.string().trim().allow('').optional(),
 });
 
 export const forgotPasswordSchema = Joi.object({
