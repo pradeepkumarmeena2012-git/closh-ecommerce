@@ -14,7 +14,7 @@ import {
 import closhLogo from "../../../../shared/assets/closh_logo.svg";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVendorAuthStore } from '../../store/vendorAuthStore';
-import { getVendorOrderById, updateVendorOrderStatus, getVendorReturnRequests } from '../../services/vendorService';
+import { getVendorOrderById, updateVendorOrderStatus } from '../../services/vendorService';
 import { formatPrice } from '../../../../shared/utils/helpers';
 import { formatVariantLabel } from '../../../../shared/utils/variant';
 import Badge from '../../../../shared/components/Badge';
@@ -40,7 +40,6 @@ const OrderDetail = () => {
     const { vendor } = useVendorAuthStore();
 
     const [order, setOrder] = useState(null);
-    const [returnRequests, setReturnRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -78,16 +77,6 @@ const OrderDetail = () => {
                 const res = await getVendorOrderById(id);
                 const data = res?.data ?? res;
                 setOrder(data ?? null);
-
-                if (data && (data.orderId || data._id)) {
-                    try {
-                        const returnRes = await getVendorReturnRequests({ search: data.orderId || data._id });
-                        const returnsData = returnRes?.data?.returnRequests || returnRes?.returnRequests || [];
-                        setReturnRequests(returnsData);
-                    } catch (err) {
-                        console.error('Failed to fetch return requests', err);
-                    }
-                }
             } catch {
                 // api.js shows toast
                 setOrder(null);
@@ -716,39 +705,6 @@ const OrderDetail = () => {
                             </div>
                         );
                     })()}
-
-                    {/* Return Drop-off OTPs */}
-                    {returnRequests.length > 0 && returnRequests.map((returnReq) => {
-                        const isMultiVendorReturn = returnReq?.isMultiVendor;
-                        const currentVendorDropoff = isMultiVendorReturn && Array.isArray(returnReq?.vendorDropoffs)
-                            ? returnReq.vendorDropoffs.find(d => String(d.vendorId?._id || d.vendorId) === String(vendorId))
-                            : null;
-
-                        const handoverOtpDebug = isMultiVendorReturn
-                            ? currentVendorDropoff?.dropoffOtpDebug
-                            : returnReq?.deliveryOtpDebug;
-
-                        if (!handoverOtpDebug || !['approved', 'processing'].includes(returnReq.status)) return null;
-
-                        return (
-                            <div key={returnReq.id || returnReq._id} className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 shadow-lg shadow-amber-500/20 text-white mt-4">
-                                <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-amber-100">
-                                    🔄 Return Drop-off OTP
-                                </p>
-                                <p className="text-4xl font-black tracking-[0.3em] text-center text-white mb-3">
-                                    {handoverOtpDebug}
-                                </p>
-                                <p className="text-[10px] text-amber-100 text-center leading-tight">
-                                    Share this OTP with the delivery partner when they drop off returned items. (Return #{returnReq.id || returnReq._id})
-                                </p>
-                                <div className="mt-3 p-2 bg-white/10 rounded-lg">
-                                    <p className="text-[9px] font-bold text-amber-50 text-center uppercase tracking-wider">
-                                        Status: {returnReq?.status?.replace(/_/g, ' ') || 'Pending'}
-                                    </p>
-                                </div>
-                            </div>
-                        );
-                    })}
 
                     {/* Payment Info */}
 

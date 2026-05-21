@@ -90,20 +90,24 @@ export const verifyOTP = asyncHandler(async (req, res) => {
         $or: [
             { email: normalizedIdentifier },
             { phone: normalizedIdentifier }
-        ]
-    }).select('+otp +otpExpiry');
+        ],
+        isVerified: false
+    }).sort({ createdAt: -1 }).select('+otp +otpExpiry');
 
     if (!user) {
         console.warn(`[VerifyOTP] User not found: ${normalizedIdentifier}`);
         throw new ApiError(404, 'User not found.');
     }
 
-    if (user.otp !== otp) {
-        console.warn(`[VerifyOTP] Invalid OTP for ${normalizedIdentifier}. Expected: ${user.otp}, Received: ${otp}`);
+    const expectedOtp = String(user.otp || '').trim();
+    const providedOtp = String(otp || '').trim();
+
+    if (expectedOtp !== providedOtp) {
+        console.warn(`[VerifyOTP] Invalid OTP for ${normalizedIdentifier}. Expected: ${expectedOtp}, Received: ${providedOtp}`);
         throw new ApiError(400, 'Invalid OTP.');
     }
 
-    if (user.otpExpiry < Date.now()) {
+    if (!user.otpExpiry || new Date(user.otpExpiry).getTime() < Date.now()) {
         console.warn(`[VerifyOTP] OTP expired for ${normalizedIdentifier}`);
         throw new ApiError(400, 'OTP has expired. Please request a new one.');
     }
@@ -289,8 +293,9 @@ export const resendOTP = asyncHandler(async (req, res) => {
         $or: [
             { email: normalizedIdentifier },
             { phone: normalizedIdentifier }
-        ]
-    });
+        ],
+        isVerified: false
+    }).sort({ createdAt: -1 });
     if (!user) throw new ApiError(404, 'User not found.');
 
     await sendOTP(user, 'otp_request');
@@ -315,12 +320,6 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
     let otp = crypto.randomInt(100000, 999999).toString();
 
-    // Default OTP for specific test number
-    const normalizedPhoneNum = String(user.phone || '').replace(/\D/g, '').slice(-10);
-    if (normalizedPhoneNum === '7894561230') {
-        otp = '123456';
-    }
-
     user.resetOtp = otp;
     user.resetOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     user.resetOtpVerified = false;
@@ -331,10 +330,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     let smsSent = false;
     if (phone.length === 10) {
         try {
-            if (phone !== '7894561230') {
-                await sendSmsOtp(phone, otp);
-            }
-
+            await sendSmsOtp(phone, otp);
             smsSent = true;
         } catch (smsErr) {
             console.warn(`[User ForgotPassword] SMS failed: ${smsErr.message}`);

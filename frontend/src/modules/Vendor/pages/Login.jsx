@@ -17,6 +17,9 @@ const VendorLogin = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [step, setStep] = useState('credentials'); // 'credentials' or 'verify'
+  const [loginEmail, setLoginEmail] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -39,12 +42,57 @@ const VendorLogin = () => {
       return;
     }
     try {
-      await login(formData.email, formData.password, rememberMe);
+      const { login } = useVendorAuthStore.getState();
+      const result = await login(formData.email, formData.password, rememberMe);
+      if (result.is2FA) {
+        setLoginEmail(result.email);
+        setStep('verify');
+        toast.success('OTP sent to your registered contact.');
+      } else {
+        toast.success('Login successful!');
+        const from = location.state?.from?.pathname || '/vendor/dashboard';
+        navigate(from, { replace: true });
+      }
+    } catch (error) {
+      toast.error(error.message || 'Invalid credentials');
+    }
+  };
+
+  const handleOtpChange = (index, value) => {
+    if (value.length > 1) return; // Only allow single character
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-${index - 1}`);
+      if (prevInput) prevInput.focus();
+    }
+  };
+
+  const handleVerifySubmit = async (e) => {
+    e.preventDefault();
+    const otpString = otp.join('');
+    if (otpString.length !== 6) {
+      toast.error('Please enter a valid 6-digit OTP');
+      return;
+    }
+    try {
+      const { verifyLoginOtp } = useVendorAuthStore.getState();
+      await verifyLoginOtp(loginEmail, otpString);
       toast.success('Login successful!');
       const from = location.state?.from?.pathname || '/vendor/dashboard';
       navigate(from, { replace: true });
     } catch (error) {
-      toast.error(error.message || 'Invalid credentials');
+      toast.error(error.message || 'Invalid OTP');
     }
   };
 
@@ -87,6 +135,7 @@ const VendorLogin = () => {
             <p className="text-gray-500 font-medium">Access your store management center</p>
           </div>
 
+          {step === 'credentials' ? (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">
@@ -163,6 +212,50 @@ const VendorLogin = () => {
               </p>
             </div>
           </form>
+          ) : (
+          <form onSubmit={handleVerifySubmit} className="space-y-6">
+            <div className="text-center mb-6">
+              <p className="text-sm text-gray-500">
+                Please enter the 6-digit verification code sent to <br/>
+                <span className="font-semibold text-gray-900">{loginEmail}</span>
+              </p>
+            </div>
+            
+            <div className="flex justify-between gap-2 mb-8">
+              {otp.map((digit, index) => (
+                <input
+                  key={index}
+                  id={`otp-${index}`}
+                  type="text"
+                  maxLength="1"
+                  value={digit}
+                  onChange={(e) => handleOtpChange(index, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                  className="w-12 h-14 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:border-[#0f172a] focus:ring-1 focus:ring-[#0f172a] focus:outline-none transition-all"
+                  required
+                />
+              ))}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-[#0f172a] text-white py-4 rounded-2xl font-black text-base hover:bg-slate-800 transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50"
+            >
+              {isLoading ? 'Verifying...' : 'Verify & Login'}
+            </button>
+
+            <div className="mt-6 text-center">
+              <button
+                type="button"
+                onClick={() => setStep('credentials')}
+                className="text-gray-500 text-sm font-medium hover:text-[#0f172a]"
+              >
+                &larr; Back to Login
+              </button>
+            </div>
+          </form>
+          )}
         </motion.div>
       </div>
     </div>
