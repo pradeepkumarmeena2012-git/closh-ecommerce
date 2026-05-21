@@ -241,7 +241,16 @@ export const getMultiVendorOrderStatus = asyncHandler(async (req, res) => {
         }
     }
 
-    res.status(200).json(new ApiResponse(200, { order, batch }, 'Multi-vendor order status.'));
+    // Check if there is an associated return request
+    let returnRequest = null;
+    try {
+        const ReturnRequestModel = mongoose.model('ReturnRequest');
+        returnRequest = await ReturnRequestModel.findOne({ orderId: order._id }).lean();
+    } catch (err) {
+        console.error('[MultiVendorPickup Controller] ReturnRequest query error:', err.message);
+    }
+
+    res.status(200).json(new ApiResponse(200, { order, batch, returnRequest }, 'Multi-vendor order status.'));
 });
 
 // POST /api/delivery/multi-vendor/:orderId/stops/:vendorId/arrive

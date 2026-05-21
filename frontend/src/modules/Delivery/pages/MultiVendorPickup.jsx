@@ -28,6 +28,7 @@ export default function MultiVendorPickup() {
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
     const [batch, setBatch] = useState(null);
+    const [returnRequest, setReturnRequest] = useState(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState('');
@@ -43,6 +44,7 @@ export default function MultiVendorPickup() {
             setOrder(orderData.order);
             const b = orderData.batch;
             setBatch(b);
+            setReturnRequest(orderData.returnRequest || null);
             if (b?.status === 'arrived') {
                 setShowCustomerOtp(true);
             }
@@ -218,6 +220,37 @@ export default function MultiVendorPickup() {
                     <span className="text-xs font-black text-emerald-400">{progressPct}%</span>
                 </div>
             </div>
+
+            {/* Return Request Banner */}
+            {returnRequest && (
+                <div className="mx-4 mt-5 p-4 bg-gradient-to-br from-indigo-900 to-indigo-800 text-white rounded-3xl border border-indigo-950 shadow-xl shadow-indigo-900/20 animate-pulse relative overflow-hidden">
+                    {/* Background glows */}
+                    <div className="absolute -top-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-xl pointer-events-none" />
+                    
+                    <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center shrink-0 border border-white/10">
+                            <Truck size={18} className="text-white animate-bounce" />
+                        </div>
+                        <div className="flex-1">
+                            <span className="inline-block bg-indigo-500/30 text-indigo-200 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full mb-1">
+                                Return Active
+                            </span>
+                            <h3 className="text-sm font-black tracking-wide">Order in Return Phase</h3>
+                            <p className="text-[11px] text-indigo-200 font-bold mt-1 leading-relaxed">
+                                This order is currently active in reverse logistics. The customer has requested to return selected items.
+                            </p>
+                            
+                            <button
+                                onClick={() => navigate(`/delivery/returns/${returnRequest._id || returnRequest.id || returnRequest.returnId}`)}
+                                className="mt-4 w-full py-2.5 bg-white text-indigo-900 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-white/5"
+                            >
+                                Open Return Panel
+                                <ChevronRight size={14} className="stroke-[3]" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Error banner */}
             {error && (

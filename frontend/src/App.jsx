@@ -654,6 +654,16 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/order-success/:orderId"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout><UserOrderSuccessPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
+        <Route
           path="/track-order/:orderId"
           element={
             <RouteWrapper>

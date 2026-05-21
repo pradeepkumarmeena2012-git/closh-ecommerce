@@ -311,10 +311,12 @@ const DeliveryOrders = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.03 }}
                     onClick={() => {
-                      if (order.isMultiVendor) {
+                      if (order.type === 'return') {
+                        navigate(`/delivery/returns/${order.id}`);
+                      } else if (order.isMultiVendor) {
                         navigate(`/delivery/multi-vendor/${order.orderId || order.id}`);
                       } else {
-                        navigate(order.type === 'return' ? `/delivery/returns/${order.id}` : `/delivery/orders/${order.id}`);
+                        navigate(`/delivery/orders/${order.id}`);
                       }
                     }}
                     className="bg-white rounded-xl p-3 shadow-md shadow-slate-200/50 border border-slate-100 hover:border-slate-300 transition-all cursor-pointer group relative overflow-hidden"

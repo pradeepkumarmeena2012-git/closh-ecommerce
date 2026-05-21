@@ -43,6 +43,15 @@ const ReturnRequestDetail = () => {
 
   const vendorId = vendor?.id;
 
+  const isMultiVendor = returnRequest?.isMultiVendor;
+  const currentVendorDropoff = isMultiVendor && Array.isArray(returnRequest?.vendorDropoffs)
+    ? returnRequest.vendorDropoffs.find(d => String(d.vendorId?._id || d.vendorId) === String(vendorId))
+    : null;
+
+  const handoverOtpDebug = isMultiVendor
+    ? currentVendorDropoff?.dropoffOtpDebug
+    : returnRequest?.deliveryOtpDebug;
+
   useEffect(() => {
     if (!vendorId) return;
 
@@ -280,7 +289,7 @@ const ReturnRequestDetail = () => {
               <FiPackage className="text-primary-600 text-base" />
               Return Overview
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Refund Amount</p>
                 <p className="font-bold text-gray-800 text-lg">
@@ -307,6 +316,14 @@ const ReturnRequestDetail = () => {
                   {returnRequest.refundStatus}
                 </Badge>
               </div>
+              {handoverOtpDebug && (
+                <div>
+                  <p className="text-xs text-amber-600 mb-0.5 font-bold">Handover OTP (Debug)</p>
+                  <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-xs border border-amber-200 inline-block">
+                    {handoverOtpDebug}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

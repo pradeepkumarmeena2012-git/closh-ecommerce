@@ -24,6 +24,7 @@ import { geocodeAddress, getDistanceMatrix } from '../../../services/googleMaps.
 import { applyActiveCampaigns } from '../../../utils/productUtils.js';
 import { validateCoupon } from '../../../services/coupon.service.js';
 import { autoAssignDeliveryBoy } from '../../../services/autoAssignment.service.js';
+import * as DeliveryOtpService from '../../../services/deliveryOtp.service.js';
 
 const getRazorpayInstance = () => {
     const key_id = process.env.RAZORPAY_KEY_ID;
@@ -1118,26 +1119,76 @@ export const createTryBuyReturnRequest = asyncHandler(async (req, res) => {
     let refundAmount = 0;
 
     for (const inputItem of items) {
-        const vendorId = String(inputItem.vendorId);
         const productId = String(inputItem.productId);
+        const requestedQty = Number(inputItem.quantity || 1);
 
-        const vendorGroup = order.vendorItems?.find((v) => String(v.vendorId) === vendorId);
-        if (!vendorGroup) throw new ApiError(400, `Vendor ${vendorId} not found in this order.`);
+        // Auto-resolve vendorId: search all vendorItems groups for this product
+        let foundVendorGroup = null;
+        let foundOrderItem = null;
 
-        const orderItem = vendorGroup.items.find((it) => String(it.productId) === productId);
-        if (!orderItem) throw new ApiError(400, `Product ${productId} not found in vendor ${vendorId}'s package.`);
-
-        const requestedQty = Number(inputItem.quantity);
-        if (requestedQty <= 0 || requestedQty > orderItem.quantity) {
-            throw new ApiError(400, `Invalid return quantity for product ${orderItem.name}.`);
+        if (inputItem.vendorId) {
+            // Client provided vendorId — use it directly
+            const vid = String(inputItem.vendorId);
+            foundVendorGroup = order.vendorItems?.find((v) => String(v.vendorId) === vid);
+            if (foundVendorGroup) {
+                foundOrderItem = foundVendorGroup.items?.find((it) => String(it.productId) === productId);
+            }
+        } else {
+            // Auto-resolve: find which vendor group contains this productId
+            for (const vGroup of (order.vendorItems || [])) {
+                const match = vGroup.items?.find((it) => String(it.productId) === productId);
+                if (match) {
+                    foundVendorGroup = vGroup;
+                    foundOrderItem = match;
+                    break;
+                }
+            }
         }
 
-        const itemTotal = orderItem.price * requestedQty;
+        // Fallback: search flat order.items (each item has vendorId in schema)
+        if (!foundOrderItem && order.items?.length > 0) {
+            foundOrderItem = order.items.find(
+                (it) => String(it.productId) === productId || String(it._id) === productId
+            );
+            if (foundOrderItem && !foundVendorGroup) {
+                // Synthesize a vendorGroup from the item's vendorId
+                const itemVendorId = foundOrderItem.vendorId;
+                foundVendorGroup = {
+                    vendorId: itemVendorId,
+                    vendorName: foundOrderItem.vendorName || 'Vendor',
+                    items: order.items.filter(it => String(it.vendorId) === String(itemVendorId)),
+                };
+            }
+        }
+
+        // Final fallback: single-vendor order without vendorItems
+        if (!foundOrderItem && (!order.vendorItems || order.vendorItems.length === 0)) {
+            foundOrderItem = order.items?.find((it) => String(it.productId) === productId || String(it.id) === productId);
+            if (foundOrderItem && !foundVendorGroup) {
+                foundVendorGroup = {
+                    vendorId: order.vendorId || order.vendorItems?.[0]?.vendorId,
+                    vendorName: order.vendorName || order.vendorItems?.[0]?.vendorName || 'Vendor',
+                    items: order.items || [],
+                };
+            }
+        }
+
+        if (!foundOrderItem) {
+            throw new ApiError(400, `Product ${productId} not found in this order.`);
+        }
+
+        const vendorId = String(foundVendorGroup?.vendorId || 'unknown');
+
+        if (requestedQty <= 0 || requestedQty > (foundOrderItem.quantity || 1)) {
+            throw new ApiError(400, `Invalid return quantity for product ${foundOrderItem.name || productId}.`);
+        }
+
+        const itemTotal = (foundOrderItem.price || foundOrderItem.discountedPrice || 0) * requestedQty;
         refundAmount += itemTotal;
 
         const returnItemData = {
-            productId: orderItem.productId,
-            name: orderItem.name,
+            productId: foundOrderItem.productId || productId,
+            name: foundOrderItem.name || inputItem.name || 'Product',
             quantity: requestedQty,
             reason: inputItem.reason || reason,
         };
@@ -1146,14 +1197,14 @@ export const createTryBuyReturnRequest = asyncHandler(async (req, res) => {
 
         if (!vendorDropoffsMap[vendorId]) {
             vendorDropoffsMap[vendorId] = {
-                vendorId: vendorGroup.vendorId,
-                vendorName: vendorGroup.vendorName,
-                shopLocation: undefined, // Need to fetch from Vendor or original pickup
+                vendorId: foundVendorGroup?.vendorId,
+                vendorName: foundVendorGroup?.vendorName || 'Vendor',
+                shopLocation: undefined,
                 shopAddress: '',
                 items: [],
                 status: 'pending'
             };
-            
+
             // Attempt to get location from original pickups
             const origPickup = order.vendorPickups?.find(vp => String(vp.vendorId) === vendorId);
             if (origPickup) {
@@ -1162,7 +1213,7 @@ export const createTryBuyReturnRequest = asyncHandler(async (req, res) => {
                 vendorDropoffsMap[vendorId].vendorPhone = origPickup.vendorPhone;
             } else {
                 // Fallback to fetching vendor model
-                const vendorData = await Vendor.findById(vendorId);
+                const vendorData = await Vendor.findById(foundVendorGroup?.vendorId);
                 if (vendorData) {
                     vendorDropoffsMap[vendorId].shopLocation = vendorData.shopLocation;
                     vendorDropoffsMap[vendorId].shopAddress = vendorData.shopAddress;
@@ -1170,11 +1221,17 @@ export const createTryBuyReturnRequest = asyncHandler(async (req, res) => {
                 }
             }
         }
-        
+
         vendorDropoffsMap[vendorId].items.push(returnItemData);
     }
 
     const vendorDropoffs = Object.values(vendorDropoffsMap);
+
+    // Generate Customer Pickup OTP for Try & Buy / Check & Buy returns
+    const otp = DeliveryOtpService.generateOtp();
+    const pickupOtpHash = DeliveryOtpService.hashOtp(otp);
+    const pickupOtpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const pickupOtpDebug = otp;
 
     const returnRequest = await ReturnRequest.create({
         orderId: order._id,
@@ -1192,6 +1249,9 @@ export const createTryBuyReturnRequest = asyncHandler(async (req, res) => {
         originalDeliveryBoyId: order.deliveryBoyId,
         deliveryBoyId: order.deliveryBoyId, // Auto-assign to same delivery boy
         pickupLocation: order.dropoffLocation, // Pick up from customer's dropoff location
+        pickupOtpHash,
+        pickupOtpExpiry,
+        pickupOtpDebug,
     });
 
     res.status(201).json(new ApiResponse(201, returnRequest, 'Return request generated successfully.'));

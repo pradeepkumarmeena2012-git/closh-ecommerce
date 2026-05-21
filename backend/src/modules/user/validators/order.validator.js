@@ -43,13 +43,14 @@ export const createReturnRequestSchema = Joi.object({
 });
 
 export const tryBuyReturnRequestSchema = Joi.object({
-    reason: Joi.string().trim().min(5).max(500).required(),
+    reason: Joi.string().trim().min(3).max(500).required(),
     items: Joi.array()
         .items(
             Joi.object({
                 productId: Joi.string().required(),
-                quantity: Joi.number().integer().min(1).required(),
-                vendorId: Joi.string().required(), // Required so backend knows which vendor to route to
+                quantity: Joi.number().integer().min(1).optional(),
+                name: Joi.string().optional(),
+                vendorId: Joi.string().optional(), // Optional — backend auto-resolves from order
                 reason: Joi.string().trim().max(300).allow('').optional(),
             })
         )

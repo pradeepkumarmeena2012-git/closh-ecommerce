@@ -100,7 +100,8 @@ const TrackingMap = ({
   status = 'assigned', 
   path = [],        
   followMode = true,
-  isLoaded: isLoadedProp
+  isLoaded: isLoadedProp,
+  type = 'delivery'
 }) => {
   const { isLoaded: localIsLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -176,7 +177,10 @@ const TrackingMap = ({
 
   const effectiveRider = isSimulating ? simulatedRider : smoothLocation;
   const isPickedUp = ['picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery', 'arrived'].includes(status?.toLowerCase());
-  const destination = isPickedUp ? customerLocation : (vendorLocation || customerLocation);
+  const isReturn = type === 'return';
+  const destination = isReturn
+    ? (isPickedUp ? vendorLocation : customerLocation)
+    : (isPickedUp ? customerLocation : (vendorLocation || customerLocation));
 
   // --- Routing & Polyline ---
   useEffect(() => {
@@ -257,8 +261,13 @@ const TrackingMap = ({
   }, [isLoaded, effectiveRider, destination, lastRouteParams]);
 
   const handleExternalNav = () => {
-    if (effectiveRider && destination) {
-       const url = `https://www.google.com/maps/dir/?api=1&origin=${effectiveRider.lat},${effectiveRider.lng}&destination=${destination.lat},${destination.lng}&travelmode=driving`;
+    if (effectiveRider) {
+       const dest = isReturn
+         ? (isPickedUp ? (vendorAddress || destination) : (customerAddress || destination))
+         : (isPickedUp ? (customerAddress || destination) : (vendorAddress || customerAddress || destination));
+       
+       const destStr = typeof dest === 'string' ? encodeURIComponent(dest) : `${dest.lat},${dest.lng}`;
+       const url = `https://www.google.com/maps/dir/?api=1&origin=${effectiveRider.lat},${effectiveRider.lng}&destination=${destStr}&travelmode=driving`;
        window.open(url, '_blank');
     }
   };
@@ -321,7 +330,7 @@ const TrackingMap = ({
         {destination && (
           <Marker 
             position={destination}
-            label={{ text: isPickedUp ? '🏠' : '📦', fontSize: '22px' }}
+            label={{ text: isReturn ? (isPickedUp ? '📦' : '🏠') : (isPickedUp ? '🏠' : '📦'), fontSize: '22px' }}
             zIndex={1000}
           />
         )}

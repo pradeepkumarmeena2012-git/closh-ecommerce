@@ -19,7 +19,8 @@ import {
     Truck,
     ShoppingCart,
     ShieldCheck,
-    Check
+    Check,
+    AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LocationModal from '../../components/Header/LocationModal';
@@ -86,6 +87,9 @@ const CheckoutPage = () => {
     const totalPrice = getCartTotal();
     const totalMRP = cart.reduce((acc, item) => acc + (Number(item.originalPrice || item.price) * item.quantity), 0);
     const bagDiscount = Math.max(0, totalMRP - totalPrice);
+    
+    const uniqueVendorIds = [...new Set(cart.map(item => String(item.vendorId || '')))].filter(Boolean);
+    const isMultiVendor = uniqueVendorIds.length > 1;
     
     // Dynamic values from settings
     const shippingThreshold = settings?.shipping?.freeShippingThreshold || 500;
@@ -397,6 +401,30 @@ const CheckoutPage = () => {
                                 </div>
                             </label>
                         </div>
+
+                        {isMultiVendor && (
+                            deliveryType === 'check_and_buy' ? (
+                                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
+                                    <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                                    <div className="text-left">
+                                        <p className="text-[10px] font-black text-amber-800 uppercase tracking-wide">Return Policy Notice</p>
+                                        <p className="text-[9px] font-bold text-amber-700 leading-relaxed mt-0.5">
+                                            Check &amp; Buy return is supported only for single-vendor orders. This order contains items from multiple vendors and is not eligible for returns.
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
+                                    <ShieldCheck size={15} className="text-indigo-600 shrink-0 mt-0.5" />
+                                    <div className="text-left">
+                                        <p className="text-[10px] font-black text-indigo-800 uppercase tracking-wide">Doorstep Return Policy</p>
+                                        <p className="text-[9px] font-bold text-indigo-700 leading-relaxed mt-0.5">
+                                            Try &amp; Buy items must be checked and returned instantly to the delivery partner at the doorstep. No post-delivery returns are allowed.
+                                        </p>
+                                    </div>
+                                </div>
+                            )
+                        )}
                     </div>
 
 

@@ -213,10 +213,10 @@ const DeliveryReturnDetail = () => {
     ? (currentVendorDropoff.items || [])
     : (returnReq.items || []);
 
-  // Vendor debug OTP for current dropoff
-  const vendorOtpDebug = currentPhase === 'multi_vendor_dropoff'
-    ? currentVendorDropoff?.dropoffOtpDebug
-    : returnReq?.deliveryOtpDebug;
+  // Display debug OTP for the current context (customer pickup or vendor dropoff)
+  const displayOtpDebug = currentPhase === 'customer_pickup'
+    ? returnReq?.pickupOtpDebug
+    : (currentPhase === 'multi_vendor_dropoff' ? currentVendorDropoff?.dropoffOtpDebug : returnReq?.deliveryOtpDebug);
 
   return (
     <PageTransition>
@@ -267,15 +267,17 @@ const DeliveryReturnDetail = () => {
                   vendorAddress={targetAddress}
                   followMode={true}
                   isLoaded={isLoaded}
+                  type="return"
                 />
               </Suspense>
               <button
-                onClick={() =>
+                onClick={() => {
+                  const dest = targetAddress ? encodeURIComponent(targetAddress) : `${targetCoords.lat},${targetCoords.lng}`;
                   window.open(
-                    `https://www.google.com/maps/dir/?api=1&destination=${targetCoords.lat},${targetCoords.lng}`,
+                    `https://www.google.com/maps/dir/?api=1&destination=${dest}`,
                     '_blank'
-                  )
-                }
+                  );
+                }}
                 className="absolute bottom-6 right-4 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest active:scale-95 transition-all z-10"
               >
                 <FiNavigation size={18} /> Navigation
@@ -469,9 +471,9 @@ const DeliveryReturnDetail = () => {
                 placeholder={currentPhase === 'customer_pickup' ? "ENTER CUSTOMER PICKUP OTP" : "ENTER VENDOR HANDOVER OTP"}
                 className="w-full h-11 px-4 text-center text-sm font-bold tracking-[0.2em] bg-slate-50 border border-slate-200 rounded-2xl focus:border-indigo-500 focus:bg-white outline-none transition-all placeholder:text-slate-400 placeholder:text-[9px] placeholder:tracking-wider placeholder:font-bold"
               />
-              {vendorOtpDebug && currentPhase !== 'customer_pickup' && (
+              {displayOtpDebug && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-amber-500 bg-amber-50 px-2 py-1 rounded-lg">
-                  OTP: {vendorOtpDebug}
+                  OTP: {displayOtpDebug}
                 </div>
               )}
             </div>

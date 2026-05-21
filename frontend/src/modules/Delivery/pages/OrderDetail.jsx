@@ -131,7 +131,7 @@ const DeliveryOrderDetail = () => {
   const loadOrder = useCallback(async () => {
     try {
       const response = await fetchOrderById(id);
-      if (response?.isMultiVendor) {
+      if (response?.isMultiVendor && response?.type !== 'return') {
         navigate(`/delivery/multi-vendor/${id}`, { replace: true });
         return;
       }

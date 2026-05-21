@@ -302,9 +302,24 @@ const OrderDetailsPage = () => {
     };
 
     const handleTryBuyReturnSubmit = async () => {
-        const selectedIds = Object.entries(selectedReturnItems)
-            .filter(([, checked]) => checked)
-            .map(([id]) => id);
+        // Determine effective selected items:
+        // - If user has interacted (any key in selectedReturnItems), use those that are truthy or !== false
+        // - If no interaction at all, default to ALL items
+        const hasAnyInteraction = Object.keys(selectedReturnItems).length > 0;
+
+        let selectedIds;
+        if (hasAnyInteraction) {
+            // Items not explicitly deselected (true or undefined in map) are included
+            selectedIds = (order.items || [])
+                .filter(item => {
+                    const id = String(item.id || item.productId || item._id || '');
+                    return selectedReturnItems[id] !== false;
+                })
+                .map(item => String(item.id || item.productId || item._id || ''));
+        } else {
+            // No interaction — return all items
+            selectedIds = (order.items || []).map(item => String(item.id || item.productId || item._id || ''));
+        }
 
         if (selectedIds.length === 0) {
             toast.error('Please select at least one item to return');
@@ -832,7 +847,21 @@ const OrderDetailsPage = () => {
                                 <p className="text-2xl font-black text-emerald-700 tracking-wider">{order.deliveryOtpDebug}</p>
                             </div>
                         )}
+
+                        {order.returnRequest && !['completed', 'rejected'].includes(order.returnRequest.status?.toLowerCase()) && order.returnRequest.pickupOtpDebug && user && (
+                            <div className="mt-6 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-150 border-dashed text-center relative overflow-hidden animate-pulse">
+                                <div className="absolute -top-10 -right-10 w-24 h-24 bg-indigo-600/5 rounded-full blur-xl pointer-events-none" />
+                                <p className="text-[9px] font-black uppercase text-indigo-600 mb-1 tracking-widest flex items-center justify-center gap-1">
+                                    <ShieldCheck size={12} className="text-indigo-500" /> Share this Return Pickup OTP with delivery partner
+                                </p>
+                                <p className="text-2xl font-black text-indigo-700 tracking-wider font-mono">{order.returnRequest.pickupOtpDebug}</p>
+                                <p className="text-[8px] text-indigo-400 font-bold uppercase tracking-tight leading-none mt-1">
+                                    Rider will verify this code to collect your return package.
+                                </p>
+                            </div>
+                        )}
                     </div>
+
 
                     {/* Multi-Vendor Combined Delivery Timeline */}
                     {order.isMultiVendor && order.vendorItems?.length > 1 && (
@@ -1254,9 +1283,24 @@ const OrderDetailsPage = () => {
                             const deliveredTime = order.deliveredAt ? new Date(order.deliveredAt).getTime() : 0;
                             const now = new Date().getTime();
                             const isWithin24h = deliveredTime && (now - deliveredTime) < (24 * 60 * 60 * 1000);
-                            const isTryAndBuy = order.orderType === 'try_and_buy';
+                            const isTryAndBuyOrder = order.orderType === 'try_and_buy';
+                            const hasExistingReturn = !!order.returnRequest;
 
-                            if (isDelivered && isWithin24h && !isTryAndBuy) {
+                            // Try & Buy — show product-selection return button
+                            if (isDelivered && isWithin24h && isTryAndBuyOrder && !hasExistingReturn) {
+                                return (
+                                    <button
+                                        onClick={() => setShowTryBuyReturnModal(true)}
+                                        className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase hover:bg-indigo-700 transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
+                                    >
+                                        <RefreshCcw size={14} />
+                                        Select Items to Return
+                                    </button>
+                                );
+                            }
+
+                            // Check & Buy or regular — show standard return button
+                            if (isDelivered && isWithin24h && !isTryAndBuyOrder && !hasExistingReturn) {
                                 return (
                                     <button
                                         onClick={() => setShowReturnModal(true)}
@@ -1283,15 +1327,15 @@ const OrderDetailsPage = () => {
             {/* Try & Buy Return Modal */}
             {showTryBuyReturnModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-                        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 max-h-[90vh] flex flex-col">
+                        <div className="p-5 border-b border-gray-100 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
-                                    <RefreshCcw size={20} />
+                                    <RefreshCcw size={18} />
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-bold uppercase">Return Selected Items</h3>
-                                    <p className="text-[10px] text-gray-400 font-bold">{Object.values(selectedReturnItems).filter(Boolean).length} item(s) selected</p>
+                                    <h3 className="text-sm font-bold uppercase">Return Items</h3>
+                                    <p className="text-[10px] text-gray-400 font-bold">Try &amp; Buy — Select items to return</p>
                                 </div>
                             </div>
                             <button
@@ -1302,31 +1346,70 @@ const OrderDetailsPage = () => {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-4">
-                            <p className="text-sm font-bold text-gray-500">
+                        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                            {/* Item Selection inside modal */}
+                            <div>
+                                <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-2">Select items to return:</p>
+                                <div className="space-y-2">
+                                    {(order.items || []).map((item, idx) => {
+                                        const itemId = String(item.id || item.productId || item._id || idx);
+                                        const isSelected = selectedReturnItems[itemId] !== false; // default selected
+                                        return (
+                                            <div
+                                                key={idx}
+                                                onClick={() => handleToggleReturnItem(itemId)}
+                                                className={`flex items-center gap-3 p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
+                                                    isSelected ? 'border-indigo-500 bg-indigo-50' : 'border-gray-100 bg-gray-50'
+                                                }`}
+                                            >
+                                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
+                                                    isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
+                                                }`}>
+                                                    {isSelected && <CheckCircle size={12} className="text-white" />}
+                                                </div>
+                                                <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-gray-100">
+                                                    <img src={item.image} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[11px] font-bold text-gray-800 truncate">{item.name}</p>
+                                                    <p className="text-[9px] font-bold text-gray-400 uppercase">
+                                                        Qty: {item.quantity} • ₹{item.discountedPrice || item.price}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Reason Selection */}
+                            <div>
+                                <p className="text-[10px] font-black text-gray-500 uppercase tracking-wider mb-2">Reason for return:</p>
+                                <div className="space-y-2">
+                                    {RETURN_REASONS.map((reason, idx) => (
+                                        <label
+                                            key={idx}
+                                            className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${tryBuyReturnReason === reason ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-gray-200'}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="tryBuyReturnReason"
+                                                value={reason}
+                                                checked={tryBuyReturnReason === reason}
+                                                onChange={(e) => setTryBuyReturnReason(e.target.value)}
+                                                className="w-4 h-4 accent-indigo-600"
+                                            />
+                                            <span className="text-xs font-bold text-gray-700">{reason}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <p className="text-[10px] text-gray-400 font-medium text-center leading-relaxed">
                                 The original delivery partner will pick up the selected items from you.
                             </p>
 
-                            <div className="space-y-2">
-                                {RETURN_REASONS.map((reason, idx) => (
-                                    <label
-                                        key={idx}
-                                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${tryBuyReturnReason === reason ? 'border-indigo-600 bg-indigo-50' : 'border-gray-100 hover:border-gray-200'}`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="tryBuyReturnReason"
-                                            value={reason}
-                                            checked={tryBuyReturnReason === reason}
-                                            onChange={(e) => setTryBuyReturnReason(e.target.value)}
-                                            className="w-4 h-4 accent-indigo-600"
-                                        />
-                                        <span className="text-xs font-bold text-gray-700">{reason}</span>
-                                    </label>
-                                ))}
-                            </div>
-
-                            <div className="pt-4 flex gap-3">
+                            <div className="flex gap-3">
                                 <button
                                     onClick={() => setShowTryBuyReturnModal(false)}
                                     className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-[11px] uppercase hover:bg-gray-200 transition-all"
