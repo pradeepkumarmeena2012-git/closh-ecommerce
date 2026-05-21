@@ -19,6 +19,7 @@ const VendorLogin = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [step, setStep] = useState('credentials'); // 'credentials' or 'verify'
   const [loginEmail, setLoginEmail] = useState('');
+  const [loginPhone, setLoginPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
 
   useEffect(() => {
@@ -46,6 +47,7 @@ const VendorLogin = () => {
       const result = await login(formData.email, formData.password, rememberMe);
       if (result.is2FA) {
         setLoginEmail(result.email);
+        setLoginPhone(result.phone || '');
         setStep('verify');
         toast.success('OTP sent to your registered contact.');
       } else {
@@ -216,8 +218,13 @@ const VendorLogin = () => {
           <form onSubmit={handleVerifySubmit} className="space-y-6">
             <div className="text-center mb-6">
               <p className="text-sm text-gray-500">
-                Please enter the 6-digit verification code sent to <br/>
-                <span className="font-semibold text-gray-900">{loginEmail}</span>
+                Please enter the 6-digit verification code sent to your mobile number <br/>
+                <span className="font-semibold text-gray-900">
+                  {loginPhone
+                    ? loginPhone.replace(/^(\+?\d{2})(\d{3})(\d{3})(\d+)$/, '$1$2***$4')
+                    : '*** **** ****'
+                  }
+                </span>
               </p>
             </div>
             
