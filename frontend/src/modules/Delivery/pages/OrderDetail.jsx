@@ -642,7 +642,7 @@ const DeliveryOrderDetail = () => {
                             type="tel" maxLength={6} value={otpValue}
                             onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
                             placeholder="Enter 6-digit OTP"
-                            className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xl font-black tracking-[0.2em] text-slate-800 placeholder:text-slate-300 placeholder:text-[10px] placeholder:tracking-normal outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
+                            className="w-full h-14 bg-white border-2 border-slate-200 rounded-2xl text-center text-xl font-black tracking-[0.2em] text-slate-900 placeholder:text-slate-400 placeholder:text-[13px] placeholder:font-semibold placeholder:tracking-wide outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all shadow-sm"
                             />
                             <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-20">
                                 <FiShield size={18}/>

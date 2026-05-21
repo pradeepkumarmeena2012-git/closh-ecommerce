@@ -131,6 +131,90 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     );
 });
 
+// GET /api/delivery/orders/rejected
+// Returns: (1) orders that were cancelled while this rider was assigned
+//          (2) orders this rider explicitly rejected (in rejectedDeliveryBoys)
+export const getRejectedOrders = asyncHandler(async (req, res) => {
+    const deliveryBoyId = req.user.id;
+    const { page, limit } = req.query;
+    const numericPage = Math.max(1, Number(page) || 1);
+    const numericLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
+    const skip = (numericPage - 1) * numericLimit;
+
+    const selectFields = 'orderId status total deliveryEarnings deliveryDistance items.name items.image items.quantity orderType paymentMethod shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.vendorName isMultiVendor cancelledAt cancellationReason createdAt updatedAt';
+
+    // Query 1: Cancelled while assigned to this rider
+    const cancelledFilter = {
+        deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId),
+        status: 'cancelled',
+        isDeleted: { $ne: true }
+    };
+
+    // Query 2: Orders this rider manually rejected (in rejectedDeliveryBoys)
+    const rejectedByRiderFilter = {
+        rejectedDeliveryBoys: new mongoose.Types.ObjectId(deliveryBoyId),
+        isDeleted: { $ne: true }
+    };
+
+    const [cancelledOrders, rejectedOrders, cancelledTotal, rejectedTotal] = await Promise.all([
+        Order.find(cancelledFilter)
+            .select(selectFields)
+            .populate('vendorItems.vendorId', 'storeName')
+            .sort({ updatedAt: -1 })
+            .skip(skip)
+            .limit(numericLimit)
+            .lean(),
+        Order.find(rejectedByRiderFilter)
+            .select(selectFields + ' rejectedDeliveryBoys')
+            .populate('vendorItems.vendorId', 'storeName')
+            .sort({ updatedAt: -1 })
+            .skip(skip)
+            .limit(numericLimit)
+            .lean(),
+        Order.countDocuments(cancelledFilter),
+        Order.countDocuments(rejectedByRiderFilter),
+    ]);
+
+    // Merge and de-duplicate by orderId
+    const seen = new Set();
+    const merged = [];
+
+    for (const o of cancelledOrders) {
+        const key = String(o._id);
+        if (!seen.has(key)) { seen.add(key); merged.push({ ...o, rejectionType: 'cancelled_assigned' }); }
+    }
+    for (const o of rejectedOrders) {
+        const key = String(o._id);
+        if (!seen.has(key)) { seen.add(key); merged.push({ ...o, rejectionType: 'rider_rejected' }); }
+    }
+
+    // Sort merged by updatedAt desc
+    merged.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
+    const total = cancelledTotal + rejectedTotal;
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                orders: merged,
+                pagination: {
+                    total,
+                    page: numericPage,
+                    limit: numericLimit,
+                    pages: Math.ceil(total / numericLimit) || 1,
+                },
+                summary: {
+                    cancelledAssigned: cancelledTotal,
+                    riderRejected: rejectedTotal,
+                    total,
+                }
+            },
+            'Rejected orders fetched.'
+        )
+    );
+});
+
 // GET /api/delivery/orders/available
 export const getAvailableOrders = asyncHandler(async (req, res) => {
     const { page, limit } = req.query;

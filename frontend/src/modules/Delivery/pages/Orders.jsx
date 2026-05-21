@@ -13,7 +13,11 @@ import {
   FiSearch,
   FiFilter,
   FiActivity,
-  FiTruck
+  FiTruck,
+  FiAlertTriangle,
+  FiRefreshCw,
+  FiSlash,
+  FiBarChart2
 } from 'react-icons/fi';
 import { Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -46,6 +50,10 @@ const DeliveryOrders = () => {
   const [selectedNewOrder, setSelectedNewOrder] = useState(null);
   const [mvOrders, setMvOrders] = useState([]);
   const [mvLoading, setMvLoading] = useState(false);
+  // Rejected orders state
+  const [rejectedOrders, setRejectedOrders] = useState([]);
+  const [rejectedSummary, setRejectedSummary] = useState({ cancelledAssigned: 0, riderRejected: 0, total: 0 });
+  const [rejectedLoading, setRejectedLoading] = useState(false);
   const PAGE_SIZE = 20;
 
   const getBackendStatusFilter = (value) => {
@@ -126,6 +134,19 @@ const DeliveryOrders = () => {
         .then(r => setMvOrders(r.data.data || []))
         .catch(() => {})
         .finally(() => setMvLoading(false));
+    }
+
+    // Fetch rejected orders
+    if (filter === 'rejected') {
+      setRejectedLoading(true);
+      api.get('/delivery/orders/rejected', { params: { page: currentPage, limit: PAGE_SIZE } })
+        .then(r => {
+          const payload = r.data?.data || r.data || {};
+          setRejectedOrders(payload.orders || []);
+          setRejectedSummary(payload.summary || { cancelledAssigned: 0, riderRejected: 0, total: 0 });
+        })
+        .catch(() => toast.error('Failed to load rejected orders'))
+        .finally(() => setRejectedLoading(false));
     }
 
     socketService.on('order_taken', (data) => {
@@ -219,18 +240,19 @@ const DeliveryOrders = () => {
           </div>
 
           <div className="relative z-10 mt-6 flex gap-2 overflow-x-auto scrollbar-hide">
-             {['available', 'multi-vendor', 'delivered'].filter(t => t !== 'available' || isOnline).map((tab) => (
+             {['available', 'multi-vendor', 'delivered', 'rejected'].filter(t => t !== 'available' || isOnline).map((tab) => (
                <button
                  key={tab}
                  onClick={() => { setFilter(tab); setCurrentPage(1); }}
                  className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-[12px] font-bold tracking-tight transition-all duration-300 border ${
                    filter === tab 
-                   ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/30' 
+                   ? (tab === 'rejected' ? 'bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-600/30' : 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/30')
                    : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-800'
                  }`}
                >
                  {tab === 'multi-vendor' && <Layers size={12} />}
-                 {tab === 'available' ? 'Active Duty' : tab === 'multi-vendor' ? 'Multi-Vendor' : 'Delivered'}
+                 {tab === 'rejected' && <FiSlash size={11} />}
+                 {tab === 'available' ? 'Active Duty' : tab === 'multi-vendor' ? 'Multi-Vendor' : tab === 'rejected' ? 'Rejected' : 'Delivered'}
                </button>
              ))}
           </div>
@@ -290,8 +312,109 @@ const DeliveryOrders = () => {
               )
             )}
 
+            {/* Rejected Orders tab */}
+            {filter === 'rejected' && (
+              rejectedLoading ? (
+                Array(4).fill(0).map((_, i) => <OrderCardSkeleton key={i} />)
+              ) : (
+                <>
+                  {/* Analytics Summary Cards */}
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm text-center">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total</p>
+                      <p className="text-xl font-black text-slate-800">{rejectedSummary.total}</p>
+                      <p className="text-[8px] text-slate-400 font-medium mt-0.5">all time</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-rose-100 shadow-sm text-center">
+                      <p className="text-[9px] font-bold text-rose-400 uppercase tracking-widest mb-1">Cancelled</p>
+                      <p className="text-xl font-black text-rose-600">{rejectedSummary.cancelledAssigned}</p>
+                      <p className="text-[8px] text-rose-300 font-medium mt-0.5">while assigned</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-amber-100 shadow-sm text-center">
+                      <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest mb-1">Skipped</p>
+                      <p className="text-xl font-black text-amber-600">{rejectedSummary.riderRejected}</p>
+                      <p className="text-[8px] text-amber-300 font-medium mt-0.5">by you</p>
+                    </div>
+                  </div>
+
+                  {/* Resolve Tip Banner */}
+                  {rejectedSummary.total > 0 && (
+                    <div className="flex items-start gap-2 bg-rose-50 border border-rose-100 rounded-xl p-3 mb-3">
+                      <FiAlertTriangle size={14} className="text-rose-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] font-black text-rose-700">How to resolve</p>
+                        <p className="text-[9px] text-rose-500 mt-0.5 leading-relaxed">
+                          High reject/cancel rate affects your rating. Stay online & accept orders promptly to improve your score.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Order List */}
+                  {rejectedOrders.length === 0 ? (
+                    <div className="text-center py-16 bg-white rounded-[28px] border border-slate-100 shadow-sm">
+                      <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <FiCheckCircle size={26} className="text-emerald-400" />
+                      </div>
+                      <p className="text-slate-600 font-black text-base">Clean Record</p>
+                      <p className="text-slate-400 text-xs mt-1">No rejected or cancelled orders. Keep it up!</p>
+                    </div>
+                  ) : (
+                    rejectedOrders.map((order, idx) => {
+                      const isCancelled = order.rejectionType === 'cancelled_assigned';
+                      const orderId = order.orderId || String(order._id || '').slice(-6);
+                      const customerName = order.shippingAddress?.name || order.guestInfo?.name || 'Customer';
+                      const dateStr = order.cancelledAt || order.updatedAt;
+                      const dateFormatted = dateStr ? new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '--';
+                      return (
+                        <motion.div
+                          key={order._id || idx}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.04 }}
+                          className="bg-white rounded-xl p-3 shadow-sm border border-rose-100 relative overflow-hidden"
+                        >
+                          {/* Left accent bar */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${isCancelled ? 'bg-rose-500' : 'bg-amber-400'}`} />
+                          <div className="pl-2">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <span className="text-[7px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tighter shrink-0">#{String(orderId).slice(-6)}</span>
+                                <p className="font-bold text-slate-800 text-[12px] truncate">{customerName}</p>
+                              </div>
+                              <p className="font-bold text-[12px] text-slate-700 ml-2 shrink-0">{formatPrice(order.total || 0)}</p>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[6px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                                  isCancelled
+                                    ? 'bg-rose-50 text-rose-600 border-rose-200'
+                                    : 'bg-amber-50 text-amber-600 border-amber-200'
+                                }`}>
+                                  {isCancelled ? 'Cancelled' : 'Skipped by You'}
+                                </span>
+                                {order.cancellationReason && (
+                                  <span className="text-[6px] font-medium text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded max-w-[90px] truncate">
+                                    {order.cancellationReason}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 text-slate-400">
+                                <FiClock size={9} />
+                                <span className="text-[8px] font-medium">{dateFormatted}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
+                </>
+              )
+            )}
+
             {/* Normal orders tab */}
-            {filter !== 'multi-vendor' && (
+            {filter !== 'multi-vendor' && filter !== 'rejected' && (
               isLoadingOrders ? (
                 Array(6).fill(0).map((_, i) => <OrderCardSkeleton key={i} />)
               ) : orders.length === 0 ? (
