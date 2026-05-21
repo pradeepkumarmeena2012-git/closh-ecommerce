@@ -149,6 +149,18 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     if (!order) throw new ApiError(404, 'Order not found.');
 
     const vendorItem = order.vendorItems.find((vi) => String(vi.vendorId) === String(req.user.id));
+    
+    console.log('\n=======================================');
+    console.log('[DEBUG] updateOrderStatus API called:');
+    console.log('Order ID:', id);
+    console.log('Logged-in req.user.id:', req.user?.id);
+    console.log('Found order.vendorItems:');
+    order.vendorItems.forEach((vi, idx) => {
+        console.log(`  Item ${idx}: vendorId=${vi.vendorId} (String=${String(vi.vendorId)}), status=${vi.status}`);
+    });
+    console.log('Matched vendorItem:', vendorItem ? { vendorId: vendorItem.vendorId, status: vendorItem.status } : 'NONE');
+    console.log('=======================================\n');
+
     if (!vendorItem) throw new ApiError(404, 'Vendor order item not found.');
 
     const currentStatus = String(vendorItem.status || 'pending').trim().toLowerCase();
@@ -157,7 +169,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         pending: ['accepted', 'processing', 'ready_for_pickup', 'cancelled'],
         accepted: ['accepted', 'ready_for_pickup', 'cancelled', 'processing'],
         processing: ['processing', 'ready_for_pickup', 'cancelled', 'accepted'],
-        ready_for_pickup: ['ready_for_pickup', 'picked_up', 'cancelled'], // picked_up by delivery partner
+        ready_for_pickup: ['ready_for_pickup', 'accepted', 'processing', 'picked_up', 'cancelled'], // picked_up by delivery partner
         picked_up: ['picked_up', 'out_for_delivery'],
         out_for_delivery: ['out_for_delivery', 'delivered'],
         delivered: ['delivered'],

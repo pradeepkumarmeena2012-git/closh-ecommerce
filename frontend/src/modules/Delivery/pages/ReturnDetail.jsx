@@ -214,9 +214,7 @@ const DeliveryReturnDetail = () => {
     : (returnReq.items || []);
 
   // Display debug OTP for the current context (customer pickup or vendor dropoff)
-  const displayOtpDebug = currentPhase === 'customer_pickup'
-    ? returnReq?.pickupOtpDebug
-    : (currentPhase === 'multi_vendor_dropoff' ? currentVendorDropoff?.dropoffOtpDebug : returnReq?.deliveryOtpDebug);
+  const displayOtpDebug = null;
 
   return (
     <PageTransition>

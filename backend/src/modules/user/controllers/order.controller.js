@@ -789,6 +789,12 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Returns are only permitted for "Check & Buy" orders. "Try & Buy" orders are non-returnable after delivery.');
     }
 
+    // Multi-vendor Check & Buy restriction
+    const isMultiVendor = order.isMultiVendor || (order.vendorItems && order.vendorItems.length > 1);
+    if (order.orderType === 'check_and_buy' && isMultiVendor) {
+        throw new ApiError(400, 'Return policy is currently not available for multi-vendor Check & Buy orders.');
+    }
+
     // Check 24-hour validity
     if (order.deliveredAt) {
         const deliveredDate = new Date(order.deliveredAt);

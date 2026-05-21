@@ -1300,7 +1300,7 @@ const OrderDetailsPage = () => {
                             }
 
                             // Check & Buy or regular — show standard return button
-                            if (isDelivered && isWithin24h && !isTryAndBuyOrder && !hasExistingReturn) {
+                            if (isDelivered && isWithin24h && !isTryAndBuyOrder && !hasExistingReturn && !(isCheckAndBuy && isMultiVendorOrder)) {
                                 return (
                                     <button
                                         onClick={() => setShowReturnModal(true)}

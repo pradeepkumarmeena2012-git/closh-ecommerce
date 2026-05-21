@@ -8,15 +8,19 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-import Order from '../models/Order.model.js';
+import Vendor from '../models/Vendor.model.js';
 
-async function checkOrder() {
+async function resetPasswords() {
     try {
         await mongoose.connect(process.env.MONGO_URI);
         console.log('Connected to DB');
 
-        const order = await Order.findOne({ orderId: 'ORD-260521-1WKG' }).lean();
-        console.log(JSON.stringify(order, null, 2));
+        const vendors = await Vendor.find({ email: { $in: ['ramesh@example.com', 'suresh@example.com'] } });
+        for (const vendor of vendors) {
+            vendor.password = 'password123';
+            await vendor.save();
+            console.log(`Updated password for ${vendor.email} to 'password123'`);
+        }
 
         await mongoose.disconnect();
     } catch (err) {
@@ -25,4 +29,4 @@ async function checkOrder() {
     }
 }
 
-checkOrder();
+resetPasswords();
