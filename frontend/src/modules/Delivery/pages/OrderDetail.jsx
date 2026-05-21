@@ -51,6 +51,7 @@ const DeliveryOrderDetail = () => {
     orders,
     acceptReturn,
     acceptOrder,
+    rejectOrder,
     markArrivedAtVendor,
   } = useDeliveryAuthStore();
   
@@ -189,6 +190,21 @@ const DeliveryOrderDetail = () => {
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to accept mission');
       navigate('/delivery/dashboard');
+    }
+  };
+
+  const handleRejectMission = async () => {
+    try {
+      if (order?.type === 'return') {
+        // Fallback for returns if needed, though rejectOrder handles both by ID typically.
+        await rejectOrder(id);
+      } else {
+        await rejectOrder(id);
+      }
+      toast.success('Mission declined');
+      navigate('/delivery/dashboard');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to decline mission');
     }
   };
 
@@ -709,8 +725,9 @@ const DeliveryOrderDetail = () => {
           {isAvailableTask ? (
             <div className="flex gap-3">
               <button 
-                  onClick={() => navigate(-1)}
-                  className="flex-1 h-12 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] border border-slate-200 active:scale-95 transition-all"
+                  onClick={handleRejectMission}
+                  disabled={isUpdatingOrderStatus}
+                  className="flex-1 h-12 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] border border-slate-200 active:scale-95 transition-all disabled:opacity-50"
               >
                   Decline
               </button>

@@ -39,6 +39,7 @@ const DeliveryOrders = () => {
     isUpdatingOrderStatus,
     fetchOrders,
     acceptOrder,
+    rejectOrder,
     completeOrder,
     deliveryBoy,
   } = useDeliveryAuthStore();
@@ -190,6 +191,23 @@ const DeliveryOrders = () => {
         }
       }
     } catch(err) {}
+  };
+
+  const handleRejectMission = async (e, orderId) => {
+    e.stopPropagation();
+    const confirm = window.confirm("Are you sure you want to decline this mission?");
+    if (!confirm) return;
+    try {
+      toast.loading("Declining order...", { id: "decline-order" });
+      await rejectOrder(orderId);
+      toast.success("Mission declined successfully", { id: "decline-order" });
+      // If we are on available tab, we might need to manually trigger a refetch if optimistic update isn't perfectly synced
+      if (filter === 'available') {
+         loadOrders(currentPage, filter);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to decline order", { id: "decline-order" });
+    }
   };
 
   const handleAcceptMultiVendor = async (orderId) => {
@@ -476,6 +494,24 @@ const DeliveryOrders = () => {
                         )}
                       </div>
                     </div>
+                    {filter === 'available' && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 flex gap-2">
+                        <button 
+                          onClick={(e) => handleRejectMission(e, order.id)}
+                          disabled={isUpdatingOrderStatus}
+                          className="flex-1 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-rose-100 hover:bg-rose-100 active:scale-95 transition-all"
+                        >
+                          Decline
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleAcceptOrder(order.id, order.type); }}
+                          disabled={isUpdatingOrderStatus}
+                          className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all"
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 ))
               )
