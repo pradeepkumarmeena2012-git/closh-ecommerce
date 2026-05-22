@@ -1904,7 +1904,7 @@ export const pickupReturnFromCustomer = asyncHandler(async (req, res) => {
     const deliveryBoyId = req.user.id;
 
     if (!pickupPhoto) throw new ApiError(400, 'Pickup photo is required.');
-    
+
     const returnReq = await ReturnRequest.findOne({ _id: id, deliveryBoyId });
     if (!returnReq) throw new ApiError(404, 'Return request not found or not assigned to you.');
 
@@ -1916,7 +1916,7 @@ export const pickupReturnFromCustomer = asyncHandler(async (req, res) => {
     const normalizedOtp = String(otp || '').trim();
     const otpHash = DeliveryOtpService.hashOtp(normalizedOtp);
     const isValidOtp = otpHash === returnReq.pickupOtpHash || (!IS_PRODUCTION && normalizedOtp === returnReq.pickupOtpDebug);
-    
+
     if (!isValidOtp) throw new ApiError(400, 'Invalid Customer OTP for pickup.');
 
     returnReq.status = 'processing';
@@ -1928,7 +1928,7 @@ export const pickupReturnFromCustomer = asyncHandler(async (req, res) => {
             const vOtp = DeliveryOtpService.generateOtp();
             dropoff.dropoffOtpHash = DeliveryOtpService.hashOtp(vOtp);
             dropoff.dropoffOtpDebug = vOtp;
-            
+
             await createNotification({
                 recipientId: dropoff.vendorId,
                 recipientType: 'vendor',
@@ -1943,7 +1943,7 @@ export const pickupReturnFromCustomer = asyncHandler(async (req, res) => {
         returnReq.deliveryOtpHash = DeliveryOtpService.hashOtp(dOtp);
         returnReq.deliveryOtpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
         returnReq.deliveryOtpDebug = dOtp;
-        
+
         await createNotification({
             recipientId: returnReq.vendorId,
             recipientType: 'vendor',
@@ -1975,10 +1975,10 @@ export const dropoffReturnAtVendor = asyncHandler(async (req, res) => {
     const deliveryBoyId = req.user.id;
 
     if (!deliveryPhoto) throw new ApiError(400, 'Dropoff photo is required.');
-    
+
     const returnReq = await ReturnRequest.findOne({ _id: id, deliveryBoyId });
     if (!returnReq) throw new ApiError(404, 'Return request not found or not assigned to you.');
-    
+
     if (returnReq.status !== 'processing') {
         throw new ApiError(400, `Cannot drop off in status: ${returnReq.status}`);
     }
@@ -1988,18 +1988,18 @@ export const dropoffReturnAtVendor = asyncHandler(async (req, res) => {
 
     if (returnReq.isMultiVendor) {
         if (!vendorId) throw new ApiError(400, 'vendorId is required for multi-vendor return dropoffs.');
-        
+
         const dropoff = returnReq.vendorDropoffs.find(d => String(d.vendorId) === vendorId);
         if (!dropoff) throw new ApiError(404, 'Vendor not found in this return request.');
         if (dropoff.status === 'dropped_off') throw new ApiError(400, 'Already dropped off at this vendor.');
-        
+
         const isValidOtp = otpHash === dropoff.dropoffOtpHash || (!IS_PRODUCTION && normalizedOtp === dropoff.dropoffOtpDebug);
         if (!isValidOtp) throw new ApiError(400, 'Invalid Vendor OTP.');
 
         dropoff.status = 'dropped_off';
         dropoff.proofPhoto = deliveryPhoto;
         dropoff.droppedOffAt = new Date();
-        
+
         // Check if all vendors are dropped off
         const allDropped = returnReq.vendorDropoffs.every(d => d.status === 'dropped_off');
         if (allDropped) {
@@ -2039,3 +2039,58 @@ export const dropoffReturnAtVendor = asyncHandler(async (req, res) => {
 
     res.status(200).json(new ApiResponse(200, returnReq, 'Return dropped off successfully.'));
 });
+
+// POST /api/delivery/returns/:id/resend-vendor-otp
+export const resendReturnVendorOtp = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { vendorId } = req.body;
+    const deliveryBoyId = req.user.id;
+
+    const returnReq = await ReturnRequest.findOne({ _id: id, deliveryBoyId });
+    if (!returnReq) throw new ApiError(404, 'Return request not found or not assigned to you.');
+
+    if (returnReq.status !== 'processing') {
+        throw new ApiError(400, `Cannot resend drop-off OTP in status: ${returnReq.status}`);
+    }
+
+    let dOtp = '';
+
+    if (returnReq.isMultiVendor) {
+        if (!vendorId) throw new ApiError(400, 'vendorId is required for multi-vendor returns.');
+        const dropoff = returnReq.vendorDropoffs.find(d => String(d.vendorId) === vendorId);
+        if (!dropoff) throw new ApiError(404, 'Vendor not found in this return request.');
+        if (dropoff.status === 'dropped_off') throw new ApiError(400, 'Already dropped off at this vendor.');
+
+        dOtp = DeliveryOtpService.generateOtp();
+        dropoff.dropoffOtpHash = DeliveryOtpService.hashOtp(dOtp);
+        dropoff.dropoffOtpDebug = dOtp;
+
+        await createNotification({
+            recipientId: dropoff.vendorId,
+            recipientType: 'vendor',
+            title: 'Return Drop-off OTP 🔐',
+            message: `The rider is bringing returned items. Your verification OTP is ${dOtp}.`,
+            type: 'order',
+            data: { returnId: String(returnReq._id), otp: dOtp }
+        });
+    } else {
+        dOtp = DeliveryOtpService.generateOtp();
+        returnReq.deliveryOtpHash = DeliveryOtpService.hashOtp(dOtp);
+        returnReq.deliveryOtpExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        returnReq.deliveryOtpDebug = dOtp;
+
+        await createNotification({
+            recipientId: returnReq.vendorId,
+            recipientType: 'vendor',
+            title: 'Return Drop-off OTP 🔐',
+            message: `The rider is bringing returned items. Your verification OTP is ${dOtp}.`,
+            type: 'order',
+            data: { returnId: String(returnReq._id), otp: dOtp }
+        });
+    }
+
+    await returnReq.save();
+
+    res.status(200).json(new ApiResponse(200, { ...(IS_PRODUCTION ? {} : { otpDebug: dOtp }) }, 'Vendor OTP resent successfully.'));
+});
+

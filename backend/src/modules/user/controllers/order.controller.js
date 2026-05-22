@@ -277,10 +277,10 @@ export const placeOrder = asyncHandler(async (req, res) => {
         const variantImage =
             variantKey
                 ? String(
-                    (product?.variants?.imageMap?.get?.(variantKey) ?? product?.variants?.imageMap?.[variantKey]) || 
-                    (stockKeyInMap ? (product?.variants?.imageMap?.get?.(stockKeyInMap) ?? product?.variants?.imageMap?.[stockKeyInMap]) : '') || 
+                    (product?.variants?.imageMap?.get?.(variantKey) ?? product?.variants?.imageMap?.[variantKey]) ||
+                    (stockKeyInMap ? (product?.variants?.imageMap?.get?.(stockKeyInMap) ?? product?.variants?.imageMap?.[stockKeyInMap]) : '') ||
                     ''
-                  ).trim()
+                ).trim()
                 : '';
         const itemCommissionRate = product.vendorId.commissionRate || 0;
         const itemVendorPrice = product.vendorPrice || 0;

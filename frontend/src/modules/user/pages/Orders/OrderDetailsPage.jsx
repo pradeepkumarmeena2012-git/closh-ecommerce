@@ -509,41 +509,41 @@ const OrderDetailsPage = () => {
                                 const itemId = String(item.id || item.productId || item._id || idx);
                                 const isSelected = !!selectedReturnItems[itemId];
                                 return (
-                                <div key={idx}
-                                    className={`flex gap-3 border-b border-gray-50 last:border-0 pb-3 last:pb-0 rounded-xl transition-all ${isTryActive && isTryAndBuy ? (isSelected ? 'bg-indigo-50/70 px-2 -mx-1 border-indigo-100' : 'cursor-pointer hover:bg-gray-50 px-2 -mx-1') : ''}`}
-                                    onClick={() => { if (isTryActive && isTryAndBuy) handleToggleReturnItem(itemId); }}
-                                >
-                                    {isTryActive && isTryAndBuy && (
-                                        <div className="flex items-center shrink-0">
-                                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
-                                                {isSelected && <CheckCircle size={12} className="text-white" />}
+                                    <div key={idx}
+                                        className={`flex gap-3 border-b border-gray-50 last:border-0 pb-3 last:pb-0 rounded-xl transition-all ${isTryActive && isTryAndBuy ? (isSelected ? 'bg-indigo-50/70 px-2 -mx-1 border-indigo-100' : 'cursor-pointer hover:bg-gray-50 px-2 -mx-1') : ''}`}
+                                        onClick={() => { if (isTryActive && isTryAndBuy) handleToggleReturnItem(itemId); }}
+                                    >
+                                        {isTryActive && isTryAndBuy && (
+                                            <div className="flex items-center shrink-0">
+                                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'}`}>
+                                                    {isSelected && <CheckCircle size={12} className="text-white" />}
+                                                </div>
                                             </div>
+                                        )}
+                                        <div className="w-14 h-18 md:w-20 md:h-24 bg-white rounded-lg overflow-hidden shrink-0 border border-gray-100">
+                                            <img src={item.image} alt="" className="w-full h-full object-cover" />
                                         </div>
-                                    )}
-                                    <div className="w-14 h-18 md:w-20 md:h-24 bg-white rounded-lg overflow-hidden shrink-0 border border-gray-100">
-                                        <img src={item.image} alt="" className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-1 min-w-0 py-0">
-                                        <h4 className="text-[12px] md:text-sm font-bold text-gray-900 line-clamp-1">{item.name}</h4>
-                                        <p className="text-[8px] md:text-[11px] font-bold text-gray-400 uppercase">
-                                            {item.brand || 'Premium Piece'}
-                                        </p>
-                                        <div className="flex gap-2 mt-1">
-                                            <span className="bg-gray-50 px-2 py-0.5 rounded text-[8px] md:text-[10px] font-bold text-gray-600 border border-gray-100 uppercase">
-                                                Size: {item.selectedSize || item.variant?.size || 'N/A'}
-                                            </span>
-                                            {(item.selectedColor || item.variant?.color) && (
+                                        <div className="flex-1 min-w-0 py-0">
+                                            <h4 className="text-[12px] md:text-sm font-bold text-gray-900 line-clamp-1">{item.name}</h4>
+                                            <p className="text-[8px] md:text-[11px] font-bold text-gray-400 uppercase">
+                                                {item.brand || 'Premium Piece'}
+                                            </p>
+                                            <div className="flex gap-2 mt-1">
                                                 <span className="bg-gray-50 px-2 py-0.5 rounded text-[8px] md:text-[10px] font-bold text-gray-600 border border-gray-100 uppercase">
-                                                    Color: {item.selectedColor || item.variant?.color}
+                                                    Size: {item.selectedSize || item.variant?.size || 'N/A'}
                                                 </span>
-                                            )}
-                                            <span className="bg-gray-50 px-2 py-0.5 rounded text-[8px] md:text-[10px] font-bold text-gray-600 border border-gray-100 uppercase">
-                                                Qty: {item.quantity}
-                                            </span>
+                                                {(item.selectedColor || item.variant?.color) && (
+                                                    <span className="bg-gray-50 px-2 py-0.5 rounded text-[8px] md:text-[10px] font-bold text-gray-600 border border-gray-100 uppercase">
+                                                        Color: {item.selectedColor || item.variant?.color}
+                                                    </span>
+                                                )}
+                                                <span className="bg-gray-50 px-2 py-0.5 rounded text-[8px] md:text-[10px] font-bold text-gray-600 border border-gray-100 uppercase">
+                                                    Qty: {item.quantity}
+                                                </span>
+                                            </div>
+                                            <p className="text-[12px] md:text-base font-bold text-black mt-1">₹{item.discountedPrice || item.price}</p>
                                         </div>
-                                        <p className="text-[12px] md:text-base font-bold text-black mt-1">₹{item.discountedPrice || item.price}</p>
                                     </div>
-                                </div>
                                 );
                             })}
                         </div>
@@ -1358,13 +1358,11 @@ const OrderDetailsPage = () => {
                                             <div
                                                 key={idx}
                                                 onClick={() => handleToggleReturnItem(itemId)}
-                                                className={`flex items-center gap-3 p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                                                    isSelected ? 'border-indigo-500 bg-indigo-50' : 'border-gray-100 bg-gray-50'
-                                                }`}
+                                                className={`flex items-center gap-3 p-2.5 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50' : 'border-gray-100 bg-gray-50'
+                                                    }`}
                                             >
-                                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
-                                                    isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
-                                                }`}>
+                                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300'
+                                                    }`}>
                                                     {isSelected && <CheckCircle size={12} className="text-white" />}
                                                 </div>
                                                 <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-gray-100">
@@ -1419,11 +1417,10 @@ const OrderDetailsPage = () => {
                                 <button
                                     onClick={handleTryBuyReturnSubmit}
                                     disabled={!tryBuyReturnReason || isSubmittingTryReturn}
-                                    className={`flex-1 py-3 rounded-xl font-bold text-[11px] uppercase transition-all shadow-lg ${
-                                        !tryBuyReturnReason || isSubmittingTryReturn
+                                    className={`flex-1 py-3 rounded-xl font-bold text-[11px] uppercase transition-all shadow-lg ${!tryBuyReturnReason || isSubmittingTryReturn
                                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                             : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200'
-                                    }`}
+                                        }`}
                                 >
                                     {isSubmittingTryReturn ? 'Submitting...' : 'Confirm Return'}
                                 </button>

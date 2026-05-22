@@ -101,6 +101,7 @@ router.post('/returns/:id/accept', ...deliveryAuth, orderController.acceptReturn
 router.patch('/returns/:id/status', ...deliveryAuth, orderController.updateReturnStatus);
 router.post('/returns/:id/pickup-from-customer', ...deliveryAuth, orderController.pickupReturnFromCustomer);
 router.post('/returns/:id/dropoff-at-vendor', ...deliveryAuth, orderController.dropoffReturnAtVendor);
+router.post('/returns/:id/resend-vendor-otp', ...deliveryAuth, orderController.resendReturnVendorOtp);
 
 // Notifications
 router.get('/notifications', ...deliveryAuth, notificationController.getDeliveryNotifications);

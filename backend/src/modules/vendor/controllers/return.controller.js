@@ -229,11 +229,40 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
 
         await request.save();
 
-        // 3. Notify nearby delivery boys within 8km of customer
+        // 3. Notify nearby delivery boys or auto-start for Try&Buy
         if (request.pickupLocation?.coordinates?.length === 2 && request.pickupLocation.coordinates[0] !== 0) {
-            await notifyNearbyDeliveryBoysForReturn(request).catch(err =>
-                console.error(`[Return Assignment] Failed to notify delivery boys for return ${request._id}:`, err)
-            );
+            if (request.deliveryBoyId) {
+                // Try & Buy auto-assigned return - start processing immediately
+                request.status = 'processing';
+                await request.save();
+                
+                const { emitEvent } = await import('../../../socket/index.js');
+                emitEvent(`user_${request.userId?._id || request.userId}`, 'return_delivery_assigned', {
+                    returnId: request._id,
+                    deliveryBoyId: request.deliveryBoyId
+                });
+                if (request.vendorId) {
+                    emitEvent(`vendor_${request.vendorId}`, 'return_delivery_assigned', {
+                        returnId: request._id,
+                        deliveryBoyId: request.deliveryBoyId
+                    });
+                }
+                
+                const { createNotification } = await import('../../user/controllers/notification.controller.js');
+                createNotification({
+                    recipientId: String(request.deliveryBoyId),
+                    recipientType: 'delivery',
+                    title: 'Return Request Approved',
+                    message: `Return request ${request.returnId || ''} has been approved. Please proceed.`,
+                    type: 'return',
+                    data: { returnId: String(request._id) }
+                }).catch(() => {});
+            } else {
+                const { notifyNearbyDeliveryBoysForReturn } = await import('../../delivery/controllers/assignment.controller.js');
+                await notifyNearbyDeliveryBoysForReturn(request).catch(err =>
+                    console.error(`[Return Assignment] Failed to notify delivery boys for return ${request._id}:`, err)
+                );
+            }
         }
     } else {
         await request.save();

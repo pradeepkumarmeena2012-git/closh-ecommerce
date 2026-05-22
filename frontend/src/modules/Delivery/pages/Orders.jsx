@@ -34,10 +34,12 @@ const DeliveryOrders = () => {
   const navigate = useNavigate();
   const {
     orders,
+    returns,
     ordersPagination,
     isLoadingOrders,
     isUpdatingOrderStatus,
     fetchOrders,
+    fetchDashboardSummary,
     acceptOrder,
     rejectOrder,
     completeOrder,
@@ -70,15 +72,24 @@ const DeliveryOrders = () => {
       // 'open' now covers ALL running statuses assigned to the rider in the backend
       const statusParam = activeFilter === 'available' ? 'open' : 'delivered';
 
-      await fetchOrders({
-        page,
-        limit: PAGE_SIZE,
-        status: statusParam
-      });
+      const promises = [
+        fetchOrders({
+          page,
+          limit: PAGE_SIZE,
+          status: statusParam
+        })
+      ];
+
+      if (activeFilter === 'available') {
+        promises.push(fetchDashboardSummary());
+      }
+
+      await Promise.all(promises);
     } catch (err) {
       console.error("Order Load Error:", err);
     }
   };
+
 
   useEffect(() => {
     loadOrders(currentPage, filter);
@@ -168,10 +179,11 @@ const DeliveryOrders = () => {
   }, [currentPage, filter]);
 
   const getStatusStyle = (status) => {
-    const s = String(status).toLowerCase();
+    const s = String(status || '').toLowerCase().replace(/_/g, ' ');
     if (['delivered', 'completed'].includes(s)) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-    if (['cancelled', 'failed'].includes(s)) return 'bg-rose-100 text-rose-700 border-rose-200';
-    if (['in-transit', 'shipped', 'out_for_delivery'].includes(s)) return 'bg-blue-100 text-blue-700 border-blue-200';
+    if (['cancelled', 'failed', 'rejected'].includes(s)) return 'bg-rose-100 text-rose-700 border-rose-200';
+    if (['in-transit', 'shipped', 'out_for_delivery', 'out for delivery', 'picked-up', 'picked_up', 'picked up'].includes(s)) return 'bg-blue-100 text-blue-700 border-blue-200';
+    if (['return requested', 'return_requested', 'awaiting return', 'awaiting_return'].includes(s)) return 'bg-purple-100 text-purple-700 border-purple-200';
     return 'bg-amber-100 text-amber-700 border-amber-200';
   };
 
@@ -432,10 +444,15 @@ const DeliveryOrders = () => {
             )}
 
             {/* Normal orders tab */}
-            {filter !== 'multi-vendor' && filter !== 'rejected' && (
-              isLoadingOrders ? (
+            {filter !== 'multi-vendor' && filter !== 'rejected' && (() => {
+              const activeReturns = filter === 'available' ? (returns || []).filter(r => 
+                ['processing', 'accepted'].includes(r.status?.toLowerCase()) || r.rawStatus === 'processing'
+              ) : [];
+              const displayTasks = filter === 'available' ? [...orders, ...activeReturns] : orders;
+
+              return isLoadingOrders ? (
                 Array(6).fill(0).map((_, i) => <OrderCardSkeleton key={i} />)
-              ) : orders.length === 0 ? (
+              ) : displayTasks.length === 0 ? (
                 <div className="text-center py-12 sm:py-20 bg-white rounded-[32px] sm:rounded-[40px] border border-slate-100 shadow-sm">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
                      <FiPackage size={30} className="text-slate-200 sm:hidden" />
@@ -445,7 +462,7 @@ const DeliveryOrders = () => {
                   <p className="text-slate-400 text-[11px] sm:text-sm mt-1">No orders matched your filter.</p>
                 </div>
               ) : (
-                orders.map((order, index) => (
+                displayTasks.map((order, index) => (
                   <motion.div
                     key={order.id}
                     initial={{ opacity: 0, y: 15 }}
@@ -473,16 +490,22 @@ const DeliveryOrders = () => {
                     </div>
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-1.5 overflow-hidden">
-                         <span className={`text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border ${order.paymentMethod === 'cod' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-sky-50 text-sky-700 border-sky-200'}`}>
-                            {order.paymentMethod?.toUpperCase()}
-                         </span>
+                         {order.type === 'return' ? (
+                           <span className="text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200">
+                             RETURN
+                           </span>
+                         ) : (
+                           <span className={`text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border ${order.paymentMethod === 'cod' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-sky-50 text-sky-700 border-sky-200'}`}>
+                             {order.paymentMethod?.toUpperCase()}
+                           </span>
+                         )}
                          <span className={`text-[6px] font-bold uppercase px-1.5 py-0.5 rounded border ${getStatusStyle(order.status)}`}>
                            {order.status.replace(/_/g, ' ')}
                          </span>
                          <div className="h-3 w-[1px] bg-slate-200 mx-1" />
                          <div className="flex items-center gap-2.5 text-slate-500 text-[9px] font-bold shrink-0">
                             <span className="flex items-center gap-1"><FiPackage size={11} className="text-slate-400" /> {order.items?.length || 0}</span>
-                            <span className="flex items-center gap-1"><FiNavigation size={11} className="text-sky-600" /> {order.distance || '2.4 km'}</span>
+                            <span className="flex items-center gap-1"><FiNavigation size={11} className="text-sky-600" /> {order.deliveryDistance ? `${order.deliveryDistance} km` : order.distance || 'MAP'}</span>
                          </div>
                       </div>
                       <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-lg shadow-indigo-500/10 relative">
@@ -494,7 +517,7 @@ const DeliveryOrders = () => {
                         )}
                       </div>
                     </div>
-                    {filter === 'available' && (
+                    {filter === 'available' && order.type !== 'return' && (
                       <div className="mt-3 pt-3 border-t border-slate-100 flex gap-2">
                         <button 
                           onClick={(e) => handleRejectMission(e, order.id)}
@@ -514,8 +537,8 @@ const DeliveryOrders = () => {
                     )}
                   </motion.div>
                 ))
-              )
-            )}
+              );
+            })()}
           </div>
         </div>
 

@@ -93,18 +93,18 @@ const DeliveryOrderDetail = () => {
 
   const getPhase = () => {
     if (!order) return null;
-    const s = String(order.status || '').toLowerCase();
-    const rawS = String(order.rawStatus || order.status || '').toLowerCase();
+    const s = String(order.status || '').toLowerCase().replace(/_/g, ' ');
+    const rawS = String(order.rawStatus || order.status || '').toLowerCase().replace(/_/g, ' ');
     
     // Pickup phase includes newly available, assigned, or accepted orders
-    if (['pending', 'ready_for_pickup', 'assigned', 'accepted'].includes(s) || 
-        ['ready_for_pickup', 'assigned', 'accepted'].includes(rawS)) return 'pickup';
+    if (['pending', 'ready for pickup', 'ready_for_pickup', 'assigned', 'accepted'].includes(s) || 
+        ['ready for pickup', 'ready_for_pickup', 'assigned', 'accepted'].includes(rawS)) return 'pickup';
         
     // Delivery phase includes anything picked up or out for delivery
     // 'processing' is the active try/check-and-buy session status (after arrival)
     // 'return_requested' / 'arrived' can appear when return is pending on a delivered order
-    if (['picked-up', 'picked_up', 'out-for-delivery', 'out_for_delivery', 'shipped', 'processing', 'arrived', 'return_requested', 'awaiting_return'].includes(s) ||
-        ['picked_up', 'out_for_delivery', 'processing', 'arrived', 'return_requested'].includes(rawS)) return 'delivery';
+    if (['picked-up', 'picked_up', 'picked up', 'out-for-delivery', 'out_for_delivery', 'out for delivery', 'shipped', 'processing', 'arrived', 'return_requested', 'return requested', 'awaiting_return', 'awaiting return'].includes(s) ||
+        ['picked_up', 'picked up', 'out_for_delivery', 'out for delivery', 'processing', 'arrived', 'return_requested', 'return requested'].includes(rawS)) return 'delivery';
         
     return null;
   };
@@ -143,8 +143,27 @@ const DeliveryOrderDetail = () => {
         navigate(`/delivery/returns/${id}`, { replace: true });
         return;
       }
+      // If this order has an active return request, redirect to the return request detail page
+      if (response?.returnRequest) {
+        navigate(`/delivery/returns/${response.returnRequest._id || response.returnRequest.id}`, { replace: true });
+        return;
+      }
       setOrder(response || null);
-      if (response?.arrivedAt || response?.deliveryFlow?.arrivedAt) {
+
+      // Detect arrival from multiple signals:
+      // 1. Legacy arrivedAt on order root
+      // 2. deliveryFlow.arrivedAt (Antigravity engine)
+      // 3. deliveryFlow.phase being 'arrived', 'try_and_buy', 'payment_pending', or later
+      // 4. deliveryFlow.otpSentAt (OTP was generated = rider arrived)
+      const arrivedPhases = ['arrived', 'try_and_buy', 'payment_pending', 'delivered'];
+      const hasArrivedSignal = !!(
+        response?.arrivedAt ||
+        response?.deliveryFlow?.arrivedAt ||
+        arrivedPhases.includes(response?.deliveryFlow?.phase) ||
+        response?.deliveryFlow?.otpSentAt
+      );
+
+      if (hasArrivedSignal) {
         setHasArrived(true);
         const accepted = (response.deliveryFlow?.tryAndBuyItems || response.items || [])
           .filter(i => i.decision !== 'rejected')
@@ -165,6 +184,7 @@ const DeliveryOrderDetail = () => {
       setOrder(null);
     }
   }, [id, fetchOrderById]);
+
 
   useEffect(() => {
     loadOrder();

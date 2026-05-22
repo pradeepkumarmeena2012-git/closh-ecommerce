@@ -35,6 +35,7 @@ const DeliveryReturnDetail = () => {
     updateReturnStatus,
     pickupReturnFromCustomer,
     dropoffReturnAtVendor,
+    resendReturnVendorOtp,
     deliveryBoy,
     returns
   } = useDeliveryAuthStore();
@@ -44,6 +45,8 @@ const DeliveryReturnDetail = () => {
   const [deliveryPhoto, setDeliveryPhoto] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendDebugOtp, setResendDebugOtp] = useState('');
   const [otp, setOtp] = useState('');
 
   // Multi-vendor state: track which vendor we're dropping off at
@@ -179,6 +182,22 @@ const DeliveryReturnDetail = () => {
     }
   };
 
+  const handleResendOtp = async () => {
+    setIsResending(true);
+    try {
+      const vendorIdToUse = currentPhase === 'multi_vendor_dropoff' ? currentVendorDropoff?.vendorId : undefined;
+      const res = await resendReturnVendorOtp(id, vendorIdToUse);
+      if (res?.otpDebug) {
+        setResendDebugOtp(res.otpDebug);
+      }
+      toast.success('Vendor OTP has been resent successfully.');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to resend OTP');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   if (!returnReq) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -214,7 +233,7 @@ const DeliveryReturnDetail = () => {
     : (returnReq.items || []);
 
   // Display debug OTP for the current context (customer pickup or vendor dropoff)
-  const displayOtpDebug = null;
+  const displayOtpDebug = resendDebugOtp || (currentPhase === 'customer_pickup' ? returnReq.pickupOtpDebug : (currentPhase === 'multi_vendor_dropoff' ? currentVendorDropoff?.dropoffOtpDebug : returnReq.deliveryOtpDebug));
 
   return (
     <PageTransition>
@@ -461,18 +480,30 @@ const DeliveryReturnDetail = () => {
         {/* BOTTOM FIXED BUTTON & OTP */}
         <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-100 z-50 flex flex-col gap-2">
           {['customer_pickup', 'vendor_dropoff', 'multi_vendor_dropoff'].includes(currentPhase) && (
-            <div className="relative">
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder={currentPhase === 'customer_pickup' ? "ENTER CUSTOMER PICKUP OTP" : "ENTER VENDOR HANDOVER OTP"}
-                className="w-full h-12 px-4 text-center text-sm font-bold tracking-[0.2em] bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400 placeholder:text-[12px] placeholder:tracking-wide placeholder:font-semibold"
-              />
-              {displayOtpDebug && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-amber-500 bg-amber-50 px-2 py-1 rounded-lg">
-                  OTP: {displayOtpDebug}
-                </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder={currentPhase === 'customer_pickup' ? "ENTER CUSTOMER PICKUP OTP" : "ENTER VENDOR HANDOVER OTP"}
+                  className="w-full h-12 px-4 text-center text-sm font-bold tracking-[0.2em] bg-white border-2 border-slate-200 rounded-2xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400 placeholder:text-[12px] placeholder:tracking-wide placeholder:font-semibold"
+                />
+                {displayOtpDebug && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-black text-amber-500 bg-amber-50 px-2 py-1 rounded-lg">
+                    OTP: {displayOtpDebug}
+                  </div>
+                )}
+              </div>
+              
+              {currentPhase !== 'customer_pickup' && (
+                <button
+                  onClick={handleResendOtp}
+                  disabled={isResending}
+                  className="self-end text-[10px] font-bold text-indigo-600 uppercase tracking-wider disabled:opacity-50 pr-2"
+                >
+                  {isResending ? 'RESENDING...' : 'RESEND OTP'}
+                </button>
               )}
             </div>
           )}

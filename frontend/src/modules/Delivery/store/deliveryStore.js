@@ -602,6 +602,13 @@ export const useDeliveryAuthStore = create(
         } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
 
+      resendReturnVendorOtp: async (id, vendorId) => {
+        try {
+          const res = await api.post(`/delivery/returns/${id}/resend-vendor-otp`, { vendorId });
+          return res.data || res;
+        } catch (e) { throw e; }
+      },
+
       initialize: () => {
         const token = localStorage.getItem('delivery-token');
         if (token) {

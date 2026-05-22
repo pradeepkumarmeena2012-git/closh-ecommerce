@@ -259,7 +259,73 @@ export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
     if (refundStatus) request.refundStatus = refundStatus;
     if (adminNote !== undefined) request.adminNote = adminNote;
 
-    await request.save();
+    // If status is approved, setup the delivery task and notify riders
+    if (status === 'approved' && currentStatus !== 'approved') {
+        try {
+            const Vendor = (await import('../../../models/Vendor.model.js')).default;
+            const vendor = await Vendor.findById(request.vendorId);
+            const order = request.orderId;
+
+            // 1. Set Pickup Location (Customer's address)
+            if (order && order.shippingAddress) {
+                request.pickupLocation = {
+                    type: 'Point',
+                    coordinates: order.shippingAddress.coordinates || [0, 0]
+                };
+            }
+
+            // 2. Set Dropoff Location (Vendor's shop location)
+            if (vendor && vendor.shopLocation) {
+                request.dropoffLocation = {
+                    type: 'Point',
+                    coordinates: vendor.shopLocation.coordinates || [0, 0]
+                };
+            }
+
+            await request.save();
+
+            // 3. Notify nearby delivery boys or auto-start for Try&Buy
+            if (request.pickupLocation?.coordinates?.length === 2 && request.pickupLocation.coordinates[0] !== 0) {
+                if (request.deliveryBoyId) {
+                    // Try & Buy auto-assigned return - start processing immediately
+                    request.status = 'processing';
+                    await request.save();
+                    
+                    const { emitEvent } = await import('../../../socket/index.js');
+                    emitEvent(`user_${request.userId?._id || request.userId}`, 'return_delivery_assigned', {
+                        returnId: request._id,
+                        deliveryBoyId: request.deliveryBoyId
+                    });
+                    if (request.vendorId) {
+                        emitEvent(`vendor_${request.vendorId}`, 'return_delivery_assigned', {
+                            returnId: request._id,
+                            deliveryBoyId: request.deliveryBoyId
+                        });
+                    }
+                    
+                    const { createNotification } = await import('../../user/controllers/notification.controller.js');
+                    createNotification({
+                        recipientId: String(request.deliveryBoyId),
+                        recipientType: 'delivery',
+                        title: 'Return Request Approved',
+                        message: `Return request ${request.returnId || ''} has been approved. Please proceed.`,
+                        type: 'return',
+                        data: { returnId: String(request._id) }
+                    }).catch(() => {});
+                } else {
+                    const { notifyNearbyDeliveryBoysForReturn } = await import('../../delivery/controllers/assignment.controller.js');
+                    await notifyNearbyDeliveryBoysForReturn(request).catch(err =>
+                        console.error(`[Return Assignment] Failed to notify delivery boys for return ${request._id}:`, err)
+                    );
+                }
+            }
+        } catch (error) {
+            console.error('[Admin Return Approval] Error setting up delivery assignment:', error);
+            await request.save();
+        }
+    } else {
+        await request.save();
+    }
 
     // Return lifecycle side-effects:
     // - On approval, mark linked order as returned (if not terminal).
