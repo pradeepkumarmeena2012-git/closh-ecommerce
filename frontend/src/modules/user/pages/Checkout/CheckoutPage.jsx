@@ -90,7 +90,14 @@ const CheckoutPage = () => {
     
     const uniqueVendorIds = [...new Set(cart.map(item => String(item.vendorId || '')))].filter(Boolean);
     const isMultiVendor = uniqueVendorIds.length > 1;
-    
+
+    // Auto-switch to try_and_buy when cart becomes multi-vendor (no reload / no flicker)
+    useEffect(() => {
+        if (isMultiVendor && deliveryType === 'check_and_buy') {
+            setDeliveryType('try_and_buy');
+        }
+    }, [isMultiVendor]);
+
     // Dynamic values from settings
     const shippingThreshold = settings?.shipping?.freeShippingThreshold || 500;
     const defaultShippingRate = settings?.shipping?.defaultShippingRate || 40;
@@ -373,8 +380,10 @@ const CheckoutPage = () => {
                                 </div>
                             </div>
                         )}
-                        <div className="grid grid-cols-2 gap-3">
-                            <label className="relative cursor-pointer">
+                        {/* Service type options — grid for single-vendor, full-width for multi-vendor */}
+                        <div className={`gap-3 ${isMultiVendor ? 'flex' : 'grid grid-cols-2'}`}>
+                            {/* Try & Buy — always visible */}
+                            <label className="relative cursor-pointer flex-1">
                                 <input
                                     type="radio"
                                     name="deliveryType"
@@ -387,33 +396,39 @@ const CheckoutPage = () => {
                                     <p className="text-[7px] font-bold text-gray-400 leading-tight">Try at door</p>
                                 </div>
                             </label>
-                            <label className="relative cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="deliveryType"
-                                    className="peer hidden"
-                                    checked={deliveryType === 'check_and_buy'}
-                                    onChange={() => setDeliveryType('check_and_buy')}
-                                />
-                                <div className="p-2 rounded-xl border-2 border-gray-100 peer-checked:border-black peer-checked:bg-white transition-all h-full text-center">
-                                    <span className="text-[9px] font-bold uppercase block mb-1 text-emerald-600">Check & Buy</span>
-                                    <p className="text-[7px] font-bold text-gray-400 leading-tight">Verify first</p>
-                                </div>
-                            </label>
+                            {/* Check & Buy — hidden automatically when cart has multiple vendors */}
+                            {!isMultiVendor && (
+                                <label className="relative cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="deliveryType"
+                                        className="peer hidden"
+                                        checked={deliveryType === 'check_and_buy'}
+                                        onChange={() => setDeliveryType('check_and_buy')}
+                                    />
+                                    <div className="p-2 rounded-xl border-2 border-gray-100 peer-checked:border-black peer-checked:bg-white transition-all h-full text-center">
+                                        <span className="text-[9px] font-bold uppercase block mb-1 text-emerald-600">Check & Buy</span>
+                                        <p className="text-[7px] font-bold text-gray-400 leading-tight">Verify first</p>
+                                    </div>
+                                </label>
+                            )}
                         </div>
 
-                        {isMultiVendor && (
-                            deliveryType === 'check_and_buy' ? (
-                                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
-                                    <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
-                                    <div className="text-left">
-                                        <p className="text-[10px] font-black text-amber-800 uppercase tracking-wide">Return Policy Notice</p>
-                                        <p className="text-[9px] font-bold text-amber-700 leading-relaxed mt-0.5">
-                                            Check &amp; Buy return is supported only for single-vendor orders. This order contains items from multiple vendors and is not eligible for returns.
-                                        </p>
-                                    </div>
+                        {/* Info banners */}
+                        {isMultiVendor ? (
+                            // Multi-vendor: explain why Check & Buy is unavailable
+                            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
+                                <ShieldCheck size={15} className="text-blue-600 shrink-0 mt-0.5" />
+                                <div className="text-left">
+                                    <p className="text-[10px] font-black text-blue-800 uppercase tracking-wide">Multi-Vendor Order</p>
+                                    <p className="text-[9px] font-bold text-blue-700 leading-relaxed mt-0.5">
+                                        Your cart has items from multiple vendors. Only Try &amp; Buy is available — Check &amp; Buy requires a single-vendor cart.
+                                    </p>
                                 </div>
-                            ) : (
+                            </div>
+                        ) : (
+                            // Single-vendor: show Try & Buy doorstep policy note when selected
+                            deliveryType === 'try_and_buy' ? (
                                 <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
                                     <ShieldCheck size={15} className="text-indigo-600 shrink-0 mt-0.5" />
                                     <div className="text-left">
@@ -423,7 +438,7 @@ const CheckoutPage = () => {
                                         </p>
                                     </div>
                                 </div>
-                            )
+                            ) : null
                         )}
                     </div>
 
