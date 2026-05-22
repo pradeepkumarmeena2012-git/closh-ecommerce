@@ -326,6 +326,13 @@ export const placeOrder = asyncHandler(async (req, res) => {
     }
     console.log(`[OrderCalc] Subtotal: ₹${subtotal}, Vendors: ${Object.keys(vendorMap).length}`);
 
+    // Backend guard: Check & Buy is only permitted for single-vendor orders.
+    // This prevents API-level manipulation even if the frontend restriction is bypassed.
+    if (orderType === 'check_and_buy' && Object.keys(vendorMap).length > 1) {
+        throw new ApiError(400, 'Check & Buy is not available for orders containing items from multiple vendors. Please select Try & Buy.');
+    }
+
+
     // 2. Validate coupon
     let couponDiscount = 0;
     let appliedCoupon = null;
