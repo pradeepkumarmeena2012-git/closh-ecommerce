@@ -101,8 +101,10 @@ const DeliveryOrderDetail = () => {
         ['ready_for_pickup', 'assigned', 'accepted'].includes(rawS)) return 'pickup';
         
     // Delivery phase includes anything picked up or out for delivery
-    if (['picked-up', 'picked_up', 'out-for-delivery', 'out_for_delivery', 'shipped'].includes(s) ||
-        ['picked_up', 'out_for_delivery'].includes(rawS)) return 'delivery';
+    // 'processing' is the active try/check-and-buy session status (after arrival)
+    // 'return_requested' / 'arrived' can appear when return is pending on a delivered order
+    if (['picked-up', 'picked_up', 'out-for-delivery', 'out_for_delivery', 'shipped', 'processing', 'arrived', 'return_requested', 'awaiting_return'].includes(s) ||
+        ['picked_up', 'out_for_delivery', 'processing', 'arrived', 'return_requested'].includes(rawS)) return 'delivery';
         
     return null;
   };
@@ -136,6 +138,11 @@ const DeliveryOrderDetail = () => {
         navigate(`/delivery/multi-vendor/${id}`, { replace: true });
         return;
       }
+      // If this order is actually a return, redirect to the correct return detail page
+      if (response?.type === 'return') {
+        navigate(`/delivery/returns/${id}`, { replace: true });
+        return;
+      }
       setOrder(response || null);
       if (response?.arrivedAt || response?.deliveryFlow?.arrivedAt) {
         setHasArrived(true);
@@ -144,6 +151,10 @@ const DeliveryOrderDetail = () => {
           .map(i => i.productId || i._id);
         setSelectedItemIds(new Set(accepted));
         setPaymentSelection(response.deliveryFlow?.paymentMethod || null);
+      }
+      // Restore pickup photo from backend for check-and-buy / try-and-buy orders
+      if (response?.deliveryFlow?.pickupProofPhoto) {
+        setPickupPhoto(response.deliveryFlow.pickupProofPhoto.split('|||')[0]);
       }
       if (response?.deliveryFlow?.arrivedAtVendor) {
         setHasArrivedAtVendor(true);
@@ -424,14 +435,18 @@ const DeliveryOrderDetail = () => {
   }
 
   const getOrderTypeBadge = () => {
+    const hasReturnRequested = ['return_requested', 'awaiting_return'].includes(String(order?.rawStatus || '').toLowerCase());
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-wrap">
         {isCheckAndBuy && <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-indigo-100 uppercase tracking-tighter">Check & Buy</span>}
         {isTryAndBuy  && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-amber-100 uppercase tracking-tighter">Try & Buy</span>}
         {!isCheckAndBuy && !isTryAndBuy && <span className="bg-slate-50 text-slate-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-slate-100 uppercase tracking-tighter">Standard</span>}
         <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black border uppercase tracking-tighter ${order?.paymentMethod === 'prepaid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
           {order?.paymentMethod === 'prepaid' ? 'PREPAID' : 'COD'}
         </span>
+        {hasReturnRequested && (
+          <span className="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-rose-100 uppercase tracking-tighter">Return Requested</span>
+        )}
       </div>
     );
   };
