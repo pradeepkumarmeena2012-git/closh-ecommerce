@@ -344,7 +344,7 @@ const DeliveryOrderDetail = () => {
           }
 
           const options = {
-            key: res.razorpayKeyId,
+            key: res.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_8sYbzHWidwe5Zw',
             amount: res.razorpayAmount || Math.round(Number(updatedOrder.total) * 100),
             currency: 'INR',
             name: 'CLOSH',

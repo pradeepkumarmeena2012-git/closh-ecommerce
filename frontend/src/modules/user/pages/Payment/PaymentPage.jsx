@@ -355,7 +355,7 @@ const PaymentPage = () => {
                         navigate(`/order-success/${response.orderId}`);
                         return;
                     }
-                    const razorKey = response.razorpayKeyId || 'rzp_test_8sYbzHWidwe5Zw';
+                    const razorKey = response.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_8sYbzHWidwe5Zw';
                     console.log("💳 [PAYMENT_DEBUG] Initializing Razorpay modal with Key:", razorKey);
                     
                     const options = {
