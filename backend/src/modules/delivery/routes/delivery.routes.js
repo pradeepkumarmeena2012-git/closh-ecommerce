@@ -79,6 +79,7 @@ router.patch('/orders/:id/location', ...deliveryAuth, orderController.handleLoca
 router.patch('/orders/:id/arrived', ...deliveryAuth, orderController.handleArrivedAtCustomer);
 router.patch('/orders/:id/try-buy', ...deliveryAuth, orderController.handleTryAndBuy);
 router.patch('/orders/:id/payment', ...deliveryAuth, orderController.handlePayment);
+router.post('/orders/:id/verify-payment', ...deliveryAuth, orderController.verifyDoorstepPayment);
 router.patch('/orders/:id/complete', ...deliveryAuth, orderController.handleCompleteDelivery);
 router.patch('/batch/select', ...deliveryAuth, orderController.handleBatchSelect);
 

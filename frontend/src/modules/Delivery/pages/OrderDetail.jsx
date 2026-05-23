@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom'; // stable imports
+import api from '../../../shared/utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiArrowLeft,
@@ -315,15 +316,78 @@ const DeliveryOrderDetail = () => {
     }
   };
 
+  const loadRazorpayScript = () =>
+    new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+
   const handlePaymentMethod = async (method) => {
     try {
       // Use stable id from useParams
       const res = await setPaymentMethod(id, method);
-      setOrder(res.order || res);
+      const updatedOrder = res.order || res;
+      setOrder(updatedOrder);
       setPaymentSelection(method);
-      if (method === 'qr') setShowQRModal(true);
-      toast.success(`Method: ${method.toUpperCase()}`);
-    } catch {
+
+      if (method === 'qr') {
+        if (res.razorpayOrderId && res.razorpayKeyId) {
+          const scriptLoaded = await loadRazorpayScript();
+          if (!scriptLoaded || !window.Razorpay) {
+            toast.error('Payment gateway failed to load. Showing QR code instead.');
+            setShowQRModal(true);
+            return;
+          }
+
+          const options = {
+            key: res.razorpayKeyId,
+            amount: res.razorpayAmount || Math.round(Number(updatedOrder.total) * 100),
+            currency: 'INR',
+            name: 'CLOSH',
+            description: 'Doorstep Payment',
+            order_id: res.razorpayOrderId,
+            handler: async (paymentResponse) => {
+              const toastId = toast.loading('Verifying doorstep payment...');
+              try {
+                const verifyRes = await api.post(`/delivery/orders/${id}/verify-payment`, {
+                  razorpayPaymentId: paymentResponse.razorpay_payment_id,
+                  razorpayOrderId: paymentResponse.razorpay_order_id,
+                  razorpaySignature: paymentResponse.razorpay_signature
+                });
+                toast.success('Payment verified successfully!', { id: toastId });
+                await loadOrder();
+              } catch (error) {
+                console.error("❌ Doorstep Payment verification failed:", error);
+                toast.error('Payment verification failed.', { id: toastId });
+              }
+            },
+            prefill: {
+              name: updatedOrder.customer || '',
+              contact: updatedOrder.phone || ''
+            },
+            theme: { color: '#4f46e5' },
+            modal: {
+              ondismiss: () => {
+                toast.error('Payment cancelled');
+              }
+            }
+          };
+
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+        } else {
+          // Fallback to static QR code if Razorpay keys are not configured
+          setShowQRModal(true);
+        }
+      } else {
+        toast.success(`Method: ${method.toUpperCase()}`);
+      }
+    } catch (err) {
+      console.error(err);
       toast.error('Failed to update payment');
     }
   };
@@ -732,17 +796,17 @@ const DeliveryOrderDetail = () => {
                            <div className="grid grid-cols-2 gap-2">
                               <button 
                                 onClick={()=>handlePaymentMethod('cash')} 
-                                disabled={isUpdatingOrderStatus}
-                                className={`h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all active:scale-95 ${paymentSelection==='cash' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-100'}`}
+                                disabled={isUpdatingOrderStatus || order.paymentStatus === 'paid'}
+                                className={`h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all active:scale-95 ${paymentSelection==='cash' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-100'} ${order.paymentStatus === 'paid' ? 'opacity-30 cursor-not-allowed' : ''}`}
                               >
                                 {isUpdatingOrderStatus && paymentSelection==='cash' ? 'SELECTING...' : 'CASH'}
                               </button>
                               <button 
                                 onClick={()=>handlePaymentMethod('qr')} 
-                                disabled={isUpdatingOrderStatus}
-                                className={`h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all active:scale-95 ${paymentSelection==='qr' ? 'bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-100' : 'bg-white text-slate-500 border-slate-100'}`}
+                                disabled={isUpdatingOrderStatus || order.paymentStatus === 'paid'}
+                                className={`h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all active:scale-95 ${order.paymentStatus === 'paid' ? 'bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-100' : (paymentSelection==='qr' ? 'bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-100' : 'bg-white text-slate-500 border-slate-100')}`}
                               >
-                                {isUpdatingOrderStatus && paymentSelection==='qr' ? 'GENERATING...' : 'UPI QR'}
+                                {order.paymentStatus === 'paid' ? 'PAID (RAZORPAY)' : (isUpdatingOrderStatus && paymentSelection==='qr' ? 'LAUNCHING...' : 'UPI QR')}
                               </button>
                            </div>
                         </div>
@@ -784,6 +848,7 @@ const DeliveryOrderDetail = () => {
                           otpValue.length < 6 || 
                           !deliveryPhoto || 
                           (isCod && (!paymentSelection || !['cash', 'qr'].includes(paymentSelection))) ||
+                          (isCod && paymentSelection === 'qr' && order.paymentStatus !== 'paid') ||
                           (order.isTryAndBuy && !order.tryAndBuyCompleted)
                       ))
                   }
@@ -796,7 +861,9 @@ const DeliveryOrderDetail = () => {
                               ? 'CONFIRM SELECTION FIRST'
                               : (isCod && (!paymentSelection || !['cash', 'qr'].includes(paymentSelection)))
                                   ? 'SELECT PAYMENT METHOD'
-                                  : 'DELIVERED SUCCESSFULLY'
+                                  : (isCod && paymentSelection === 'qr' && order.paymentStatus !== 'paid')
+                                      ? 'AWAITING PAYMENT VERIFICATION'
+                                      : 'DELIVERED SUCCESSFULLY'
                   )}
               </button>
             ) : (
