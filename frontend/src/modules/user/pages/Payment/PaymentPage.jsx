@@ -41,7 +41,7 @@ const PaymentPage = () => {
     const { user } = useAuth();
     const { addresses, activeAddress, updateActiveAddress, refreshAddresses } = useUserLocation();
     const { createOrder } = useOrderStore();
-    const { settings } = useSettingsStore();
+    const { settings, initializePublic } = useSettingsStore();
 
     // Get address from checkout navigation OR from context
     const passedAddress = location.state?.selectedAddress || null;
@@ -79,7 +79,8 @@ const PaymentPage = () => {
 
     useEffect(() => {
         refreshAddresses();
-    }, [refreshAddresses]);
+        initializePublic().catch(() => {});
+    }, [refreshAddresses, initializePublic]);
 
     useEffect(() => {
         if (!currentAddress && addresses.length > 0) {
@@ -102,11 +103,12 @@ const PaymentPage = () => {
     const totalDiscount = totalMRP - getCartTotal();
     
     // Dynamic values from settings
-    const shippingThreshold = settings?.shipping?.freeShippingThreshold || 500;
-    const defaultShippingRate = settings?.shipping?.defaultShippingRate || 40;
-    const platformFee = settings?.orders?.platformFee || 20;
+    const shippingThreshold = settings?.shipping?.freeShippingThreshold !== undefined ? Number(settings.shipping.freeShippingThreshold) : 500;
+    const defaultShippingRate = settings?.shipping?.defaultShippingRate !== undefined ? Number(settings.shipping.defaultShippingRate) : 40;
+    const platformFee = settings?.orders?.platformFee !== undefined ? Number(settings.orders.platformFee) : 20;
 
-    const shipping = typeof estimatedShipping === 'number' ? estimatedShipping : (getCartTotal() > shippingThreshold ? 0 : defaultShippingRate);
+    // Force shipping to use global admin settings to match CheckoutPage exactly
+    const shipping = getCartTotal() > shippingThreshold ? 0 : defaultShippingRate;
 
     const subtotal = getCartTotal();
     let promoDiscount = 0;

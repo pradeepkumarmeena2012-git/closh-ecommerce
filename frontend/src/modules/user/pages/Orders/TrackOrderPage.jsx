@@ -118,19 +118,57 @@ const TrackOrderPage = () => {
 
     const getStepState = (stepIndex) => {
         if (isCancelled) return 'pending';
-        const statusRank = {
-            'pending': 0,
-            'accepted': 1,
-            'searching': 1,
-            'assigned': 1,
-            'ready_for_pickup': 2,
-            'picked_up': 3,
-            'out_for_delivery': 4,
-            'delivered': 5
-        };
-        const currentRank = statusRank[status] ?? 0;
-        if (currentRank >= stepIndex) return 'completed';
-        if (currentRank === stepIndex - 1) return 'active';
+        
+        const vendorStatuses = (order.vendorItems || []).map(vi => String(vi.status || 'pending').toLowerCase());
+        
+        // Step 1: Confirm (Vendor confirmed)
+        const isConfirmed = vendorStatuses.length > 0 && vendorStatuses.some(s => 
+            ['accepted', 'processing', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered'].includes(s)
+        );
+        
+        // Step 2: Ready for Pickup (Prepared at shop)
+        const isReadyForPickup = vendorStatuses.length > 0 && vendorStatuses.every(s => 
+            ['ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered'].includes(s)
+        );
+        
+        // Step 3: Picked Up (Collected by rider)
+        const isPickedUp = ['picked_up', 'out_for_delivery', 'delivered'].includes(status);
+        
+        // Step 4: Out for Delivery (On the way to you)
+        const isOutForDelivery = ['out_for_delivery', 'delivered'].includes(status);
+        
+        // Step 5: Delivered (Arrived safely)
+        const isDelivered = status === 'delivered';
+        
+        if (stepIndex === 1) {
+            if (isConfirmed) return 'completed';
+            return 'active';
+        }
+        
+        if (stepIndex === 2) {
+            if (isReadyForPickup) return 'completed';
+            if (isConfirmed) return 'active';
+            return 'pending';
+        }
+        
+        if (stepIndex === 3) {
+            if (isPickedUp) return 'completed';
+            if (isReadyForPickup) return 'active';
+            return 'pending';
+        }
+        
+        if (stepIndex === 4) {
+            if (isOutForDelivery) return 'completed';
+            if (isPickedUp) return 'active';
+            return 'pending';
+        }
+        
+        if (stepIndex === 5) {
+            if (isDelivered) return 'completed';
+            if (isOutForDelivery) return 'active';
+            return 'pending';
+        }
+        
         return 'pending';
     };
 

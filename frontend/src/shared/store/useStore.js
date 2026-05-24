@@ -182,6 +182,38 @@ export const useCartStore = create(
         if (!existingItem) return;
 
         const newLineKey = getCartLineKey(existingItem.id, newVariant);
+
+        // Resolve price for the new variant from item's product variants metadata
+        let resolvedPrice = existingItem.price;
+        if (existingItem.variants?.prices) {
+          const sig = getVariantSignature(newVariant);
+          const entries = Object.entries(existingItem.variants.prices || {});
+          let match = entries.find(([k]) => String(k).trim() === sig);
+          if (!match && sig) match = entries.find(([k]) => String(k).trim().toLowerCase() === sig.toLowerCase());
+          if (!match && newVariant.size) {
+            const s = String(newVariant.size).trim().toLowerCase();
+            match = entries.find(([k]) => String(k).trim().toLowerCase() === s);
+          }
+          if (match) {
+            const parsed = Number(match[1]);
+            if (Number.isFinite(parsed) && parsed >= 0) resolvedPrice = parsed;
+          }
+        }
+
+        // Resolve stock for the new variant from item's product variants metadata
+        let resolvedStock = existingItem.stockQuantity;
+        if (existingItem.variants?.stockMap && newVariant.size) {
+          const sizeKeys = [
+            `${String(newVariant.size).toLowerCase()}|`,
+            `${String(newVariant.size)}|`
+          ];
+          for (const k of sizeKeys) {
+            if (existingItem.variants.stockMap[k] !== undefined) {
+              resolvedStock = Number(existingItem.variants.stockMap[k]);
+              break;
+            }
+          }
+        }
         
         // Check if an item with the new variant already exists
         const duplicateItem = state.items.find(
@@ -191,14 +223,16 @@ export const useCartStore = create(
         if (duplicateItem) {
           // Merge with duplicate and remove the old one
           const newQuantity = duplicateItem.quantity + existingItem.quantity;
+          const cappedQuantity = Number.isFinite(resolvedStock) ? Math.min(newQuantity, resolvedStock) : newQuantity;
           set((state) => ({
             items: state.items
               .filter((i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) !== cartLineKey)
-              .map((i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) === newLineKey ? { ...i, quantity: newQuantity } : i),
+              .map((i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) === newLineKey ? { ...i, quantity: cappedQuantity, price: resolvedPrice, stockQuantity: resolvedStock } : i),
             ownerUserId: state.ownerUserId,
           }));
         } else {
           // Update current item with new variant
+          const cappedQuantity = Number.isFinite(resolvedStock) ? Math.min(existingItem.quantity, resolvedStock) : existingItem.quantity;
           set((state) => ({
             items: state.items.map((i) =>
               (i.cartLineKey || getCartLineKey(i.id, i.variant)) === cartLineKey
@@ -206,7 +240,10 @@ export const useCartStore = create(
                     ...i, 
                     variant: newVariant, 
                     cartLineKey: newLineKey,
-                    selectedSize: newVariant.size // sync with convenience field
+                    selectedSize: newVariant.size, // sync with convenience field
+                    price: resolvedPrice,
+                    stockQuantity: resolvedStock,
+                    quantity: cappedQuantity > 0 ? cappedQuantity : 1,
                   }
                 : i
             ),

@@ -120,6 +120,22 @@ const OrdersCustomersSettings = () => {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Platform Fee
+                  </label>
+                  <input
+                    type="number"
+                    name="platformFee"
+                    value={ordersData.platformFee !== undefined ? ordersData.platformFee : 20}
+                    onChange={handleOrdersChange}
+                    min="0"
+                    step="0.01"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Fixed platform fee added to every order</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Cancellation Time Limit (Hours)
                   </label>
                   <input

@@ -39,7 +39,7 @@ const CheckoutPage = () => {
 
     const [showSizeModal, setShowSizeModal] = useState(null); // productId for which to show modal
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-    const [deliveryType, setDeliveryType] = useState('check_and_buy');
+    const [deliveryType, setDeliveryType] = useState('try_and_buy');
     const [showServiceInfo, setShowServiceInfo] = useState(false);
 
     // Promo Code States
@@ -88,7 +88,10 @@ const CheckoutPage = () => {
     const totalMRP = cart.reduce((acc, item) => acc + (Number(item.originalPrice || item.price) * item.quantity), 0);
     const bagDiscount = Math.max(0, totalMRP - totalPrice);
     
-    const uniqueVendorIds = [...new Set(cart.map(item => String(item.vendorId || '')))].filter(Boolean);
+    const uniqueVendorIds = [...new Set(cart.map(item => {
+        const vid = item.vendorId;
+        return String(vid?._id || vid || '');
+    }))].filter(Boolean);
     const isMultiVendor = uniqueVendorIds.length > 1;
 
     // Auto-switch to try_and_buy when cart becomes multi-vendor (no reload / no flicker)
@@ -101,7 +104,7 @@ const CheckoutPage = () => {
     // Dynamic values from settings
     const shippingThreshold = settings?.shipping?.freeShippingThreshold || 500;
     const defaultShippingRate = settings?.shipping?.defaultShippingRate || 40;
-    const platformFee = settings?.orders?.platformFee || 20;
+    const platformFee = settings?.orders?.platformFee !== undefined ? Number(settings.orders.platformFee) : 20;
 
     const shipping = totalPrice > shippingThreshold ? 0 : defaultShippingRate;
     const tax = 0; // GST removed as per user request
@@ -726,6 +729,26 @@ const SizeSelectionModal = ({ item, isOpen, onClose, onSelect }) => {
         ? item.variants.sizes
         : (item.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.values || ['XS', 'S', 'M', 'L', 'XL', 'XXL']);
 
+    // Resolve stock for a given size from the item's product variant metadata
+    const getSizeStock = (size) => {
+        if (item.variants?.stockMap) {
+            const keys = [
+                `${String(size || '').toLowerCase()}|`,
+                `${String(size || '')}|`
+            ];
+            for (const k of keys) {
+                if (item.variants.stockMap[k] !== undefined) {
+                    return Number(item.variants.stockMap[k]);
+                }
+            }
+        }
+        // Fallback: if no stockMap entry exists, treat as available (use item-level stock)
+        return Number(item.stockQuantity ?? 1);
+    };
+
+    // Only show sizes that are in stock
+    const availableSizes = sizes.filter(size => getSizeStock(size) > 0);
+
     return (
         <div className="fixed inset-0 z-[20000] flex items-end justify-center p-0 md:items-center md:p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white w-full max-w-[450px] rounded-t-[32px] md:rounded-[32px] overflow-hidden animate-slideUp">
@@ -740,19 +763,23 @@ const SizeSelectionModal = ({ item, isOpen, onClose, onSelect }) => {
                 </div>
                 <div className="p-6">
                     <div className="grid grid-cols-4 gap-3">
-                        {sizes.map((size) => (
-                            <button
-                                key={size}
-                                onClick={() => onSelect(size)}
-                                className={`h-14 rounded-2xl flex items-center justify-center font-bold text-sm transition-all ${
-                                    (item.selectedSize === size || item.variant?.size === size)
-                                    ? 'bg-black text-white shadow-lg scale-105'
-                                    : 'bg-gray-50 border border-gray-100 text-gray-900 hover:border-black'
-                                }`}
-                            >
-                                {size}
-                            </button>
-                        ))}
+                        {availableSizes.map((size) => {
+                            const isCurrentSize = item.selectedSize === size || item.variant?.size === size;
+
+                            return (
+                                <button
+                                    key={size}
+                                    onClick={() => onSelect(size)}
+                                    className={`h-14 rounded-2xl flex items-center justify-center font-bold text-sm transition-all ${
+                                        isCurrentSize
+                                            ? 'bg-black text-white shadow-lg scale-105'
+                                            : 'bg-gray-50 border border-gray-100 text-gray-900 hover:border-black'
+                                    }`}
+                                >
+                                    {size}
+                                </button>
+                            );
+                        })}
                     </div>
                     <button
                         onClick={onClose}

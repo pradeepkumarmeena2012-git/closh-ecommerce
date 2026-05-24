@@ -260,10 +260,21 @@ const MobileTrackOrder = () => {
 
   const getTrackingSteps = () => {
     const isCancelled = normalizedStatus === 'cancelled';
-    const isAccepted = ['accepted', 'searching', 'assigned', 'ready_for_pickup', 'picked_up', 'arrived', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
-    const isReady = ['searching', 'assigned', 'ready_for_pickup', 'picked_up', 'arrived', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
+    
+    const vendorStatuses = (order?.vendorItems || []).map(vi => String(vi.status || 'pending').toLowerCase());
+
+    // Step 1: Accepted (Vendor confirmed/accepted)
+    const isAccepted = vendorStatuses.length > 0 && vendorStatuses.some(s => 
+        ['accepted', 'processing', 'ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered'].includes(s)
+    );
+
+    // Step 2: Ready for Pickup
+    const isReady = vendorStatuses.length > 0 && vendorStatuses.every(s => 
+        ['ready_for_pickup', 'picked_up', 'out_for_delivery', 'delivered'].includes(s)
+    );
+
     const isPickedUp = ['picked_up', 'arrived', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
-    const isOut = ['arrived', 'out_for_delivery', 'delivered'].includes(normalizedStatus);
+    const isOut = ['out_for_delivery', 'delivered'].includes(normalizedStatus);
     const isDelivered = normalizedStatus === 'delivered';
 
     const steps = [
@@ -276,7 +287,7 @@ const MobileTrackOrder = () => {
       {
         label: 'Accepted',
         completed: isAccepted,
-        date: order?.acceptedAt || null,
+        date: order?.vendorAcceptedAt || order?.acceptedAt || null,
         icon: FiCheckCircle,
       },
       {
