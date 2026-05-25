@@ -1007,17 +1007,45 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       return;
     }
 
-    if (formData.originalPrice !== "" && Number(formData.originalPrice) < 0) {
-      toast.error("Original price cannot be negative");
-      return;
+    if (formData.originalPrice !== "" && formData.originalPrice !== null) {
+      const mrp = Number(formData.originalPrice);
+      if (mrp < 0) {
+        toast.error("Original price cannot be negative");
+        return;
+      }
+      
+      const vendorPrice = Number(formData.vendorPrice || 0);
+      const sellingPrice = Number(formData.price || 0);
+
+      if (vendorPrice > 0 && mrp <= vendorPrice) {
+        toast.error("Original Price (MRP) must be greater than Vendor Price (Cost)");
+        return;
+      }
+      
+      if (sellingPrice > 0 && mrp <= sellingPrice) {
+        toast.error("Original Price (MRP) must be greater than Selling Price");
+        return;
+      }
+
+      if (formData.variants && formData.variants.prices) {
+        for (const [key, vPrice] of Object.entries(formData.variants.prices)) {
+          if (vPrice !== "" && vPrice !== null && vPrice !== undefined) {
+            const vp = Number(vPrice);
+            if (vp > 0 && mrp <= vp) {
+              toast.error("Original Price (MRP) must be greater than all Variant Prices");
+              return;
+            }
+          }
+        }
+      }
     }
 
-    if (formData.vendorPrice !== "" && Number(formData.vendorPrice) < 0) {
+    if (formData.vendorPrice !== "" && formData.vendorPrice !== null && Number(formData.vendorPrice) < 0) {
       toast.error("Vendor price cannot be negative");
       return;
     }
 
-    if (formData.stockQuantity !== "" && Number(formData.stockQuantity) < 0) {
+    if (formData.stockQuantity !== "" && formData.stockQuantity !== null && Number(formData.stockQuantity) < 0) {
       toast.error("Stock quantity cannot be negative");
       return;
     }
@@ -1141,9 +1169,25 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       return;
     }
 
-    if (formData.originalPrice !== "" && formData.originalPrice !== null && Number(formData.originalPrice) < 0) {
-      toast.error("Original price cannot be negative");
-      return;
+    if (formData.originalPrice !== "" && formData.originalPrice !== null) {
+      const mrp = Number(formData.originalPrice);
+      if (mrp < 0) {
+        toast.error("Original price cannot be negative");
+        return;
+      }
+
+      const vendorPrice = Number(formData.vendorPrice || 0);
+      const sellingPrice = Number(formData.price || 0);
+
+      if (vendorPrice > 0 && mrp <= vendorPrice) {
+        toast.error("Original Price (MRP) must be greater than Vendor Price (Cost)");
+        return;
+      }
+      
+      if (sellingPrice > 0 && mrp <= sellingPrice) {
+        toast.error("Original Price (MRP) must be greater than Selling Price");
+        return;
+      }
     }
 
     if (formData.vendorPrice !== "" && formData.vendorPrice !== null && Number(formData.vendorPrice) < 0) {
@@ -1265,6 +1309,18 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       // Error handled by interceptor
     }
   };
+
+  const originalPriceVal = formData.originalPrice !== "" && formData.originalPrice !== null ? parseFloat(formData.originalPrice) : null;
+  const vendorPriceVal = formData.vendorPrice !== "" && formData.vendorPrice !== null ? parseFloat(formData.vendorPrice) : null;
+  const sellingPriceVal = formData.price !== "" && formData.price !== null ? parseFloat(formData.price) : null;
+  let originalPriceError = "";
+  if (originalPriceVal !== null && originalPriceVal < 0) {
+    originalPriceError = "Cannot be negative";
+  } else if (vendorPriceVal !== null && vendorPriceVal > 0 && originalPriceVal <= vendorPriceVal) {
+    originalPriceError = "Must be greater than Vendor Price";
+  } else if (sellingPriceVal !== null && sellingPriceVal > 0 && originalPriceVal <= sellingPriceVal) {
+    originalPriceError = "Must be greater than Selling Price";
+  }
 
   if (!isOpen) return null;
 
@@ -1467,10 +1523,14 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           onChange={handleChange}
                           min="0"
                           step="0.01"
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white font-bold"
+                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 bg-white font-bold ${originalPriceError ? 'border-red-500 focus:ring-red-500 text-red-900' : 'border-gray-300 focus:ring-gray-500'}`}
                           placeholder="MRP for strikethrough"
                         />
-                        <p className="mt-1 text-xs text-gray-500">Maximum Retail Price</p>
+                        {originalPriceError ? (
+                          <p className="mt-1 text-xs text-red-500 font-medium">{originalPriceError}</p>
+                        ) : (
+                          <p className="mt-1 text-xs text-gray-500">Maximum Retail Price</p>
+                        )}
                       </div>
 
                       {/* Tier 2: Vendor Pricing */}
@@ -1947,27 +2007,32 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                                       <div className="relative group">
                                         <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Price</label>
                                         <div className="flex gap-1">
-                                          <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={vPrice !== undefined ? vPrice : formData.price || ""}
-                                            onChange={(e) => {
-                                              const nextValue = e.target.value;
-                                              setFormData((prev) => ({
-                                                ...prev,
-                                                variants: {
-                                                  ...prev.variants,
-                                                  prices: {
-                                                    ...(prev.variants?.prices || {}),
-                                                    [combo.key]: nextValue === "" ? "" : Number(nextValue),
+                                          <div className="w-full">
+                                            <input
+                                              type="number"
+                                              min="0"
+                                              step="0.01"
+                                              value={vPrice !== undefined ? vPrice : formData.price || ""}
+                                              onChange={(e) => {
+                                                const nextValue = e.target.value;
+                                                setFormData((prev) => ({
+                                                  ...prev,
+                                                  variants: {
+                                                    ...prev.variants,
+                                                    prices: {
+                                                      ...(prev.variants?.prices || {}),
+                                                      [combo.key]: nextValue === "" ? "" : Number(nextValue),
+                                                    },
                                                   },
-                                                },
-                                              }));
-                                            }}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm font-medium"
-                                            placeholder={formData.price || "Price"}
-                                          />
+                                                }));
+                                              }}
+                                              className={`w-full px-3 py-2 bg-white border rounded-lg focus:ring-2 outline-none text-sm font-medium ${originalPriceVal !== null && vPrice !== undefined && vPrice !== "" && originalPriceVal <= Number(vPrice) ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
+                                              placeholder={formData.price || "Price"}
+                                            />
+                                            {originalPriceVal !== null && vPrice !== undefined && vPrice !== "" && originalPriceVal <= Number(vPrice) && (
+                                              <p className="text-red-500 text-[10px] mt-1 font-medium leading-tight">Must be &lt; MRP</p>
+                                            )}
+                                          </div>
                                           <button
                                             type="button"
                                             onClick={() => applyValueToSimilar('price', combo, vPrice ?? formData.price)}
