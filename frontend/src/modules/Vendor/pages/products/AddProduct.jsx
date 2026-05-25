@@ -607,6 +607,29 @@ const AddProduct = () => {
       return;
     }
 
+    if (parsedOriginalPrice !== null) {
+      if (parsedOriginalPrice < 0) {
+        toast.error("Original price cannot be negative");
+        return;
+      }
+      if (parsedPrice > 0 && parsedOriginalPrice <= parsedPrice) {
+        toast.error("Original Price (MRP) must be greater than Your Selling Price");
+        return;
+      }
+
+      if (formData.variants && formData.variants.prices) {
+        for (const [key, vPrice] of Object.entries(formData.variants.prices)) {
+          if (vPrice !== "" && vPrice !== null && vPrice !== undefined) {
+            const vp = Number(vPrice);
+            if (vp > 0 && parsedOriginalPrice <= vp) {
+              toast.error("Original Price (MRP) must be greater than all Variant Prices");
+              return;
+            }
+          }
+        }
+      }
+    }
+
     const hasInvalidFaq = (formData.faqs || []).some((faq) => {
       const question = String(faq?.question || "").trim();
       const answer = String(faq?.answer || "").trim();
@@ -652,6 +675,15 @@ const AddProduct = () => {
         <p className="text-gray-500">Please log in to add products</p>
       </div>
     );
+  }
+
+  const originalPriceVal = formData.originalPrice !== "" && formData.originalPrice !== null ? parseFloat(formData.originalPrice) : null;
+  const sellingPriceVal = formData.price !== "" && formData.price !== null ? parseFloat(formData.price) : null;
+  let originalPriceError = "";
+  if (originalPriceVal !== null && originalPriceVal < 0) {
+    originalPriceError = "Cannot be negative";
+  } else if (originalPriceVal !== null && sellingPriceVal !== null && originalPriceVal <= sellingPriceVal) {
+    originalPriceError = "Must be greater than Your Selling Price";
   }
 
   return (
@@ -796,9 +828,10 @@ const AddProduct = () => {
                 onChange={handleChange}
                 min="0"
                 step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${originalPriceError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
                 placeholder="0.00"
               />
+              {originalPriceError && <p className="text-red-500 text-[10px] mt-1 font-medium">{originalPriceError}</p>}
             </div>
 
             <div>
@@ -1182,27 +1215,32 @@ const AddProduct = () => {
                       <p className="text-xs text-gray-700 md:col-span-1">
                         {combo.label || ((combo.size || "Any Size") + " / " + (combo.color || "Any Color"))}
                       </p>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.variants?.prices?.[combo.key] ?? ""}
-                        onChange={(e) => {
-                          const nextValue = e.target.value;
-                          setFormData((prev) => ({
-                            ...prev,
-                            variants: {
-                              ...prev.variants,
-                              prices: {
-                                ...(prev.variants?.prices || {}),
-                                [combo.key]: nextValue === "" ? "" : Number(nextValue),
+                      <div className="w-full">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.variants?.prices?.[combo.key] ?? ""}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            setFormData((prev) => ({
+                              ...prev,
+                              variants: {
+                                ...prev.variants,
+                                prices: {
+                                  ...(prev.variants?.prices || {}),
+                                  [combo.key]: nextValue === "" ? "" : Number(nextValue),
+                                },
                               },
-                            },
-                          }));
-                        }}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
-                        placeholder="Use base price"
-                      />
+                            }));
+                          }}
+                          className={`w-full px-2 py-1.5 border rounded-lg focus:outline-none focus:ring-2 text-xs ${originalPriceVal !== null && formData.variants?.prices?.[combo.key] && originalPriceVal <= formData.variants.prices[combo.key] ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
+                          placeholder="Use base price"
+                        />
+                        {originalPriceVal !== null && formData.variants?.prices?.[combo.key] && originalPriceVal <= formData.variants.prices[combo.key] && (
+                          <p className="text-red-500 text-[10px] mt-1 font-medium leading-tight">Must be &lt; MRP</p>
+                        )}
+                      </div>
                       <input
                         type="number"
                         min="0"
