@@ -258,6 +258,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
         let variantStockValue = null;
         let stockKeyInMap = variantKey;
+        let hasSpecificVariantStock = false;
         if (hasVariantAxes && variantKey) {
             const stockKeys = toVariantStockEntries(product?.variants?.stockMap).map(([k]) => String(k).trim());
             const resolvedStockKey = resolveVariantKeyFromKeys(stockKeys, item.variant);
@@ -265,7 +266,13 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 stockKeyInMap = resolvedStockKey;
             }
             const rawVariantStock = product?.variants?.stockMap?.get?.(stockKeyInMap) ?? product?.variants?.stockMap?.[stockKeyInMap];
-            variantStockValue = Number(rawVariantStock ?? 0);
+            if (rawVariantStock !== undefined && rawVariantStock !== null && rawVariantStock !== "") {
+                variantStockValue = Number(rawVariantStock);
+                hasSpecificVariantStock = true;
+            } else {
+                variantStockValue = Number(product.stockQuantity || 0);
+                hasSpecificVariantStock = false;
+            }
         }
 
         if (hasVariantAxes && variantKey && variantStockValue < item.quantity) {
@@ -301,6 +308,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
             marginAmount: itemMarginAmount,
             variant: item.variant,
             variantKey: stockKeyInMap || variantKey || undefined,
+            hasSpecificVariantStock: hasSpecificVariantStock,
         };
         enrichedItems.push(enriched);
 
@@ -471,13 +479,11 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 const variantKey = item.variantKey;
 
                 const incUpdate = { stockQuantity: -quantity };
-                if (variantKey) {
+                const queryFilter = { _id: item.productId, stockQuantity: { $gte: quantity } };
+
+                if (variantKey && item.hasSpecificVariantStock) {
                     // Note: This works for Map-based stockMap as well in modern Mongoose/MongoDB
                     incUpdate[`variants.stockMap.${variantKey}`] = -quantity;
-                }
-
-                const queryFilter = { _id: item.productId, stockQuantity: { $gte: quantity } };
-                if (variantKey) {
                     queryFilter[`variants.stockMap.${variantKey}`] = { $gte: quantity };
                 }
 
@@ -709,7 +715,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
                 const variantKey = resolveOrderItemVariantKey(productSnapshot, item);
 
                 const incUpdate = { stockQuantity: quantity };
-                if (variantKey) {
+                if (variantKey && item.hasSpecificVariantStock) {
                     incUpdate[`variants.stockMap.${variantKey}`] = quantity;
                 }
 

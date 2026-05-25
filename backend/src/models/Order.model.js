@@ -14,6 +14,7 @@ const orderItemSchema = new mongoose.Schema({
     marginAmount: { type: Number, default: 0 }, // (Price - VendorPrice) - this is the markup margin
     variant: { type: mongoose.Schema.Types.Mixed, default: {} },
     variantKey: String,
+    hasSpecificVariantStock: { type: Boolean, default: false },
 });
 
 const vendorItemGroupSchema = new mongoose.Schema({
