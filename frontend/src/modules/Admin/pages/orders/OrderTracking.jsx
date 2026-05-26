@@ -13,41 +13,9 @@ import { motion } from "framer-motion";
 import DataTable from "../../components/DataTable";
 import Badge from "../../../../shared/components/Badge";
 import { getAllOrders } from "../../services/adminService";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api';
 
-// Fix default Leaflet marker icons in Webpack/Vite environments
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-const riderIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png',
-  iconSize: [38, 38],
-  iconAnchor: [19, 38],
-  popupAnchor: [0, -38],
-});
-
-const customerIcon = new L.Icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/1275/1275210.png',
-  iconSize: [38, 38],
-  iconAnchor: [19, 38],
-  popupAnchor: [0, -38],
-});
-
-const ChangeView = ({ center }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (center && Array.isArray(center) && center.length === 2) {
-      map.setView(center);
-    }
-  }, [center, map]);
-  return null;
-};
+const libraries = ['places'];
 
 const OrderTracking = () => {
   const navigate = useNavigate();
@@ -56,6 +24,13 @@ const OrderTracking = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [activeMarker, setActiveMarker] = useState(null);
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries
+  });
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -290,33 +265,52 @@ const OrderTracking = () => {
             {(selectedOrder.status === 'shipped' || selectedOrder.status === 'out_for_delivery' || selectedOrder.status === 'delivered') && (
               <div className="h-64 sm:h-80 w-full rounded-2xl overflow-hidden shadow-inner border border-gray-100 relative bg-white">
                 {riderPos ? (
-                  <MapContainer center={riderPos} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OSM" />
+                  <>
+                    {isLoaded && (
+                      <GoogleMap
+                        center={riderPos ? { lat: riderPos[0], lng: riderPos[1] } : { lat: 0, lng: 0 }}
+                        zoom={13}
+                        mapContainerStyle={{ height: '100%', width: '100%' }}
+                        options={{ disableDefaultUI: true }}
+                      >
+                        {/* Rider Marker */}
+                        {riderPos && (
+                          <MarkerF
+                            position={{ lat: riderPos[0], lng: riderPos[1] }}
+                            icon={{ url: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', scaledSize: window.google ? new window.google.maps.Size(38, 38) : null }}
+                            onClick={() => setActiveMarker('rider')}
+                          >
+                            {activeMarker === 'rider' && (
+                              <InfoWindowF onCloseClick={() => setActiveMarker(null)}>
+                                <div className="text-xs font-bold text-center text-black">
+                                  <p>{selectedOrder.deliveryBoyId?.name || 'Rider'}</p>
+                                  <p className="text-primary-600">Currently Active</p>
+                                </div>
+                              </InfoWindowF>
+                            )}
+                          </MarkerF>
+                        )}
 
-                    {/* Rider Marker */}
-                    <Marker position={riderPos} icon={riderIcon}>
-                      <Popup>
-                        <div className="text-xs font-bold text-center">
-                          <p>{selectedOrder.deliveryBoyId?.name || 'Rider'}</p>
-                          <p className="text-primary-600">Currently Active</p>
-                        </div>
-                      </Popup>
-                    </Marker>
-
-                    {/* Customer Marker */}
-                    {customerPos && (
-                      <Marker position={customerPos} icon={customerIcon}>
-                        <Popup>
-                          <div className="text-xs font-bold text-center">
-                            <p>{selectedOrder.customer.name}</p>
-                            <p className="text-gray-500 uppercase er">Delivery Location</p>
-                          </div>
-                        </Popup>
-                      </Marker>
+                        {/* Customer Marker */}
+                        {customerPos && (
+                          <MarkerF
+                            position={{ lat: customerPos[0], lng: customerPos[1] }}
+                            icon={{ url: 'https://cdn-icons-png.flaticon.com/512/1275/1275210.png', scaledSize: window.google ? new window.google.maps.Size(38, 38) : null }}
+                            onClick={() => setActiveMarker('customer')}
+                          >
+                            {activeMarker === 'customer' && (
+                              <InfoWindowF onCloseClick={() => setActiveMarker(null)}>
+                                <div className="text-xs font-bold text-center text-black">
+                                  <p>{selectedOrder.customer.name}</p>
+                                  <p className="text-gray-500 uppercase er">Delivery Location</p>
+                                </div>
+                              </InfoWindowF>
+                            )}
+                          </MarkerF>
+                        )}
+                      </GoogleMap>
                     )}
-
-                    <ChangeView center={riderPos} />
-                  </MapContainer>
+                  </>
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">

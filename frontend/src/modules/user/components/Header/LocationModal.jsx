@@ -1,86 +1,77 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, MapPin, CheckCircle2, ChevronLeft, Loader2, Home, Briefcase, Search, Target } from 'lucide-react';
 import { useUserLocation } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAddressStore } from '../../../../shared/store/addressStore';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
 import api from '../../../../shared/utils/api';
 import toast from 'react-hot-toast';
 
-// Fix for default marker icon
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// Geocoding via internal API proxy
-const GEOCODE_PROXY_URL = '/geocode';
+const libraries = ['places'];
 
 const getAddressFromCoords = async (lat, lng) => {
+    if (window.google) {
+        try {
+            const result = await new Promise((resolve) => {
+                const geocoder = new window.google.maps.Geocoder();
+                geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+                    if (status === 'OK' && results[0]) resolve(results[0]);
+                    else resolve(null);
+                });
+            });
+
+            if (result) {
+                const getComponent = (type) => {
+                    const comp = result.address_components.find(c => c.types.includes(type));
+                    return comp ? comp.long_name : '';
+                };
+                return {
+                    formatted: result.formatted_address,
+                    pincode: getComponent('postal_code') || '',
+                    city: getComponent('locality') || getComponent('administrative_area_level_2') || '',
+                    state: getComponent('administrative_area_level_1') || '',
+                    locality: getComponent('sublocality') || getComponent('neighborhood') || getComponent('route') || '',
+                    raw: result
+                };
+            }
+        } catch (e) {
+            console.warn("Google Geocoder failed, falling back to OSM", e);
+        }
+    }
+
+    // Fallback to OSM proxy if Google fails (e.g. Geocoding API not enabled)
     try {
-        const response = await api.get(`${GEOCODE_PROXY_URL}?lat=${lat}&lon=${lng}`);
-        const data = response?.data || response;
-        if (data && data.display_name) {
-            const addr = data.address || {};
+        const response = await api.get(`/geocode?lat=${lat}&lon=${lng}`);
+        const data = response.data;
+        if (data && data.address) {
             return {
                 formatted: data.display_name,
-                pincode: addr.postcode || '',
-                city: addr.city || addr.town || addr.village || '',
-                state: addr.state || '',
-                locality: addr.suburb || addr.neighbourhood || addr.road || '',
+                pincode: data.address.postcode || '',
+                city: data.address.city || data.address.town || data.address.county || '',
+                state: data.address.state || '',
+                locality: data.address.suburb || data.address.neighbourhood || '',
                 raw: data
             };
         }
     } catch (error) {
-        console.error("Error fetching address:", error);
+        console.error("OSM Geocoding fallback failed", error);
     }
+    
     return null;
-};
-
-const LocationMarker = ({ position, setPosition, onAddressFetched }) => {
-    const markerRef = useRef(null);
-    const map = useMapEvents({
-        click(e) {
-            setPosition(e.latlng);
-            getAddressFromCoords(e.latlng.lat, e.latlng.lng).then(onAddressFetched);
-        }
-    });
-
-    const eventHandlers = useMemo(() => ({
-        dragend() {
-            const marker = markerRef.current;
-            if (marker != null) {
-                const newPos = marker.getLatLng();
-                setPosition(newPos);
-                getAddressFromCoords(newPos.lat, newPos.lng).then(onAddressFetched);
-            }
-        },
-    }), [setPosition, onAddressFetched]);
-
-    useEffect(() => {
-        if (position) map.flyTo(position, map.getZoom());
-    }, [position, map]);
-
-    return position === null ? null : (
-        <Marker draggable={true} eventHandlers={eventHandlers} position={position} ref={markerRef} />
-    );
 };
 
 const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     const { addresses, activeAddress, updateActiveAddress, refreshAddresses } = useUserLocation();
     const { user } = useAuth();
     const [isAutoOpen, setIsAutoOpen] = useState(false);
+
+    const { isLoaded } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+        libraries
+    });
 
     useEffect(() => {
         const handleOpen = () => setIsAutoOpen(true);
@@ -172,29 +163,13 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                 setFetchedAddress(addr);
                 setPosition({ lat: latitude, lng: longitude });
                 
-                // Zepto-like: Auto-set current location as active address and close modal
-                const currentLocationAddr = {
-                    id: 'current-location-' + Date.now(),
-                    name: 'Current Location',
-                    fullName: user?.name || 'Guest',
-                    phone: user?.phone || '',
-                    address: addr.formatted,
-                    city: addr.city || '',
-                    state: addr.state || '',
-                    zipCode: addr.pincode || '',
-                    locality: addr.locality || '',
-                    type: 'Current',
-                    isCurrentLocation: true,
-                    lat: latitude,
-                    lng: longitude
-                };
-                
-                updateActiveAddress(currentLocationAddr);
-                toast.success("Location set!");
-                handleClose();
+                // Show map so user can verify and adjust if GPS is slightly inaccurate
+                toast.success("Location found. Adjust pin if needed.");
+                setView('map');
             } else {
                 // Fallback: show map if address couldn't be resolved
                 toast.error("Couldn't resolve address. Please adjust pin.");
+                setPosition({ lat: latitude, lng: longitude });
                 setView('map');
             }
             setLoadingLocation(false);
@@ -429,10 +404,33 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
 
                     {view === 'map' && (
                         <div className="h-[400px] sm:h-[450px] relative animate-fadeIn">
-                            <MapContainer center={position || [22.7196, 75.8577]} zoom={15} style={{ height: '100%', width: '100%' }}>
-                                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                <LocationMarker position={position} setPosition={setPosition} onAddressFetched={setFetchedAddress} />
-                            </MapContainer>
+                            {isLoaded ? (
+                                <GoogleMap
+                                    mapContainerStyle={{ height: '100%', width: '100%' }}
+                                    center={position || { lat: 22.7196, lng: 75.8577 }}
+                                    zoom={15}
+                                    options={{ disableDefaultUI: true, zoomControl: true }}
+                                    onClick={(e) => {
+                                        const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                                        setPosition(newPos);
+                                        getAddressFromCoords(newPos.lat, newPos.lng).then(setFetchedAddress);
+                                    }}
+                                >
+                                    <MarkerF
+                                        position={position || { lat: 22.7196, lng: 75.8577 }}
+                                        draggable={true}
+                                        onDragEnd={(e) => {
+                                            const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                                            setPosition(newPos);
+                                            getAddressFromCoords(newPos.lat, newPos.lng).then(setFetchedAddress);
+                                        }}
+                                    />
+                                </GoogleMap>
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                                    <Loader2 className="animate-spin text-gray-400" size={32} />
+                                </div>
+                            )}
                             <div className="absolute bottom-5 left-5 right-5 bg-white p-4 rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-start gap-3">
                                 <MapPin size={20} className="text-black shrink-0 mt-1" />
                                 <p className="text-[12px] font-bold text-black line-clamp-3">

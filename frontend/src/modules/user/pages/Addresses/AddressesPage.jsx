@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
 import { MapPin, Search, X, Home, Briefcase, MapPin as MapPinIcon, ChevronLeft, Loader2, Navigation, Target, Plus } from 'lucide-react';
@@ -7,83 +7,58 @@ import { useAddressStore } from '../../../../shared/store/addressStore';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
 
-// Fix for default marker icon
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// Geocoding via internal API proxy to avoid CORS
-const GEOCODE_PROXY_URL = '/geocode';
-const SEARCH_URL = 'https://nominatim.openstreetmap.org/search?format=json&q=';
-
-const LocationMarker = ({ position, setPosition, setAddress }) => {
-    const markerRef = useRef(null);
-    const map = useMapEvents({
-        click(e) {
-            setPosition(e.latlng);
-            fetchAddress(e.latlng.lat, e.latlng.lng, setAddress);
-        }
-    });
-
-    const eventHandlers = useMemo(
-        () => ({
-            dragend() {
-                const marker = markerRef.current;
-                if (marker != null) {
-                    const newPos = marker.getLatLng();
-                    setPosition(newPos);
-                    fetchAddress(newPos.lat, newPos.lng, setAddress);
-                }
-            },
-        }),
-        [setPosition, setAddress],
-    );
-
-    useEffect(() => {
-        if (position) {
-            map.flyTo(position, map.getZoom());
-        }
-    }, [position, map]);
-
-    return position === null ? null : (
-        <Marker
-            draggable={true}
-            eventHandlers={eventHandlers}
-            position={position}
-            ref={markerRef}
-        />
-    );
-};
+const libraries = ['places'];
 
 const fetchAddress = async (lat, lng, setAddress) => {
+    if (window.google) {
+        try {
+            const result = await new Promise((resolve) => {
+                const geocoder = new window.google.maps.Geocoder();
+                geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+                    if (status === 'OK' && results[0]) resolve(results[0]);
+                    else resolve(null);
+                });
+            });
+
+            if (result) {
+                const getComponent = (type) => {
+                    const comp = result.address_components.find(c => c.types.includes(type));
+                    return comp ? comp.long_name : '';
+                };
+                
+                setAddress({
+                    formatted: result.formatted_address,
+                    pincode: getComponent('postal_code') || '',
+                    city: getComponent('locality') || getComponent('administrative_area_level_2') || '',
+                    state: getComponent('administrative_area_level_1') || '',
+                    locality: getComponent('sublocality') || getComponent('neighborhood') || getComponent('route') || '',
+                    raw: result
+                });
+                return;
+            }
+        } catch (e) {
+            console.warn("Google Geocoder failed in fetchAddress", e);
+        }
+    }
+
+    // Fallback to OSM
     try {
-        const response = await api.get(`${GEOCODE_PROXY_URL}?lat=${lat}&lon=${lng}`);
-        const data = response?.data || response;
-        if (data && data.display_name) {
-            const addr = data.address || {};
+        const response = await api.get(`/geocode?lat=${lat}&lon=${lng}`);
+        const data = response.data;
+        if (data && data.address) {
             setAddress({
                 formatted: data.display_name,
-                pincode: addr.postcode || '',
-                city: addr.city || addr.town || addr.village || '',
-                state: addr.state || '',
-                locality: addr.suburb || addr.neighbourhood || addr.road || '',
+                pincode: data.address.postcode || '',
+                city: data.address.city || data.address.town || data.address.county || '',
+                state: data.address.state || '',
+                locality: data.address.suburb || data.address.neighbourhood || '',
                 raw: data
             });
         }
     } catch (error) {
-        console.error("Error fetching address via proxy:", error);
+        console.error("OSM Geocoding fallback failed in fetchAddress", error);
     }
 };
 
@@ -96,6 +71,12 @@ const AddressesPage = () => {
     const [fetchedAddress, setFetchedAddress] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+
+    const { isLoaded } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+        libraries
+    });
 
     const [newAddress, setNewAddress] = useState({
         name: '',
@@ -120,23 +101,22 @@ const AddressesPage = () => {
 
     const handleSearch = async (e) => {
         if (e) e.preventDefault();
-        if (!searchQuery.trim()) return;
+        if (!searchQuery.trim() || !window.google) return;
 
         setIsSearching(true);
-        try {
-            const response = await fetch(`${SEARCH_URL}${encodeURIComponent(searchQuery + ', India')}`);
-            const data = await response.json();
-            if (data && data.length > 0) {
-                const first = data[0];
-                const newPos = { lat: parseFloat(first.lat), lng: parseFloat(first.lon) };
+        const geocoder = new window.google.maps.Geocoder();
+        geocoder.geocode({ address: searchQuery + ', India' }, (results, status) => {
+            setIsSearching(false);
+            if (status === 'OK' && results[0]) {
+                const location = results[0].geometry.location;
+                const newPos = { lat: location.lat(), lng: location.lng() };
                 setMapPosition(newPos);
                 fetchAddress(newPos.lat, newPos.lng, setFetchedAddress);
+            } else {
+                console.error("Search error:", status);
+                toast.error('Location not found');
             }
-        } catch (error) {
-            console.error("Search error:", error);
-        } finally {
-            setIsSearching(false);
-        }
+        });
     };
 
     const handleConfirmLocation = () => {
@@ -272,21 +252,33 @@ const AddressesPage = () => {
 
                         {/* Map Container */}
                         <div className="flex-1 relative">
-                            <MapContainer
-                                center={mapPosition}
-                                zoom={view === 'map' ? 15 : 5}
-                                style={{ height: '100%', width: '100%' }}
-                            >
-                                <TileLayer
-                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                />
-                                <LocationMarker
-                                    position={mapPosition}
-                                    setPosition={setMapPosition}
-                                    setAddress={setFetchedAddress}
-                                />
-                            </MapContainer>
+                            {isLoaded ? (
+                                <GoogleMap
+                                    mapContainerStyle={{ height: '100%', width: '100%' }}
+                                    center={mapPosition}
+                                    zoom={view === 'map' ? 15 : 5}
+                                    options={{ disableDefaultUI: true, zoomControl: true }}
+                                    onClick={(e) => {
+                                        const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                                        setMapPosition(newPos);
+                                        fetchAddress(newPos.lat, newPos.lng, setFetchedAddress);
+                                    }}
+                                >
+                                    <MarkerF
+                                        position={mapPosition}
+                                        draggable={true}
+                                        onDragEnd={(e) => {
+                                            const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                                            setMapPosition(newPos);
+                                            fetchAddress(newPos.lat, newPos.lng, setFetchedAddress);
+                                        }}
+                                    />
+                                </GoogleMap>
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                                    <Loader2 className="animate-spin text-gray-400" size={32} />
+                                </div>
+                            )}
 
                             {/* Current Location Button Overlay */}
                             <div className="absolute top-20 md:top-24 right-4 z-[1000]">
