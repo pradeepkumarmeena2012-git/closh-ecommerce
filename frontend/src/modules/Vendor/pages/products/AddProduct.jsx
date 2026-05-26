@@ -801,23 +801,6 @@ const AddProduct = () => {
           <h2 className="text-base font-bold text-gray-800 mb-2">Pricing</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                Your Selling Price (Cost to Admin/Store) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleChange}
-                required
-                min="0"
-                step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                placeholder="0.00"
-              />
-            </div>
-
-            <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">
                 Original Price (MRP)
               </label>
@@ -832,6 +815,23 @@ const AddProduct = () => {
                 placeholder="0.00"
               />
               {originalPriceError && <p className="text-red-500 text-[10px] mt-1 font-medium">{originalPriceError}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">
+                Your Selling Price (Cost to Admin/Store) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleChange}
+                required
+                min="0"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                placeholder="0.00"
+              />
             </div>
 
             <div>
