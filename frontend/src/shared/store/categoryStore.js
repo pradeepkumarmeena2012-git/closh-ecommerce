@@ -74,7 +74,7 @@ export const useCategoryStore = create(
 
       // Get category by ID
       getCategoryById: (id) => {
-        return get().categories.find((cat) => String(cat.id) === String(id));
+        return get().categories.find((cat) => String(cat.id) === String(id) || String(cat._id) === String(id));
       },
 
       // Create category
