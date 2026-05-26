@@ -141,8 +141,13 @@ const MobileCheckout = () => {
 
   useEffect(() => {
     if (appliedCoupon) {
-      setAppliedCoupon(null);
-      setAppliedDiscount(0);
+      const minOrder = appliedCoupon.minOrderValue || appliedCoupon.minPurchase || 0;
+      if (total < minOrder) {
+        setAppliedCoupon(null);
+        setAppliedDiscount(0);
+        setCouponCode("");
+        toast.error("Coupon removed because minimum order value is not met");
+      }
     }
   }, [total, appliedCoupon]);
 

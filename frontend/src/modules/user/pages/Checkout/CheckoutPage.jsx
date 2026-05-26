@@ -124,6 +124,18 @@ const CheckoutPage = () => {
 
     const finalTotal = totalPrice + shipping + tax + platformFee - promoDiscount;
 
+    // Auto-remove coupon if cart total falls below minimum order value
+    useEffect(() => {
+        if (appliedPromo) {
+            const minOrder = appliedPromo.minOrderValue || appliedPromo.minPurchase || 0;
+            if (totalPrice < minOrder) {
+                setAppliedPromo(null);
+                setPromoCode('');
+                toast.error("Coupon removed because minimum order value is not met");
+            }
+        }
+    }, [totalPrice, appliedPromo]);
+
     const handleApplyPromo = (codeToApply) => {
         const finalCode = (typeof codeToApply === 'string' ? codeToApply : promoCode).trim();
         if (!finalCode) {

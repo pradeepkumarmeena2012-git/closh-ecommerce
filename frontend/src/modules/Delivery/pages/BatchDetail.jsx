@@ -7,8 +7,6 @@ import {
   FiCamera, FiPhone, FiUser, FiMapPin, FiClock, FiTarget, FiZap,
   FiShield, FiDollarSign, FiCreditCard, FiTrash2, FiAlertCircle
 } from 'react-icons/fi';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
 import toast from 'react-hot-toast';
 import { useDeliveryEngineStore } from '../store/deliveryEngineStore';
 import PageTransition from '../../../shared/components/PageTransition';
@@ -20,14 +18,6 @@ const formatPrice = (price) => {
     currency: 'INR',
     maximumFractionDigits: 0
   }).format(price || 0);
-};
-
-const ChangeView = ({ center }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (center) map.setView(center);
-  }, [center, map]);
-  return null;
 };
 
 const BatchDetail = () => {
