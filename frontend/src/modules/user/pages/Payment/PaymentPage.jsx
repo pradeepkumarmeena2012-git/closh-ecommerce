@@ -800,6 +800,47 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
 
                 {showAddForm ? (
                     <form onSubmit={handleSaveNewAddress} className="space-y-4">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (!navigator.geolocation) {
+                                    toast.error("Geolocation is not supported by your browser");
+                                    return;
+                                }
+                                toast.loading("Fetching location...", { id: 'loc-fetch' });
+                                navigator.geolocation.getCurrentPosition(
+                                    async (position) => {
+                                        const { latitude, longitude } = position.coords;
+                                        try {
+                                            const response = await api.get(`/geocode?lat=${latitude}&lon=${longitude}`);
+                                            const payload = response?.data ?? response;
+                                            const address = payload?.address;
+                                            
+                                            if (address) {
+                                                setNewAddress(prev => ({
+                                                    ...prev,
+                                                    address: payload.display_name || prev.address,
+                                                    city: address.city || address.town || address.village || prev.city,
+                                                    state: address.state || prev.state,
+                                                    zipCode: address.postcode || prev.zipCode,
+                                                }));
+                                            }
+                                            toast.success("Location detected!", { id: 'loc-fetch' });
+                                        } catch (error) {
+                                            toast.error("Could not fetch address details", { id: 'loc-fetch' });
+                                        }
+                                    },
+                                    (error) => {
+                                        toast.error("Location access denied", { id: 'loc-fetch' });
+                                    },
+                                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                                );
+                            }}
+                            className="w-full flex items-center justify-center gap-2 py-3 bg-blue-50 text-blue-600 font-semibold rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors"
+                        >
+                            <LocateFixed size={18} />
+                            Use Current Location
+                        </button>
                         <input required placeholder="Full Name" className="w-full p-3 border border-gray-100 rounded-xl" value={newAddress.name} onChange={e => setNewAddress({...newAddress, name: e.target.value})} />
                         <input required placeholder="Phone Number" className="w-full p-3 border border-gray-100 rounded-xl" value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} />
                         <div className="grid grid-cols-2 gap-3">
@@ -835,7 +876,49 @@ const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSele
                                 </div>
                             </div>
                         ))}
-                        <button onClick={() => { setEditingAddress(null); setNewAddress({name:'',phone:'',zipCode:'',address:'',locality:'',city:'',state:'',type:'Home'}); setShowAddForm(true); }} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 font-bold flex items-center justify-center gap-2 mt-4"><Plus size={18} /> Add New Address</button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (!navigator.geolocation) {
+                                    toast.error("Geolocation is not supported by your browser");
+                                    return;
+                                }
+                                toast.loading("Fetching location...", { id: 'loc-fetch-list' });
+                                navigator.geolocation.getCurrentPosition(
+                                    async (position) => {
+                                        const { latitude, longitude } = position.coords;
+                                        try {
+                                            const response = await api.get(`/geocode?lat=${latitude}&lon=${longitude}`);
+                                            const payload = response?.data ?? response;
+                                            const address = payload?.address;
+                                            
+                                            setEditingAddress(null);
+                                            setNewAddress(prev => ({
+                                                name: '', phone: '', type: 'Home',
+                                                address: payload.display_name || '',
+                                                city: address?.city || address?.town || address?.village || '',
+                                                state: address?.state || '',
+                                                zipCode: address?.postcode || '',
+                                                locality: address?.suburb || address?.neighbourhood || ''
+                                            }));
+                                            setShowAddForm(true);
+                                            toast.success("Location detected!", { id: 'loc-fetch-list' });
+                                        } catch (error) {
+                                            toast.error("Could not fetch address details", { id: 'loc-fetch-list' });
+                                        }
+                                    },
+                                    (error) => {
+                                        toast.error("Location access denied", { id: 'loc-fetch-list' });
+                                    },
+                                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                                );
+                            }}
+                            className="w-full flex items-center justify-center gap-2 py-4 bg-blue-50 text-blue-600 font-semibold rounded-2xl border border-blue-100 hover:bg-blue-100 transition-colors mt-4"
+                        >
+                            <LocateFixed size={18} />
+                            Use Current Location
+                        </button>
+                        <button onClick={() => { setEditingAddress(null); setNewAddress({name:'',phone:'',zipCode:'',address:'',locality:'',city:'',state:'',type:'Home'}); setShowAddForm(true); }} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 font-bold flex items-center justify-center gap-2 mt-2"><Plus size={18} /> Add New Address</button>
                     </div>
                 )}
             </div>
