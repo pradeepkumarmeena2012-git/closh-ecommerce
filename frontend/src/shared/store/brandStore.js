@@ -51,7 +51,7 @@ export const useBrandStore = create(
 
       // Get brand by ID
       getBrandById: (id) => {
-        return get().brands.find((brand) => String(brand.id) === String(id));
+        return get().brands.find((brand) => String(brand.id) === String(id) || String(brand._id) === String(id));
       },
 
       // Create brand

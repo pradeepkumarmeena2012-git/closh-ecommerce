@@ -1463,7 +1463,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                             ...brands
                               .filter((brand) => brand.isActive !== false)
                               .map((brand) => ({
-                                value: String(brand.id),
+                                value: String(brand.id || brand._id),
                                 label: brand.name,
                               })),
                           ]}
