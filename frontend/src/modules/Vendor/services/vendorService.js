@@ -135,7 +135,8 @@ export const updateVendorStock = (productId, stockQuantity) =>
 export const updateVendorVariantStock = (productId, stockMap) =>
     api.patch(`/vendor/stock/${productId}/variants`, { stockMap });
 
-
+export const recordOfflineSale = (productId, data) =>
+    api.post(`/vendor/stock/${productId}/offline-sale`, data);
 
 // ─── ORDERS ────────────────────────────────────────────────────────────────────
 

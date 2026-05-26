@@ -10,6 +10,7 @@ const productSchema = new mongoose.Schema(
         discount: { type: Number, default: 0 }, // This will store percentage off (e.g. 10 for 10%)
         vendorPrice: { type: Number, default: 0 }, // This is the amount the vendor wants
         unit: { type: String, default: 'Piece' },
+        offlineSold: { type: Number, default: 0 },
         images: [{ type: String }],
         image: { type: String }, // primary image
         categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true, index: true },

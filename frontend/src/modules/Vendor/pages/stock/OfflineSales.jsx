@@ -31,7 +31,8 @@ import {
   updateVendorStock, 
   updateVendorVariantStock,
   createVendorProduct,
-  updateVendorProduct
+  updateVendorProduct,
+  recordOfflineSale
 } from "../../services/vendorService";
 import MultiSelect from "../../../Admin/components/MultiSelect";
 import { PRODUCT_SIZES } from "../../../../shared/utils/constants";
@@ -717,10 +718,7 @@ const OfflineSales = () => {
           }
         }
 
-        await updateVendorStock(saleProduct.productId, saleProduct.stock - quantity);
-        if (hasStockData) {
-          await updateVendorVariantStock(saleProduct.productId, stockMap);
-        }
+        await recordOfflineSale(saleProduct.productId, { quantity, variantKey: key });
 
         setSales(sales.map(s => s.id === saleProduct.id ? { 
           ...s, 
@@ -734,7 +732,7 @@ const OfflineSales = () => {
           return;
         }
         const newStock = saleProduct.stock - quantity;
-        await updateVendorStock(saleProduct.productId, newStock);
+        await recordOfflineSale(saleProduct.productId, { quantity });
         setSales(sales.map(s => s.id === saleProduct.id ? { ...s, stock: newStock, sold: (s.sold || 0) + quantity } : s));
       }
 

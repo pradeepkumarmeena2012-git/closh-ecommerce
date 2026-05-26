@@ -440,3 +440,41 @@ export const updateVariantStock = asyncHandler(async (req, res) => {
 
     res.status(200).json(new ApiResponse(200, product, 'Variant stock updated.'));
 });
+
+// POST /api/vendor/stock/:productId/offline-sale
+export const recordOfflineSale = asyncHandler(async (req, res) => {
+    const { quantity, variantKey } = req.body;
+    const product = await Product.findOne({ _id: req.params.productId, vendorId: req.user.id });
+    if (!product) throw new ApiError(404, 'Product not found.');
+    
+    const qty = parseInt(quantity) || 1;
+    product.offlineSold = (product.offlineSold || 0) + qty;
+    
+    // Decrement stock
+    if (variantKey && product.variants?.stockMap) {
+        // Variants stock is a Map in Mongoose, use .get and .set
+        const currentStock = product.variants.stockMap.get(variantKey) || 0;
+        product.variants.stockMap.set(variantKey, Math.max(0, currentStock - qty));
+        
+        // Recalculate total stock quantity from all variants
+        const variantAggregateStock = calculateVariantAggregateStock(product.variants);
+        if (Number.isFinite(variantAggregateStock)) {
+            product.stockQuantity = variantAggregateStock;
+        }
+    } else {
+        // No variant specified, decrement total stock directly
+        product.stockQuantity = Math.max(0, (product.stockQuantity || 0) - qty);
+    }
+    
+    // Update stock status based on the new total quantity
+    product.stock = deriveStockStatus(
+        Number(product.stockQuantity ?? 0),
+        Number(product.lowStockThreshold ?? 10)
+    );
+    
+    await product.save();
+    
+    await clearCachePattern('products:list:*');
+    
+    res.status(200).json(new ApiResponse(200, product, 'Offline sale recorded successfully.'));
+});

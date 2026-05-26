@@ -88,6 +88,44 @@ const buildCombinationsFromAttributes = (attributes = []) => {
     return combos;
 };
 
+/**
+ * Canonicalise a variant map key so that vendor-format keys (e.g. "s|", "s|red")
+ * can be matched against admin-format keys (e.g. "size=s", "color=red|size=s").
+ * Strips axis prefixes ("size="), splits on "|", lowercases, sorts, and joins.
+ */
+const getCanonicalMapKey = (rawKey) => {
+    if (!rawKey) return '';
+    return String(rawKey)
+        .trim()
+        .toLowerCase()
+        .split('|')
+        .map(part => {
+            if (part.includes('=')) return part.split('=')[1].trim();
+            return part.trim();
+        })
+        .filter(Boolean)
+        .sort()
+        .join('|');
+};
+
+/**
+ * Given a source map (from the incoming payload — which may use vendor-style
+ * keys like "s|"), build a lookup that maps canonical keys → values so that
+ * the combination-key lookup always succeeds regardless of key format.
+ */
+const buildCanonicalLookup = (sourceMap) => {
+    const lookup = {};
+    Object.entries(sourceMap).forEach(([rawKey, value]) => {
+        // Store both the original key and the canonical form
+        lookup[rawKey] = value;
+        const canonical = getCanonicalMapKey(rawKey);
+        if (canonical && canonical !== rawKey) {
+            lookup[canonical] = value;
+        }
+    });
+    return lookup;
+};
+
 const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
     if (!rawVariants || typeof rawVariants !== 'object') {
         return { sizes: [], colors: [], prices: {}, stockMap: {}, imageMap: {}, defaultVariant: {} };
@@ -119,6 +157,12 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
     const pricesSource = Object.fromEntries(toObjectEntries(rawVariants.prices));
     const stockSource = Object.fromEntries(toObjectEntries(rawVariants.stockMap));
     const imageSource = Object.fromEntries(toObjectEntries(rawVariants.imageMap));
+
+    // Build canonical lookups so vendor-format keys ("s|") match admin keys ("size=s")
+    const pricesLookup = buildCanonicalLookup(pricesSource);
+    const stockLookup = buildCanonicalLookup(stockSource);
+    const imageLookup = buildCanonicalLookup(imageSource);
+
     const prices = {};
     const stockMap = {};
     const imageMap = {};
@@ -127,7 +171,10 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
         const size = String(selection?.size || '');
         const color = String(selection?.color || '');
         const key = createDynamicVariantKey(selection);
-        const parsedPrice = toNonNegativeNumber(pricesSource[key]);
+        const canonicalKey = getCanonicalMapKey(key);
+
+        // Try exact key first, then canonical key
+        const parsedPrice = toNonNegativeNumber(pricesLookup[key] ?? pricesLookup[canonicalKey]);
         if (parsedPrice !== null) {
             prices[key] = parsedPrice;
         } else {
@@ -135,10 +182,10 @@ const normalizeVariantsPayload = (rawVariants = {}, fallbackPrice) => {
             if (fallback !== null) prices[key] = fallback;
         }
 
-        const parsedStock = toNonNegativeNumber(stockSource[key]);
+        const parsedStock = toNonNegativeNumber(stockLookup[key] ?? stockLookup[canonicalKey]);
         if (parsedStock !== null) stockMap[key] = parsedStock;
 
-        const image = String(imageSource[key] || '').trim();
+        const image = String(imageLookup[key] ?? imageLookup[canonicalKey] ?? '').trim();
         if (image) imageMap[key] = image;
     });
 

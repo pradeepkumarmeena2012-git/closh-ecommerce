@@ -170,10 +170,19 @@ const ProductForm = () => {
     const normalizedCategoryId = normalizeId(product.categoryId);
     const normalizedBrandId = normalizeId(product.brandId);
     const normalizedSubcategoryId = normalizeId(product.subcategoryId);
-    const category = cats.find(
+
+    // Try to find the category in the loaded store
+    const categoryFromStore = cats?.find(
       (cat) => String(cat._id ?? cat.id) === String(normalizedCategoryId)
     );
-    const normalizedParentCategoryId = normalizeId(category?.parentId);
+    
+    // Fallback: if store isn't loaded yet, check if the API populated the parentId
+    let parentId = categoryFromStore?.parentId;
+    if (!parentId && typeof product.categoryId === "object" && product.categoryId !== null) {
+      parentId = product.categoryId.parentId;
+    }
+
+    const normalizedParentCategoryId = normalizeId(parentId);
     const isSubcategory = Boolean(normalizedParentCategoryId);
 
     const normalizedVariants = normalizeVariantStateForForm(
