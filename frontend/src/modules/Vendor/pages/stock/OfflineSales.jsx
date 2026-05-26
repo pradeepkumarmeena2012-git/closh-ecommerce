@@ -26,6 +26,7 @@ import ExportButton from "../../../Admin/components/ExportButton";
 import Badge from "../../../../shared/components/Badge";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
+import { useVendorProductStore } from "../../store/vendorProductStore";
 import { 
   getVendorProducts, 
   updateVendorStock, 
@@ -55,9 +56,10 @@ const OfflineSales = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  
   const [sales, setSales] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { products: storeProducts, fetchProducts: fetchStoreProducts } = useVendorProductStore();
+  
   const [isSaleConfirmOpen, setIsSaleConfirmOpen] = useState(false);
   const [saleProduct, setSaleProduct] = useState(null);
   const [saleSelection, setSaleSelection] = useState({});
@@ -75,8 +77,17 @@ const OfflineSales = () => {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await getVendorProducts({ limit: 1000 });
-      const products = response.data.products.map(p => ({
+      await fetchStoreProducts({ limit: 1000, fetchAll: true });
+    } catch (error) {
+      toast.error("Failed to load products");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (storeProducts && storeProducts.length > 0) {
+      const mapped = storeProducts.map(p => ({
         id: p._id,
         productId: p._id,
         productName: p.name,
@@ -97,13 +108,10 @@ const OfflineSales = () => {
         sold: p.offlineSold || 0,
         rawProduct: p
       }));
-      setSales(products);
-    } catch (error) {
-      toast.error("Failed to fetch products");
-    } finally {
+      setSales(mapped);
       setIsLoading(false);
     }
-  };
+  }, [storeProducts]);
 
   const [formData, setFormData] = useState({
     productName: "",
@@ -196,7 +204,12 @@ const OfflineSales = () => {
 
   const handleOpenModal = (sale = null) => {
     if (sale) {
-      const p = sale.rawProduct || sale;
+      const p = sale.rawProduct ? {
+        ...sale.rawProduct,
+        stockQuantity: sale.stock,
+        offlineSold: sale.sold,
+        variants: sale.variants
+      } : sale;
       setEditingSale(sale);
       
       const normalizedVariants = normalizeVariantStateForForm(
@@ -810,13 +823,6 @@ const OfflineSales = () => {
           <button onClick={() => handleOpenModal(row)} className="text-emerald-600 hover:text-emerald-800 transition-colors p-2 hover:bg-emerald-50 rounded-lg"><FiEdit size={20} /></button>
           <button onClick={() => handleDelete(row.id)} className="text-red-500 hover:text-red-700 transition-colors p-2 hover:bg-red-50 rounded-lg"><FiTrash2 size={20} /></button>
           <button onClick={() => handleSale(row.id)} title="Quick Sale" className="text-blue-500 hover:text-blue-700 transition-colors p-2 hover:bg-blue-50 rounded-lg"><FiShoppingCart size={20} /></button>
-          <button 
-            onClick={() => handleToggleStockStatus(row)} 
-            title={row.stock > 0 ? "Mark Out of Stock" : "Mark In Stock"} 
-            className={`transition-colors p-2 rounded-lg ${row.stock > 0 ? 'text-amber-500 hover:text-amber-700 hover:bg-amber-50' : 'text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50'}`}
-          >
-            {row.stock > 0 ? <FiEyeOff size={20} /> : <FiEye size={20} />}
-          </button>
         </div>
       )
     }
@@ -964,13 +970,6 @@ const OfflineSales = () => {
                       </button>
                       <button onClick={() => handleSale(sale.id)} className="text-blue-500 hover:text-blue-700 transition-transform active:scale-90 p-2 bg-blue-50 rounded-xl">
                          <FiShoppingCart size={20} />
-                      </button>
-                      <button 
-                        onClick={() => handleToggleStockStatus(sale)} 
-                        title={sale.stock > 0 ? "Mark Out of Stock" : "Mark In Stock"} 
-                        className={`transition-transform active:scale-90 p-2 rounded-xl ${sale.stock > 0 ? 'text-amber-500 bg-amber-50' : 'text-emerald-500 bg-emerald-50'}`}
-                      >
-                        {sale.stock > 0 ? <FiEyeOff size={20} /> : <FiEye size={20} />}
                       </button>
                    </div>
                 </div>

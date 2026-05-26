@@ -469,12 +469,12 @@ const AddProduct = () => {
       return;
     }
     const current = Array.isArray(formData?.variants?.[axis]) ? formData.variants[axis] : [];
-    
+
     // Check for duplicates
-    const duplicates = parsed.filter(val => 
+    const duplicates = parsed.filter(val =>
       current.some(c => String(c).trim().toLowerCase() === String(val).trim().toLowerCase())
     );
-    
+
     if (duplicates.length > 0) {
       toast.error(`${axis === "sizes" ? "Size" : "Color"} "${duplicates[0]}" already exists`);
       return;
@@ -549,7 +549,7 @@ const AddProduct = () => {
     if (!formData.categoryId) {
       missingFields.push({ label: "Category", name: "categoryId" });
     }
-    
+
     const parsedPrice = parseFloat(formData.price || 0);
     if (!formData.price || isNaN(parsedPrice) || parsedPrice < 0) {
       missingFields.push({ label: "Your Selling Price", name: "price" });
@@ -562,7 +562,7 @@ const AddProduct = () => {
 
     if (missingFields.length > 0) {
       toast.error(`Please fill in the remaining required fields: ${missingFields.map((f) => f.label).join(", ")}`);
-      
+
       // Auto-scroll smoothly to the first missing field
       const firstMissing = missingFields[0];
       let elementToScroll = document.getElementsByName(firstMissing.name)[0];
@@ -577,10 +577,10 @@ const AddProduct = () => {
     }
 
     // Optional but helpful: If they started adding variants, ensure at least one is valid
-    const hasAnyVariants = (formData.variants?.sizes?.length > 0 || 
-                            formData.variants?.colors?.length > 0 || 
-                            formData.variants?.attributes?.length > 0);
-    
+    const hasAnyVariants = (formData.variants?.sizes?.length > 0 ||
+      formData.variants?.colors?.length > 0 ||
+      formData.variants?.attributes?.length > 0);
+
     // If they have no variants, ensure stock quantity is not 0 (optional business rule)
     // if (!hasAnyVariants && parsedStockQuantity <= 0) {
     //   toast.error("Stock quantity must be greater than 0 for simple products");

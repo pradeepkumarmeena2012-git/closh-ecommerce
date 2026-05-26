@@ -159,20 +159,6 @@ const StockManagement = () => {
             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
             <FiEdit />
           </button>
-          {((row.variants?.sizes?.length > 0) || (row.variants?.colors?.length > 0) || (row.variants?.attributes?.length > 0)) && (
-            <button
-              onClick={() => setVariantDrawer({ isOpen: true, product: row })}
-              title="Check Variant Stock"
-              className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
-              <FiPackage />
-            </button>
-          )}
-          <button
-            onClick={() => setSaleModal({ isOpen: true, product: row, type: "offline" })}
-            title="Record Offline Sale"
-            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
-            <FiShoppingBag />
-          </button>
         </div>
       ),
     },

@@ -175,7 +175,7 @@ const ProductForm = () => {
     const categoryFromStore = cats?.find(
       (cat) => String(cat._id ?? cat.id) === String(normalizedCategoryId)
     );
-    
+
     // Fallback: if store isn't loaded yet, check if the API populated the parentId
     let parentId = categoryFromStore?.parentId;
     if (!parentId && typeof product.categoryId === "object" && product.categoryId !== null) {
@@ -284,10 +284,10 @@ const ProductForm = () => {
             next.stockQuantity = 0;
           }
         } else if (val === "in_stock") {
-           const currentQty = parseInt(prev.stockQuantity || 0, 10);
-           if (!hasVariants && currentQty === 0) {
-             next.stockQuantity = 1; // Default to 1 to enable 'In Stock' state
-           }
+          const currentQty = parseInt(prev.stockQuantity || 0, 10);
+          if (!hasVariants && currentQty === 0) {
+            next.stockQuantity = 1; // Default to 1 to enable 'In Stock' state
+          }
         }
       }
 
@@ -598,12 +598,12 @@ const ProductForm = () => {
       return;
     }
     const current = Array.isArray(formData?.variants?.[axis]) ? formData.variants[axis] : [];
-    
+
     // Check for duplicates
-    const duplicates = parsed.filter(val => 
+    const duplicates = parsed.filter(val =>
       current.some(c => String(c).trim().toLowerCase() === String(val).trim().toLowerCase())
     );
-    
+
     if (duplicates.length > 0) {
       toast.error(`${axis === "sizes" ? "Size" : "Color"} "${duplicates[0]}" already exists`);
       return;
@@ -678,7 +678,7 @@ const ProductForm = () => {
     if (!formData.categoryId) {
       missingFields.push({ label: "Category", name: "categoryId" });
     }
-    
+
     const parsedPrice = parseFloat(formData.price || 0);
     if (!formData.price || isNaN(parsedPrice) || parsedPrice < 0) {
       missingFields.push({ label: "Your Selling Price", name: "price" });
@@ -691,7 +691,7 @@ const ProductForm = () => {
 
     if (missingFields.length > 0) {
       toast.error(`Please fill in the remaining required fields: ${missingFields.map((f) => f.label).join(", ")}`);
-      
+
       // Auto-scroll smoothly to the first missing field
       const firstMissing = missingFields[0];
       let elementToScroll = document.getElementsByName(firstMissing.name)[0];
