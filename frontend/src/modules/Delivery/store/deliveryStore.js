@@ -521,10 +521,19 @@ export const useDeliveryAuthStore = create(
       setPaymentMethod: async (id, method) => {
         set({ isUpdatingOrderStatus: true });
         try {
-          const res = await api.patch(`/delivery/orders/${id}/payment`, { method });
-          const data = res.data?.data || res.data || res;
-          const order = normalizeOrder(data.order || data);
-          set({ isUpdatingOrderStatus: false, selectedOrder: order }); return data;
+            const res = await api.patch(`/delivery/orders/${id}/payment`, { method });
+            const data = res.data?.data || res.data || res;
+            const order = normalizeOrder(data.order || data);
+            set({ isUpdatingOrderStatus: false, selectedOrder: order }); return data;
+        } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
+      },
+      verifyQrPayment: async (id) => {
+        set({ isUpdatingOrderStatus: true });
+        try {
+            const res = await api.post(`/delivery/orders/${id}/verify-qr-payment`);
+            const data = res.data?.data || res.data || res;
+            const order = normalizeOrder(data.order || data);
+            set({ isUpdatingOrderStatus: false, selectedOrder: order }); return data;
         } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
       completeDeliveryFlow: async (id, { otp, openBoxPhoto, deliveryProofPhoto }) => {
