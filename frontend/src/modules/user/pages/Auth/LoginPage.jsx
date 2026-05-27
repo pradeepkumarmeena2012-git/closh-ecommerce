@@ -75,7 +75,7 @@ const LoginPage = () => {
 
     const handleRegisterDetails = async (e) => {
         e.preventDefault();
-        
+
         if (!name.trim()) {
             setError('Please enter your full name');
             return;
@@ -171,7 +171,7 @@ const LoginPage = () => {
                 )}
 
                 <div className="text-center mb-10">
-                    <div className="w-20 h-20 bg-white border border-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl transform -rotate-3 hover:rotate-0 transition-all p-3">
+                    <div className="w-24 h-24 bg-white border border-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl transform -rotate-3 hover:rotate-0 transition-all p-3">
                         <img src={logo} alt="CLOSH" className="w-full h-full object-contain" />
                     </div>
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">
@@ -181,8 +181,8 @@ const LoginPage = () => {
                         {step === 1
                             ? 'Enter your mobile number to get started'
                             : step === 2
-                            ? 'Please provide basic details to proceed'
-                            : `OTP sent to mobile number that enter in login page`}
+                                ? 'Please provide basic details to proceed'
+                                : `OTP sent to mobile number that enter in login page`}
                     </p>
                 </div>
 
@@ -322,12 +322,12 @@ const LoginPage = () => {
 
                 <p className="mt-8 text-center text-[12px] font-medium text-gray-400 leading-relaxed">
                     By continuing, you agree to our <br />
-                    <span 
+                    <span
                         onClick={() => setModalConfig({ isOpen: true, type: 'terms' })}
                         className="text-black font-semibold hover:underline cursor-pointer"
                     >
                         Terms of Service
-                    </span> & <span 
+                    </span> & <span
                         onClick={() => setModalConfig({ isOpen: true, type: 'privacy' })}
                         className="text-black font-semibold hover:underline cursor-pointer"
                     >
@@ -336,10 +336,10 @@ const LoginPage = () => {
                 </p>
             </div>
 
-            <PolicyModal 
-                isOpen={modalConfig.isOpen} 
-                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })} 
-                type={modalConfig.type} 
+            <PolicyModal
+                isOpen={modalConfig.isOpen}
+                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+                type={modalConfig.type}
             />
         </div>
     );

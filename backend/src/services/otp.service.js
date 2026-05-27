@@ -4,11 +4,17 @@ import { sendEmail } from './email.service.js';
 
 /**
  * Generate a 6-digit OTP and its 10-minute expiry timestamp.
- * In development the OTP is always '123456' for easy testing.
+ * Uses a real random OTP, except for specific test numbers.
  */
-const generateOtp = () => {
-    const isDev = process.env.NODE_ENV !== 'production';
-    const otp = isDev ? '123456' : crypto.randomInt(100000, 999999).toString();
+const generateOtp = (phone) => {
+    const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+    const testNumbers = ['7894561230', '1234567890', '7879363299'];
+    
+    // Use static OTP for test numbers, otherwise generate a real random OTP
+    const otp = testNumbers.includes(normalizedPhone) 
+        ? '123456' 
+        : crypto.randomInt(100000, 999999).toString();
+        
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     return { otp, otpExpiry };
 };
@@ -26,7 +32,7 @@ const generateOtp = () => {
  * @returns {Promise<string>} - The generated OTP (useful for testing)
  */
 export const sendOTP = async (doc, type = 'verification') => {
-    let { otp, otpExpiry } = generateOtp();
+    let { otp, otpExpiry } = generateOtp(doc.phone);
 
     doc.otp = otp;
     doc.otpExpiry = otpExpiry;

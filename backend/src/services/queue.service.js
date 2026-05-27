@@ -19,6 +19,9 @@ const riderSearchQueue = new Queue('rider-search-queue', { connection: redisConn
 // 3. Rider Acceptance Timeout Queue (Auto-cancel if no rider accepts within 15 min)
 const riderAcceptQueue = new Queue('rider-accept-queue', { connection: redisConnection });
 
+// 4. Rider Auto Assign 60s Timeout Queue (Auto-reject if rider doesn't click Accept within 60s)
+const riderAutoAssignTimeoutQueue = new Queue('rider-auto-assign-timeout-queue', { connection: redisConnection });
+
 export const QueueService = {
 
     /**
@@ -38,6 +41,17 @@ export const QueueService = {
     async scheduleRiderAcceptTimeout(orderId, delayMs = 15 * 60 * 1000) {
         await riderAcceptQueue.add('check-rider-accept', { orderId }, { delay: delayMs });
         console.log(`[Queue] Scheduled rider acceptance timeout for ${orderId} in ${delayMs/1000}s`);
+    },
+
+    /**
+     * Start 60-Second Auto Assign Timeout
+     * @param {Object} orderId 
+     * @param {Object} deliveryBoyId 
+     * @param {Number} delayMs 
+     */
+    async scheduleRiderAutoAssignTimeout(orderId, deliveryBoyId, delayMs = 60 * 1000) {
+        await riderAutoAssignTimeoutQueue.add('check-auto-assign-accept', { orderId, deliveryBoyId }, { delay: delayMs });
+        console.log(`[Queue] Scheduled 60s auto-assign timeout for order ${orderId} and rider ${deliveryBoyId}`);
     },
 
     /**
@@ -193,6 +207,58 @@ new Worker('rider-accept-queue', async job => {
                 status: 'cancelled'
             });
         }
+    }
+}, { connection: redisConnection });
+
+/**
+ * Worker Logic: Rider Auto Assign 60s Timeout Check
+ * If an order was auto-assigned but the rider didn't accept in 60s, Auto-Reject and search again.
+ */
+new Worker('rider-auto-assign-timeout-queue', async job => {
+    const { orderId, deliveryBoyId } = job.data;
+    const order = await Order.findById(orderId);
+
+    if (!order) return;
+
+    // Check if the order is STILL assigned to this rider BUT they haven't explicitly accepted it.
+    if (order.status === 'assigned' && String(order.deliveryBoyId) === String(deliveryBoyId) && !order.riderAcceptedAt) {
+        console.log(`[Worker] ⏰ Rider ${deliveryBoyId} failed to accept order ${order.orderId} within 60s. Auto-rejecting.`);
+
+        // 1. Mark this rider as rejected
+        if (!order.rejectedDeliveryBoys.includes(deliveryBoyId)) {
+            order.rejectedDeliveryBoys.push(deliveryBoyId);
+        }
+
+        // 2. Clear assignment
+        order.deliveryBoyId = undefined;
+        order.status = 'searching';
+        order.vendorPickups = []; // Will be recalculated by new assignment
+        await order.save();
+
+        // 3. Make rider available again
+        const DeliveryBoy = (await import('../models/DeliveryBoy.model.js')).default;
+        await DeliveryBoy.findByIdAndUpdate(deliveryBoyId, { status: 'available' });
+
+        // 4. Delete the DeliveryBatch if any
+        const DeliveryBatch = (await import('../models/DeliveryBatch.model.js')).default;
+        await DeliveryBatch.deleteMany({
+            customerId: order.userId,
+            deliveryBoyId: deliveryBoyId,
+            status: { $in: ['assigned', 'picked_up', 'arrived', 'try_and_buy', 'payment_pending'] }
+        });
+
+        // 5. Notify the rider that they missed it
+        emitEvent(`delivery_${deliveryBoyId}`, 'order_missed', { 
+            orderId: order.orderId,
+            id: order._id,
+            message: 'Order was removed because it was not accepted within 60 seconds.'
+        });
+
+        // 6. Trigger auto assignment for the next nearest rider
+        const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
+        autoAssignDeliveryBoy(order._id, [deliveryBoyId]).catch(err => {
+            console.error("[Worker] AutoAssign fallback trigger failed:", err);
+        });
     }
 }, { connection: redisConnection });
 

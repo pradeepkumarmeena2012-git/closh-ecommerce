@@ -244,6 +244,7 @@ const orderSchema = new mongoose.Schema(
         readyAt: Date,
         searchStartedAt: Date,
         assignedAt: Date,
+        riderAcceptedAt: Date,
         pickedUpAt: Date,
         deliveredAt: Date,
         isCashSettled: { type: Boolean, default: false },

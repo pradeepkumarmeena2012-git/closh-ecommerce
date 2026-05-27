@@ -3,9 +3,10 @@ import Order from '../models/Order.model.js';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import DeliveryBatch from '../models/DeliveryBatch.model.js';
 import { createNotification } from './notification.service.js';
-import { emitEvent } from './socket.service.js';
+import { emitEvent, isDeliveryBoyConnected } from './socket.service.js';
 import { calculateDistance } from '../utils/geo.js';
 import { OrderNotificationService } from './orderNotification.service.js';
+import { QueueService } from './queue.service.js';
 
 /**
  * Automagically assigns the nearest available delivery boy to a multi-vendor or single-vendor order
@@ -83,17 +84,22 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
                     $maxDistance: 10000 // 10 kilometers
                 }
             }
-        }).limit(5).lean();
+        }).limit(15).lean();
+
+        // 2.1 Strictly filter to ensure they are connected to the socket (latest reliable source)
+        deliveryBoys = deliveryBoys.filter(boy => isDeliveryBoyConnected(boy._id.toString())).slice(0, 5);
 
         // Fallback: If no boys are found nearby, scan globally for any active available partner
         if (deliveryBoys.length === 0) {
             console.log(`[AutoAssignment] No available delivery partners within 10km. Searching globally...`);
-            deliveryBoys = await DeliveryBoy.find({
+            let globalBoys = await DeliveryBoy.find({
                 status: 'available',
                 isAvailable: true,
                 applicationStatus: 'approved',
                 _id: { $nin: excludeObjectIds }
-            }).limit(5).lean();
+            }).limit(15).lean();
+
+            deliveryBoys = globalBoys.filter(boy => isDeliveryBoyConnected(boy._id.toString())).slice(0, 5);
         }
 
         if (deliveryBoys.length === 0) {
@@ -230,6 +236,16 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
             orderId: order.orderId,
             id: order._id
         });
+
+        // Notify Admin Panel about live assignment
+        emitEvent('admin', 'admin_order_assigned', {
+            orderId: order.orderId,
+            deliveryBoyId: chosenRider._id,
+            assignedAt: order.assignedAt
+        });
+
+        // 7. Schedule 60-Second Timeout for Acceptance
+        QueueService.scheduleRiderAutoAssignTimeout(order._id, chosenRider._id, 60 * 1000);
 
         return true;
     } catch (error) {

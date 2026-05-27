@@ -22,6 +22,36 @@ import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import { getOrderById, updateOrderStatus, getAllDeliveryBoys, assignDeliveryBoy } from '../services/adminService';
+import socketService from '../../../shared/utils/socket';
+
+const CountdownTimer = ({ assignedAt, onExpire }) => {
+  const [timeLeft, setTimeLeft] = useState(60);
+
+  useEffect(() => {
+    const startTime = assignedAt ? new Date(assignedAt).getTime() : Date.now();
+    const endTime = startTime + 60000;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        clearInterval(interval);
+        if (onExpire) onExpire();
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [assignedAt, onExpire]);
+
+  if (timeLeft === 0) return <span className="text-red-500 font-bold ml-2 text-xs">(Expired - Switching...)</span>;
+
+  return (
+    <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded ml-2 font-mono text-xs font-bold animate-pulse">
+      <FiClock className="text-[10px]" /> 
+      00:{timeLeft.toString().padStart(2, '0')}
+    </span>
+  );
+};
 import { formatVariantLabel } from '../../../shared/utils/variant';
 import toast from 'react-hot-toast';
 import { IMAGE_BASE_URL } from '../../../shared/utils/constants';
@@ -125,8 +155,33 @@ const OrderDetail = () => {
       }
     };
 
-    fetchOrderData();
+    if (id) {
+      fetchOrderData();
+    }
   }, [id, navigate]);
+
+  useEffect(() => {
+    // Connect to admin room to receive live assignment updates
+    socketService.connect();
+    socketService.joinRoom('admin');
+
+    const handleAutoAssign = (data) => {
+      if (order && (data.orderId === order.orderId || data.orderId === order.id)) {
+        // Silently refresh the order details when a new rider is auto-assigned
+        getOrderById(id).then(res => {
+          setOrder(res.data);
+          setStatus(res.data.status);
+          setSelectedRiderId(res.data.deliveryBoyId?._id || res.data.deliveryBoyId?.id || '');
+        }).catch(err => console.error(err));
+      }
+    };
+
+    socketService.on('admin_order_assigned', handleAutoAssign);
+
+    return () => {
+      socketService.off('admin_order_assigned', handleAutoAssign);
+    };
+  }, [id, order]);
 
   const handleStatusUpdate = async () => {
     try {
@@ -769,9 +824,20 @@ const OrderDetail = () => {
                       <span className="font-semibold text-gray-800 uppercase bg-gray-100 px-1.5 py-0.5 rounded text-[10px] tracking-wide">{order.deliveryBoyId.vehicleNumber} ({order.deliveryBoyId.vehicleType || "Bike"})</span>
                     </div>
                   )}
-                  <div className="flex items-center justify-between py-1">
+                  <div className="flex items-center justify-between py-1 border-b border-gray-100">
                     <span className="text-gray-400">Order Status</span>
-                    <Badge variant={order.status}>{order.status}</Badge>
+                    <div className="flex items-center">
+                      <Badge variant={order.status}>{order.status}</Badge>
+                      {order.status === 'assigned' && (
+                        <CountdownTimer 
+                           assignedAt={order.assignedAt || order.updatedAt} 
+                           onExpire={() => {
+                             // Just optimistically change status to Searching if it expired
+                             // Real update will come via socket 'admin_order_assigned' shortly after
+                           }} 
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
 

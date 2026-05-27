@@ -40,6 +40,7 @@ export const initSocket = (server) => {
             const room = `delivery_${deliveryBoyId}`;
             socket.join(room);
             socket.join('delivery_partners'); // Global room for new broadcasts
+            socket.deliveryBoyId = deliveryBoyId; // Track for disconnect
             console.log(`🚴 [DELIVERY REGISTER] Partner: ${deliveryBoyId}, Room: ${room}`);
         });
 
@@ -140,8 +141,20 @@ export const initSocket = (server) => {
         });
 
 
-        socket.on('disconnect', () => {
+        socket.on('disconnect', async () => {
             console.log(`🔌 [SOCKET DISCONNECT] Client: ${socket.id}`);
+            if (socket.deliveryBoyId) {
+                console.log(`🔴 [OFFLINE] Delivery Partner ${socket.deliveryBoyId} disconnected. Updating status.`);
+                try {
+                    // Update DB to offline immediately to prevent ghost assignments
+                    await DeliveryBoy.findByIdAndUpdate(socket.deliveryBoyId, {
+                        status: 'offline',
+                        isAvailable: false
+                    });
+                } catch (err) {
+                    console.error('❌ Failed to update delivery boy offline status:', err.message);
+                }
+            }
         });
     });
 
@@ -193,4 +206,16 @@ export const emitEvent = (room, event, data) => {
     if (io) {
         io.to(room).emit(event, data);
     }
+};
+
+/**
+ * Check if a delivery boy is currently connected to the socket server
+ * Uses the delivery_<id> room as the source of truth
+ * @param {string} deliveryBoyId 
+ * @returns {boolean}
+ */
+export const isDeliveryBoyConnected = (deliveryBoyId) => {
+    if (!io) return false;
+    const room = io.sockets.adapter.rooms.get(`delivery_${deliveryBoyId}`);
+    return room && room.size > 0;
 };

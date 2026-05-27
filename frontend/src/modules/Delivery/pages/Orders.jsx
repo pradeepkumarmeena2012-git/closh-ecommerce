@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FiPackage, 
@@ -29,6 +29,42 @@ import { useDeliveryAuthStore } from '../store/deliveryStore';
 import NewOrderModal from '../components/NewOrderModal';
 import socketService from '../../../shared/utils/socket';
 import OrderCardSkeleton from '../../../shared/components/Skeletons/OrderCardSkeleton';
+
+const CountdownTimer = ({ assignedAt, onExpire }) => {
+  const [timeLeft, setTimeLeft] = useState(60);
+
+  const onExpireRef = useRef(onExpire);
+  
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
+
+  useEffect(() => {
+    const startTime = assignedAt ? new Date(assignedAt).getTime() : Date.now();
+    const endTime = startTime + 60000;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        clearInterval(interval);
+        if (onExpireRef.current) onExpireRef.current();
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [assignedAt]);
+
+  return (
+    <div className="flex items-center gap-1.5 justify-center mb-2">
+      <FiClock className={timeLeft <= 10 ? 'text-rose-500 animate-pulse' : 'text-amber-500'} size={12} />
+      <span className={`text-[11px] font-black tracking-widest ${timeLeft <= 10 ? 'text-rose-600' : 'text-amber-600'}`}>
+        00:{timeLeft.toString().padStart(2, '0')}
+      </span>
+      <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Left to Accept</span>
+    </div>
+  );
+};
 
 const DeliveryOrders = () => {
   const navigate = useNavigate();
@@ -168,6 +204,17 @@ const DeliveryOrders = () => {
         const updated = orders.filter(o => o.id !== data.id && o.orderId !== data.orderId);
         useDeliveryAuthStore.setState({ orders: updated });
       }
+      setShowNewOrderModal(false); // Close modal if open
+    });
+
+    socketService.on('order_missed', (data) => {
+      toast.error('Missed order (Timeout)');
+      if (filter === 'available') {
+        const { orders } = useDeliveryAuthStore.getState();
+        const updated = orders.filter(o => o.id !== data.id && o.orderId !== data.orderId);
+        useDeliveryAuthStore.setState({ orders: updated });
+      }
+      setShowNewOrderModal(false);
     });
 
     return () => {
@@ -175,6 +222,7 @@ const DeliveryOrders = () => {
       socketService.off('order_ready_for_pickup');
       socketService.off('return_ready_for_pickup');
       socketService.off('order_taken');
+      socketService.off('order_missed');
     };
   }, [currentPage, filter]);
 
@@ -518,21 +566,38 @@ const DeliveryOrders = () => {
                       </div>
                     </div>
                     {filter === 'available' && order.type !== 'return' && (
-                      <div className="mt-3 pt-3 border-t border-slate-100 flex gap-2">
-                        <button 
-                          onClick={(e) => handleRejectMission(e, order.id)}
-                          disabled={isUpdatingOrderStatus}
-                          className="flex-1 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-rose-100 hover:bg-rose-100 active:scale-95 transition-all"
-                        >
-                          Decline
-                        </button>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleAcceptOrder(order.id, order.type); }}
-                          disabled={isUpdatingOrderStatus}
-                          className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all"
-                        >
-                          Accept
-                        </button>
+                      <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col">
+                        <CountdownTimer 
+                          assignedAt={order.assignedAt || order.updatedAt} 
+                          onExpire={() => {
+                            // Automatically trigger the rejection to notify backend to assign the next rider
+                            try {
+                              rejectOrder(order.id || order.orderId);
+                            } catch (e) {
+                              console.error("Auto-reject failed", e);
+                            }
+                            
+                            const currentOrders = useDeliveryAuthStore.getState().orders;
+                            const updated = currentOrders.filter(o => o.id !== order.id && o.orderId !== order.orderId);
+                            useDeliveryAuthStore.setState({ orders: updated });
+                          }}
+                        />
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={(e) => handleRejectMission(e, order.id)}
+                            disabled={isUpdatingOrderStatus}
+                            className="flex-1 py-2 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest border border-rose-100 hover:bg-rose-100 active:scale-95 transition-all"
+                          >
+                            Decline
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleAcceptOrder(order.id, order.type); }}
+                            disabled={isUpdatingOrderStatus}
+                            className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all"
+                          >
+                            Accept
+                          </button>
+                        </div>
                       </div>
                     )}
                   </motion.div>

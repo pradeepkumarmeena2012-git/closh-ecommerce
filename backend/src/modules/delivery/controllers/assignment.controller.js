@@ -360,7 +360,8 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
         {
             $set: {
                 status: 'assigned',
-                deliveryBoyId: deliveryBoyId
+                deliveryBoyId: deliveryBoyId,
+                riderAcceptedAt: new Date()
             }
         },
         { new: true }

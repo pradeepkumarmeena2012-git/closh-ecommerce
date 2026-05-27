@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import { createNotification } from './notification.service.js';
-import { emitEvent } from './socket.service.js';
+import { emitEvent, isDeliveryBoyConnected } from './socket.service.js';
 
 /**
  * Find nearby delivery boys for an order (Radius increased to 100km for wide coverage)
@@ -54,7 +54,14 @@ export const findNearbyDeliveryBoys = async (order, radiusMeters = 100000) => {
         }
     }
 
-    return nearbyBoys;
+    // 2.1 Strictly filter to ensure they are connected to the socket
+    const activeNearbyBoys = nearbyBoys.filter(boy => isDeliveryBoyConnected(boy._id.toString()));
+    
+    if (activeNearbyBoys.length < nearbyBoys.length) {
+         console.log(`⚠️ [RADIUS MATCH] Filtered out ${nearbyBoys.length - activeNearbyBoys.length} offline partners who appeared available in DB.`);
+    }
+
+    return activeNearbyBoys;
 };
 
 /**

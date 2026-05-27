@@ -1,14 +1,6 @@
 import ioredis from 'ioredis';
 
-const redisConfig = {
-    host: process.env.REDIS_HOST || '127.0.0.1',
-    port: process.env.REDIS_PORT || 6379,
-    password: process.env.REDIS_PASSWORD || undefined,
-    maxRetriesPerRequest: null, // Critical for BullMQ
-};
-
-const redisConnection = new ioredis({
-    ...redisConfig,
+const baseOptions = {
     retryStrategy: (times) => {
         // Retry every 2-10 seconds
         return Math.min(times * 100, 10000);
@@ -16,7 +8,19 @@ const redisConnection = new ioredis({
     // Prevent unhandled error event crashes
     lazyConnect: false, 
     maxRetriesPerRequest: null,
-});
+};
+
+let redisConnection;
+if (process.env.REDIS_URL) {
+    redisConnection = new ioredis(process.env.REDIS_URL, baseOptions);
+} else {
+    redisConnection = new ioredis({
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        ...baseOptions
+    });
+}
 
 // A standard, global error handler for the master connection to prevent app crashes
 redisConnection.on('error', (err) => {
@@ -36,8 +40,13 @@ const connectRedis = async () => {
             return resolve(redisConnection);
         }
         
-        const onReady = () => {
+        const onReady = async () => {
             console.log('✅ Redis Connected for Queues');
+            try {
+                await redisConnection.config('SET', 'maxmemory-policy', 'noeviction');
+            } catch (err) {
+                console.warn('⚠️ Could not set maxmemory-policy programmatically. You may see BullMQ warnings.');
+            }
             cleanup();
             resolve(redisConnection);
         };

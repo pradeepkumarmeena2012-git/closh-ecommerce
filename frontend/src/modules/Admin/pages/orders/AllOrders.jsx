@@ -652,6 +652,24 @@ const AllOrders = () => {
       ),
     },
     {
+      key: "deliveryBoy",
+      label: "Delivery Partner",
+      sortable: false,
+      render: (_, row) => {
+        if (!row.deliveryBoyId) return <span className="text-[10px] text-gray-400 font-medium">Unassigned</span>;
+        return (
+          <div className="flex flex-col">
+            <span className="font-bold text-gray-800 text-xs">
+              {row.deliveryBoyId?.name || "Unknown"}
+            </span>
+            {row.deliveryBoyId?.phone && (
+              <span className="text-[10px] text-gray-500">{row.deliveryBoyId.phone}</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       key: "actions",
       label: "Actions",
       sortable: false,
