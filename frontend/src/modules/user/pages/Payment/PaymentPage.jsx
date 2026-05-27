@@ -46,7 +46,7 @@ const PaymentPage = () => {
     // Get address from checkout navigation OR from context
     const passedAddress = location.state?.selectedAddress || null;
     const [currentAddress, setCurrentAddress] = useState(passedAddress || activeAddress || null);
-    const [showAddressSheet, setShowAddressSheet] = useState(false);
+    
     const [showLocationModal, setShowLocationModal] = useState(false);
 
     const [paymentMethod, setPaymentMethod] = useState('');
@@ -236,7 +236,7 @@ const PaymentPage = () => {
     const handleSelectAddress = (addr) => {
         setCurrentAddress(addr);
         updateActiveAddress(addr);
-        setShowAddressSheet(false);
+        
     };
 
     const handleLocationModalClose = () => {
@@ -497,7 +497,7 @@ const PaymentPage = () => {
                             <h2 className="text-[14px] font-bold uppercase ">Delivery Address</h2>
                         </div>
                         <button
-                            onClick={() => setShowAddressSheet(true)}
+                            onClick={() => setShowLocationModal(true)}
                             className="text-[12px] font-bold text-[#e53e70] hover:text-[#c4325c] transition-colors"
                         >
                             Change
@@ -523,7 +523,7 @@ const PaymentPage = () => {
                         </div>
                     ) : (
                         <button
-                            onClick={() => setShowAddressSheet(true)}
+                            onClick={() => setShowLocationModal(true)}
                             className="w-full py-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-bold text-[13px] hover:border-black hover:text-black transition-all flex items-center justify-center gap-2"
                         >
                             <Plus size={16} /> Add Delivery Address
@@ -667,261 +667,12 @@ const PaymentPage = () => {
             </div>
 
             {/* Address Selection Bottom Sheet */}
-            <AddressBottomSheet
-                isOpen={showAddressSheet}
-                onClose={() => setShowAddressSheet(false)}
-                addresses={addresses}
-                currentAddress={currentAddress}
-                onSelectAddress={handleSelectAddress}
-                refreshAddresses={refreshAddresses}
-                onOpenLocationModal={() => {
-                    setShowAddressSheet(false);
-                    setTimeout(() => setShowLocationModal(true), 300);
-                }}
-            />
+            
 
             <LocationModal
                 isOpen={showLocationModal}
                 onClose={handleLocationModalClose}
             />
-        </div>
-    );
-};
-
-/* ============================
-   ADDRESS BOTTOM SHEET COMPONENT
-   ============================ */
-const AddressBottomSheet = ({ isOpen, onClose, addresses, currentAddress, onSelectAddress, refreshAddresses, onOpenLocationModal }) => {
-    const [isAnimating, setIsAnimating] = useState(false);
-    const [isVisible, setIsVisible] = useState(false);
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [editingAddress, setEditingAddress] = useState(null);
-    const [isSaving, setIsSaving] = useState(false);
-    const [isCheckingPincode, setIsCheckingPincode] = useState(false);
-    const [pincode, setPincode] = useState('');
-    const [newAddress, setNewAddress] = useState({
-        name: '', phone: '', zipCode: '', address: '', locality: '', city: '', state: '', type: 'Home'
-    });
-
-    useEffect(() => {
-        if (isOpen) {
-            setIsVisible(true);
-            setTimeout(() => setIsAnimating(true), 10);
-            document.body.style.overflow = 'hidden';
-        } else {
-            setIsAnimating(false);
-            const timer = setTimeout(() => {
-                setIsVisible(false);
-                setShowAddForm(false);
-            }, 300);
-            document.body.style.overflow = 'auto';
-            return () => clearTimeout(timer);
-        }
-    }, [isOpen]);
-
-    const handleSaveNewAddress = async (e) => {
-        e.preventDefault();
-        setIsSaving(true);
-        try {
-            const payload = {
-                name: newAddress.type,
-                fullName: newAddress.name,
-                phone: newAddress.phone,
-                address: newAddress.address,
-                city: newAddress.city,
-                state: newAddress.state,
-                zipCode: newAddress.zipCode,
-                locality: newAddress.locality,
-                country: 'India',
-                isDefault: addresses.length === 0
-            };
-
-            let result;
-            if (editingAddress) {
-                result = await useAddressStore.getState().updateAddress(editingAddress.id || editingAddress._id, payload);
-            } else {
-                result = await useAddressStore.getState().addAddress(payload);
-            }
-
-            if (result) {
-                toast.success(editingAddress ? 'Address updated' : 'Address saved');
-                refreshAddresses();
-                onSelectAddress(result);
-                setShowAddForm(false);
-                setEditingAddress(null);
-            }
-        } catch (error) {
-            toast.error('Failed to save address');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleEditAddress = (addr) => {
-        setEditingAddress(addr);
-        setNewAddress({
-            name: addr.fullName || addr.name || '',
-            phone: addr.phone || addr.mobile || '',
-            zipCode: addr.zipCode || addr.pincode || '',
-            address: addr.address || '',
-            locality: addr.locality || '',
-            city: addr.city || '',
-            state: addr.state || '',
-            type: addr.type || 'Home'
-        });
-        setShowAddForm(true);
-    };
-
-    const handleDeleteAddress = async (id) => {
-        if (window.confirm('Delete this address?')) {
-            try {
-                await useAddressStore.getState().deleteAddress(id);
-                toast.success('Address deleted');
-                refreshAddresses();
-            } catch (error) {
-                toast.error('Failed to delete address');
-            }
-        }
-    };
-
-    if (!isVisible) return null;
-
-    return (
-        <div className="fixed inset-0 z-[1000] flex flex-col justify-end">
-            <div className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${isAnimating ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} />
-            <div className={`relative bg-white rounded-t-3xl transition-transform duration-300 transform ${isAnimating ? 'translate-y-0' : 'translate-y-full'} p-6 max-h-[90vh] overflow-y-auto`}>
-                <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6" />
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-bold">Select Delivery Address</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-                        <X size={20} />
-                    </button>
-                </div>
-
-                {showAddForm ? (
-                    <form onSubmit={handleSaveNewAddress} className="space-y-4">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (!navigator.geolocation) {
-                                    toast.error("Geolocation is not supported by your browser");
-                                    return;
-                                }
-                                toast.loading("Fetching location...", { id: 'loc-fetch' });
-                                navigator.geolocation.getCurrentPosition(
-                                    async (position) => {
-                                        const { latitude, longitude } = position.coords;
-                                        try {
-                                            const response = await api.get(`/geocode?lat=${latitude}&lon=${longitude}`);
-                                            const payload = response?.data ?? response;
-                                            const address = payload?.address;
-                                            
-                                            if (address) {
-                                                setNewAddress(prev => ({
-                                                    ...prev,
-                                                    address: payload.display_name || prev.address,
-                                                    city: address.city || address.town || address.village || prev.city,
-                                                    state: address.state || prev.state,
-                                                    zipCode: address.postcode || prev.zipCode,
-                                                }));
-                                            }
-                                            toast.success("Location detected!", { id: 'loc-fetch' });
-                                        } catch (error) {
-                                            toast.error("Could not fetch address details", { id: 'loc-fetch' });
-                                        }
-                                    },
-                                    (error) => {
-                                        toast.error("Location access denied", { id: 'loc-fetch' });
-                                    },
-                                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                                );
-                            }}
-                            className="w-full flex items-center justify-center gap-2 py-3 bg-blue-50 text-blue-600 font-semibold rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors"
-                        >
-                            <LocateFixed size={18} />
-                            Use Current Location
-                        </button>
-                        <input required placeholder="Full Name" className="w-full p-3 border border-gray-100 rounded-xl" value={newAddress.name} onChange={e => setNewAddress({...newAddress, name: e.target.value})} />
-                        <input required placeholder="Phone Number" className="w-full p-3 border border-gray-100 rounded-xl" value={newAddress.phone} onChange={e => setNewAddress({...newAddress, phone: e.target.value})} />
-                        <div className="grid grid-cols-2 gap-3">
-                            <input required placeholder="Pincode" className="w-full p-3 border border-gray-100 rounded-xl" value={newAddress.zipCode} onChange={e => setNewAddress({...newAddress, zipCode: e.target.value})} />
-                            <input required placeholder="City" className="w-full p-3 border border-gray-100 rounded-xl" value={newAddress.city} onChange={e => setNewAddress({...newAddress, city: e.target.value})} />
-                        </div>
-                        <input required placeholder="Locality" className="w-full p-3 border border-gray-100 rounded-xl" value={newAddress.locality} onChange={e => setNewAddress({...newAddress, locality: e.target.value})} />
-                        <textarea required placeholder="Address" className="w-full p-3 border border-gray-100 rounded-xl h-24" value={newAddress.address} onChange={e => setNewAddress({...newAddress, address: e.target.value})} />
-                        <div className="flex gap-2">
-                            {['Home', 'Work'].map(t => (
-                                <button key={t} type="button" onClick={() => setNewAddress({...newAddress, type: t})} className={`px-4 py-2 rounded-full border ${newAddress.type === t ? 'bg-black text-white' : 'border-gray-200'}`}>{t}</button>
-                            ))}
-                        </div>
-                        <div className="flex gap-3">
-                            <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 py-3 font-bold border rounded-xl">Cancel</button>
-                            <button type="submit" disabled={isSaving} className="flex-1 py-3 font-bold bg-black text-white rounded-xl">{isSaving ? 'Saving...' : 'Save & Select'}</button>
-                        </div>
-                    </form>
-                ) : (
-                    <div className="space-y-3">
-                        {addresses.map(addr => (
-                            <div key={addr.id || addr._id} onClick={() => onSelectAddress(addr)} className={`p-4 border-2 rounded-2xl cursor-pointer ${currentAddress?.id === addr.id ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}>
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-bold text-[13px]">{addr.fullName || addr.name}</span>
-                                            <span className="text-[9px] bg-gray-100 px-2 py-0.5 rounded uppercase font-bold">{addr.type}</span>
-                                        </div>
-                                        <p className="text-[12px] text-gray-500 leading-tight">{addr.address}, {addr.locality}, {addr.city}</p>
-                                        <p className="text-[12px] font-bold mt-1">Mob: {addr.phone || addr.mobile}</p>
-                                    </div>
-                                    <button onClick={(e) => { e.stopPropagation(); handleEditAddress(addr); }} className="text-[#e53e70] text-[11px] font-bold">Edit</button>
-                                </div>
-                            </div>
-                        ))}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (!navigator.geolocation) {
-                                    toast.error("Geolocation is not supported by your browser");
-                                    return;
-                                }
-                                toast.loading("Fetching location...", { id: 'loc-fetch-list' });
-                                navigator.geolocation.getCurrentPosition(
-                                    async (position) => {
-                                        const { latitude, longitude } = position.coords;
-                                        try {
-                                            const response = await api.get(`/geocode?lat=${latitude}&lon=${longitude}`);
-                                            const payload = response?.data ?? response;
-                                            const address = payload?.address;
-                                            
-                                            setEditingAddress(null);
-                                            setNewAddress(prev => ({
-                                                name: '', phone: '', type: 'Home',
-                                                address: payload.display_name || '',
-                                                city: address?.city || address?.town || address?.village || '',
-                                                state: address?.state || '',
-                                                zipCode: address?.postcode || '',
-                                                locality: address?.suburb || address?.neighbourhood || ''
-                                            }));
-                                            setShowAddForm(true);
-                                            toast.success("Location detected!", { id: 'loc-fetch-list' });
-                                        } catch (error) {
-                                            toast.error("Could not fetch address details", { id: 'loc-fetch-list' });
-                                        }
-                                    },
-                                    (error) => {
-                                        toast.error("Location access denied", { id: 'loc-fetch-list' });
-                                    },
-                                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                                );
-                            }}
-                            className="w-full flex items-center justify-center gap-2 py-4 bg-blue-50 text-blue-600 font-semibold rounded-2xl border border-blue-100 hover:bg-blue-100 transition-colors mt-4"
-                        >
-                            <LocateFixed size={18} />
-                            Use Current Location
-                        </button>
-                        <button onClick={() => { setEditingAddress(null); setNewAddress({name:'',phone:'',zipCode:'',address:'',locality:'',city:'',state:'',type:'Home'}); setShowAddForm(true); }} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 font-bold flex items-center justify-center gap-2 mt-2"><Plus size={18} /> Add New Address</button>
-                    </div>
-                )}
-            </div>
         </div>
     );
 };
