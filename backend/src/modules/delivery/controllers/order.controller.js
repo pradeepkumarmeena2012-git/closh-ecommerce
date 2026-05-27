@@ -910,6 +910,10 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     }
 
     await order.save();
+    
+    // Re-enable rider availability since the order is cancelled
+    await DeliveryBoy.findByIdAndUpdate(riderId, { status: 'available' });
+    
     await cacheInvalidate(`dash:${riderId}`, `profile:${riderId}`);
 
     // Notify all parties
@@ -1636,7 +1640,8 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
         console.error(`[Wallet] Error processing earnings for order ${order._id}:`, err);
     });
 
-    const updatedRider = await DeliveryBoy.findById(order.deliveryBoyId).select('availableBalance totalEarnings totalDeliveries');
+    // Re-enable rider availability since they have completed the order
+    const updatedRider = await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: 'available' }, { new: true }).select('availableBalance totalEarnings totalDeliveries');
 
     // Notify everyone
     await OrderNotificationService.notifyOrderUpdate(order._id, 'delivered', {

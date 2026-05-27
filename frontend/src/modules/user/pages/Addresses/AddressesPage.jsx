@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
 import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
 
-const libraries = ['places'];
+const libraries = ['places', 'geometry', 'drawing'];
 
 const fetchAddress = async (lat, lng, setAddress) => {
     if (window.google) {

@@ -21,7 +21,7 @@ const DeliveryDashboard = () => {
   } = useDeliveryAuthStore();
 
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
-  const isOnline = deliveryBoy?.status === 'available';
+  const isOnline = deliveryBoy?.status === 'available' || deliveryBoy?.status === 'busy';
 
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);

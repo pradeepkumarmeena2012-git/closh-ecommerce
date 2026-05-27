@@ -371,6 +371,9 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
         throw new ApiError(409, 'Order is no longer available or has already been assigned.');
     }
 
+    // Update Delivery Boy status to busy so they don't receive new requests
+    await DeliveryBoy.findByIdAndUpdate(deliveryBoyId, { status: 'busy' });
+
     // ── Multi-Vendor Stop Setup & DeliveryBatch creation ──
     if (order.isMultiVendor || order.vendorPickups?.length > 0 || order.status === 'all_vendors_ready') {
         try {

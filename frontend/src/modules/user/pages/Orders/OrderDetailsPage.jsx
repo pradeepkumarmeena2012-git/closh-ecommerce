@@ -625,6 +625,78 @@ const OrderDetailsPage = () => {
                         </div>
                     </div>
 
+                    {/* OTP and Rider Info */}
+                    {(() => {
+                        const status = order?.status?.toLowerCase() || 'pending';
+                        const isActiveDelivery = ['assigned', 'picked_up', 'out_for_delivery', 'arrived'].includes(status);
+                        const hasRider = !!(order?.deliveryBoyId || order?.assignedDeliveryBoy);
+                        const riderName = order?.deliveryBoyId?.name || order?.assignedDeliveryBoy?.name;
+                        const riderPhone = order?.deliveryBoyId?.phone || order?.assignedDeliveryBoy?.phone;
+                        
+                        if (!isActiveDelivery) return null;
+
+                        return (
+                            <div className="space-y-4 mb-6">
+                                {/* OTP Section */}
+                                {order.deliveryOtpDebug && user && (
+                                    <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex items-center justify-between">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl" />
+                                        <div className="relative z-10">
+                                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Delivery OTP</p>
+                                            <p className="text-[12px] text-white leading-tight">Share this with your rider</p>
+                                        </div>
+                                        <div className="bg-white rounded-xl px-5 py-3 shadow-inner relative z-10 text-slate-900">
+                                            <span className="text-2xl font-black tracking-[0.2em]">{order.deliveryOtpDebug}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Rider Card */}
+                                <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
+                                    {hasRider ? (
+                                        <>
+                                            <div className="relative shrink-0">
+                                                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-indigo-500 border border-slate-100 overflow-hidden">
+                                                    {order?.deliveryBoyId?.avatar ? (
+                                                        <img src={order.deliveryBoyId.avatar} className="w-full h-full object-cover" alt="Rider" />
+                                                    ) : <Truck size={32} />}
+                                                </div>
+                                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-4 border-white shadow-sm" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-0.5">Your Rider</p>
+                                                <h3 className="text-base font-bold text-slate-900 leading-tight truncate">{riderName}</h3>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex items-center text-amber-500 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">
+                                                        <span className="text-[11px] font-bold">4.9</span>
+                                                        <svg className="w-3 h-3 fill-current ml-0.5" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                                                    </div>
+                                                    <span className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">Verified</span>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => window.open(`tel:${riderPhone}`, '_self')}
+                                                className="w-12 h-12 rounded-2xl bg-emerald-500 shadow-lg shadow-emerald-50 flex items-center justify-center text-white active:scale-90 transition-transform shrink-0"
+                                            >
+                                                <Phone size={20} />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 shrink-0">
+                                                <RefreshCw size={32} className="animate-spin-slow" />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-sm text-slate-900 uppercase tracking-tight">Assigning Partner</h3>
+                                                <p className="text-[12px] text-slate-500 font-medium mt-1 leading-tight">Finding the best delivery partner for your order...</p>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {/* Order Timeline */}
                     <div className="bg-white rounded-3xl border border-slate-100 p-6 md:p-8 shadow-sm font-sans">
                         <h3 className="text-xs md:text-sm font-black uppercase mb-6 flex items-center gap-2 text-slate-400 tracking-wider">
@@ -875,12 +947,7 @@ const OrderDetailsPage = () => {
                             Fast Delivery Guaranteed
                         </p>
 
-                        {['assigned', 'picked_up', 'out_for_delivery', 'arrived'].includes(status) && order.deliveryOtpDebug && user && (
-                            <div className="mt-6 p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 border-dashed text-center">
-                                <p className="text-[9px] font-black uppercase text-emerald-600 mb-1 tracking-widest">Share this OTP with delivery partner</p>
-                                <p className="text-2xl font-black text-emerald-700 tracking-wider">{order.deliveryOtpDebug}</p>
-                            </div>
-                        )}
+
 
                         {order.returnRequest && !['completed', 'rejected'].includes(order.returnRequest.status?.toLowerCase()) && order.returnRequest.pickupOtpDebug && user && (
                             <div className="mt-6 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-150 border-dashed text-center relative overflow-hidden animate-pulse">

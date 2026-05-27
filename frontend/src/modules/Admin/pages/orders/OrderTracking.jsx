@@ -15,7 +15,7 @@ import Badge from "../../../../shared/components/Badge";
 import { getAllOrders } from "../../services/adminService";
 import { GoogleMap, useJsApiLoader, MarkerF, InfoWindowF } from '@react-google-maps/api';
 
-const libraries = ['places'];
+const libraries = ['places', 'geometry', 'drawing'];
 
 const OrderTracking = () => {
   const navigate = useNavigate();

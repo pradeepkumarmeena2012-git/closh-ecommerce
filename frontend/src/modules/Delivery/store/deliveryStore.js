@@ -56,7 +56,13 @@ const normalizeOrder = (raw) => {
   const vendorFirst = Array.isArray(raw?.vendorItems) && raw.vendorItems.length > 0 ? raw.vendorItems[0] : null;
   const vendorData = vendorFirst?.vendorId || {};
 
-  let vendorAddress = vendorData.shopAddress || (vendorData.address?.street ? `${vendorData.address.street}, ${vendorData.address.city || ''}` : (vendorFirst?.vendorName ? 'Address in notes' : 'Address unavailable'));
+  // Resolve vendor address from multiple sources: vendor profile > order snapshot > vendorPickups
+  const pickupStop = Array.isArray(raw?.vendorPickups) && raw.vendorPickups.length > 0 ? raw.vendorPickups[0] : null;
+  let vendorAddress = vendorData.shopAddress
+    || raw?.vendorAddress
+    || pickupStop?.shopAddress
+    || (vendorData.address?.street ? `${vendorData.address.street}, ${vendorData.address.city || ''}` : null)
+    || 'Address unavailable';
 
   const dropoffCoords = raw?.dropoffLocation?.coordinates;
   const derivedLat = Array.isArray(dropoffCoords) && dropoffCoords.length === 2 && dropoffCoords[1] !== 0 ? dropoffCoords[1] : raw?.latitude || null;
@@ -83,6 +89,7 @@ const normalizeOrder = (raw) => {
     address: toAddressLine(shippingAddress) || 'Address unavailable',
     vendorName: vendorData.storeName || vendorFirst?.vendorName || 'Vendor',
     vendorAddress,
+    vendorPhone: vendorData.phone || pickupStop?.vendorPhone || raw?.vendorPhone || '',
     total: Number(raw?.total ?? 0),
     deliveryEarnings: Number(raw?.deliveryEarnings ?? 0),
     deliveryDistance: Number(raw?.deliveryDistance ?? 0),

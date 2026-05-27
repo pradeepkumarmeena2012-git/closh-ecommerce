@@ -143,18 +143,9 @@ export const initSocket = (server) => {
 
         socket.on('disconnect', async () => {
             console.log(`🔌 [SOCKET DISCONNECT] Client: ${socket.id}`);
-            if (socket.deliveryBoyId) {
-                console.log(`🔴 [OFFLINE] Delivery Partner ${socket.deliveryBoyId} disconnected. Updating status.`);
-                try {
-                    // Update DB to offline immediately to prevent ghost assignments
-                    await DeliveryBoy.findByIdAndUpdate(socket.deliveryBoyId, {
-                        status: 'offline',
-                        isAvailable: false
-                    });
-                } catch (err) {
-                    console.error('❌ Failed to update delivery boy offline status:', err.message);
-                }
-            }
+            // Note: We no longer auto-mark riders as offline on disconnect. 
+            // Mobile network blips and page refreshes cause disconnects.
+            // Riders must explicitly go offline via the toggle UI.
         });
     });
 

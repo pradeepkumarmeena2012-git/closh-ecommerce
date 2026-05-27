@@ -55,7 +55,7 @@ const DeliveryOrderDetail = () => {
     rejectOrder,
     markArrivedAtVendor,
   } = useDeliveryAuthStore();
-  
+
   const [order, setOrder] = useState(null);
   const [otpValue, setOtpValue] = useState('');
   const [deliveryPhoto, setDeliveryPhoto] = useState(null);
@@ -82,12 +82,12 @@ const DeliveryOrderDetail = () => {
   const deliveryGalleryRef = useRef(null);
   const openBoxInputRef = useRef(null);
   const openBoxGalleryRef = useRef(null);
-  
+
   const isReturn = order?.type === 'return';
   const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
   // Derived type flags from orderType string
   const isCheckAndBuy = order?.orderType === 'check_and_buy';
-  const isTryAndBuy   = order?.orderType === 'try_and_buy';
+  const isTryAndBuy = order?.orderType === 'try_and_buy';
   // Whether order needs multiple photos (qty > 1 or multiple items)
   const totalQty = (order?.items || []).reduce((s, i) => s + (Number(i.quantity) || 1), 0);
   const needsMultiPhoto = totalQty > 1;
@@ -96,17 +96,17 @@ const DeliveryOrderDetail = () => {
     if (!order) return null;
     const s = String(order.status || '').toLowerCase().replace(/_/g, ' ');
     const rawS = String(order.rawStatus || order.status || '').toLowerCase().replace(/_/g, ' ');
-    
+
     // Pickup phase includes newly available, assigned, or accepted orders
-    if (['pending', 'ready for pickup', 'ready_for_pickup', 'assigned', 'accepted'].includes(s) || 
-        ['ready for pickup', 'ready_for_pickup', 'assigned', 'accepted'].includes(rawS)) return 'pickup';
-        
+    if (['pending', 'ready for pickup', 'ready_for_pickup', 'assigned', 'accepted'].includes(s) ||
+      ['ready for pickup', 'ready_for_pickup', 'assigned', 'accepted'].includes(rawS)) return 'pickup';
+
     // Delivery phase includes anything picked up or out for delivery
     // 'processing' is the active try/check-and-buy session status (after arrival)
     // 'return_requested' / 'arrived' can appear when return is pending on a delivered order
     if (['picked-up', 'picked_up', 'picked up', 'out-for-delivery', 'out_for_delivery', 'out for delivery', 'shipped', 'processing', 'arrived', 'return_requested', 'return requested', 'awaiting_return', 'awaiting return'].includes(s) ||
-        ['picked_up', 'picked up', 'out_for_delivery', 'out for delivery', 'processing', 'arrived', 'return_requested', 'return requested'].includes(rawS)) return 'delivery';
-        
+      ['picked_up', 'picked up', 'out_for_delivery', 'out for delivery', 'processing', 'arrived', 'return_requested', 'return requested'].includes(rawS)) return 'delivery';
+
     return null;
   };
 
@@ -121,17 +121,17 @@ const DeliveryOrderDetail = () => {
   );
 
   const isAvailableTask = order && !order.deliveryBoyId && (order.rawStatus === 'ready_for_pickup' || order.status === 'pending' || order.rawStatus === 'approved');
-  
-  const hasActiveTask = (orders || []).some(o => 
-    ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing'].includes(o.status?.toLowerCase()) || 
+
+  const hasActiveTask = (orders || []).some(o =>
+    ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing'].includes(o.status?.toLowerCase()) ||
     ['accepted', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase()) ||
     o.rawStatus === 'processing'
   );
-  
+
   useEffect(() => {
     if (liveLocation) setCurrentLocation(liveLocation);
   }, [liveLocation]);
-  
+
   const loadOrder = useCallback(async () => {
     try {
       const response = await fetchOrderById(id);
@@ -200,22 +200,47 @@ const DeliveryOrderDetail = () => {
 
     if (id) socketService.joinRoom(`order_${id}`);
     return () => {
-       socketService.off('order_status_updated');
-       socketService.off('order_taken');
+      socketService.off('order_status_updated');
+      socketService.off('order_taken');
     };
   }, [id, loadOrder, navigate]);
 
+  // Prevent accidental browser back on available tasks
+  useEffect(() => {
+    if (!isAvailableTask) return;
+    
+    // Push a dummy state so back button triggers popstate instead of leaving
+    window.history.pushState({ orderGuard: true }, '');
+    
+    const handlePopState = (e) => {
+      if (isAvailableTask) {
+        const confirmed = window.confirm('⚠️ Kya aap wapas jaana chahte hain? Agar aapne order accept nahi kiya toh ye kisi aur ko assign ho jayega!');
+        if (!confirmed) {
+          // Re-push state to keep the guard active
+          window.history.pushState({ orderGuard: true }, '');
+        } else {
+          navigate('/delivery/dashboard');
+        }
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isAvailableTask, navigate]);
+
   const handleAcceptMission = async () => {
     if (hasActiveTask) {
-        return toast.error('You must complete your current task first!');
+      return toast.error('You must complete your current task first!');
     }
     try {
       // Use stable id from useParams
       let updated;
       if (order?.type === 'return') {
-          updated = await acceptReturn(id);
+        updated = await acceptReturn(id);
       } else {
-          updated = await acceptOrder(id);
+        updated = await acceptOrder(id);
       }
       setOrder(updated);
       toast.success('MISSION ACCEPTED! GET STARTED');
@@ -226,9 +251,10 @@ const DeliveryOrderDetail = () => {
   };
 
   const handleRejectMission = async () => {
+    const confirmed = window.confirm('Are you sure you want to decline this order? It will be reassigned to another delivery partner.');
+    if (!confirmed) return;
     try {
       if (order?.type === 'return') {
-        // Fallback for returns if needed, though rejectOrder handles both by ID typically.
         await rejectOrder(id);
       } else {
         await rejectOrder(id);
@@ -263,7 +289,7 @@ const DeliveryOrderDetail = () => {
       toast.error(err?.response?.data?.message || 'Failed to mark arrival');
     }
   };
-  
+
   const handleReachedVendor = async () => {
     if (!id) return;
     try {
@@ -431,14 +457,14 @@ const DeliveryOrderDetail = () => {
       const pickupProofPhoto = allPickupPhotos.length > 1
         ? allPickupPhotos.join('|||')
         : allPickupPhotos[0];
-      const updated = await completeDeliveryFlow(id, { 
-        otp: otpValue.trim(), 
-        openBoxPhoto, 
-        deliveryProofPhoto 
+      const updated = await completeDeliveryFlow(id, {
+        otp: otpValue.trim(),
+        openBoxPhoto,
+        deliveryProofPhoto
       });
       setOrder(updated);
       setShowSuccess(true);
-    } catch(err) {
+    } catch (err) {
       toast.error(err?.response?.data?.message || 'Delivery failed');
     }
   };
@@ -446,7 +472,7 @@ const DeliveryOrderDetail = () => {
   // handleImage: set primary photo with compression
   const handleImage = async (file, setter) => {
     if (!file) return;
-    
+
     const toastId = toast.loading("Processing photo...");
     try {
       // Use our new compression utility
@@ -512,7 +538,7 @@ const DeliveryOrderDetail = () => {
           <FiCheckCircle size={32} />
         </motion.div>
         <h1 className="text-xl font-bold text-slate-800">Job Complete</h1>
-        <p className="text-slate-500 text-[10px] mt-2 mb-8 max-w-[240px] leading-relaxed uppercase tracking-widest font-bold">Delivery recorded successfully. <br/> Records have been updated.</p>
+        <p className="text-slate-500 text-[10px] mt-2 mb-8 max-w-[240px] leading-relaxed uppercase tracking-widest font-bold">Delivery recorded successfully. <br /> Records have been updated.</p>
         <button onClick={() => navigate('/delivery/dashboard')} className="w-full max-w-[200px] h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest">Back to Home</button>
       </div>
     );
@@ -523,7 +549,7 @@ const DeliveryOrderDetail = () => {
     return (
       <div className="flex items-center gap-1.5 flex-wrap">
         {isCheckAndBuy && <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-indigo-100 uppercase tracking-tighter">Check & Buy</span>}
-        {isTryAndBuy  && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-amber-100 uppercase tracking-tighter">Try & Buy</span>}
+        {isTryAndBuy && <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-amber-100 uppercase tracking-tighter">Try & Buy</span>}
         {!isCheckAndBuy && !isTryAndBuy && <span className="bg-slate-50 text-slate-700 px-2 py-0.5 rounded-full text-[8.5px] font-black border border-slate-100 uppercase tracking-tighter">Standard</span>}
         <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black border uppercase tracking-tighter ${order?.paymentMethod === 'prepaid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
           {order?.paymentMethod === 'prepaid' ? 'PREPAID' : 'COD'}
@@ -540,342 +566,398 @@ const DeliveryOrderDetail = () => {
       <div className="min-h-screen bg-slate-50 pb-32 relative">
         {/* HEADER - FLOATING ON TOP */}
         <header className="sticky top-0 left-0 right-0 z-50 px-4 py-4 flex items-center gap-3 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm">
-          <button onClick={() => navigate(-1)} className="p-2 bg-white shadow-sm rounded-lg shrink-0 border border-slate-100"><FiArrowLeft size={18}/></button>
+          <button onClick={() => {
+            if (isAvailableTask) {
+              const confirmed = window.confirm('⚠️ Kya aap wapas jaana chahte hain? Agar aapne order accept nahi kiya toh ye kisi aur ko assign ho jayega!');
+              if (!confirmed) return;
+            }
+            navigate(-1);
+          }} className="p-2 bg-white shadow-sm rounded-lg shrink-0 border border-slate-100"><FiArrowLeft size={18} /></button>
           <div className="flex-1 min-w-0">
             <h2 className="text-[13px] font-black text-slate-900 leading-tight mb-0.5">
-               {/* Use id from params as final fallback, and hunt for names in all possible places */}
-               #{String(order.orderId || order.id || id).slice(-8).toUpperCase()} • {currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.storeName || order.vendorName || 'Pickup Location') : (order.customer || order.shippingAddress?.name || order.guestInfo?.name || 'Customer')}
+              {/* Use id from params as final fallback, and hunt for names in all possible places */}
+              #{String(order.orderId || order.id || id).slice(-8).toUpperCase()} • {currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.storeName || order.vendorName || 'Pickup Location') : (order.customer || order.shippingAddress?.name || order.guestInfo?.name || 'Customer')}
             </h2>
             <div className="flex items-center gap-1 overflow-hidden">
-               {getOrderTypeBadge()}
-               <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">• {String(order.status).toUpperCase()}</span>
+              {getOrderTypeBadge()}
+              <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">• {String(order.status).toUpperCase()}</span>
             </div>
           </div>
-          <a href={`tel:${currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.phone || order.vendorPhone) : (order.phone || order.shippingAddress?.phone)}`} className="w-9 h-9 bg-indigo-600/90 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50 shrink-0"><FiPhone size={18}/></a>
+          <a href={`tel:${currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.phone || order.vendorPhone) : (order.phone || order.shippingAddress?.phone)}`} className="w-9 h-9 bg-indigo-600/90 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50 shrink-0"><FiPhone size={18} /></a>
         </header>
 
         <div className="max-w-md mx-auto pt-4">
           {/* HERO MAP SECTION - AT TRUE TOP */}
           {(!hasArrived && currentPhase) && (
-             <div className="w-full h-[540px] bg-white relative">
-                <TrackingMap 
-                  deliveryLocation={currentLocation} 
-                  vendorLocation={order.vendorLatitude ? { lat: Number(order.vendorLatitude), lng: Number(order.vendorLongitude) } : (order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates ? { lat: order.vendorItems[0].vendorId.shopLocation.coordinates[1], lng: order.vendorItems[0].vendorId.shopLocation.coordinates[0] } : null)} 
-                  customerLocation={order.latitude ? { lat: Number(order.latitude), lng: Number(order.longitude) } : (order.dropoffLocation?.coordinates ? { lat: order.dropoffLocation.coordinates[1], lng: order.dropoffLocation.coordinates[0] } : null)} 
-                  status={order.rawStatus || order.status} 
-                  customerAddress={order.address || order.shippingAddress?.address}
-                  vendorAddress={order.vendorAddress || order.vendorItems?.[0]?.vendorId?.shopAddress}
-                  followMode={true} 
-                  isLoaded={isLoaded}
-                />
-                <button 
-                  onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentPhase === 'pickup' ? (order.vendorLatitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[1]) : (order.latitude || order.dropoffLocation?.coordinates?.[1])},${currentPhase === 'pickup' ? (order.vendorLongitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[0]) : (order.longitude || order.dropoffLocation?.coordinates?.[0])}`, '_blank')}
-                  className="absolute bottom-6 right-4 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest active:scale-95 transition-all z-10"
-                >
-                  <FiNavigation size={18}/> Navigation
-                </button>
-             </div>
+            <div className="w-full h-[540px] bg-white relative">
+              <TrackingMap
+                deliveryLocation={currentLocation}
+                vendorLocation={order.vendorLatitude ? { lat: Number(order.vendorLatitude), lng: Number(order.vendorLongitude) } : (order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates ? { lat: order.vendorItems[0].vendorId.shopLocation.coordinates[1], lng: order.vendorItems[0].vendorId.shopLocation.coordinates[0] } : null)}
+                customerLocation={order.latitude ? { lat: Number(order.latitude), lng: Number(order.longitude) } : (order.dropoffLocation?.coordinates ? { lat: order.dropoffLocation.coordinates[1], lng: order.dropoffLocation.coordinates[0] } : null)}
+                status={order.rawStatus || order.status}
+                customerAddress={order.address || order.shippingAddress?.address}
+                vendorAddress={order.vendorAddress || order.vendorItems?.[0]?.vendorId?.shopAddress}
+                followMode={true}
+                isLoaded={isLoaded}
+              />
+              {/* ADDRESS OVERLAY ON MAP */}
+              <div className="absolute bottom-6 left-4 right-4 flex items-end justify-between gap-3 pointer-events-none z-10">
+                 <div className="bg-white/95 backdrop-blur-md p-3.5 rounded-2xl shadow-xl border border-slate-100 flex-1 pointer-events-auto">
+                    <div className="flex items-center justify-between mb-1">
+                       <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{currentPhase === 'pickup' ? 'PICKUP FROM' : 'DELIVER TO'}</p>
+                       {(currentPhase === 'pickup' ? order.vendorPhone : order.phone) && (
+                         <a href={`tel:${currentPhase === 'pickup' ? order.vendorPhone : order.phone}`} className="flex items-center gap-1 text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg text-[9px] font-black active:scale-95 transition-transform">
+                            <FiPhone size={10} />
+                            {currentPhase === 'pickup' ? order.vendorPhone : order.phone}
+                         </a>
+                       )}
+                    </div>
+                    <p className="text-xs font-black text-slate-800 leading-tight mb-1 truncate">{currentPhase === 'pickup' ? order.vendorName : order.customer}</p>
+                    <p className="text-[10px] font-medium text-slate-500 leading-snug line-clamp-2">{currentPhase === 'pickup' ? order.vendorAddress : order.address}</p>
+                 </div>
+                 <button
+                   onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentPhase === 'pickup' ? (order.vendorLatitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[1]) : (order.latitude || order.dropoffLocation?.coordinates?.[1])},${currentPhase === 'pickup' ? (order.vendorLongitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[0]) : (order.longitude || order.dropoffLocation?.coordinates?.[0])}`, '_blank')}
+                   className="shrink-0 bg-slate-900 text-white w-[60px] h-[60px] rounded-2xl shadow-xl shadow-slate-300 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform pointer-events-auto border-2 border-slate-800"
+                 >
+                   <FiNavigation size={22} className="text-amber-400" />
+                   <span className="text-[8px] font-black uppercase tracking-widest">NAV</span>
+                 </button>
+              </div>
+            </div>
           )}
 
           <div className="p-4 space-y-4">
             {/* ACTIONS SECTION */}
-            {(!hasArrived && currentPhase === 'delivery') || (currentPhase === 'pickup' && !pickupPhoto) ? (
+            {(!hasArrived && currentPhase === 'delivery') || (currentPhase === 'pickup') ? (
               <div className="space-y-3">
                 {currentPhase === 'pickup' ? (
                   <div className="flex flex-col gap-3">
                     {!hasArrivedAtVendor && (
-                      <button 
+                      <button
                         onClick={handleReachedVendor}
                         disabled={isUpdatingOrderStatus}
-                        className="w-full h-12 bg-amber-500 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-amber-50 active:scale-95 transition-transform disabled:opacity-50"
+                        className="w-full h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-slate-200 active:scale-95 transition-all disabled:opacity-50"
                       >
-                         {isUpdatingOrderStatus ? 'NOTIFYING...' : <><FiMapPin size={16} /> I HAVE REACHED VENDOR</>}
+                        {isUpdatingOrderStatus ? 'NOTIFYING...' : <><FiMapPin size={16} /> I HAVE REACHED VENDOR</>}
                       </button>
                     )}
-                    <div className="flex gap-2">
-                        <div className="flex-1 flex flex-col gap-2">
-                            <button onClick={() => openCamera('pickup')} className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-50"><FiCamera size={16}/> OPEN CAMERA</button>
-                            <button onClick={() => pickupGalleryRef.current.click()} className="w-full h-10 bg-slate-100 text-slate-600 rounded-xl text-[9px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200"><FiImage size={14}/> GALLERY</button>
+
+                    {/* MULTI-PHOTO GRID */}
+                    {(pickupPhoto || extraPickupPhotos.length > 0) && (
+                      <div className="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">PICKUP PHOTOS ({1 + extraPickupPhotos.length})</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {/* Primary photo */}
+                          {pickupPhoto && (
+                            <div className="relative aspect-square rounded-xl overflow-hidden border border-slate-100 group">
+                              <img src={pickupPhoto} className="w-full h-full object-cover" />
+                              <button onClick={() => { if (extraPickupPhotos.length > 0) { setPickupPhoto(extraPickupPhotos[0]); setExtraPickupPhotos(prev => prev.slice(1)); } else { setPickupPhoto(null); } }} className="absolute top-1 right-1 w-5 h-5 bg-black/70 text-white rounded-full flex items-center justify-center text-[10px] leading-none backdrop-blur-sm">×</button>
+                              <span className="absolute bottom-1 left-1 text-[7px] font-bold bg-indigo-600 text-white px-1.5 py-0.5 rounded uppercase">Main</span>
+                            </div>
+                          )}
+                          {/* Extra photos */}
+                          {extraPickupPhotos.map((photo, idx) => (
+                            <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-100">
+                              <img src={photo} className="w-full h-full object-cover" />
+                              <button onClick={() => setExtraPickupPhotos(prev => prev.filter((_, i) => i !== idx))} className="absolute top-1 right-1 w-5 h-5 bg-black/70 text-white rounded-full flex items-center justify-center text-[10px] leading-none backdrop-blur-sm">×</button>
+                            </div>
+                          ))}
+                          {/* Add more button */}
+                          <button onClick={() => openCamera('pickup')} className="aspect-square rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1 text-slate-400 active:bg-slate-50 transition-all">
+                            <FiCamera size={20} />
+                            <span className="text-[7px] font-black uppercase">Add More</span>
+                          </button>
                         </div>
-                        <input type="file" accept="image/*" capture="environment" ref={pickupInputRef} onChange={(e) => handleImage(e.target.files[0], setPickupPhoto)} className="hidden" />
-                        <input type="file" accept="image/*" ref={pickupGalleryRef} onChange={(e) => handleImage(e.target.files[0], setPickupPhoto)} className="hidden" />
-                    </div>
+                      </div>
+                    )}
+
+                    {/* Camera/Gallery buttons - always visible */}
+                    {!pickupPhoto && (
+                      <div className="flex gap-2">
+                        <div className="flex-1 flex gap-2">
+                          <button onClick={() => openCamera('pickup')} className="flex-[2] h-12 bg-white border-2 border-slate-900 text-slate-900 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:bg-slate-50 transition-all"><FiCamera size={16} /> CAMERA</button>
+                          <button onClick={() => pickupGalleryRef.current.click()} className="flex-1 h-12 bg-slate-50 text-slate-500 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 active:bg-slate-100 transition-all"><FiImage size={14} /> GALLERY</button>
+                        </div>
+                      </div>
+                    )}
+                    <input type="file" accept="image/*" capture="environment" ref={pickupInputRef} onChange={(e) => { const f = e.target.files[0]; if (!f) return; if (pickupPhoto) { handleImage(f, (img) => setExtraPickupPhotos(prev => [...prev, img])); } else { handleImage(f, setPickupPhoto); } e.target.value = ''; }} className="hidden" />
+                    <input type="file" accept="image/*" multiple ref={pickupGalleryRef} onChange={(e) => { const files = Array.from(e.target.files || []); files.forEach((f, i) => { if (i === 0 && !pickupPhoto) { handleImage(f, setPickupPhoto); } else { handleImage(f, (img) => setExtraPickupPhotos(prev => [...prev, img])); } }); e.target.value = ''; }} className="hidden" />
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2 w-full">
-                    <button 
-                      onClick={handleArrival} 
+                    <button
+                      onClick={handleArrival}
                       disabled={isUpdatingOrderStatus}
-                      className="w-full h-12 bg-emerald-600 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-50 active:scale-95 transition-transform disabled:opacity-50"
+                      className="w-full h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shadow-slate-200 active:scale-95 transition-all disabled:opacity-50"
                     >
-                      {isUpdatingOrderStatus ? 'PROCESSING...' : <><FiZap size={16} className="animate-pulse" /> GENERATE OTP (I HAVE ARRIVED)</>}
+                      {isUpdatingOrderStatus ? 'PROCESSING...' : <><FiZap size={16} className="text-amber-400 animate-pulse" /> I HAVE ARRIVED (GET OTP)</>}
                     </button>
-                    <button 
+                    <button
                       onClick={handleCancelOrder}
                       disabled={isUpdatingOrderStatus}
                       className="w-full h-11 border-2 border-rose-200 text-rose-500 bg-rose-50/30 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 active:bg-rose-100 transition-colors disabled:opacity-50"
                     >
-                      <FiX size={16}/> Cancel Order (Customer Refused)
+                      <FiX size={16} /> Cancel Order (Customer Refused)
                     </button>
                   </div>
                 )}
-            </div>
-          ) : (
-            <>
-              {/* ADDRESS & DETAILS */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-                <div className="flex items-start justify-between gap-3 mb-4">
-                   <div className="min-w-0">
+              </div>
+            ) : (
+              <>
+                {/* ADDRESS & DETAILS */}
+                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="min-w-0">
                       <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">{currentPhase === 'pickup' ? 'PICKUP FROM' : 'DELIVER TO'}</p>
                       <h3 className="text-base font-bold text-slate-800 leading-tight">{currentPhase === 'pickup' ? order.vendorName : order.customer}</h3>
                       <div className="flex items-start gap-1.5 mt-2 text-slate-500">
-                        <FiMapPin className="shrink-0 mt-0.5" size={12}/>
+                        <FiMapPin className="shrink-0 mt-0.5" size={12} />
                         <p className="text-[11px] font-medium leading-relaxed">{currentPhase === 'pickup' ? order.vendorAddress : order.address}</p>
                       </div>
-                   </div>
-                   <div className="w-10 h-10 bg-slate-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-slate-100 shrink-0">
-                      {currentPhase === 'pickup' ? <FiPackage size={20}/> : <FiUser size={20}/>}
-                   </div>
-                </div>
+                    </div>
+                    <div className="w-10 h-10 bg-slate-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-slate-100 shrink-0">
+                      {currentPhase === 'pickup' ? <FiPackage size={20} /> : <FiUser size={20} />}
+                    </div>
+                  </div>
 
-                {/* ITEMS LIST */}
-                <div className="border-t border-slate-50 pt-4 mt-1">
-                   <div className="flex items-center justify-between mb-3">
+                  {/* ITEMS LIST */}
+                  <div className="border-t border-slate-50 pt-4 mt-1">
+                    <div className="flex items-center justify-between mb-3">
                       <p className="text-[9px] font-bold text-slate-800 uppercase tracking-widest leading-none">MANIFEST ({order.items?.length})</p>
                       <p className="text-xs font-bold text-indigo-600">{formatPrice(order.isTryAndBuy && hasArrived ? calculatedTotal : order.total)}</p>
-                   </div>
-                   <div className="space-y-2">
+                    </div>
+                    <div className="space-y-2">
                       {order.items?.map((item, idx) => {
                         const isPicked = selectedItemIds.has(item.productId || item._id);
                         const isSelectionMode = (order.isTryAndBuy || order.isCheckAndBuy) && hasArrived;
                         return (
-                          <div 
-                            key={idx} 
+                          <div
+                            key={idx}
                             onClick={() => isSelectionMode && toggleItem(item.productId || item._id)}
                             className={`flex gap-3 p-2 rounded-xl border transition-all ${isSelectionMode ? (isPicked ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-transparent opacity-60') : 'bg-slate-50 border-transparent'}`}
                           >
-                             <div className="w-10 h-10 bg-white rounded-lg overflow-hidden border border-slate-100 shrink-0">
-                                {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <FiPackage className="text-slate-200 mt-2.5 mx-auto" size={16} />}
-                             </div>
-                             <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                <p className="text-[11px] font-bold text-slate-800 leading-tight">{item.productName || item.name}</p>
-                                <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-tighter">
-                                  Qty: {item.quantity} • {item.originalPrice && item.originalPrice > item.price && (
-                                    <span className="line-through mr-1 opacity-50">{formatPrice(item.originalPrice)}</span>
-                                  )}
-                                  {formatPrice(item.price)}
-                                </p>
-                             </div>
-                             {isSelectionMode && (
-                               <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 my-auto ${isPicked ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-200'}`}>
-                                  {isPicked ? <FiCheckCircle size={12}/> : <div className="w-2.5 h-2.5 border border-slate-300 rounded-full" />}
-                               </div>
-                             )}
+                            <div className="w-10 h-10 bg-white rounded-lg overflow-hidden border border-slate-100 shrink-0">
+                              {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <FiPackage className="text-slate-200 mt-2.5 mx-auto" size={16} />}
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                              <p className="text-[11px] font-bold text-slate-800 leading-tight">{item.productName || item.name}</p>
+                              <p className="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-tighter">
+                                Qty: {item.quantity} • {item.originalPrice && item.originalPrice > item.price && (
+                                  <span className="line-through mr-1 opacity-50">{formatPrice(item.originalPrice)}</span>
+                                )}
+                                {formatPrice(item.price)}
+                              </p>
+                            </div>
+                            {isSelectionMode && (
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 my-auto ${isPicked ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-200'}`}>
+                                {isPicked ? <FiCheckCircle size={12} /> : <div className="w-2.5 h-2.5 border border-slate-300 rounded-full" />}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
-                   </div>
-                   {(order.isTryAndBuy || order.isCheckAndBuy) && hasArrived && !order.tryAndBuyCompleted && (
-                     <button onClick={handleItemConfirmation} 
+                    </div>
+                    {(order.isTryAndBuy || order.isCheckAndBuy) && hasArrived && !order.tryAndBuyCompleted && (
+                      <button onClick={handleItemConfirmation}
                         disabled={isUpdatingOrderStatus}
                         className="w-full mt-4 h-10 bg-slate-900 text-white font-bold rounded-2xl text-[10px] uppercase tracking-[0.1em] disabled:opacity-50"
                       >
                         {isUpdatingOrderStatus ? 'CONFIRMING...' : 'Confirm Selection'}</button>
-                   )}
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* ACTION & PROOF */}
-              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-4">
-                 <div>
+                {/* ACTION & PROOF */}
+                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-4">
+                  <div>
                     <div className="flex items-center justify-between mb-3">
-                       <p className="text-[11px] font-bold text-slate-800 uppercase tracking-widest">Verification Proof</p>
-                       <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded leading-none uppercase">{(currentPhase || 'Phase').toUpperCase()}</span>
+                      <p className="text-[11px] font-bold text-slate-800 uppercase tracking-widest">Verification Proof</p>
+                      <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded leading-none uppercase">{(currentPhase || 'Phase').toUpperCase()}</span>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 gap-4">
-                        <div className="relative aspect-[16/9] bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 flex items-center justify-center group shadow-inner">
-                           {(currentPhase === 'pickup' ? pickupPhoto : deliveryPhoto) ? (
-                              <>
-                                <img src={currentPhase === 'pickup' ? pickupPhoto : deliveryPhoto} className="w-full h-full object-cover" />
-                                <button onClick={() => currentPhase === 'pickup' ? setPickupPhoto(null) : setDeliveryPhoto(null)} className="absolute top-2 right-2 w-7 h-7 bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-md shadow-lg text-sm leading-none">×</button>
-                              </>
-                           ) : (
-                              <div className="flex flex-col items-center gap-3">
-                                 <button onClick={() => openCamera(currentPhase === 'pickup' ? 'pickup' : 'delivery')} className="flex flex-col items-center gap-1.5 text-indigo-600 active:scale-95 transition-transform">
-                                    <FiCamera size={28}/>
-                                    <span className="text-[9px] font-black uppercase tracking-tight">OPEN CAMERA</span>
-                                 </button>
-                                 <div className="w-12 h-px bg-slate-200" />
-                                 <button onClick={() => (currentPhase === 'pickup' ? pickupGalleryRef.current : deliveryGalleryRef.current).click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
-                                    <FiImage size={24}/>
-                                    <span className="text-[8px] font-black uppercase tracking-tight">GALLERY</span>
-                                 </button>
-                              </div>
-                           )}
-                           <input type="file" accept="image/*" capture="environment" ref={deliveryInputRef} onChange={(e) => handleImage(e.target.files[0], currentPhase === 'pickup' ? setPickupPhoto : setDeliveryPhoto)} className="hidden" />
-                           <input type="file" accept="image/*" ref={deliveryGalleryRef} onChange={(e) => handleImage(e.target.files[0], currentPhase === 'pickup' ? setPickupPhoto : setDeliveryPhoto)} className="hidden" />
-                        </div>
-
-                        {currentPhase === 'delivery' && (
-                           <div className="space-y-3 pt-3 border-t border-slate-50">
-                              <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest italic">Optional: Item Inspection Photo</p>
-                              <div className="relative aspect-[16/9] bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 flex items-center justify-center group shadow-inner">
-                                 {openBoxPhoto ? (
-                                    <>
-                                      <img src={openBoxPhoto} className="w-full h-full object-cover" />
-                                      <button onClick={() => setOpenBoxPhoto(null)} className="absolute top-2 right-2 w-7 h-7 bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-md shadow-lg text-sm leading-none">×</button>
-                                    </>
-                                 ) : (
-                                    <div className="flex items-center gap-8">
-                                        <button onClick={() => openCamera('openBox')} className="flex flex-col items-center gap-1.5 text-indigo-600 active:scale-95 transition-transform">
-                                            <FiCamera size={26}/>
-                                            <span className="text-[8px] font-black uppercase tracking-tight leading-none">OPEN CAMERA</span>
-                                        </button>
-                                        <button onClick={() => openBoxGalleryRef.current.click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
-                                            <FiImage size={24}/>
-                                            <span className="text-[8px] font-black uppercase tracking-tight leading-none">GALLERY</span>
-                                        </button>
-                                    </div>
-                                 )}
-                                 <input type="file" accept="image/*" capture="environment" ref={openBoxInputRef} onChange={(e) => handleImage(e.target.files[0], setOpenBoxPhoto)} className="hidden" />
-                                 <input type="file" accept="image/*" ref={openBoxGalleryRef} onChange={(e) => handleImage(e.target.files[0], setOpenBoxPhoto)} className="hidden" />
-                              </div>
-                           </div>
+                      <div className="relative aspect-[16/9] bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 flex items-center justify-center group shadow-inner">
+                        {(currentPhase === 'pickup' ? pickupPhoto : deliveryPhoto) ? (
+                          <>
+                            <img src={currentPhase === 'pickup' ? pickupPhoto : deliveryPhoto} className="w-full h-full object-cover" />
+                            <button onClick={() => currentPhase === 'pickup' ? setPickupPhoto(null) : setDeliveryPhoto(null)} className="absolute top-2 right-2 w-7 h-7 bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-md shadow-lg text-sm leading-none">×</button>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center gap-3">
+                            <button onClick={() => openCamera(currentPhase === 'pickup' ? 'pickup' : 'delivery')} className="flex flex-col items-center gap-1.5 text-indigo-600 active:scale-95 transition-transform">
+                              <FiCamera size={28} />
+                              <span className="text-[9px] font-black uppercase tracking-tight">OPEN CAMERA</span>
+                            </button>
+                            <div className="w-12 h-px bg-slate-200" />
+                            <button onClick={() => (currentPhase === 'pickup' ? pickupGalleryRef.current : deliveryGalleryRef.current).click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
+                              <FiImage size={24} />
+                              <span className="text-[8px] font-black uppercase tracking-tight">GALLERY</span>
+                            </button>
+                          </div>
                         )}
-                    </div>
-                 </div>
+                        <input type="file" accept="image/*" capture="environment" ref={deliveryInputRef} onChange={(e) => handleImage(e.target.files[0], currentPhase === 'pickup' ? setPickupPhoto : setDeliveryPhoto)} className="hidden" />
+                        <input type="file" accept="image/*" ref={deliveryGalleryRef} onChange={(e) => handleImage(e.target.files[0], currentPhase === 'pickup' ? setPickupPhoto : setDeliveryPhoto)} className="hidden" />
+                      </div>
 
-                 {/* OTP AREA */}
-                 {currentPhase === 'delivery' && (
-                   <div className="pt-4 border-t border-slate-100/50 text-center">
+                      {currentPhase === 'delivery' && (
+                        <div className="space-y-3 pt-3 border-t border-slate-50">
+                          <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest italic">Optional: Item Inspection Photo</p>
+                          <div className="relative aspect-[16/9] bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 flex items-center justify-center group shadow-inner">
+                            {openBoxPhoto ? (
+                              <>
+                                <img src={openBoxPhoto} className="w-full h-full object-cover" />
+                                <button onClick={() => setOpenBoxPhoto(null)} className="absolute top-2 right-2 w-7 h-7 bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-md shadow-lg text-sm leading-none">×</button>
+                              </>
+                            ) : (
+                              <div className="flex items-center gap-8">
+                                <button onClick={() => openCamera('openBox')} className="flex flex-col items-center gap-1.5 text-indigo-600 active:scale-95 transition-transform">
+                                  <FiCamera size={26} />
+                                  <span className="text-[8px] font-black uppercase tracking-tight leading-none">OPEN CAMERA</span>
+                                </button>
+                                <button onClick={() => openBoxGalleryRef.current.click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
+                                  <FiImage size={24} />
+                                  <span className="text-[8px] font-black uppercase tracking-tight leading-none">GALLERY</span>
+                                </button>
+                              </div>
+                            )}
+                            <input type="file" accept="image/*" capture="environment" ref={openBoxInputRef} onChange={(e) => handleImage(e.target.files[0], setOpenBoxPhoto)} className="hidden" />
+                            <input type="file" accept="image/*" ref={openBoxGalleryRef} onChange={(e) => handleImage(e.target.files[0], setOpenBoxPhoto)} className="hidden" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* OTP AREA */}
+                  {currentPhase === 'delivery' && (
+                    <div className="pt-4 border-t border-slate-100/50 text-center">
                       <p className="text-[9px] font-bold text-slate-800 uppercase tracking-[0.2em] mb-4">Security Terminal</p>
-                      
+
                       <div className="max-w-[210px] mx-auto space-y-3">
                         <div className="relative group">
-                            <input 
+                          <input
                             type="tel" maxLength={6} value={otpValue}
                             onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
                             placeholder="Enter 6-digit OTP"
                             className="w-full h-14 bg-white border-2 border-slate-200 rounded-2xl text-center text-xl font-black tracking-[0.2em] text-slate-900 placeholder:text-slate-400 placeholder:text-[13px] placeholder:font-semibold placeholder:tracking-wide outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all shadow-sm"
-                            />
-                            <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-20">
-                                <FiShield size={18}/>
-                            </div>
+                          />
+                          <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-20">
+                            <FiShield size={18} />
+                          </div>
                         </div>
-                        <button 
-                          onClick={handleOtpResend} 
+                        <button
+                          onClick={handleOtpResend}
                           disabled={isResending}
                           className="w-full flex items-center justify-center gap-2 py-2.5 text-[9px] font-bold text-indigo-600 bg-indigo-50/50 rounded-xl active:bg-indigo-50 transition-colors uppercase tracking-[0.1em] shadow-sm active:scale-95"
                         >
-                           {isResending ? 'GENERATING NEW OTP...' : <><FiSend size={12}/> RE-GENERATE & RESEND OTP</>}
+                          {isResending ? 'GENERATING NEW OTP...' : <><FiSend size={12} /> RE-GENERATE & RESEND OTP</>}
                         </button>
                         <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight leading-none px-2 mt-2 opacity-60">OTP is sent only during active arrival session.</p>
-                        
-                        <button 
+
+                        <button
                           onClick={handleCancelOrder}
                           disabled={isUpdatingOrderStatus}
                           className="w-full mt-4 py-2 flex items-center justify-center gap-2 text-[8px] font-black text-rose-500 bg-rose-50/50 rounded-xl active:bg-rose-100 transition-all uppercase tracking-[0.1em] disabled:opacity-50"
                         >
-                           <FiAlertTriangle size={10} /> CUSTOMER REFUSED / CANCEL MISSION
+                          <FiAlertTriangle size={10} /> CUSTOMER REFUSED / CANCEL MISSION
                         </button>
                       </div>
 
                       {/* PAYMENT OPTIONS */}
                       {isCod && (!order.isTryAndBuy || order.tryAndBuyCompleted) && (
                         <div className="mt-6 pt-5 border-t border-slate-50 text-left">
-                           <div className="flex items-center justify-between mb-4">
-                              <div className="min-w-0">
-                                 <p className="text-[9px] font-bold text-slate-400 uppercase leading-none mb-1 tracking-tighter">{isCod ? 'Amount Due' : 'Paid Online'}</p>
-                                 <p className={`text-xl font-black leading-none ${isCod ? 'text-slate-900' : 'text-emerald-600'}`}>{formatPrice(calculatedTotal)}</p>
-                              </div>
-                              <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                                 <FiCreditCard size={18} className="text-indigo-600"/>
-                              </div>
-                           </div>
-                           <div className="grid grid-cols-2 gap-2">
-                              <button 
-                                onClick={()=>handlePaymentMethod('cash')} 
-                                disabled={isUpdatingOrderStatus || order.paymentStatus === 'paid'}
-                                className={`h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all active:scale-95 ${paymentSelection==='cash' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-100'} ${order.paymentStatus === 'paid' ? 'opacity-30 cursor-not-allowed' : ''}`}
-                              >
-                                {isUpdatingOrderStatus && paymentSelection==='cash' ? 'SELECTING...' : 'CASH'}
-                              </button>
-                              <button 
-                                onClick={()=>handlePaymentMethod('qr')} 
-                                disabled={isUpdatingOrderStatus || order.paymentStatus === 'paid'}
-                                className={`h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all active:scale-95 ${order.paymentStatus === 'paid' ? 'bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-100' : (paymentSelection==='qr' ? 'bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-100' : 'bg-white text-slate-500 border-slate-100')}`}
-                              >
-                                {order.paymentStatus === 'paid' ? 'PAID (RAZORPAY)' : (isUpdatingOrderStatus && paymentSelection==='qr' ? 'LAUNCHING...' : 'UPI QR')}
-                              </button>
-                           </div>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="min-w-0">
+                              <p className="text-[9px] font-bold text-slate-400 uppercase leading-none mb-1 tracking-tighter">{isCod ? 'Amount Due' : 'Paid Online'}</p>
+                              <p className={`text-xl font-black leading-none ${isCod ? 'text-slate-900' : 'text-emerald-600'}`}>{formatPrice(calculatedTotal)}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                              <FiCreditCard size={18} className="text-indigo-600" />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => handlePaymentMethod('cash')}
+                              disabled={isUpdatingOrderStatus || order.paymentStatus === 'paid'}
+                              className={`h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all active:scale-95 ${paymentSelection === 'cash' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-100'} ${order.paymentStatus === 'paid' ? 'opacity-30 cursor-not-allowed' : ''}`}
+                            >
+                              {isUpdatingOrderStatus && paymentSelection === 'cash' ? 'SELECTING...' : 'CASH'}
+                            </button>
+                            <button
+                              onClick={() => handlePaymentMethod('qr')}
+                              disabled={isUpdatingOrderStatus || order.paymentStatus === 'paid'}
+                              className={`h-11 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all active:scale-95 ${order.paymentStatus === 'paid' ? 'bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-100' : (paymentSelection === 'qr' ? 'bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-100' : 'bg-white text-slate-500 border-slate-100')}`}
+                            >
+                              {order.paymentStatus === 'paid' ? 'PAID (RAZORPAY)' : (isUpdatingOrderStatus && paymentSelection === 'qr' ? 'LAUNCHING...' : 'UPI QR')}
+                            </button>
+                          </div>
                         </div>
                       )}
-                   </div>
-                 )}
-              </div>
-            </>
-          )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
 
         {/* BOTTOM ACTION BUTTON */}
         <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-100 z-50">
           {isAvailableTask ? (
             <div className="flex gap-3">
-              <button 
-                  onClick={handleRejectMission}
-                  disabled={isUpdatingOrderStatus}
-                  className="flex-1 h-12 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] border border-slate-200 active:scale-95 transition-all disabled:opacity-50"
+              <button
+                onClick={handleRejectMission}
+                disabled={isUpdatingOrderStatus}
+                className="flex-1 h-12 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] border border-slate-200 active:scale-95 transition-all disabled:opacity-50"
               >
-                  Decline
+                Decline
               </button>
-              <button 
-                  onClick={handleAcceptMission}
-                  disabled={isUpdatingOrderStatus || hasActiveTask}
-                  className={`flex-[2] h-12 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all ${hasActiveTask ? 'bg-slate-200 text-slate-400 shadow-none' : 'bg-indigo-600 text-white shadow-indigo-200'}`}
+              <button
+                onClick={handleAcceptMission}
+                disabled={isUpdatingOrderStatus || hasActiveTask}
+                className={`flex-[2] h-12 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all ${hasActiveTask ? 'bg-slate-200 text-slate-400 shadow-none' : 'bg-indigo-600 text-white shadow-indigo-200'}`}
               >
-                  {isUpdatingOrderStatus ? 'ACCEPTING MISSION...' : hasActiveTask ? 'MISSION IN PROGRESS' : 'ACCEPT TASK TO START'}
+                {isUpdatingOrderStatus ? 'ACCEPTING MISSION...' : hasActiveTask ? 'MISSION IN PROGRESS' : 'ACCEPT TASK TO START'}
               </button>
             </div>
           ) : isAssignedToMe ? (
             ((currentPhase === 'pickup' && pickupPhoto) || (currentPhase === 'delivery' && hasArrived)) ? (
-              <button 
-                  onClick={currentPhase === 'pickup' ? () => handleUpdateStatus('picked_up', 'Items picked up!', { pickupPhoto }) : handleFinalize}
-                  disabled={
-                      isUpdatingOrderStatus || 
-                      (currentPhase === 'delivery' && (
-                          otpValue.length < 6 || 
-                          !deliveryPhoto || 
-                          (isCod && (!paymentSelection || !['cash', 'qr'].includes(paymentSelection))) ||
-                          (isCod && paymentSelection === 'qr' && order.paymentStatus !== 'paid') ||
-                          (order.isTryAndBuy && !order.tryAndBuyCompleted)
-                      ))
-                  }
-                  className="w-full h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 disabled:opacity-20 active:scale-95 transition-all"
+              <button
+                onClick={currentPhase === 'pickup' ? () => { const allPhotos = [pickupPhoto, ...extraPickupPhotos].filter(Boolean); const combined = allPhotos.length > 1 ? allPhotos.join('|||') : allPhotos[0]; handleUpdateStatus('picked_up', 'Items picked up!', { pickupPhoto: combined }); } : handleFinalize}
+                disabled={
+                  isUpdatingOrderStatus ||
+                  (currentPhase === 'delivery' && (
+                    otpValue.length < 6 ||
+                    !deliveryPhoto ||
+                    (isCod && (!paymentSelection || !['cash', 'qr'].includes(paymentSelection))) ||
+                    (isCod && paymentSelection === 'qr' && order.paymentStatus !== 'paid') ||
+                    (order.isTryAndBuy && !order.tryAndBuyCompleted)
+                  ))
+                }
+                className="w-full h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 disabled:opacity-20 active:scale-95 transition-all"
               >
-                  {isUpdatingOrderStatus ? 'WAITING...' : (
-                      currentPhase === 'pickup' 
-                          ? 'MARk AS PICKED UP' 
-                          : (order.isTryAndBuy && !order.tryAndBuyCompleted)
-                              ? 'CONFIRM SELECTION FIRST'
-                              : (isCod && (!paymentSelection || !['cash', 'qr'].includes(paymentSelection)))
-                                  ? 'SELECT PAYMENT METHOD'
-                                  : (isCod && paymentSelection === 'qr' && order.paymentStatus !== 'paid')
-                                      ? 'AWAITING PAYMENT VERIFICATION'
-                                      : 'DELIVERED SUCCESSFULLY'
-                  )}
+                {isUpdatingOrderStatus ? 'WAITING...' : (
+                  currentPhase === 'pickup'
+                    ? 'MARk AS PICKED UP'
+                    : (order.isTryAndBuy && !order.tryAndBuyCompleted)
+                      ? 'CONFIRM SELECTION FIRST'
+                      : (isCod && (!paymentSelection || !['cash', 'qr'].includes(paymentSelection)))
+                        ? 'SELECT PAYMENT METHOD'
+                        : (isCod && paymentSelection === 'qr' && order.paymentStatus !== 'paid')
+                          ? 'AWAITING PAYMENT VERIFICATION'
+                          : 'DELIVERED SUCCESSFULLY'
+                )}
               </button>
             ) : (
               <div className="text-center py-2">
-                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Mission Active</p>
-                 <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Complete {currentPhase === 'pickup' ? 'Pickup Verification' : 'Arrival & OTP'} to Finish</p>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Mission Active</p>
+                <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Complete {currentPhase === 'pickup' ? 'Pickup Verification' : 'Arrival & OTP'} to Finish</p>
               </div>
             )
           ) : (
             <div className="text-center py-2 px-4 bg-rose-50 rounded-xl border border-rose-100">
-               <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">UNAUTHORIZED ACCESS</p>
-               <p className="text-[8px] font-bold text-rose-400 uppercase leading-none">This task is assigned to another partner.</p>
+              <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">UNAUTHORIZED ACCESS</p>
+              <p className="text-[8px] font-bold text-rose-400 uppercase leading-none">This task is assigned to another partner.</p>
             </div>
           )}
         </div>
@@ -883,32 +965,32 @@ const DeliveryOrderDetail = () => {
         {/* QR MODAL */}
         <AnimatePresence>
           {showQRModal && (
-            <motion.div 
-               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-               className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
             >
-               <motion.div 
-                  initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-                  className="bg-white w-full max-w-xs rounded-[2.5rem] p-6 shadow-2xl relative border-b-[10px] border-indigo-600 overflow-hidden"
-               >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 opacity-50" />
-                  <button onClick={() => setShowQRModal(false)} className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 rounded-full z-10"><FiX size={18}/></button>
-                  
-                  <div className="text-center relative">
-                    <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">UPI Payment Gateway</p>
-                    <h4 className="text-sm font-black text-slate-800 mb-6 font-mono border-b border-slate-100 pb-4">{formatPrice(calculatedTotal)}</h4>
-                    
-                    <div className="aspect-square bg-white border-2 border-slate-50 rounded-[1.5rem] flex items-center justify-center p-5 mb-6 shadow-xl relative group">
-                       <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=closh@upi&pn=Closh&am=${calculatedTotal}&cu=INR`} alt="Payment QR" className="w-full h-full" />
-                       <div className="absolute inset-0 border-4 border-white rounded-[1.5rem]" />
-                    </div>
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                className="bg-white w-full max-w-xs rounded-[2.5rem] p-6 shadow-2xl relative border-b-[10px] border-indigo-600 overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 opacity-50" />
+                <button onClick={() => setShowQRModal(false)} className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 rounded-full z-10"><FiX size={18} /></button>
 
-                    <p className="text-[9px] font-bold text-slate-400 px-2 leading-tight uppercase tracking-tighter mb-8">Scan QR with any UPI app.</p>
-                    <button onClick={() => setShowQRModal(false)} className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-black shadow-lg shadow-indigo-100 uppercase tracking-[0.1em] flex items-center justify-center gap-2">
-                       <FiCheckCircle size={16}/> PAYMENT CONFIRMED
-                    </button>
+                <div className="text-center relative">
+                  <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">UPI Payment Gateway</p>
+                  <h4 className="text-sm font-black text-slate-800 mb-6 font-mono border-b border-slate-100 pb-4">{formatPrice(calculatedTotal)}</h4>
+
+                  <div className="aspect-square bg-white border-2 border-slate-50 rounded-[1.5rem] flex items-center justify-center p-5 mb-6 shadow-xl relative group">
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=closh@upi&pn=Closh&am=${calculatedTotal}&cu=INR`} alt="Payment QR" className="w-full h-full" />
+                    <div className="absolute inset-0 border-4 border-white rounded-[1.5rem]" />
                   </div>
-               </motion.div>
+
+                  <p className="text-[9px] font-bold text-slate-400 px-2 leading-tight uppercase tracking-tighter mb-8">Scan QR with any UPI app.</p>
+                  <button onClick={() => setShowQRModal(false)} className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-black shadow-lg shadow-indigo-100 uppercase tracking-[0.1em] flex items-center justify-center gap-2">
+                    <FiCheckCircle size={16} /> PAYMENT CONFIRMED
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

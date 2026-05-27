@@ -23,7 +23,7 @@ const DeliveryLayout = () => {
     acceptReturn, fetchProfileSummary, updateStatus, 
     isUpdatingStatus 
   } = useDeliveryAuthStore();
-  const isOnline = deliveryBoy?.status === 'available';
+  const isOnline = deliveryBoy?.status === 'available' || deliveryBoy?.status === 'busy';
 
   const handleToggleOnline = () => {
     if (isUpdatingStatus) return;

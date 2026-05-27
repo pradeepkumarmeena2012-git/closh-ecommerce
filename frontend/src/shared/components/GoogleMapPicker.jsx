@@ -6,7 +6,7 @@ const containerStyle = {
   height: '100%'
 };
 
-const libraries = ['places'];
+const libraries = ['places', 'geometry', 'drawing'];
 
 const GoogleMapPicker = ({ onLocationSelect, initialLocation, height = '400px', zoom = 12 }) => {
   const { isLoaded } = useJsApiLoader({

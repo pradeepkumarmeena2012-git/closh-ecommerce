@@ -7,7 +7,7 @@ const containerStyle = {
   height: '100%'
 };
 
-const libraries = ['drawing', 'geometry', 'places'];
+const libraries = ['places', 'geometry', 'drawing'];
 
 const GoogleMapZoneDrawer = ({ 
   onLocationSelect, 
