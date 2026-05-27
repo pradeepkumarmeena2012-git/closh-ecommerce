@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FiArrowLeft, FiEye, FiEyeOff, FiLock } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
+import logo from '../../../assets/animations/lottie/logo-removebg.png';
 
 const VendorResetPassword = () => {
   const navigate = useNavigate();
@@ -45,98 +46,121 @@ const VendorResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl"
-      >
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 gradient-green rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-green">
-            <FiLock className="text-white text-2xl" />
-          </div>
-          <h1 className="text-3xl font-extrabold text-gray-800 mb-2">
-            Reset Password
-          </h1>
-          <p className="text-gray-600">
-            Set a new password for <span className="font-semibold">{email || "your account"}</span>
-          </p>
+    <div className="min-h-screen bg-[#0f172a] flex flex-col md:flex-row overflow-hidden">
+      {/* Left Side: Branding */}
+      <div className="hidden md:flex md:w-1/2 items-center justify-center p-12 bg-[#0f172a] relative">
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[32rem] h-[32rem] bg-blue-600/10 rounded-full blur-3xl"></div>
+        
+        <div className="relative z-10 text-center">
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-32 h-32 bg-white/5 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 border border-white/10 shadow-2xl"
+          >
+            <img src={logo} alt="CLOSH" className="w-20 h-20 object-contain" />
+          </motion.div>
+          <h1 className="text-6xl font-black text-white mb-4 tracking-tighter uppercase">CLOSH</h1>
+          <p className="text-xl text-slate-400 font-medium">Empowering local vendors, globally.</p>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              New Password
-            </label>
-            <div className="relative">
-              <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, password: e.target.value }))
-                }
-                placeholder="Enter new password"
-                className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                required
-                minLength={6}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <FiEyeOff /> : <FiEye />}
-              </button>
+      {/* Right Side: Form */}
+      <div className="w-full md:w-1/2 flex items-center justify-center relative z-10 px-4 py-8 md:px-0">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl min-h-[80vh] md:min-h-0 flex flex-col justify-center"
+        >
+          {/* Mobile Logo */}
+          <div className="md:hidden text-center mb-10">
+            <div className="w-20 h-20 bg-[#0f172a] rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <img src={logo} alt="CLOSH" className="w-12 h-12 object-contain" />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Confirm Password
-            </label>
-            <div className="relative">
-              <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                value={formData.confirmPassword}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))
-                }
-                placeholder="Confirm new password"
-                className="w-full pl-12 pr-12 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                required
-                minLength={6}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword((prev) => !prev)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
-              </button>
-            </div>
+          <div className="mb-10 text-center md:text-left">
+            <h2 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Reset Password</h2>
+            <p className="text-gray-500 font-medium">
+              Set a new password for <span className="font-semibold text-gray-900">{email || "your account"}</span>
+            </p>
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? "Resetting..." : "Reset Password"}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">
+                New Password
+              </label>
+              <div className="relative">
+                <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, password: e.target.value }))
+                  }
+                  placeholder="Enter new password"
+                  className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:border-gray-300 focus:outline-none transition-all text-gray-900 placeholder:text-gray-400"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-900"
+                >
+                  {showPassword ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
+            </div>
 
-        <div className="text-center pt-6">
-          <Link
-            to="/vendor/login"
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
-          >
-            <FiArrowLeft />
-            Back to Login
-          </Link>
-        </div>
-      </motion.div>
+            <div>
+              <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                  }
+                  placeholder="Confirm new password"
+                  className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:border-gray-300 focus:outline-none transition-all text-gray-900 placeholder:text-gray-400"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-900"
+                >
+                  {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-[#0f172a] text-white py-4 rounded-2xl font-black text-base hover:bg-slate-800 transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50"
+            >
+              {isLoading ? "Resetting..." : "Reset Password"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <Link
+              to="/vendor/login"
+              className="text-gray-500 text-sm font-medium hover:text-[#0f172a] inline-flex items-center gap-2"
+            >
+              <FiArrowLeft />
+              Back to Login
+            </Link>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 };

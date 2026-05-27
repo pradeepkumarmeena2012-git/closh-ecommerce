@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { FiArrowLeft, FiCheck, FiMail, FiRefreshCw } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { useVendorAuthStore } from "../store/vendorAuthStore";
+import logo from '../../../assets/animations/lottie/logo-removebg.png';
 
 const OTP_LENGTH = 6;
 
@@ -11,6 +12,7 @@ const VendorForgotPassword = () => {
   const navigate = useNavigate();
   const { forgotPassword, verifyResetOtp, isLoading } = useVendorAuthStore();
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [step, setStep] = useState("request");
   const [codes, setCodes] = useState(Array(OTP_LENGTH).fill(""));
   const inputRefs = useRef([]);
@@ -29,7 +31,10 @@ const VendorForgotPassword = () => {
     }
 
     try {
-      await forgotPassword(email.trim().toLowerCase());
+      const result = await forgotPassword(email.trim().toLowerCase());
+      if (result?.phone) {
+        setPhone(result.phone);
+      }
       toast.success("If the email exists, reset OTP has been sent.");
       setStep("verify");
     } catch {
@@ -81,111 +86,143 @@ const VendorForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl"
-      >
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 gradient-green rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-green">
-            <FiMail className="text-white text-2xl" />
-          </div>
-          <h1 className="text-3xl font-extrabold text-gray-800 mb-2">
-            Forgot Password
-          </h1>
-          <p className="text-gray-600">
-            {step === "request"
-              ? "Enter your vendor account email to receive an OTP."
-              : `Enter the OTP sent to ${email}`}
-          </p>
-        </div>
-
-        {step === "request" ? (
-          <form onSubmit={handleRequestOtp} className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="vendor@example.com"
-                  className="w-full pl-12 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800 placeholder:text-gray-400"
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "Sending OTP..." : "Send OTP"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-6">
-            <div className="flex justify-center gap-3">
-              {codes.map((code, index) => (
-                <input
-                  key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={code}
-                  onChange={(e) => handleCodeChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  onPaste={index === 0 ? handlePaste : undefined}
-                  className="w-12 h-12 text-center text-xl font-bold bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800"
-                />
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between">
-              <button
-                type="button"
-                onClick={handleRequestOtp}
-                disabled={isLoading}
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium disabled:text-gray-400 inline-flex items-center gap-2"
-              >
-                <FiRefreshCw />
-                Resend OTP
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep("request")}
-                className="text-sm text-gray-600 hover:text-gray-800 font-medium"
-              >
-                Change Email
-              </button>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || codes.some((c) => !c)}
-              className="w-full gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isLoading ? "Verifying..." : <><FiCheck /> Verify OTP</>}
-            </button>
-          </form>
-        )}
-
-        <div className="text-center pt-6">
-          <Link
-            to="/vendor/login"
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
+    <div className="min-h-screen bg-[#0f172a] flex flex-col md:flex-row overflow-hidden">
+      {/* Left Side: Branding */}
+      <div className="hidden md:flex md:w-1/2 items-center justify-center p-12 bg-[#0f172a] relative">
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[32rem] h-[32rem] bg-blue-600/10 rounded-full blur-3xl"></div>
+        
+        <div className="relative z-10 text-center">
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-32 h-32 bg-white/5 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 border border-white/10 shadow-2xl"
           >
-            <FiArrowLeft />
-            Back to Login
-          </Link>
+            <img src={logo} alt="CLOSH" className="w-20 h-20 object-contain" />
+          </motion.div>
+          <h1 className="text-6xl font-black text-white mb-4 tracking-tighter uppercase">CLOSH</h1>
+          <p className="text-xl text-slate-400 font-medium">Empowering local vendors, globally.</p>
         </div>
-      </motion.div>
+      </div>
+
+      {/* Right Side: Form */}
+      <div className="w-full md:w-1/2 flex items-center justify-center relative z-10 px-4 py-8 md:px-0">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl min-h-[80vh] md:min-h-0 flex flex-col justify-center"
+        >
+          {/* Mobile Logo */}
+          <div className="md:hidden text-center mb-10">
+            <div className="w-20 h-20 bg-[#0f172a] rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <img src={logo} alt="CLOSH" className="w-12 h-12 object-contain" />
+            </div>
+          </div>
+
+          <div className="mb-10 text-center md:text-left">
+            <h2 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Forgot Password</h2>
+            <p className="text-gray-500 font-medium">
+              {step === "request"
+                ? "Enter your vendor account email to receive an OTP."
+                : `Enter the OTP sent to ${
+                    phone 
+                      ? phone.replace(/^(\+?\d{2})(\d{3})(\d{3})(\d+)$/, '$1$2***$4')
+                      : 'your registered contact'
+                  }`}
+            </p>
+          </div>
+
+          {step === "request" ? (
+            <form onSubmit={handleRequestOtp} className="space-y-6">
+              <div>
+                <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="vendor@example.com"
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:border-gray-300 focus:outline-none transition-all text-gray-900 placeholder:text-gray-400"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-[#0f172a] text-white py-4 rounded-2xl font-black text-base hover:bg-slate-800 transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50"
+              >
+                {isLoading ? "Sending OTP..." : "Send OTP"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-6">
+              <div>
+                <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-3 px-1">
+                  Verification Code
+                </label>
+                <div className="flex justify-between gap-2">
+                  {codes.map((code, index) => (
+                    <input
+                      key={index}
+                      ref={(el) => (inputRefs.current[index] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={code}
+                      onChange={(e) => handleCodeChange(index, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(index, e)}
+                      onPaste={index === 0 ? handlePaste : undefined}
+                      className="w-12 h-14 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:border-[#0f172a] focus:ring-1 focus:ring-[#0f172a] focus:outline-none transition-all"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handleRequestOtp}
+                  disabled={isLoading}
+                  className="text-xs font-black text-gray-500 hover:text-gray-900 tracking-wider inline-flex items-center gap-2 disabled:text-gray-300"
+                >
+                  <FiRefreshCw />
+                  Resend OTP
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep("request")}
+                  className="text-xs font-black text-gray-500 hover:text-gray-900 tracking-wider"
+                >
+                  Change Email
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || codes.some((c) => !c)}
+                className="w-full bg-[#0f172a] text-white py-4 rounded-2xl font-black text-base hover:bg-slate-800 transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLoading ? "Verifying..." : <><FiCheck /> Verify OTP</>}
+              </button>
+            </form>
+          )}
+
+          <div className="mt-6 text-center">
+            <Link
+              to="/vendor/login"
+              className="text-gray-500 text-sm font-medium hover:text-[#0f172a] inline-flex items-center gap-2"
+            >
+              <FiArrowLeft />
+              Back to Login
+            </Link>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 };

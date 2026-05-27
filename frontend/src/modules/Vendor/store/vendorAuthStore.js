@@ -143,7 +143,7 @@ export const useVendorAuthStore = create(
           const response = await forgotVendorPassword(email);
           const data = response?.data ?? response;
           set({ isLoading: false });
-          return { success: true, message: data?.message };
+          return { success: true, message: data?.message, phone: data?.data?.phone || data?.phone };
         } catch (error) {
           set({ isLoading: false });
           throw error;

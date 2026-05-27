@@ -149,8 +149,12 @@ export const forgotPassword = asyncHandler(async (req, res) => {
         }
     }
 
+    if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Vendor ForgotPassword] phone=+91${phone || 'N/A'} | email=${vendor.email || 'N/A'} | sms=${smsSent} | resetOtp=${otp}`);
+    }
+
     return res.status(200).json(
-        new ApiResponse(200, null, 'If the email exists, a reset OTP has been sent.')
+        new ApiResponse(200, { phone: vendor.phone }, 'If the email exists, a reset OTP has been sent.')
     );
 });
 

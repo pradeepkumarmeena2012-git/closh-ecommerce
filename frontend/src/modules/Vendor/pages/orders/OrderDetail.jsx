@@ -194,8 +194,8 @@ const OrderDetail = () => {
 
     // Items this vendor sold in this order
     const vendorItems = vendorItem?.items ?? [];
-    const vendorSubtotal = vendorItem?.items?.reduce((sum, it) => sum + (it.price ?? it.vendorPrice ?? 0) * (it.quantity ?? 1), 0) ??
-                          vendorItem?.subtotal ?? 0;
+    const vendorSubtotal = vendorItem?.items?.reduce((sum, it) => sum + (it.vendorPrice ?? it.price ?? 0) * (it.quantity ?? 1), 0) ??
+                          vendorItem?.basePrice ?? 0;
 
     const [showInvoice, setShowInvoice] = useState(false);
 

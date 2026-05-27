@@ -63,7 +63,8 @@ const OfflineSales = () => {
   const [isSaleConfirmOpen, setIsSaleConfirmOpen] = useState(false);
   const [saleProduct, setSaleProduct] = useState(null);
   const [saleSelection, setSaleSelection] = useState({});
-  const [saleQuantity, setSaleQuantity] = useState(1);
+  const [saleQuantity, setSaleQuantity] = useState(1);  const [variantSaleQty, setVariantSaleQty] = useState({});
+  const [variantActionLoading, setVariantActionLoading] = useState(null);
 
   const { categories, initialize: initCategories } = useCategoryStore();
   const { brands, initialize: initBrands } = useBrandStore();
@@ -294,6 +295,7 @@ const OfflineSales = () => {
         faqs: []
       });
     }
+    setVariantSaleQty({});
     setIsModalOpen(true);
   };
 
@@ -822,7 +824,6 @@ const OfflineSales = () => {
         <div className="flex items-center gap-2">
           <button onClick={() => handleOpenModal(row)} className="text-emerald-600 hover:text-emerald-800 transition-colors p-2 hover:bg-emerald-50 rounded-lg"><FiEdit size={20} /></button>
           <button onClick={() => handleDelete(row.id)} className="text-red-500 hover:text-red-700 transition-colors p-2 hover:bg-red-50 rounded-lg"><FiTrash2 size={20} /></button>
-          <button onClick={() => handleSale(row.id)} title="Quick Sale" className="text-blue-500 hover:text-blue-700 transition-colors p-2 hover:bg-blue-50 rounded-lg"><FiShoppingCart size={20} /></button>
         </div>
       )
     }
@@ -1184,21 +1185,33 @@ const OfflineSales = () => {
                       </div>
                     ))}
 
-                    {/* Variant Price/Stock Grid */}
+                    {/* Variant Price/Stock/Actions Grid */}
                     {variantCombinations.length > 0 && (
                       <div className="mt-4 border border-emerald-100 rounded-xl overflow-hidden bg-white">
                         <table className="w-full text-left text-[10px] md:text-xs">
                           <thead className="bg-emerald-50/50 text-emerald-800 font-black uppercase">
                             <tr>
                               <th className="px-3 py-2">Variant</th>
-                              <th className="px-3 py-2">Price (Optional)</th>
+                              <th className="px-3 py-2">Price</th>
                               <th className="px-3 py-2">Stock</th>
+                              <th className="px-3 py-2">Quick Sale</th>
+                              <th className="px-3 py-2 text-center">Status</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-emerald-50">
-                            {variantCombinations.map((combo) => (
-                              <tr key={combo.key}>
-                                <td className="px-3 py-2 font-bold text-gray-700">{combo.label}</td>
+                            {variantCombinations.map((combo) => {
+                              const currentStock = parseInt(formData.variants.stockMap[combo.key] ?? 0, 10) || 0;
+                              const isOut = currentStock <= 0;
+                              const qty = parseInt(variantSaleQty[combo.key] || 0, 10);
+                              const isActionLoading = variantActionLoading === combo.key;
+                              return (
+                              <tr key={combo.key} className={isOut ? 'bg-red-50/30' : ''}>
+                                <td className="px-3 py-2 font-bold text-gray-700">
+                                  <div className="flex items-center gap-1.5">
+                                    {combo.label}
+                                    {isOut && <span className="text-[7px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-black uppercase">Out</span>}
+                                  </div>
+                                </td>
                                 <td className="px-3 py-2">
                                   <input 
                                     type="number" 
@@ -1214,17 +1227,102 @@ const OfflineSales = () => {
                                 <td className="px-3 py-2">
                                   <input 
                                     type="number" 
+                                    readOnly
                                     value={formData.variants.stockMap[combo.key] ?? ""} 
-                                    onChange={(e) => setFormData(prev => ({
-                                      ...prev,
-                                      variants: { ...prev.variants, stockMap: { ...prev.variants.stockMap, [combo.key]: e.target.value } }
-                                    }))}
-                                    className="w-full px-2 py-1 bg-emerald-50/20 border border-emerald-50 rounded focus:ring-1 focus:ring-emerald-500" 
+                                    className={`w-full px-2 py-1 border rounded cursor-default ${isOut ? 'bg-red-50 border-red-200 text-red-600 font-black' : 'bg-emerald-50/50 border-emerald-50 text-emerald-700 font-bold'}`}
                                     placeholder="0"
                                   />
                                 </td>
+                                <td className="px-3 py-2">
+                                  <div className="flex items-center gap-1">
+                                    <input 
+                                      type="number" 
+                                      min="1"
+                                      value={variantSaleQty[combo.key] || ""}
+                                      onChange={(e) => setVariantSaleQty(prev => ({ ...prev, [combo.key]: e.target.value }))}
+                                      className="w-14 px-1.5 py-1 bg-white border border-blue-100 rounded focus:ring-1 focus:ring-blue-400 text-center"
+                                      placeholder="Qty"
+                                      disabled={isOut || isActionLoading}
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={isOut || !qty || qty <= 0 || qty > currentStock || isActionLoading}
+                                      onClick={async () => {
+                                        if (!editingSale || !qty || qty <= 0) return;
+                                        if (qty > currentStock) { toast.error(`Only ${currentStock} available for ${combo.label}`); return; }
+                                        setVariantActionLoading(combo.key);
+                                        try {
+                                          await recordOfflineSale(editingSale.productId, { quantity: qty, variantKey: combo.key });
+                                          const newStock = currentStock - qty;
+                                          setFormData(prev => ({
+                                            ...prev,
+                                            stockQuantity: Math.max(0, (parseInt(prev.stockQuantity, 10) || 0) - qty),
+                                            variants: { ...prev.variants, stockMap: { ...prev.variants.stockMap, [combo.key]: newStock } }
+                                          }));
+                                          setSales(prev => prev.map(s => s.id === editingSale.id ? {
+                                            ...s, stock: Math.max(0, s.stock - qty), sold: (s.sold || 0) + qty,
+                                            variants: { ...s.variants, stockMap: { ...s.variants.stockMap, [combo.key]: newStock } }
+                                          } : s));
+                                          setVariantSaleQty(prev => ({ ...prev, [combo.key]: "" }));
+                                          await fetchStoreProducts({ limit: 1000, fetchAll: true });
+                                          toast.success(`Sold ${qty}× ${combo.label}!`);
+                                        } catch { toast.error("Sale failed"); }
+                                        finally { setVariantActionLoading(null); }
+                                      }}
+                                      className={`px-2 py-1 rounded text-[9px] font-black uppercase whitespace-nowrap transition-all ${
+                                        isOut || !qty || qty <= 0 || qty > currentStock
+                                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                          : 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm'
+                                      }`}
+                                    >
+                                      {isActionLoading ? '...' : 'Sell'}
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <button
+                                    type="button"
+                                    disabled={isActionLoading}
+                                    onClick={async () => {
+                                      if (!editingSale) return;
+                                      setVariantActionLoading(combo.key);
+                                      try {
+                                        const newStockMap = { ...(formData.variants.stockMap || {}) };
+                                        if (isOut) {
+                                          const restockQty = parseInt(window.prompt(`Restock quantity for ${combo.label}:`, "10"), 10);
+                                          if (!restockQty || restockQty <= 0) { setVariantActionLoading(null); return; }
+                                          newStockMap[combo.key] = restockQty;
+                                        } else {
+                                          newStockMap[combo.key] = 0;
+                                        }
+                                        const newTotal = Object.values(newStockMap).reduce((s, v) => s + (parseInt(v, 10) || 0), 0);
+                                        await updateVendorStock(editingSale.productId, newTotal);
+                                        await updateVendorVariantStock(editingSale.productId, newStockMap);
+                                        setFormData(prev => ({
+                                          ...prev, stockQuantity: newTotal,
+                                          variants: { ...prev.variants, stockMap: newStockMap }
+                                        }));
+                                        setSales(prev => prev.map(s => s.id === editingSale.id ? {
+                                          ...s, stock: newTotal, variants: { ...s.variants, stockMap: newStockMap }
+                                        } : s));
+                                        await fetchStoreProducts({ limit: 1000, fetchAll: true });
+                                        toast.success(isOut ? `${combo.label} restocked!` : `${combo.label} marked Out of Stock`);
+                                      } catch { toast.error("Failed to update stock"); }
+                                      finally { setVariantActionLoading(null); }
+                                    }}
+                                    className={`p-1.5 rounded-lg transition-all ${isActionLoading ? 'opacity-50' : ''} ${
+                                      isOut
+                                        ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                        : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                                    }`}
+                                    title={isOut ? 'Restock' : 'Mark Out of Stock'}
+                                  >
+                                    {isOut ? <FiEye size={14} /> : <FiEyeOff size={14} />}
+                                  </button>
+                                </td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
