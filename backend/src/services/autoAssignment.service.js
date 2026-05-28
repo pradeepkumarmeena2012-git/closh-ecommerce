@@ -86,8 +86,9 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
             }
         }).limit(15).lean();
 
-        // 2.1 Strictly filter to ensure they are connected to the socket (latest reliable source)
-        deliveryBoys = deliveryBoys.filter(boy => isDeliveryBoyConnected(boy._id.toString())).slice(0, 5);
+        // 2.1 Prefer connected riders, but fallback to sleeping riders if none are connected
+        let connectedRiders = deliveryBoys.filter(boy => isDeliveryBoyConnected(boy._id.toString()));
+        deliveryBoys = connectedRiders.length > 0 ? connectedRiders.slice(0, 5) : deliveryBoys.slice(0, 5);
 
         // Fallback: If no boys are found nearby, scan globally for any active available partner
         if (deliveryBoys.length === 0) {
@@ -99,7 +100,8 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
                 _id: { $nin: excludeObjectIds }
             }).limit(15).lean();
 
-            deliveryBoys = globalBoys.filter(boy => isDeliveryBoyConnected(boy._id.toString())).slice(0, 5);
+            let globalConnected = globalBoys.filter(boy => isDeliveryBoyConnected(boy._id.toString()));
+            deliveryBoys = globalConnected.length > 0 ? globalConnected.slice(0, 5) : globalBoys.slice(0, 5);
         }
 
         if (deliveryBoys.length === 0) {
@@ -107,6 +109,7 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
             order.deliveryBoyId = undefined;
             order.status = 'searching';
             await order.save();
+            QueueService.scheduleAutoAssignRetry(order._id, 30 * 1000);
             return false;
         }
 
