@@ -19,8 +19,11 @@ const riderSearchQueue = new Queue('rider-search-queue', { connection: redisConn
 // 3. Rider Acceptance Timeout Queue (Auto-cancel if no rider accepts within 15 min)
 const riderAcceptQueue = new Queue('rider-accept-queue', { connection: redisConnection });
 
-// 4. Rider Auto Assign 60s Timeout Queue (Auto-reject if rider doesn't click Accept within 60s)
+// 4. Rider Auto Assign 120s Timeout Queue (Auto-reject if rider doesn't click Accept within 120s)
 const riderAutoAssignTimeoutQueue = new Queue('rider-auto-assign-timeout-queue', { connection: redisConnection });
+
+// 5. Rider Auto Assign Retry Queue (Retry auto-assignment if no riders were found)
+const riderAutoAssignRetryQueue = new Queue('rider-auto-assign-retry-queue', { connection: redisConnection });
 
 export const QueueService = {
 
@@ -44,14 +47,24 @@ export const QueueService = {
     },
 
     /**
-     * Start 60-Second Auto Assign Timeout
-     * @param {Object} orderId 
-     * @param {Object} deliveryBoyId 
+     * Start 120-Second Auto Assign Timeout
+     * @param {String} orderId 
+     * @param {String} deliveryBoyId 
      * @param {Number} delayMs 
      */
-    async scheduleRiderAutoAssignTimeout(orderId, deliveryBoyId, delayMs = 60 * 1000) {
+    async scheduleRiderAutoAssignTimeout(orderId, deliveryBoyId, delayMs = 120 * 1000) {
         await riderAutoAssignTimeoutQueue.add('check-auto-assign-accept', { orderId, deliveryBoyId }, { delay: delayMs });
-        console.log(`[Queue] Scheduled 60s auto-assign timeout for order ${orderId} and rider ${deliveryBoyId}`);
+        console.log(`[Queue] Scheduled 120s auto-assign timeout for order ${orderId} and rider ${deliveryBoyId}`);
+    },
+
+    /**
+     * Schedule a retry for auto-assigning a delivery boy if no one is available
+     * @param {String} orderId 
+     * @param {Number} delayMs 
+     */
+    async scheduleAutoAssignRetry(orderId, delayMs = 30 * 1000) {
+        await riderAutoAssignRetryQueue.add('retry-auto-assign', { orderId }, { delay: delayMs });
+        console.log(`[Queue] Scheduled auto-assign retry for order ${orderId} in ${delayMs / 1000}s`);
     },
 
     /**
@@ -211,8 +224,8 @@ new Worker('rider-accept-queue', async job => {
 }, { connection: redisConnection });
 
 /**
- * Worker Logic: Rider Auto Assign 60s Timeout Check
- * If an order was auto-assigned but the rider didn't accept in 60s, Auto-Reject and search again.
+ * Worker Logic: Rider Auto Assign 120s Timeout Check
+ * If an order was auto-assigned but the rider didn't accept in 120s, Auto-Reject and search again.
  */
 new Worker('rider-auto-assign-timeout-queue', async job => {
     const { orderId, deliveryBoyId } = job.data;
@@ -258,6 +271,25 @@ new Worker('rider-auto-assign-timeout-queue', async job => {
         const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
         autoAssignDeliveryBoy(order._id, [deliveryBoyId]).catch(err => {
             console.error("[Worker] AutoAssign fallback trigger failed:", err);
+        });
+    }
+}, { connection: redisConnection });
+
+/**
+ * Worker Logic: Rider Auto Assign Retry
+ * Continuously retry auto-assignment if no riders are available, until the order is accepted or global timeout occurs.
+ */
+new Worker('rider-auto-assign-retry-queue', async job => {
+    const { orderId } = job.data;
+    const order = await Order.findById(orderId);
+
+    if (!order) return;
+
+    if (order.status === 'searching') {
+        console.log(`[Worker] 🔄 Retrying auto-assignment for order ${order.orderId}...`);
+        const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
+        autoAssignDeliveryBoy(order._id).catch(err => {
+            console.error("[Worker] AutoAssign retry trigger failed:", err);
         });
     }
 }, { connection: redisConnection });

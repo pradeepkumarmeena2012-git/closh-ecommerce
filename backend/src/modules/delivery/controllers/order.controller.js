@@ -254,8 +254,8 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
     }
 
     const filter = {
-        status: { $in: ['ready_for_pickup', 'all_vendors_ready'] },
-        deliveryBoyId: { $exists: false },
+        status: { $in: ['ready_for_pickup', 'all_vendors_ready', 'searching'] },
+        deliveryBoyId: null,
         isDeleted: { $ne: true }
     };
 
@@ -271,8 +271,8 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
 
     const [orders, total] = await Promise.all([
         Order.find(filter)
-            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType paymentMethod isMultiVendor vendorPickups createdAt shippingAddress.city shippingAddress.state')
-            .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
+            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType paymentMethod isMultiVendor vendorItems vendorPickups createdAt shippingAddress.city shippingAddress.state')
+            .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation address')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(numericLimit)
@@ -378,7 +378,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         Order.find({
             deliveryBoyId,
             isDeleted: { $ne: true },
-            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'ready_for_pickup', 'all_vendors_ready'] }
         })
             .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase isMultiVendor vendorPickups createdAt updatedAt')
             .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
