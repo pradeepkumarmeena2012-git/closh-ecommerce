@@ -103,11 +103,11 @@ export const OrderWorkflowService = {
         if (!order) throw new ApiError(409, 'Order is no longer available or already accepted.');
 
         const { QueueService } = await import('./queue.service.js');
-        await QueueService.scheduleRiderSearch(order._id);
+        const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
         await QueueService.scheduleRiderAcceptTimeout(order._id);
 
         await OrderNotificationService.notifyOrderUpdate(order._id, 'searching', { excludeRecipientId: vendorId });
-        await notifyEligibleRiders(order);
+        autoAssignDeliveryBoy(order._id).catch(err => console.error('[OrderWorkflow] Auto assignment failed:', err));
         
         return order;
     },
@@ -140,11 +140,11 @@ export const OrderWorkflowService = {
         if (!order) throw new ApiError(409, 'Order status must be "accepted" to mark it ready.');
 
         const { QueueService } = await import('./queue.service.js');
-        await QueueService.scheduleRiderSearch(order._id);
+        const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
         await QueueService.scheduleRiderAcceptTimeout(order._id);
         
         await OrderNotificationService.notifyOrderUpdate(order._id, 'searching', { excludeRecipientId: vendorId });
-        await notifyEligibleRiders(order);
+        autoAssignDeliveryBoy(order._id).catch(err => console.error('[OrderWorkflow] Auto assignment failed:', err));
 
         return order;
     },

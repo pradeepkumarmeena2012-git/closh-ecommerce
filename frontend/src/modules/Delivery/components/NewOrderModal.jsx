@@ -7,14 +7,14 @@ import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 
 const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLocation }) => {
-    const [timeLeft, setTimeLeft] = useState(60);
+    const [timeLeft, setTimeLeft] = useState(120);
     // Calculate live distance from rider to pickup
     const [liveDistance, setLiveDistance] = useState(order?.distance || '...');
     
     useEffect(() => {
         if (isOpen && order) {
-            // Only set to 60 if it's a new order or just opened
-            setTimeLeft(60);
+            // Only set to 120 if it's a new order or just opened
+            setTimeLeft(120);
             const timer = setInterval(() => {
                 setTimeLeft((prev) => {
                     if (prev <= 1) {
@@ -119,7 +119,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLoc
                         <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-100 z-50">
                             <motion.div 
                                 initial={{ width: '100%' }}
-                                animate={{ width: `${(timeLeft / 60) * 100}%` }}
+                                animate={{ width: `${(timeLeft / 120) * 100}%` }}
                                 transition={{ duration: 1, ease: 'linear' }}
                                 className={`h-full ${timeLeft < 10 ? 'bg-rose-500' : 'bg-indigo-600'}`}
                             />

@@ -254,8 +254,8 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
     }
 
     const filter = {
-        status: { $in: ['ready_for_pickup', 'all_vendors_ready'] },
-        deliveryBoyId: { $exists: false },
+        status: { $in: ['ready_for_pickup', 'all_vendors_ready', 'searching'] },
+        deliveryBoyId: null,
         isDeleted: { $ne: true }
     };
 
@@ -271,8 +271,8 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
 
     const [orders, total] = await Promise.all([
         Order.find(filter)
-            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType paymentMethod isMultiVendor vendorPickups createdAt shippingAddress.city shippingAddress.state')
-            .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
+            .select('orderId status pickupLocation dropoffLocation total deliveryEarnings items.name items.image items.quantity orderType paymentMethod isMultiVendor vendorItems vendorPickups createdAt shippingAddress.city shippingAddress.state')
+            .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation address')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(numericLimit)
@@ -378,7 +378,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         Order.find({
             deliveryBoyId,
             isDeleted: { $ne: true },
-            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'ready_for_pickup', 'all_vendors_ready'] }
         })
             .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase isMultiVendor vendorPickups createdAt updatedAt')
             .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
@@ -1485,36 +1485,93 @@ export const handlePayment = asyncHandler(async (req, res) => {
     const responseData = { order };
     if (method === 'qr') {
         const amt = flow.finalAmount || order.total || 0;
-        responseData.qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=company@upi%26pn=CLOSH%20Platform%26am=${amt}%26cu=INR%26tn=Order_${order.orderId}`;
-        
         const key_id = process.env.RAZORPAY_KEY_ID;
         const key_secret = process.env.RAZORPAY_KEY_SECRET;
 
         if (key_id && key_secret) {
             try {
                 const razorpay = new Razorpay({ key_id, key_secret });
-                const razorpayOrder = await razorpay.orders.create({
-                    amount: Math.round(amt * 100), // paise
-                    currency: 'INR',
-                    receipt: order.orderId,
+                const razorpayQr = await razorpay.qrCode.create({
+                    type: "upi_qr",
+                    name: "CLOSH Delivery",
+                    usage: "single_use",
+                    fixed_amount: true,
+                    payment_amount: Math.round(amt * 100), // paise
+                    description: `Order ${order.orderId}`,
+                    close_by: Math.floor(Date.now() / 1000) + 7200, // 2 hours expiry
+                    notes: {
+                        orderId: order._id.toString()
+                    }
                 });
 
-                order.razorpayOrderId = razorpayOrder.id;
+                order.razorpayQrId = razorpayQr.id;
                 await order.save();
 
-                responseData.razorpayOrderId = razorpayOrder.id;
+                responseData.qrUrl = razorpayQr.image_url;
+                responseData.razorpayQrId = razorpayQr.id;
                 responseData.razorpayKeyId = key_id;
                 responseData.razorpayAmount = Math.round(amt * 100);
             } catch (razorError) {
-                console.error("❌ RAZORPAY_DOORSTEP_ORDER_CREATION_FAILED:", razorError);
-                throw new ApiError(500, "Failed to initialize doorstep payment gateway. Please try again.");
+                console.error("❌ RAZORPAY_DOORSTEP_QR_CREATION_FAILED:", razorError);
+                console.warn("⚠️ Falling back to static QR Code as Razorpay QR might not be enabled.");
+                responseData.qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=company@upi%26pn=CLOSH%20Platform%26am=${amt}%26cu=INR%26tn=Order_${order.orderId}`;
             }
         } else {
-            console.warn("⚠️ Razorpay keys missing. Doorstep online payment will not load.");
+            responseData.qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=company@upi%26pn=CLOSH%20Platform%26am=${amt}%26cu=INR%26tn=Order_${order.orderId}`;
         }
     }
 
-    res.status(200).json(new ApiResponse(200, responseData, 'Payment method set. Complete delivery with OTP.'));
+    return res.status(200).json(new ApiResponse(200, responseData, 'Payment method set.'));
+});
+
+// POST /api/delivery/orders/:id/verify-qr-payment
+export const verifyQrPayment = asyncHandler(async (req, res) => {
+    const order = await findOrderForRider(req.params.id, req.user.id);
+    const flow = ensureDeliveryFlow(order);
+
+    if (order.paymentMethod !== 'qr' || flow.paymentMethod !== 'qr') {
+        throw new ApiError(400, "Payment method is not QR.");
+    }
+
+    if (flow.paymentCollected || order.paymentStatus === 'paid') {
+        return res.status(200).json(new ApiResponse(200, { order }, "Payment already verified."));
+    }
+
+    if (!order.razorpayQrId) {
+        // Fallback: If no Razorpay QR was generated (e.g., feature not enabled),
+        // we trust the delivery partner's verification via the app button.
+        flow.paymentCollected = true;
+        flow.paymentCollectedAt = new Date();
+        order.paymentStatus = 'paid';
+        await order.save();
+        return res.status(200).json(new ApiResponse(200, { order }, "Manual QR Payment verified successfully."));
+    }
+
+    const key_id = process.env.RAZORPAY_KEY_ID;
+    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!key_id || !key_secret) {
+        throw new ApiError(500, "Razorpay credentials not configured.");
+    }
+
+    const razorpay = new Razorpay({ key_id, key_secret });
+    
+    try {
+        const qrCode = await razorpay.qrCode.fetch(order.razorpayQrId);
+        
+        if (qrCode.payments_amount_received >= qrCode.payment_amount) {
+            flow.paymentCollected = true;
+            flow.paymentCollectedAt = new Date();
+            order.paymentStatus = 'paid';
+            await order.save();
+            return res.status(200).json(new ApiResponse(200, { order }, "QR Payment verified successfully."));
+        } else {
+            return res.status(400).json(new ApiResponse(400, { amount_received: qrCode.payments_amount_received }, "Payment not completed yet."));
+        }
+    } catch (err) {
+        console.error("❌ RAZORPAY_QR_VERIFY_ERROR:", err);
+        throw new ApiError(500, "Failed to fetch QR code status from Razorpay.");
+    }
 });
 
 // POST /api/delivery/orders/:id/verify-payment

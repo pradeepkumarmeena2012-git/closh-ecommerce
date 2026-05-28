@@ -72,6 +72,8 @@ const DeliveryOrderDetail = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [qrUrl, setQrUrl] = useState(null);
+  const [isVerifyingQR, setIsVerifyingQR] = useState(false);
   const [isCancellationModalOpen, setIsCancellationModalOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cameraTarget, setCameraTarget] = useState(null); // 'pickup', 'delivery', 'openBox'
@@ -361,53 +363,11 @@ const DeliveryOrderDetail = () => {
       setPaymentSelection(method);
 
       if (method === 'qr') {
-        if (res.razorpayOrderId && res.razorpayKeyId) {
-          const scriptLoaded = await loadRazorpayScript();
-          if (!scriptLoaded || !window.Razorpay) {
-            toast.error('Payment gateway failed to load. Showing QR code instead.');
-            setShowQRModal(true);
-            return;
-          }
-
-          const options = {
-            key: res.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_8sYbzHWidwe5Zw',
-            amount: res.razorpayAmount || Math.round(Number(updatedOrder.total) * 100),
-            currency: 'INR',
-            name: 'CLOSH',
-            description: 'Doorstep Payment',
-            order_id: res.razorpayOrderId,
-            handler: async (paymentResponse) => {
-              const toastId = toast.loading('Verifying doorstep payment...');
-              try {
-                const verifyRes = await api.post(`/delivery/orders/${id}/verify-payment`, {
-                  razorpayPaymentId: paymentResponse.razorpay_payment_id,
-                  razorpayOrderId: paymentResponse.razorpay_order_id,
-                  razorpaySignature: paymentResponse.razorpay_signature
-                });
-                toast.success('Payment verified successfully!', { id: toastId });
-                await loadOrder();
-              } catch (error) {
-                console.error("❌ Doorstep Payment verification failed:", error);
-                toast.error('Payment verification failed.', { id: toastId });
-              }
-            },
-            prefill: {
-              name: updatedOrder.customer || '',
-              contact: updatedOrder.phone || ''
-            },
-            theme: { color: '#4f46e5' },
-            modal: {
-              ondismiss: () => {
-                toast.error('Payment cancelled');
-              }
-            }
-          };
-
-          const rzp = new window.Razorpay(options);
-          rzp.open();
-        } else {
-          // Fallback to static QR code if Razorpay keys are not configured
+        if (res.qrUrl) {
+          setQrUrl(res.qrUrl);
           setShowQRModal(true);
+        } else {
+          toast.error('Failed to generate QR Code.');
         }
       } else {
         toast.success(`Method: ${method.toUpperCase()}`);
@@ -419,6 +379,22 @@ const DeliveryOrderDetail = () => {
   };
 
   const calculatedTotal = order?.deliveryFlow?.finalAmount || order?.total || 0;
+
+  const handleVerifyQRPayment = async () => {
+    setIsVerifyingQR(true);
+    const toastId = toast.loading('Verifying payment with Razorpay...');
+    try {
+        const { verifyQrPayment } = useDeliveryAuthStore.getState();
+        await verifyQrPayment(id);
+        toast.success('Payment Verified!', { id: toastId });
+        setShowQRModal(false);
+        await loadOrder();
+    } catch (err) {
+        toast.error(err?.response?.data?.message || 'Payment not completed yet.', { id: toastId });
+    } finally {
+        setIsVerifyingQR(false);
+    }
+  };
 
   const handleCancelOrder = () => {
     setIsCancellationModalOpen(true);
@@ -981,13 +957,13 @@ const DeliveryOrderDetail = () => {
                   <h4 className="text-sm font-black text-slate-800 mb-6 font-mono border-b border-slate-100 pb-4">{formatPrice(calculatedTotal)}</h4>
 
                   <div className="aspect-square bg-white border-2 border-slate-50 rounded-[1.5rem] flex items-center justify-center p-5 mb-6 shadow-xl relative group">
-                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=closh@upi&pn=Closh&am=${calculatedTotal}&cu=INR`} alt="Payment QR" className="w-full h-full" />
+                    <img src={qrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=closh@upi&pn=Closh&am=${calculatedTotal}&cu=INR`} alt="Payment QR" className="w-full h-full" />
                     <div className="absolute inset-0 border-4 border-white rounded-[1.5rem]" />
                   </div>
 
                   <p className="text-[9px] font-bold text-slate-400 px-2 leading-tight uppercase tracking-tighter mb-8">Scan QR with any UPI app.</p>
-                  <button onClick={() => setShowQRModal(false)} className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-[11px] font-black shadow-lg shadow-indigo-100 uppercase tracking-[0.1em] flex items-center justify-center gap-2">
-                    <FiCheckCircle size={16} /> PAYMENT CONFIRMED
+                  <button onClick={handleVerifyQRPayment} disabled={isVerifyingQR} className={`w-full h-12 ${isVerifyingQR ? 'bg-indigo-400' : 'bg-indigo-600'} text-white rounded-2xl text-[11px] font-black shadow-lg shadow-indigo-100 uppercase tracking-[0.1em] flex items-center justify-center gap-2`}>
+                    {isVerifyingQR ? 'VERIFYING...' : <><FiCheckCircle size={16} /> VERIFY PAYMENT</>}
                   </button>
                 </div>
               </motion.div>

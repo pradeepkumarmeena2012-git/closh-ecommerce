@@ -29,7 +29,7 @@ const CountdownTimer = ({ assignedAt, onExpire }) => {
 
   useEffect(() => {
     const startTime = assignedAt ? new Date(assignedAt).getTime() : Date.now();
-    const endTime = startTime + 60000;
+    const endTime = startTime + 120000;
 
     const interval = setInterval(() => {
       const now = Date.now();
@@ -48,7 +48,7 @@ const CountdownTimer = ({ assignedAt, onExpire }) => {
   return (
     <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded ml-2 font-mono text-xs font-bold animate-pulse">
       <FiClock className="text-[10px]" /> 
-      00:{timeLeft.toString().padStart(2, '0')}
+      {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
     </span>
   );
 };

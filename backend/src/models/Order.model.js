@@ -219,6 +219,7 @@ const orderSchema = new mongoose.Schema(
         trackingNumber: { type: String, unique: true, sparse: true },
         razorpayOrderId: { type: String, sparse: true },
         razorpayPaymentId: { type: String, sparse: true },
+        razorpayQrId: { type: String, sparse: true },
         razorpaySignature: { type: String, sparse: true, select: false },
         deliveryBoyId: { type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBoy', index: true },
         rejectedDeliveryBoys: [{ type: mongoose.Schema.Types.ObjectId, ref: 'DeliveryBoy' }],

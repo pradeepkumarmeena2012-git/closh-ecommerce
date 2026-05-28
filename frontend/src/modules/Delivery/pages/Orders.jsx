@@ -31,7 +31,7 @@ import socketService from '../../../shared/utils/socket';
 import OrderCardSkeleton from '../../../shared/components/Skeletons/OrderCardSkeleton';
 
 const CountdownTimer = ({ assignedAt, onExpire }) => {
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(120);
 
   const onExpireRef = useRef(onExpire);
   
@@ -41,7 +41,7 @@ const CountdownTimer = ({ assignedAt, onExpire }) => {
 
   useEffect(() => {
     const startTime = assignedAt ? new Date(assignedAt).getTime() : Date.now();
-    const endTime = startTime + 60000;
+    const endTime = startTime + 120000;
 
     const interval = setInterval(() => {
       const now = Date.now();
@@ -58,8 +58,8 @@ const CountdownTimer = ({ assignedAt, onExpire }) => {
   return (
     <div className="flex items-center gap-1.5 justify-center mb-2">
       <FiClock className={timeLeft <= 10 ? 'text-rose-500 animate-pulse' : 'text-amber-500'} size={12} />
-      <span className={`text-[11px] font-black tracking-widest ${timeLeft <= 10 ? 'text-rose-600' : 'text-amber-600'}`}>
-        00:{timeLeft.toString().padStart(2, '0')}
+      <span className="font-mono text-xs font-bold w-10 text-center">
+        {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
       </span>
       <span className="text-[9px] font-medium text-slate-400 uppercase tracking-widest">Left to Accept</span>
     </div>
@@ -82,7 +82,7 @@ const DeliveryOrders = () => {
     deliveryBoy,
   } = useDeliveryAuthStore();
   
-  const isOnline = deliveryBoy?.status === 'available';
+  const isOnline = ['available', 'busy'].includes(deliveryBoy?.status);
   const [filter, setFilter] = useState(isOnline ? 'available' : 'pending');
   const [currentPage, setCurrentPage] = useState(1);
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);

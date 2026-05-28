@@ -347,7 +347,7 @@ export const acceptOrderAssignment = asyncHandler(async (req, res) => {
         {
             $and: [
                 { $or: idFilter },
-                { status: { $in: ['ready_for_pickup', 'all_vendors_ready', 'processing', 'assigned'] } },
+                { status: { $in: ['ready_for_pickup', 'all_vendors_ready', 'processing', 'assigned', 'searching'] } },
                 { 
                     $or: [
                         { deliveryBoyId: null }, 
