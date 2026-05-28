@@ -171,7 +171,7 @@ const ProfilePage = () => {
                             <input
                                 type="text"
                                 value={formData.firstName}
-                                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                onChange={(e) => setFormData({ ...formData, firstName: e.target.value.replace(/[^a-zA-Z0-9\s]/g, "") })}
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-1 focus:ring-[#FF5722] focus:border-[#FF5722] outline-none transition-all font-semibold text-[13px] md:text-[14px] text-gray-900"
                                 placeholder="First Name"
                             />
@@ -181,7 +181,7 @@ const ProfilePage = () => {
                             <input
                                 type="text"
                                 value={formData.lastName}
-                                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                onChange={(e) => setFormData({ ...formData, lastName: e.target.value.replace(/[^a-zA-Z0-9\s]/g, "") })}
                                 className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-1 focus:ring-[#FF5722] focus:border-[#FF5722] outline-none transition-all font-semibold text-[13px] md:text-[14px] text-gray-900"
                                 placeholder="Last Name"
                             />

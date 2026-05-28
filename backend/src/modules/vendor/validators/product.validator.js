@@ -3,11 +3,15 @@ import Joi from 'joi';
 const objectId = Joi.string().trim().hex().length(24);
 
 export const createProductSchema = Joi.object({
-    name: Joi.string().trim().min(2).max(200).required(),
+    name: Joi.string().trim().min(2).max(200).regex(/^[a-zA-Z0-9\s]+$/).required().messages({
+        "string.pattern.base": "Product name must contain only alphanumeric characters and spaces"
+    }),
     description: Joi.string().allow('').optional(),
     price: Joi.number().min(0).required(),
     originalPrice: Joi.number().min(0).allow(null, '').optional(),
-    unit: Joi.string().allow('').default('Piece'),
+    unit: Joi.string().regex(/^[a-zA-Z0-9\s]*$/).allow('').default('Piece').messages({
+        "string.pattern.base": "Unit must contain only alphanumeric characters and spaces"
+    }),
     categoryId: objectId.required(),
     subcategoryId: objectId.allow(null, '').optional(),
     brandId: objectId.allow(null, '').optional(),
@@ -18,7 +22,9 @@ export const createProductSchema = Joi.object({
     minimumOrderQuantity: Joi.number().integer().min(0).allow(null).optional(),
     warrantyPeriod: Joi.string().allow('', null).optional(),
     guaranteePeriod: Joi.string().allow('', null).optional(),
-    hsnCode: Joi.string().allow('', null).optional(),
+    hsnCode: Joi.string().pattern(/^\d*$/).allow('', null).optional().messages({
+        "string.pattern.base": "HSN code must contain only numbers"
+    }),
     taxRate: Joi.number().min(0).max(100).allow('').default(18),
     flashSale: Joi.boolean().default(false),
     isNewArrival: Joi.boolean().default(false),
@@ -59,11 +65,15 @@ export const createProductSchema = Joi.object({
 }).unknown(true);
 
 export const updateProductSchema = Joi.object({
-    name: Joi.string().trim().min(2).max(200).optional(),
+    name: Joi.string().trim().min(2).max(200).regex(/^[a-zA-Z0-9\s]+$/).optional().messages({
+        "string.pattern.base": "Product name must contain only alphanumeric characters and spaces"
+    }),
     description: Joi.string().allow('').optional(),
     price: Joi.number().min(0).optional(),
     originalPrice: Joi.number().min(0).allow(null, '').optional(),
-    unit: Joi.string().allow('').optional(),
+    unit: Joi.string().regex(/^[a-zA-Z0-9\s]*$/).allow('').optional().messages({
+        "string.pattern.base": "Unit must contain only alphanumeric characters and spaces"
+    }),
     categoryId: objectId.optional(),
     subcategoryId: objectId.allow(null, '').optional(),
     brandId: objectId.allow(null, '').optional(),
@@ -74,7 +84,9 @@ export const updateProductSchema = Joi.object({
     minimumOrderQuantity: Joi.number().integer().min(0).allow(null).optional(),
     warrantyPeriod: Joi.string().allow('', null).optional(),
     guaranteePeriod: Joi.string().allow('', null).optional(),
-    hsnCode: Joi.string().allow('', null).optional(),
+    hsnCode: Joi.string().pattern(/^\d*$/).allow('', null).optional().messages({
+        "string.pattern.base": "HSN code must contain only numbers"
+    }),
     taxRate: Joi.number().min(0).max(100).allow('').optional(),
     flashSale: Joi.boolean().optional(),
     isNewArrival: Joi.boolean().optional(),

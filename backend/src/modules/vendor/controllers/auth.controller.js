@@ -26,6 +26,10 @@ export const register = asyncHandler(async (req, res) => {
     const existing = await Vendor.findOne({ email: normalizedEmail });
     if (existing) throw new ApiError(409, 'Email already registered.');
 
+    const cleanPhone = String(phone || '').trim();
+    const existingPhone = await Vendor.findOne({ phone: cleanPhone });
+    if (existingPhone) throw new ApiError(409, 'Phone number already registered.');
+
     const vendor = await Vendor.create({
         name: String(name || '').trim(),
         email: normalizedEmail,
@@ -341,8 +345,16 @@ export const updateProfile = asyncHandler(async (req, res) => {
         'handlingTime',
         'processingTime',
         'isOnline',
+        'currency',
+        'timezone',
     ];
     const updates = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)));
+    if (updates.phone) {
+        const cleanPhone = String(updates.phone).trim();
+        const existingPhone = await Vendor.findOne({ phone: cleanPhone, _id: { $ne: req.user.id } });
+        if (existingPhone) throw new ApiError(409, 'Phone number already registered by another vendor.');
+        updates.phone = cleanPhone;
+    }
     const vendor = await Vendor.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true }).select('-password -otp -otpExpiry');
     res.status(200).json(new ApiResponse(200, vendor, 'Profile updated.'));
 });
@@ -362,7 +374,7 @@ export const changePassword = asyncHandler(async (req, res) => {
 
     const isMatch = await vendor.comparePassword(currentPassword);
     if (!isMatch) {
-        throw new ApiError(401, 'Invalid current password');
+        throw new ApiError(400, 'Invalid current password');
     }
 
     vendor.password = newPassword;
@@ -399,6 +411,17 @@ export const updateLocation = asyncHandler(async (req, res) => {
     const { latitude, longitude } = req.body;
     if (latitude === undefined || longitude === undefined) {
         throw new ApiError(400, 'Latitude and longitude are required.');
+    }
+
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+        throw new ApiError(400, 'Invalid latitude. Must be a number between -90 and 90.');
+    }
+
+    if (isNaN(lng) || lng < -180 || lng > 180) {
+        throw new ApiError(400, 'Invalid longitude. Must be a number between -180 and 180.');
     }
 
     const vendor = await Vendor.findByIdAndUpdate(

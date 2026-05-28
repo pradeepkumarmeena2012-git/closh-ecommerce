@@ -353,7 +353,7 @@ const AddressesPage = () => {
                                         placeholder="Name"
                                         className="w-full px-4 py-3.5 bg-white border border-gray-100 rounded-xl outline-none focus:border-black transition-all font-bold text-[13px]"
                                         value={newAddress.name}
-                                        onChange={e => setNewAddress({ ...newAddress, name: e.target.value })}
+                                        onChange={e => setNewAddress({ ...newAddress, name: e.target.value.replace(/[^a-zA-Z0-9\s]/g, "") })}
                                     />
                                 </div>
                                 <div className="space-y-1.5 relative">

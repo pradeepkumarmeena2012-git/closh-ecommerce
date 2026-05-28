@@ -94,10 +94,13 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
     }
 
     return (
-        <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+        <div 
+            onClick={() => navigate(`/vendor/orders/${orderId}`)}
+            className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md hover:bg-gray-50/30 transition-all cursor-pointer"
+        >
             <div className="p-4 pb-14">
                 <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1 cursor-pointer" onClick={() => navigate(`/vendor/orders/${orderId}`)}>
+                    <div className="flex-1">
                         <div className="flex items-center gap-2">
                             <p className="font-bold text-gray-800">{orderId}</p>
                             <FiEye className="text-blue-500 hover:text-blue-700 transition-colors" />
@@ -114,10 +117,7 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
                 </div>
 
                 {/* Product Detail Snippet */}
-                <div 
-                    className="flex items-center gap-3 mt-3 p-2 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => navigate(`/vendor/orders/${orderId}`)}
-                >
+                <div className="flex items-center gap-3 mt-3 p-2 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                     <div className="w-12 h-12 rounded-lg bg-white border border-gray-100 overflow-hidden flex-shrink-0">
                         <img 
                             src={getFullImageUrl(vendorItem?.items?.[0]?.image || order.items?.[0]?.image)} 
@@ -141,6 +141,7 @@ const SwipeOrderCard = ({ order, onStatusUpdate }) => {
             {/* Swipe Track */}
             <div
                 ref={constraintsRef}
+                onClick={(e) => e.stopPropagation()}
                 className="absolute bottom-2 left-2 right-2 h-10 bg-white rounded-lg overflow-hidden border border-dashed border-gray-200"
             >
                 <motion.div

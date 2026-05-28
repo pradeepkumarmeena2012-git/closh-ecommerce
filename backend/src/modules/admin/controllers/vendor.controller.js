@@ -229,10 +229,16 @@ export const registerVendor = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Vendor with this email already exists.');
     }
 
+    const cleanPhone = String(phone || '').trim();
+    const existingPhone = await Vendor.findOne({ phone: cleanPhone });
+    if (existingPhone) {
+        throw new ApiError(400, 'Vendor with this phone number already registered.');
+    }
+
     const vendor = await Vendor.create({
         name,
         storeName,
-        phone,
+        phone: cleanPhone,
         gstNumber,
         shopAddress,
         email,

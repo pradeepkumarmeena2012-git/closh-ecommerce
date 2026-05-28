@@ -32,7 +32,15 @@ const RegisterVendor = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        if (name === "name") {
+            const sanitized = value.replace(/[^a-zA-Z0-9\s]/g, "");
+            setFormData((prev) => ({ ...prev, [name]: sanitized }));
+        } else if (name === "phone") {
+            const cleaned = value.replace(/\D/g, "").slice(0, 10);
+            setFormData((prev) => ({ ...prev, [name]: cleaned }));
+        } else {
+            setFormData((prev) => ({ ...prev, [name]: value }));
+        }
     };
 
     const handleFileChange = (e) => {
@@ -41,6 +49,10 @@ const RegisterVendor = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (formData.phone && formData.phone.length !== 10) {
+            toast.error("Phone number must be exactly 10 digits");
+            return;
+        }
         setLoading(true);
 
         try {
@@ -154,6 +166,7 @@ const RegisterVendor = () => {
                                         required
                                         value={formData.phone}
                                         onChange={handleChange}
+                                        maxLength={10}
                                         className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                                         placeholder="Enter phone number"
                                     />

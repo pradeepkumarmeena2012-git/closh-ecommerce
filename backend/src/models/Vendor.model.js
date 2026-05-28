@@ -6,7 +6,7 @@ const vendorSchema = new mongoose.Schema(
         name: { type: String, required: true, trim: true },
         email: { type: String, required: true, unique: true, lowercase: true, index: true },
         password: { type: String, required: true, select: false },
-        phone: { type: String },
+        phone: { type: String, required: true, unique: true, index: true, trim: true },
         storeName: { type: String, required: true },
         storeLogo: { type: String },
         storeDescription: { type: String },
@@ -35,6 +35,8 @@ const vendorSchema = new mongoose.Schema(
         },
         handlingTime: { type: Number, default: 1, min: 0 },
         processingTime: { type: Number, default: 1, min: 0 },
+        timezone: { type: String, default: 'UTC' },
+        currency: { type: String, default: 'INR' },
         address: {
             street: String,
             city: String,

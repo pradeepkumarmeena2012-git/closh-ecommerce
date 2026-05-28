@@ -292,7 +292,7 @@ const VendorHelp = () => {
                                         >
                                             <option value="">Select Category</option>
                                             {ticketTypes.map(type => (
-                                                <option key={type.id} value={type.id}>{type.name}</option>
+                                                <option key={type.id || type._id} value={type.id || type._id}>{type.name}</option>
                                             ))}
                                         </select>
                                     </div>

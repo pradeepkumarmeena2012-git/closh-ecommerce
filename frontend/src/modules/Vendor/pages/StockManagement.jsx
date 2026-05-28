@@ -614,11 +614,11 @@ const StockManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="md:col-span-2 space-y-1">
                      <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Product Name *</label>
-                     <input type="text" required value={formData.productName} onChange={(e) => setFormData({ ...formData, productName: e.target.value })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="T-Shirt..." />
+                     <input type="text" required value={formData.productName} onChange={(e) => setFormData({ ...formData, productName: e.target.value.replace(/[^a-zA-Z0-9\s]/g, "") })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="T-Shirt..." />
                   </div>
                   <div className="space-y-1">
                      <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Unit</label>
-                     <input type="text" value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="Piece/Box" />
+                     <input type="text" value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value.replace(/[^a-zA-Z0-9\s]/g, "") })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="Piece/Box" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Division *</label>
@@ -748,7 +748,7 @@ const StockManagement = () => {
                             value={attr.name} 
                             onChange={(e) => {
                               const next = [...formData.variants.attributes];
-                              next[index].name = e.target.value;
+                              next[index].name = e.target.value.replace(/[^a-zA-Z0-9\s]/g, "");
                               updateVariantAttributes(next);
                             }}
                             className="w-full px-2 py-1.5 bg-white border border-emerald-50 rounded-lg text-xs font-bold" 

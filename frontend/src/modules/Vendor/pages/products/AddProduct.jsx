@@ -117,7 +117,11 @@ const AddProduct = () => {
   }, [vendorId, navigate]);
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, type, checked } = e.target;
+    let value = e.target.value;
+    if (name === "name" || name === "unit") {
+      value = value.replace(/[^a-zA-Z0-9\s]/g, "");
+    }
     if (name === "stockQuantity") {
       setTargetStock(value);
     }
@@ -450,7 +454,8 @@ const AddProduct = () => {
   const updateAttributeName = (index, name) => {
     const current = Array.isArray(formData.variants?.attributes) ? formData.variants.attributes : [];
     const next = [...current];
-    next[index] = { ...(next[index] || {}), name: String(name || "") };
+    const cleanName = String(name || "").replace(/[^a-zA-Z0-9\s]/g, "");
+    next[index] = { ...(next[index] || {}), name: cleanName };
     updateVariantAttributes(next);
   };
 

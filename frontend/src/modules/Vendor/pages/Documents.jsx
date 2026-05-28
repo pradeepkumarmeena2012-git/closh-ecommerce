@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { FiFile, FiUpload, FiDownload, FiTrash2 } from "react-icons/fi";
+import { FiFile, FiUpload, FiDownload, FiTrash2, FiX } from "react-icons/fi";
 import { motion } from "framer-motion";
 import DataTable from "../../Admin/components/DataTable";
 import ConfirmModal from "../../Admin/components/ConfirmModal";

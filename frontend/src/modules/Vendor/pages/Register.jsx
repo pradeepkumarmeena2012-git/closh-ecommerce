@@ -35,10 +35,22 @@ const VendorRegister = () => {
     const { name, value } = e.target;
     if (name.startsWith('address.')) {
       const addressField = name.split('.')[1];
+      let sanitizedValue = value;
+      if (addressField === 'city') {
+        sanitizedValue = value.replace(/[^a-zA-Z0-9\s]/g, '');
+      } else if (addressField === 'zipCode') {
+        sanitizedValue = value.replace(/\D/g, '').slice(0, 6);
+      }
       setFormData({
         ...formData,
-        address: { ...formData.address, [addressField]: value },
+        address: { ...formData.address, [addressField]: sanitizedValue },
       });
+    } else if (name === 'name') {
+      const sanitized = value.replace(/[^a-zA-Z0-9\s]/g, '');
+      setFormData({ ...formData, [name]: sanitized });
+    } else if (name === 'phone') {
+      const cleaned = value.replace(/\D/g, '').slice(0, 12);
+      setFormData({ ...formData, [name]: cleaned });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -75,9 +87,9 @@ const VendorRegister = () => {
                         address: {
                             ...prev.address,
                             street: street || prev.address.street,
-                            city: data.address.city || data.address.town || data.address.village || data.address.county || prev.address.city,
+                            city: (data.address.city || data.address.town || data.address.village || data.address.county || prev.address.city || '').replace(/[^a-zA-Z0-9\s]/g, ''),
                             state: data.address.state || prev.address.state,
-                            zipCode: data.address.postcode || prev.address.zipCode,
+                            zipCode: (data.address.postcode || prev.address.zipCode || '').replace(/\D/g, '').slice(0, 6),
                             country: data.address.country || prev.address.country,
                         }
                     }));
@@ -105,6 +117,22 @@ const VendorRegister = () => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.storeName) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+    if (!/^[a-zA-Z0-9\s]+$/.test(formData.name)) {
+      toast.error('Vendor name must contain only alphanumeric characters and spaces');
+      return;
+    }
+    if (formData.phone && (formData.phone.length < 10 || formData.phone.length > 12)) {
+      toast.error('Phone number must be between 10 and 12 digits');
+      return;
+    }
+    if (formData.address.city && !/^[a-zA-Z0-9\s]+$/.test(formData.address.city)) {
+      toast.error('City must contain only alphanumeric characters and spaces');
+      return;
+    }
+    if (formData.address.zipCode && !/^\d{5,6}$/.test(formData.address.zipCode)) {
+      toast.error('Zip code must be a valid 5 or 6 digit number');
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -203,7 +231,7 @@ const VendorRegister = () => {
                   <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2">Phone Number</label>
                   <div className="relative">
                     <FiPhone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+12-34567890" required className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900" />
+                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Enter 10-12 digit number" required maxLength={12} className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900" />
                   </div>
                 </div>
               </div>
@@ -237,7 +265,7 @@ const VendorRegister = () => {
                 </div>
                 <div>
                   <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2">Zip Code</label>
-                  <input type="text" name="address.zipCode" value={formData.address.zipCode} onChange={handleChange} placeholder="10001" className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900" />
+                  <input type="text" name="address.zipCode" value={formData.address.zipCode} onChange={handleChange} placeholder="10001" maxLength={6} className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900" />
                 </div>
               </div>
             </div>

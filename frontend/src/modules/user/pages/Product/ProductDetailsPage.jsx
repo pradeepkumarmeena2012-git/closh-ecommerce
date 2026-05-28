@@ -52,6 +52,43 @@ const ProductDetailsPage = () => {
     const [promoCodes, setPromoCodes] = useState([]);
     const [copiedCode, setCopiedCode] = useState(null);
 
+    const copyCode = (code) => {
+        navigator.clipboard.writeText(code)
+            .then(() => {
+                setCopiedCode(code);
+                toast.success('Promo code copied!');
+                setTimeout(() => setCopiedCode(null), 2000);
+            })
+            .catch(() => {
+                toast.error('Failed to copy promo code');
+            });
+    };
+
+    const handleShare = async () => {
+        const shareData = {
+            title: product?.name || 'Clouse Product',
+            text: `Check out this ${product?.name || 'product'} on Clouse!`,
+            url: window.location.href,
+        };
+
+        if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    toast.error('Could not share link');
+                }
+            }
+        } else {
+            try {
+                await navigator.clipboard.writeText(window.location.href);
+                toast.success('Product link copied to clipboard!');
+            } catch (err) {
+                toast.error('Failed to copy link');
+            }
+        }
+    };
+
     // Dynamic Options from API
     const sizes = useMemo(() => {
         const s = product?.variants?.sizes || [];
@@ -273,7 +310,9 @@ const ProductDetailsPage = () => {
                         <h1 className="text-sm font-semibold truncate max-w-[150px]">{product.brand}</h1>
                     </div>
                     <div className="flex items-center gap-3 md:gap-4 shrink-0">
-
+                        <button onClick={handleShare} className="p-1 hover:bg-gray-100 rounded-full transition-colors" aria-label="Share product">
+                            <Share2 size={20} className="text-gray-900" />
+                        </button>
                         <Link to="/cart" className="relative p-1">
                             <ShoppingCart size={20} className="text-gray-900" />
                             {cartCount > 0 && (
@@ -414,8 +453,10 @@ const ProductDetailsPage = () => {
                         <div className="mb-3 md:mb-6">
                             <div className="flex items-center justify-between mb-1">
                                 <h2 className="text-[10px] md:text-[12px] font-semibold text-gray-500 uppercase tracking-wider">{product.brand}</h2>
-                                <div className="hidden md:flex items-center gap-4">
-                                    <button className="p-2 hover:bg-gray-100 rounded-full transition-colors"><Share2 size={20} className="text-gray-900" /></button>
+                                <div className="flex items-center gap-4">
+                                    <button onClick={handleShare} className="p-2 hover:bg-gray-100 rounded-full transition-colors" aria-label="Share product">
+                                        <Share2 size={20} className="text-gray-900" />
+                                    </button>
                                 </div>
                             </div>
                             <h1 className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-900 leading-tight mb-2 md:mb-3">{product.name}</h1>

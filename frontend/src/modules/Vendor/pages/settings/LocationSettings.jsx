@@ -63,6 +63,27 @@ const LocationSettings = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (coordinates.latitude || coordinates.longitude) {
+            if (!coordinates.latitude || !coordinates.longitude) {
+                toast.error("Both Latitude and Longitude are required to save coordinates.");
+                return;
+            }
+
+            const lat = parseFloat(coordinates.latitude);
+            const lng = parseFloat(coordinates.longitude);
+
+            if (isNaN(lat) || lat < -90 || lat > 90) {
+                toast.error("Latitude must be a valid number between -90 and 90.");
+                return;
+            }
+
+            if (isNaN(lng) || lng < -180 || lng > 180) {
+                toast.error("Longitude must be a valid number between -180 and 180.");
+                return;
+            }
+        }
+
         try {
             if (coordinates.latitude && coordinates.longitude) {
                 await updateLocation(
