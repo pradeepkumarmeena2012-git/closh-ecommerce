@@ -384,6 +384,9 @@ const TaxPricing = () => {
                     defaultValue={editingTax.name || ""}
                     placeholder="Tax Name"
                     required
+                    onInput={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z0-9 ]/g, '');
+                    }}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <input
@@ -394,9 +397,11 @@ const TaxPricing = () => {
                     required
                     step="0.01"
                     min="0"
+                    max="100"
                     onKeyDown={(e) => ["-", "+", "e"].includes(e.key) && e.preventDefault()}
                     onInput={(e) => {
                       if (e.target.value < 0) e.target.value = 0;
+                      if (e.target.value > 100) e.target.value = 100;
                     }}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
@@ -570,6 +575,9 @@ const TaxPricing = () => {
                     defaultValue={editingPricing.name || ""}
                     placeholder="Rule Name"
                     required
+                    onInput={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z0-9 ]/g, '');
+                    }}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <AnimatedSelect
@@ -599,9 +607,11 @@ const TaxPricing = () => {
                     required
                     step="0.01"
                     min="0"
+                    max="100"
                     onKeyDown={(e) => ["-", "+", "e"].includes(e.key) && e.preventDefault()}
                     onInput={(e) => {
                       if (e.target.value < 0) e.target.value = 0;
+                      if (e.target.value > 100) e.target.value = 100;
                     }}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />

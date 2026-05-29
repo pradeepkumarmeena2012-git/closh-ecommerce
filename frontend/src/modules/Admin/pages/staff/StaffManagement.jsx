@@ -127,6 +127,18 @@ const StaffManagement = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            toast.error("Please enter a valid email address");
+            return;
+        }
+
+        if (!editingEmployee && formData.password.length < 6) {
+            toast.error("Password should contain at least 6 characters");
+            return;
+        }
+
         try {
             const data = new FormData();
             Object.keys(formData).forEach(key => {
@@ -482,7 +494,12 @@ const StaffManagement = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
-                                    <input required type="text" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800" placeholder="John Doe" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                                    <input required type="text" className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800" placeholder="John Doe" value={formData.name} onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (/^[a-zA-Z0-9]*$/.test(val)) {
+                                            setFormData({ ...formData, name: val });
+                                        }
+                                    }} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
@@ -690,7 +707,12 @@ const StaffManagement = () => {
                                                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-800 transition-all font-medium"
                                                     placeholder="e.g. Content Manager"
                                                     value={roleFormData.name}
-                                                    onChange={(e) => setRoleFormData({ ...roleFormData, name: e.target.value })}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (/^[a-zA-Z0-9 ]*$/.test(val)) {
+                                                            setRoleFormData({ ...roleFormData, name: val });
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                             <div>

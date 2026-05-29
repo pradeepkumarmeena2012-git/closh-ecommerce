@@ -44,7 +44,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
 // Update employee permissions/details
 export const updateEmployee = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, role, permissions, isActive } = req.body;
+    const { name, email, role, permissions, isActive } = req.body;
 
     const employee = await Admin.findById(id);
     if (!employee) throw new ApiError(404, 'Employee not found.');
@@ -52,6 +52,12 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     // Safety check: Don't let superadmins be modified through this route easily
     if (employee.role === 'superadmin') {
         throw new ApiError(403, 'Superadmin profile cannot be modified via employee management.');
+    }
+
+    if (email && email !== employee.email) {
+        const existing = await Admin.findOne({ email });
+        if (existing) throw new ApiError(400, 'Email already exists.');
+        employee.email = email;
     }
 
     if (name) employee.name = name;

@@ -24,6 +24,11 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
             return false;
         }
 
+        if (order.status === 'cancelled' || order.status === 'delivered') {
+            console.log(`[AutoAssignment] Order ${order.orderId} is already ${order.status}. Skipping assignment.`);
+            return false;
+        }
+
         // If already assigned, bypass auto-assignment to prevent overriding admin decisions
         if (order.deliveryBoyId && !excludeRiderIds.includes(order.deliveryBoyId.toString())) {
             console.log(`[AutoAssignment] Order ${order.orderId} already has delivery partner assigned: ${order.deliveryBoyId}`);
@@ -36,9 +41,9 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
             const vendor = vi.vendorId;
             if (vendor && vendor.shopLocation?.coordinates) {
                 // Build a full address from vendor fields
-                const fullAddress = vendor.shopAddress 
+                const fullAddress = vendor.shopAddress
                     || [vendor.address?.street, vendor.address?.city, vendor.address?.state, vendor.address?.zipCode]
-                        .filter(Boolean).join(', ') 
+                        .filter(Boolean).join(', ')
                     || '';
                 vendorStopsRaw.push({
                     vendorId: vendor._id,
@@ -69,7 +74,7 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
         ];
 
         const excludeObjectIds = combinedExclusions.map(id => {
-            try { return new mongoose.Types.ObjectId(id); } catch(e) { return null; }
+            try { return new mongoose.Types.ObjectId(id); } catch (e) { return null; }
         }).filter(Boolean);
 
         // 2. Query nearest available delivery boys (within 10km radius)

@@ -419,6 +419,28 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    if (name === "name") {
+      // Only allow alphanumeric characters and spaces
+      if (!/^[a-zA-Z0-9\s]*$/.test(value)) {
+        return;
+      }
+    }
+
+    if (name === "unit") {
+      // Only allow alphabetical characters and spaces for unit (e.g., Piece, Kg, Gram)
+      if (!/^[a-zA-Z\s]*$/.test(value)) {
+        return;
+      }
+    }
+
+    if (name === "hsnCode") {
+      // Only allow numbers
+      if (!/^\d*$/.test(value)) {
+        return;
+      }
+    }
+
     if (name === "stockQuantity") {
       setTargetStock(value);
     }
@@ -569,7 +591,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
   const handleMarginChange = (e) => {
     const val = e.target.value;
     setMarginInput(val);
-    
+
     const margin = parseFloat(val) || 0;
     const cost = parseFloat(formData.vendorPrice) || 0;
     if (cost > 0) {
@@ -788,7 +810,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     setFormData(prev => {
       const fieldName = field === 'price' ? 'prices' : 'stockMap';
       const nextMap = { ...(prev.variants?.[fieldName] || {}) };
-      
+
       variantCombinations.forEach(combo => {
         nextMap[combo.key] = value === "" ? "" : Number(value);
       });
@@ -806,7 +828,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
 
   const applyValueToSimilar = (field, combo, value) => {
     if (!combo || (!value && value !== 0 && value !== "" && field !== 'image')) return;
-    
+
     // Determine the most relevant attribute to match on
     // Priority: Color (for images), then Size, then first dynamic attribute
     let matchKey = "";
@@ -831,7 +853,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     setFormData(prev => {
       const fieldName = field === 'price' ? 'prices' : (field === 'stock' ? 'stockMap' : 'imageMap');
       const nextMap = { ...(prev.variants?.[fieldName] || {}) };
-      
+
       variantCombinations.forEach(c => {
         let isMatch = false;
         if (matchKey === "selection") {
@@ -863,12 +885,12 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       return;
     }
     const current = Array.isArray(formData?.variants?.[axis]) ? formData.variants[axis] : [];
-    
+
     // Check for duplicates
-    const duplicates = parsed.filter(val => 
+    const duplicates = parsed.filter(val =>
       current.some(c => String(c).trim().toLowerCase() === String(val).trim().toLowerCase())
     );
-    
+
     if (duplicates.length > 0) {
       toast.error(`${axis === "sizes" ? "Size" : "Color"} "${duplicates[0]}" already exists`);
       return;
@@ -878,7 +900,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     updateVariantAxes(axis, merged.join(", "));
     setVariantAxisInput((prev) => ({ ...prev, [axis]: "" }));
   };
-   const removeVariantAxisValue = (axis, valueToRemove) => {
+  const removeVariantAxisValue = (axis, valueToRemove) => {
     const current = Array.isArray(formData?.variants?.[axis]) ? formData.variants[axis] : [];
     const next = current.filter((value) => String(value) !== String(valueToRemove));
     updateVariantAxes(axis, next.join(", "));
@@ -974,7 +996,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     if (!formData.name?.trim()) {
       missingFields.push({ label: "Product Name", name: "name" });
     }
-    
+
     const parsedPrice = parseFloat(formData.price || 0);
     if (!formData.price || isNaN(parsedPrice) || parsedPrice < 0) {
       missingFields.push({ label: "Selling Price", name: "price" });
@@ -991,7 +1013,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
 
     if (missingFields.length > 0) {
       toast.error(`Please fill in the remaining required fields: ${missingFields.map((f) => f.label).join(", ")}`);
-      
+
       // Auto-scroll smoothly to the first missing field inside the modal scroll container
       const firstMissing = missingFields[0];
       let elementToScroll = document.getElementsByName(firstMissing.name)[0];
@@ -1013,7 +1035,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         toast.error("Original price cannot be negative");
         return;
       }
-      
+
       const vendorPrice = Number(formData.vendorPrice || 0);
       const sellingPrice = Number(formData.price || 0);
 
@@ -1021,7 +1043,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         toast.error("Original Price (MRP) must be greater than Vendor Price (Cost)");
         return;
       }
-      
+
       if (sellingPrice > 0 && mrp <= sellingPrice) {
         toast.error("Original Price (MRP) must be greater than Selling Price");
         return;
@@ -1099,46 +1121,46 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
       }
     }
 
-      const submissionData = {
-        ...formData,
-        price: parseFloat(formData.price || 0),
-        originalPrice: (formData.originalPrice === "" || formData.originalPrice === null)
-          ? null
-          : parseFloat(formData.originalPrice),
-        vendorPrice: (formData.vendorPrice === "" || formData.vendorPrice === null)
-          ? 0
-          : parseFloat(formData.vendorPrice),
-        stockQuantity: parseInt(formData.stockQuantity || 0, 10),
-        totalAllowedQuantity: (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
-          ? null
-          : parseInt(formData.totalAllowedQuantity, 10),
-        minimumOrderQuantity: (formData.minimumOrderQuantity === "" || formData.minimumOrderQuantity === null || isNaN(parseInt(formData.minimumOrderQuantity)))
-          ? null
-          : parseInt(formData.minimumOrderQuantity, 10),
-        categoryId: finalCategoryId,
-        subcategoryId: formData.subcategoryId || null,
-        brandId: formData.brandId || null,
-        vendorId: formData.vendorId || null,
-        variants: {
-          ...formData.variants,
-          prices: Object.fromEntries(
-            Object.entries(formData.variants?.prices || {})
-              .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
-              .map(([k, v]) => [k, parseFloat(v)])
-          ),
-          stockMap: Object.fromEntries(
-            Object.entries(formData.variants?.stockMap || {})
-              .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
-              .map(([k, v]) => [k, parseInt(v, 10)])
-          )
-        },
-        faqs: (formData.faqs || [])
-          .map((faq) => ({
-            question: String(faq?.question || "").trim(),
-            answer: String(faq?.answer || "").trim(),
-          }))
-          .filter((faq) => faq.question && faq.answer),
-      };
+    const submissionData = {
+      ...formData,
+      price: parseFloat(formData.price || 0),
+      originalPrice: (formData.originalPrice === "" || formData.originalPrice === null)
+        ? null
+        : parseFloat(formData.originalPrice),
+      vendorPrice: (formData.vendorPrice === "" || formData.vendorPrice === null)
+        ? 0
+        : parseFloat(formData.vendorPrice),
+      stockQuantity: parseInt(formData.stockQuantity || 0, 10),
+      totalAllowedQuantity: (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
+        ? null
+        : parseInt(formData.totalAllowedQuantity, 10),
+      minimumOrderQuantity: (formData.minimumOrderQuantity === "" || formData.minimumOrderQuantity === null || isNaN(parseInt(formData.minimumOrderQuantity)))
+        ? null
+        : parseInt(formData.minimumOrderQuantity, 10),
+      categoryId: finalCategoryId,
+      subcategoryId: formData.subcategoryId || null,
+      brandId: formData.brandId || null,
+      vendorId: formData.vendorId || null,
+      variants: {
+        ...formData.variants,
+        prices: Object.fromEntries(
+          Object.entries(formData.variants?.prices || {})
+            .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+            .map(([k, v]) => [k, parseFloat(v)])
+        ),
+        stockMap: Object.fromEntries(
+          Object.entries(formData.variants?.stockMap || {})
+            .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+            .map(([k, v]) => [k, parseInt(v, 10)])
+        )
+      },
+      faqs: (formData.faqs || [])
+        .map((faq) => ({
+          question: String(faq?.question || "").trim(),
+          answer: String(faq?.answer || "").trim(),
+        }))
+        .filter((faq) => faq.question && faq.answer),
+    };
 
     try {
       if (isEdit) {
@@ -1183,7 +1205,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         toast.error("Original Price (MRP) must be greater than Vendor Price (Cost)");
         return;
       }
-      
+
       if (sellingPrice > 0 && mrp <= sellingPrice) {
         toast.error("Original Price (MRP) must be greater than Selling Price");
         return;
@@ -1244,50 +1266,50 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         }
       }
 
-        // Then save the rest of the form (prices, etc)
-        const submissionData = {
-          ...formData,
-          price: parseFloat(formData.price || 0),
-          originalPrice: (formData.originalPrice === "" || formData.originalPrice === null)
-            ? null
-            : parseFloat(formData.originalPrice),
-          vendorPrice: (formData.vendorPrice === "" || formData.vendorPrice === null)
-            ? 0
-            : parseFloat(formData.vendorPrice),
-          stockQuantity: parseInt(formData.stockQuantity || 0, 10),
-          totalAllowedQuantity: (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
-            ? null
-            : parseInt(formData.totalAllowedQuantity, 10),
-          minimumOrderQuantity: (formData.minimumOrderQuantity === "" || formData.minimumOrderQuantity === null || isNaN(parseInt(formData.minimumOrderQuantity)))
-            ? null
-            : parseInt(formData.minimumOrderQuantity, 10),
-          categoryId: finalCategoryId,
-          subcategoryId: formData.subcategoryId || null,
-          brandId: formData.brandId || null,
-          vendorId: formData.vendorId || null,
-          variants: {
-            ...formData.variants,
-            prices: Object.fromEntries(
-              Object.entries(formData.variants?.prices || {})
-                .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
-                .map(([k, v]) => [k, parseFloat(v)])
-            ),
-            stockMap: Object.fromEntries(
-              Object.entries(formData.variants?.stockMap || {})
-                .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
-                .map(([k, v]) => [k, parseInt(v, 10)])
-            )
-          },
-          faqs: (formData.faqs || [])
-            .map((faq) => ({
-              question: String(faq?.question || "").trim(),
-              answer: String(faq?.answer || "").trim(),
-            }))
-            .filter((faq) => faq.question && faq.answer),
-          isActive: true,
-          isVisible: true,
-          approvalStatus: "approved"
-        };
+      // Then save the rest of the form (prices, etc)
+      const submissionData = {
+        ...formData,
+        price: parseFloat(formData.price || 0),
+        originalPrice: (formData.originalPrice === "" || formData.originalPrice === null)
+          ? null
+          : parseFloat(formData.originalPrice),
+        vendorPrice: (formData.vendorPrice === "" || formData.vendorPrice === null)
+          ? 0
+          : parseFloat(formData.vendorPrice),
+        stockQuantity: parseInt(formData.stockQuantity || 0, 10),
+        totalAllowedQuantity: (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
+          ? null
+          : parseInt(formData.totalAllowedQuantity, 10),
+        minimumOrderQuantity: (formData.minimumOrderQuantity === "" || formData.minimumOrderQuantity === null || isNaN(parseInt(formData.minimumOrderQuantity)))
+          ? null
+          : parseInt(formData.minimumOrderQuantity, 10),
+        categoryId: finalCategoryId,
+        subcategoryId: formData.subcategoryId || null,
+        brandId: formData.brandId || null,
+        vendorId: formData.vendorId || null,
+        variants: {
+          ...formData.variants,
+          prices: Object.fromEntries(
+            Object.entries(formData.variants?.prices || {})
+              .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+              .map(([k, v]) => [k, parseFloat(v)])
+          ),
+          stockMap: Object.fromEntries(
+            Object.entries(formData.variants?.stockMap || {})
+              .filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+              .map(([k, v]) => [k, parseInt(v, 10)])
+          )
+        },
+        faqs: (formData.faqs || [])
+          .map((faq) => ({
+            question: String(faq?.question || "").trim(),
+            answer: String(faq?.answer || "").trim(),
+          }))
+          .filter((faq) => faq.question && faq.answer),
+        isActive: true,
+        isVisible: true,
+        approvalStatus: "approved"
+      };
 
       await updateProduct(productId, submissionData);
       toast.success("Product approved and saved successfully");
@@ -1985,13 +2007,13 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                               </button>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-3">
                             {variantCombinations.map((combo, idx) => {
                               const vPrice = formData.variants?.prices?.[combo.key];
                               const vStock = formData.variants?.stockMap?.[combo.key];
                               const vImage = formData.variants?.imageMap?.[combo.key];
-                              
+
                               return (
                                 <div key={combo.key} className="p-3 bg-gray-50 rounded-xl border border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
                                   <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -2056,7 +2078,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                                             onChange={(e) => {
                                               const nextValue = e.target.value;
                                               const isCleared = nextValue === "";
-                                              
+
                                               setManuallyEditedVariants((prev) => {
                                                 const next = { ...prev };
                                                 if (isCleared) {
