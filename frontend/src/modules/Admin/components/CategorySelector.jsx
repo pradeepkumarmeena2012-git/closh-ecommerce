@@ -26,9 +26,16 @@ const CategorySelector = ({
   const grandCategoryDropdownRef = useRef(null);
   const closeTimeoutRef = useRef(null);
 
-  // Detect touch device
+  // Detect touch device on actual touch interaction
   useEffect(() => {
-    setIsTouch('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    const handleTouchStart = () => {
+      setIsTouch(true);
+      window.removeEventListener("touchstart", handleTouchStart);
+    };
+    window.addEventListener("touchstart", handleTouchStart);
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+    };
   }, []);
 
   // Get root categories (parent categories)
@@ -292,7 +299,8 @@ const CategorySelector = ({
                               : "text-gray-900"
                           }`}
                           onClick={(e) => {
-                            if (hasChildren && hoveredCategoryId !== category.id) {
+                            const isRealTouch = e.nativeEvent.pointerType ? e.nativeEvent.pointerType === 'touch' : isTouch;
+                            if (isRealTouch && hasChildren && hoveredCategoryId !== category.id) {
                               setHoveredCategoryId(category.id);
                               setHoveredSubcategoryId(null);
                             } else {
@@ -359,8 +367,9 @@ const CategorySelector = ({
                     return (
                       <div key={subcategory.id} data-category-id={subcategory.id}>
                         <motion.div
-                          onClick={() => {
-                            if (hasChildren && hoveredSubcategoryId !== subcategory.id) {
+                          onClick={(e) => {
+                            const isRealTouch = e.nativeEvent.pointerType ? e.nativeEvent.pointerType === 'touch' : isTouch;
+                            if (isRealTouch && hasChildren && hoveredSubcategoryId !== subcategory.id) {
                               setHoveredSubcategoryId(subcategory.id);
                             } else {
                               handleSubcategorySelect(subcategory.id, hoveredCategoryId);

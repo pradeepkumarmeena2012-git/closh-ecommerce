@@ -164,13 +164,21 @@ const Orders = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {analyticsCards.map((card, index) => {
           const Icon = card.icon;
+          const getStatusFromTitle = (title) => {
+            if (title === 'Total Orders') return 'all';
+            if (title === 'Cancelled') return 'cancelled';
+            return title.toLowerCase();
+          };
+          const statusFilter = getStatusFromTitle(card.title);
+
           return (
             <motion.div
               key={card.title}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-md border-2 border-transparent hover:shadow-lg transition-all duration-300 relative overflow-hidden`}
+              onClick={() => navigate('/vendor/orders/all-orders', { state: { status: statusFilter } })}
+              className={`${card.cardBg} rounded-xl p-3 sm:p-4 shadow-md border-2 border-transparent hover:shadow-lg cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 relative overflow-hidden`}
             >
               <div className={`absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 ${card.bgColor} opacity-10 rounded-full -mr-12 -mt-12 sm:-mr-16 sm:-mt-16`}></div>
 

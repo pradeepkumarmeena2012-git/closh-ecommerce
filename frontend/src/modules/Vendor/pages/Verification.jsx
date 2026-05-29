@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiArrowLeft, FiCheck, FiSmartphone } from 'react-icons/fi';
+import { FiArrowLeft, FiCheck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { verifyVendorOTP, resendVendorOTP } from '../services/vendorService';
 import toast from 'react-hot-toast';
+import logo from '../../../assets/animations/lottie/logo-removebg.png';
 
 const VendorVerification = () => {
   const navigate = useNavigate();
@@ -94,86 +95,113 @@ const VendorVerification = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-3xl p-8 w-full max-w-md shadow-2xl"
-      >
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 gradient-green rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-glow-green">
-            <FiSmartphone className="text-white text-2xl" />
-          </div>
-          <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Verify Phone Number</h1>
-          <p className="text-gray-600">
-            We've sent a verification code to <br />
-            <span className="font-semibold text-gray-800">+91 {phone}</span>
-          </p>
-        </div>
-
-        {/* Verification Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Code Inputs */}
-          <div className="flex justify-center gap-3">
-            {codes.map((code, index) => (
-              <input
-                key={index}
-                ref={(el) => (inputRefs.current[index] = el)}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={code}
-                onChange={(e) => handleChange(index, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(index, e)}
-                onPaste={index === 0 ? handlePaste : undefined}
-                className="w-16 h-16 text-center text-2xl font-bold bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 text-gray-800"
-              />
-            ))}
-          </div>
-
-          {/* Resend Code */}
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={handleResend}
-              disabled={resendCooldown > 0}
-              className="text-sm text-primary-600 hover:text-primary-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
-            >
-              {resendCooldown > 0
-                ? `Resend in ${resendCooldown}s`
-                : "Didn't receive the code? Resend"}
-            </button>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isLoading || codes.some(code => !code)}
-            className="w-full gradient-green text-white py-3 rounded-xl font-semibold hover:shadow-glow-green transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+    <div className="min-h-screen bg-[#0f172a] flex flex-col md:flex-row overflow-hidden">
+      {/* Left Side: Branding */}
+      <div className="hidden md:flex md:w-1/2 items-center justify-center p-12 bg-[#0f172a] relative border-r border-white/5">
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[32rem] h-[32rem] bg-blue-600/10 rounded-full blur-3xl"></div>
+        
+        <div className="relative z-10 text-center">
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-32 h-32 bg-white/5 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 border border-white/10 shadow-2xl"
           >
-            {isLoading ? (
-              'Verifying...'
-            ) : (
-              <>
-                <FiCheck />
-                Verify Phone Number
-              </>
-            )}
-          </button>
+            <img src={logo} alt="CLOSH" className="w-20 h-20 object-contain" />
+          </motion.div>
+          <h1 className="text-6xl font-black text-white mb-4 tracking-tighter uppercase">CLOSH</h1>
+          <p className="text-xl text-slate-400 font-medium">Empowering local vendors, globally.</p>
+        </div>
+      </div>
 
-          {/* Back to Login */}
-          <div className="text-center pt-4">
-            <Link
-              to="/vendor/login"
-              className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
-            >
-              <FiArrowLeft />
-              Back to Login
-            </Link>
+      {/* Right Side: Form */}
+      <div className="w-full md:w-1/2 flex items-center justify-center relative z-10 px-4 py-8 md:px-0">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl min-h-[80vh] md:min-h-0 flex flex-col justify-center"
+        >
+          {/* Mobile Logo */}
+          <div className="md:hidden text-center mb-10">
+            <div className="w-20 h-20 bg-[#0f172a] rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <img src={logo} alt="CLOSH" className="w-12 h-12 object-contain" />
+            </div>
           </div>
-        </form>
-      </motion.div>
+
+          <div className="mb-10 text-center md:text-left">
+            <h2 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Verify Phone</h2>
+            <p className="text-gray-500 font-medium">
+              We've sent a verification code to <br />
+              <span className="font-semibold text-gray-900">
+                {phone ? `+91 ${phone}` : 'your registered number'}
+              </span>
+            </p>
+          </div>
+
+          {/* Verification Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Code Inputs */}
+            <div className="flex justify-between gap-2 mb-8">
+              {codes.map((code, index) => (
+                <input
+                  key={index}
+                  ref={(el) => (inputRefs.current[index] = el)}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={code}
+                  onChange={(e) => handleChange(index, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  onPaste={index === 0 ? handlePaste : undefined}
+                  className="w-12 h-14 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:border-[#0f172a] focus:ring-1 focus:ring-[#0f172a] focus:outline-none transition-all text-gray-900"
+                  required
+                />
+              ))}
+            </div>
+
+            {/* Resend Code */}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendCooldown > 0}
+                className="text-sm text-[#0f172a] hover:underline font-black disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed uppercase tracking-wider"
+              >
+                {resendCooldown > 0
+                  ? `Resend in ${resendCooldown}s`
+                  : "Didn't receive the code? Resend"}
+              </button>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isLoading || codes.some(code => !code)}
+              className="w-full bg-[#0f172a] text-white py-4 rounded-2xl font-black text-base hover:bg-slate-800 transition-all duration-300 shadow-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                'Verifying...'
+              ) : (
+                <>
+                  <FiCheck />
+                  Verify Phone Number
+                </>
+              )}
+            </button>
+
+            {/* Back to Login */}
+            <div className="text-center pt-4">
+              <Link
+                to="/vendor/login"
+                className="text-gray-500 text-sm font-medium hover:text-[#0f172a] inline-flex items-center gap-2"
+              >
+                <FiArrowLeft />
+                Back to Login
+              </Link>
+            </div>
+          </form>
+        </motion.div>
+      </div>
     </div>
   );
 };

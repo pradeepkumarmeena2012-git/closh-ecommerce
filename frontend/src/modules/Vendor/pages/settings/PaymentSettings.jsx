@@ -50,26 +50,37 @@ const PaymentSettings = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    let processedValue = value;
+    if (name === 'bank_accountName') {
+      processedValue = value.replace(/[^a-zA-Z0-9\s]/g, '');
+    } else if (name === 'bank_bankName') {
+      processedValue = value.replace(/[^a-zA-Z0-9\s]/g, '');
+    } else if (name === 'bank_accountNumber') {
+      processedValue = value.replace(/\D/g, '').slice(0, 18);
+    } else if (name === 'bank_ifscCode') {
+      processedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+    }
+
     if (name.startsWith('bank_')) {
       const bankField = name.replace('bank_', '');
-      setFormData({
-        ...formData,
+      setFormData((prev) => ({
+        ...prev,
         bankDetails: {
-          ...formData.bankDetails,
-          [bankField]: value,
+          ...prev.bankDetails,
+          [bankField]: processedValue,
         },
         // Also sync root upiId if it's the upi field
-        ...(bankField === 'upiId' ? { upiId: value } : {})
-      });
+        ...(bankField === 'upiId' ? { upiId: processedValue } : {})
+      }));
     } else {
-      setFormData({ 
-        ...formData, 
-        [name]: value,
+      setFormData((prev) => ({ 
+        ...prev, 
+        [name]: processedValue,
         // If updating root upiId, sync back to bankDetails
         ...(name === 'upiId' ? { 
-            bankDetails: { ...formData.bankDetails, upiId: value } 
+            bankDetails: { ...prev.bankDetails, upiId: processedValue } 
         } : {})
-      });
+      }));
     }
   };
 
@@ -86,6 +97,41 @@ const PaymentSettings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!vendor) return;
+
+    // Account Holder Name validation (if non-empty)
+    if (formData.bankDetails.accountName && formData.bankDetails.accountName.trim().length < 2) {
+      toast.error("Please enter a valid Account Holder Name (minimum 2 characters)");
+      return;
+    }
+
+    // Account Number validation (9-18 digits)
+    if (formData.bankDetails.accountNumber) {
+      const accLen = formData.bankDetails.accountNumber.length;
+      if (accLen < 9 || accLen > 18) {
+        toast.error("Account Number must be between 9 and 18 digits");
+        return;
+      }
+    }
+
+    // IFSC Code validation (11-digit alphanumeric format)
+    const ifscPattern = /^[A-Z]{4}0[A-Z0-9]{6}$/i;
+    if (formData.bankDetails.ifscCode && !ifscPattern.test(formData.bankDetails.ifscCode)) {
+      toast.error("Please enter a valid 11-digit IFSC code (e.g. SBIN0001234)");
+      return;
+    }
+
+    // Bank Name validation
+    if (formData.bankDetails.bankName && formData.bankDetails.bankName.trim().length < 3) {
+      toast.error("Please enter a valid Bank Name (minimum 3 characters)");
+      return;
+    }
+
+    // UPI ID validation (if non-empty)
+    const upiPattern = /^[\w.\-_]+@[a-zA-Z]{2,}$/;
+    if (formData.bankDetails.upiId && !upiPattern.test(formData.bankDetails.upiId)) {
+      toast.error("Please enter a valid UPI ID (e.g. name@upi)");
+      return;
+    }
 
     try {
       // Save bank details via store action to keep UI in sync
@@ -190,6 +236,7 @@ const PaymentSettings = () => {
                     name="bank_accountNumber"
                     value={formData.bankDetails.accountNumber || ''}
                     onChange={handleChange}
+                    maxLength={18}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
@@ -203,6 +250,7 @@ const PaymentSettings = () => {
                     name="bank_ifscCode"
                     value={formData.bankDetails.ifscCode || ''}
                     onChange={handleChange}
+                    maxLength={11}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="BANK0001234"
                   />

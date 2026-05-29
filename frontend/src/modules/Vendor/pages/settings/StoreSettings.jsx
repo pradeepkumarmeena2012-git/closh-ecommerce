@@ -17,7 +17,7 @@ const StoreSettings = () => {
         storeLogo: vendor.storeLogo || "",
         storeDescription: vendor.storeDescription || "",
         email: vendor.email || "",
-        phone: vendor.phone || "",
+        phone: vendor.phone ? String(vendor.phone).replace(/\D/g, "").slice(-10) : "",
         address: vendor.address
           ? `${vendor.address.street || ""}, ${vendor.address.city || ""}, ${vendor.address.state || ""
           } ${vendor.address.zipCode || ""}`
@@ -31,13 +31,23 @@ const StoreSettings = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    if (name === "phone") {
+      const cleaned = value.replace(/\D/g, "").slice(0, 10);
+      setFormData({ ...formData, [name]: cleaned });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!vendor) return;
+
+    if (formData.phone && formData.phone.length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
+      return;
+    }
 
     try {
       // Parse address string into the object shape the backend expects
@@ -55,13 +65,14 @@ const StoreSettings = () => {
         }
       }
 
-      // Only send fields accepted by PUT /vendor/auth/profile
       await updateProfile({
         storeName: formData.storeName,
         storeLogo: formData.storeLogo,
         storeDescription: formData.storeDescription,
         phone: formData.phone,
         address: addressData,
+        currency: formData.currency,
+        timezone: formData.timezone,
       });
       toast.success("Store settings saved successfully");
     } catch {
@@ -232,6 +243,7 @@ const StoreSettings = () => {
                     value={formData.phone || ""}
                     onChange={handleChange}
                     required
+                    maxLength={10}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>

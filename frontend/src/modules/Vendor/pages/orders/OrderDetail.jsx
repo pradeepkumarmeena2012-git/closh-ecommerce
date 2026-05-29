@@ -34,6 +34,28 @@ const getFullImageUrl = (image) => {
     return `${IMAGE_BASE_URL}${cleanImage}`;
 };
 
+const getPaymentStatusDisplay = (order, currentStatus) => {
+    const status = String(order?.status || '').toLowerCase();
+    const vendorStatus = String(currentStatus || '').toLowerCase();
+    if (status === 'cancelled' || vendorStatus === 'cancelled') {
+        if (order?.paymentStatus !== 'paid' && order?.paymentStatus !== 'refunded') {
+            return 'CANCELLED';
+        }
+    }
+    return order?.paymentStatus?.replace(/_/g, ' ')?.toUpperCase() || 'PENDING';
+};
+
+const getPaymentStatusVariant = (order, currentStatus) => {
+    const status = String(order?.status || '').toLowerCase();
+    const vendorStatus = String(currentStatus || '').toLowerCase();
+    if (status === 'cancelled' || vendorStatus === 'cancelled') {
+        if (order?.paymentStatus !== 'paid' && order?.paymentStatus !== 'refunded') {
+            return 'cancelled';
+        }
+    }
+    return order?.paymentStatus === 'paid' ? 'delivered' : 'pending';
+};
+
 const OrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -255,8 +277,8 @@ const OrderDetail = () => {
                                 <p className="text-gray-500 text-sm">#{order.orderId || order._id}</p>
                                 <p className="text-gray-500 text-sm">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
                                 <div className="mt-4 flex flex-col items-end gap-2">
-                                    <Badge variant={order.paymentStatus === 'paid' ? 'delivered' : 'pending'}>
-                                        {order.paymentStatus?.toUpperCase() || 'PENDING'}
+                                    <Badge variant={getPaymentStatusVariant(order, currentStatus)}>
+                                        {getPaymentStatusDisplay(order, currentStatus)}
                                     </Badge>
                                     <span className={`px-2 py-1 ${(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'} text-[10px] font-bold rounded border uppercase`}>
                                         {(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') ? 'Cash on Delivery' : 'Prepaid'}
@@ -730,8 +752,8 @@ const OrderDetail = () => {
                             </div>
                             <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase  mb-1">Payment Status</p>
-                                <Badge variant={order.paymentStatus === 'paid' ? 'delivered' : 'pending'}>
-                                    {order.paymentStatus?.replace(/_/g, ' ')?.toUpperCase() || 'PENDING'}
+                                <Badge variant={getPaymentStatusVariant(order, currentStatus)}>
+                                    {getPaymentStatusDisplay(order, currentStatus)}
                                 </Badge>
                                 {(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') && order.paymentStatus === 'paid' && (
                                     <p className="text-[9px] text-gray-400 font-medium mt-1 italic">

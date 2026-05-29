@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FiSearch,
   FiEye,
@@ -19,11 +19,12 @@ import socketService from '../../../../shared/utils/socket';
 
 const AllOrders = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { vendor } = useVendorAuthStore();
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState(location.state?.status || 'all');
 
   const vendorId = vendor?.id || vendor?._id;
 
@@ -257,7 +258,10 @@ const AllOrders = () => {
       sortable: false,
       render: (_, row) => (
         <button
-          onClick={() => navigate(`/vendor/orders/${row.orderId ?? row._id}`)}
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/vendor/orders/${row.orderId ?? row._id}`);
+          }}
           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
           <FiEye />
         </button>

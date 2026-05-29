@@ -13,8 +13,15 @@ export const updateLocationWithTracking = asyncHandler(async (req, res) => {
     const { lat, lng, orderId, accuracy } = req.body;
     const deliveryBoyId = req.user.id;
 
-    if (!lat || !lng) {
+    if (lat === undefined || lng === undefined) {
         return res.status(400).json({ message: 'Location coordinates required' });
+    }
+
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+
+    if (isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90 || isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180) {
+        return res.status(400).json({ message: 'Coordinates must be valid numbers: latitude within [-90, 90], longitude within [-180, 180]' });
     }
 
     // Update delivery boy's current location

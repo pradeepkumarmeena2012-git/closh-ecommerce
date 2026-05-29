@@ -370,6 +370,9 @@ const LocationModal = ({ isOpen, location, onClose, onSave }) => {
         ...formData,
         address: { ...formData.address, [field]: value },
       });
+    } else if (name === "phone") {
+      const cleaned = value.replace(/\D/g, "").slice(0, 10);
+      setFormData({ ...formData, [name]: cleaned });
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -379,6 +382,10 @@ const LocationModal = ({ isOpen, location, onClose, onSave }) => {
     e.preventDefault();
     if (!formData.name || !formData.address.street || !formData.address.city) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+    if (formData.phone && formData.phone.length !== 10) {
+      toast.error("Phone number must be exactly 10 digits");
       return;
     }
     onSave(formData);
@@ -512,6 +519,7 @@ const LocationModal = ({ isOpen, location, onClose, onSave }) => {
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
+                        maxLength={10}
                         className="w-full px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-xl font-bold focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>

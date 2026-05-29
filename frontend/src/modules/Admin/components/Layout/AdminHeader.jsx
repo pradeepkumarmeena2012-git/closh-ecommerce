@@ -36,6 +36,10 @@ const AdminHeader = ({ onMenuClick }) => {
     if (canReceiveEvents) {
       socketService.connect();
       socketService.joinRoom('admin');
+      const adminId = admin?._id || admin?.id;
+      if (adminId) {
+        socketService.joinRoom(`admin_${adminId}`);
+      }
 
       const handleNewNotification = (notification) => {
         pushNotification(notification);
@@ -49,6 +53,9 @@ const AdminHeader = ({ onMenuClick }) => {
 
       return () => {
         socketService.off('new_notification', handleNewNotification);
+        if (adminId) {
+          socketService.leaveRoom(`admin_${adminId}`);
+        }
       };
     }
   }, [fetchNotifications, admin, pushNotification, canViewNotifications, canReceiveEvents]);
