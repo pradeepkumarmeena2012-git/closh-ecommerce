@@ -1408,10 +1408,22 @@ export const handleTryAndBuy = asyncHandler(async (req, res) => {
     }
 
     const tryItems = flow.tryAndBuyItems || [];
-    items.forEach(({ productId, decision }) => {
-        const matched = tryItems.find(i => String(i.productId) === String(productId));
-        if (matched && ['accepted', 'rejected'].includes(decision)) {
-            matched.decision = decision;
+    items.forEach(({ productId, decision, index }, idx) => {
+        // Use provided index or fallback to array position since arrays are 1:1 mapped
+        const itemIndex = index !== undefined ? index : idx;
+        const matched = tryItems[itemIndex];
+        
+        // Double check productId to ensure it's the right item (backward compatibility)
+        if (matched && String(matched.productId) === String(productId)) {
+            if (['accepted', 'rejected'].includes(decision)) {
+                matched.decision = decision;
+            }
+        } else {
+            // Legacy fallback if index somehow gets out of sync
+            const matchedLegacy = tryItems.find(i => String(i.productId) === String(productId));
+            if (matchedLegacy && ['accepted', 'rejected'].includes(decision)) {
+                matchedLegacy.decision = decision;
+            }
         }
     });
 

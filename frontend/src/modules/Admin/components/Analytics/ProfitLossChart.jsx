@@ -24,7 +24,7 @@ const ProfitLossChart = ({ data, period = "month" }) => {
 
       return {
         date: item.date,
-        dateLabel: formatDate(item.date, { month: "short", day: "numeric" }),
+        dateLabel: item.date ? new Date(item.date).toLocaleDateString('en-GB') : '',
         revenue: earnings, // Mapping to 'revenue' for AreaChart compat
         totalExpenses: payout, // Mapping to 'totalExpenses' for AreaChart compat
         netProfit,
@@ -127,7 +127,7 @@ const ProfitLossChart = ({ data, period = "month" }) => {
               fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+              tickFormatter={(value) => value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`}
               width={60}
             />
             <Tooltip content={<CustomTooltip />} />

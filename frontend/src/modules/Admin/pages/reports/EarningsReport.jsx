@@ -75,7 +75,7 @@ const EarningsReport = () => {
             key: 'date',
             label: 'Date',
             sortable: true,
-            render: (value) => new Date(value).toLocaleDateString(),
+            render: (value) => value ? new Date(value).toISOString().split('T')[0] : '',
         },
         {
             key: 'revenue',
@@ -221,7 +221,7 @@ const EarningsReport = () => {
                             data={reportData}
                             headers={[
                                 { label: 'Order ID', accessor: 'orderId' },
-                                { label: 'Date', accessor: (row) => new Date(row.date).toLocaleDateString() },
+                                { label: 'Date', accessor: (row) => row.date ? new Date(row.date).toISOString().split('T')[0] : '' },
                                 { label: 'Revenue', accessor: (row) => row.revenue },
                                 { label: 'Margin', accessor: (row) => row.margin },
                                 { label: 'Commission', accessor: (row) => row.commission },

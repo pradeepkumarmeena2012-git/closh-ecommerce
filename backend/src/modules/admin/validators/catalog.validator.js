@@ -102,7 +102,7 @@ export const categoryIdParamSchema = Joi.object({
 });
 
 export const createCategorySchema = Joi.object({
-    name: Joi.string().trim().min(2).max(120).required(),
+    name: Joi.string().trim().min(2).max(120).pattern(/^[a-zA-Z0-9\s]+$/).message('Category name must contain only alphanumeric characters and spaces').required(),
     description: Joi.string().trim().allow('').optional(),
     image: Joi.string().trim().uri().allow('').optional(),
     icon: Joi.string().trim().allow('').optional(),
@@ -112,7 +112,7 @@ export const createCategorySchema = Joi.object({
 });
 
 export const updateCategorySchema = Joi.object({
-    name: Joi.string().trim().min(2).max(120).optional(),
+    name: Joi.string().trim().min(2).max(120).pattern(/^[a-zA-Z0-9\s]+$/).message('Category name must contain only alphanumeric characters and spaces').optional(),
     description: Joi.string().trim().allow('').optional(),
     image: Joi.string().trim().uri().allow('').optional(),
     icon: Joi.string().trim().allow('').optional(),

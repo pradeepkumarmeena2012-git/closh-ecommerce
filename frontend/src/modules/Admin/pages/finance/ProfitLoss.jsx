@@ -59,11 +59,26 @@ const ProfitLoss = () => {
   }, [period, fetchFinancialSummary]);
 
   const chartData = useMemo(() => {
-    return financialSummary.map(item => ({
-      ...item,
-      date: item._id,
-    }));
-  }, [financialSummary]);
+    if (period === 'year') {
+      return financialSummary.map(item => ({ ...item, date: item._id }));
+    }
+    const range = getRangeForPeriod(period);
+    const start = new Date(range.startDate);
+    const end = new Date(range.endDate);
+    const dataMap = {};
+    financialSummary.forEach(item => { dataMap[item._id] = item; });
+    const filledData = [];
+    let current = new Date(start);
+    while (current <= end) {
+      const dateStr = current.toISOString().split('T')[0];
+      filledData.push({
+        ...(dataMap[dateStr] || {}),
+        date: dateStr,
+      });
+      current.setDate(current.getDate() + 1);
+    }
+    return filledData;
+  }, [financialSummary, period]);
 
   const financials = useMemo(() => {
     const revenue = financialSummary.reduce((sum, item) => sum + (item.revenue || 0), 0);

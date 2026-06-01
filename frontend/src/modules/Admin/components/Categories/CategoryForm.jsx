@@ -70,6 +70,11 @@ const CategoryForm = ({ category, parentId, onClose, onSave }) => {
       return;
     }
 
+    if (!/^[a-zA-Z0-9\s]+$/.test(formData.name.trim())) {
+      toast.error("Category name must contain only alphanumeric characters and spaces");
+      return;
+    }
+
     if (!formData.image) {
       toast.error("Category image is required");
       return;

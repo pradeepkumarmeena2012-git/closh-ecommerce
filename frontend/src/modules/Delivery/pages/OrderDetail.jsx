@@ -178,8 +178,8 @@ const DeliveryOrderDetail = () => {
       if (hasArrivedSignal) {
         setHasArrived(true);
         const accepted = (response.deliveryFlow?.tryAndBuyItems || response.items || [])
-          .filter(i => i.decision !== 'rejected')
-          .map(i => i.productId || i._id);
+          .map((i, idx) => i.decision !== 'rejected' ? idx : -1)
+          .filter(idx => idx !== -1);
         setSelectedItemIds(new Set(accepted));
         setPaymentSelection(response.deliveryFlow?.paymentMethod || null);
       }
@@ -190,7 +190,7 @@ const DeliveryOrderDetail = () => {
       if (response?.deliveryFlow?.arrivedAtVendor) {
         setHasArrivedAtVendor(true);
       } else if (response?.items) {
-        setSelectedItemIds(new Set(response.items.map(i => i.productId || i._id)));
+        setSelectedItemIds(new Set(response.items.map((_, idx) => idx)));
       }
     } catch (err) {
       setOrder(null);
@@ -326,13 +326,13 @@ const DeliveryOrderDetail = () => {
     }
   };
 
-  const toggleItem = (pid) => {
+  const toggleItem = (idx) => {
     if (!order.isTryAndBuy) return;
     const next = new Set(selectedItemIds);
-    if (next.has(pid)) {
-      next.delete(pid);
+    if (next.has(idx)) {
+      next.delete(idx);
     } else {
-      next.add(pid);
+      next.add(idx);
     }
     setSelectedItemIds(next);
   };
@@ -344,9 +344,9 @@ const DeliveryOrderDetail = () => {
       }
     }
     try {
-      const items = order.items.map(it => ({
+      const items = order.items.map((it, idx) => ({
         productId: it.productId || it._id,
-        decision: selectedItemIds.has(it.productId || it._id) ? 'accepted' : 'rejected'
+        decision: selectedItemIds.has(idx) ? 'accepted' : 'rejected'
       }));
       // Use stable id from useParams
       const updated = await submitTryAndBuy(id, items);
@@ -848,12 +848,12 @@ const DeliveryOrderDetail = () => {
                     </div>
                     <div className="space-y-2">
                       {order.items?.map((item, idx) => {
-                        const isPicked = selectedItemIds.has(item.productId || item._id);
+                        const isPicked = selectedItemIds.has(idx);
                         const isSelectionMode = (order.isTryAndBuy || order.isCheckAndBuy) && hasArrived;
                         return (
                           <div
                             key={idx}
-                            onClick={() => isSelectionMode && toggleItem(item.productId || item._id)}
+                            onClick={() => isSelectionMode && toggleItem(idx)}
                             className={`flex gap-3 p-2 rounded-xl border transition-all ${isSelectionMode ? (isPicked ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-transparent opacity-60') : 'bg-slate-50 border-transparent'}`}
                           >
                             <div className="w-10 h-10 bg-white rounded-lg overflow-hidden border border-slate-100 shrink-0">

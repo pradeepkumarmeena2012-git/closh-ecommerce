@@ -49,7 +49,7 @@ const TaxReports = () => {
     orders.forEach((order) => {
       const taxAmount = Number(order.tax) || 0;
       const subtotal = Number(order.subtotal) || 0;
-      const total = Number(order.total) || 0;
+      const total = subtotal + taxAmount;
       const taxRate = subtotal > 0 ? (taxAmount / subtotal) * 100 : 0;
       const createdAt = order.createdAt ? new Date(order.createdAt) : null;
       const dateKey =
