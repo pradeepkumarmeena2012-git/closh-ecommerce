@@ -543,7 +543,7 @@ export const useDeliveryAuthStore = create(
           const data = res.data?.data || res.data || res;
           const order = normalizeOrder(data.order || data);
           if (data.rider) set({ deliveryBoy: normalizeDeliveryBoy({ ...get().deliveryBoy, ...data.rider }) });
-          set({ isUpdatingOrderStatus: false, selectedOrder: order }); return order;
+          set({ isUpdatingOrderStatus: false, selectedOrder: order }); return { order, returnTask: data.returnTask };
         } catch (e) { set({ isUpdatingOrderStatus: false }); throw e; }
       },
       resendDeliveryOtp: async (id) => {

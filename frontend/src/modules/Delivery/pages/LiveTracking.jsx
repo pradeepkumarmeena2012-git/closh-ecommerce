@@ -8,6 +8,7 @@ import { useDistanceTracker } from '../../../shared/hooks/useDistanceTracker';
 import DeliveryBoyLiveMap from '../../../shared/components/DeliveryBoyLiveMap';
 import PageTransition from '../../../shared/components/PageTransition';
 import toast from 'react-hot-toast';
+import api from '../../../shared/utils/api';
 
 const LiveTracking = () => {
   const { isLoaded } = useOutletContext();
@@ -77,26 +78,16 @@ const LiveTracking = () => {
   useEffect(() => {
     const fetchOrderDetails = async () => {
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/delivery/orders/${orderId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('deliveryToken')}`
-            }
-          }
-        );
-
-        if (!response.ok) throw new Error('Failed to fetch order');
-
-        const data = await response.json();
-        setOrderDetails(data.order);
+        const response = await api.get(`/delivery/orders/${orderId}`);
+        const orderData = response.data || response;
+        setOrderDetails(orderData);
 
         // Set destination based on order status
-        if (data.order.deliveryLocation?.coordinates) {
-          const [lng, lat] = data.order.deliveryLocation.coordinates;
+        if (orderData.deliveryLocation?.coordinates) {
+          const [lng, lat] = orderData.deliveryLocation.coordinates;
           setDestination({ lat, lng });
-        } else if (data.order.pickupLocation?.coordinates) {
-          const [lng, lat] = data.order.pickupLocation.coordinates;
+        } else if (orderData.pickupLocation?.coordinates) {
+          const [lng, lat] = orderData.pickupLocation.coordinates;
           setDestination({ lat, lng });
         }
       } catch (error) {

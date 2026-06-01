@@ -867,6 +867,8 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
             return {
                 productId: orderItem.productId,
                 name: orderItem.name,
+                image: orderItem.image || '',
+                price: orderItem.price || 0,
                 quantity: requestedQty,
                 reason: String(inputItem?.reason || req.body.reason || '').trim(),
             };
@@ -875,6 +877,8 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         normalizedItems = vendorScopedItems.map((item) => ({
             productId: item.productId,
             name: item.name,
+            image: item.image || '',
+            price: item.price || 0,
             quantity: Number(item.quantity || 1),
             reason: String(req.body.reason || '').trim(),
         }));
@@ -1208,6 +1212,8 @@ export const createTryBuyReturnRequest = asyncHandler(async (req, res) => {
         const returnItemData = {
             productId: foundOrderItem.productId || productId,
             name: foundOrderItem.name || inputItem.name || 'Product',
+            image: foundOrderItem.image || '',
+            price: foundOrderItem.price || foundOrderItem.discountedPrice || 0,
             quantity: requestedQty,
             reason: inputItem.reason || reason,
         };

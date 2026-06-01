@@ -122,6 +122,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
         pending: ['processing', 'cancelled', 'ready_for_delivery'],
         processing: ['shipped', 'cancelled', 'ready_for_delivery'],
         ready_for_delivery: ['assigned', 'shipped', 'cancelled'],
+        searching: ['assigned', 'cancelled'],
+        ready_for_pickup: ['assigned', 'cancelled'],
+        all_vendors_ready: ['assigned', 'cancelled'],
         assigned: ['shipped', 'out_for_delivery', 'cancelled'],
         shipped: ['delivered', 'cancelled', 'returned', 'out_for_delivery'],
         out_for_delivery: ['delivered', 'cancelled', 'returned'],
@@ -276,7 +279,7 @@ export const assignDeliveryBoy = asyncHandler(async (req, res) => {
     const isReassigned = previousDeliveryBoyId && previousDeliveryBoyId !== String(deliveryBoyId);
 
     order.deliveryBoyId = deliveryBoyId;
-    if (['ready_for_pickup', 'all_vendors_ready'].includes(order.status)) {
+    if (['ready_for_pickup', 'all_vendors_ready', 'searching', 'ready_for_delivery', 'processing'].includes(order.status)) {
         order.status = 'assigned';
     } else if (order.status === 'pending') {
         order.status = 'processing';

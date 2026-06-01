@@ -13,6 +13,8 @@ const vendorDropoffSchema = new mongoose.Schema({
         {
             productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
             name: String,
+            image: String,
+            price: Number,
             quantity: Number,
         }
     ],
@@ -40,6 +42,8 @@ const returnRequestSchema = new mongoose.Schema(
             {
                 productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
                 name: String,
+                image: String,
+                price: Number,
                 quantity: Number,
                 reason: String,
             },

@@ -321,7 +321,6 @@ const DeliveryOrderDetail = () => {
     if (!order.isTryAndBuy) return;
     const next = new Set(selectedItemIds);
     if (next.has(pid)) {
-      if (next.size <= 1) return toast.error('Min 1 item required');
       next.delete(pid);
     } else {
       next.add(pid);
@@ -330,6 +329,11 @@ const DeliveryOrderDetail = () => {
   };
 
   const handleItemConfirmation = async () => {
+    if (selectedItemIds.size === 0) {
+      if (!window.confirm("Customer rejected all items. Only delivery fees will be collected. Proceed?")) {
+        return;
+      }
+    }
     try {
       const items = order.items.map(it => ({
         productId: it.productId || it._id,
@@ -433,13 +437,19 @@ const DeliveryOrderDetail = () => {
       const pickupProofPhoto = allPickupPhotos.length > 1
         ? allPickupPhotos.join('|||')
         : allPickupPhotos[0];
-      const updated = await completeDeliveryFlow(id, {
+      const { order: updated, returnTask } = await completeDeliveryFlow(id, {
         otp: otpValue.trim(),
         openBoxPhoto,
         deliveryProofPhoto
       });
       setOrder(updated);
-      setShowSuccess(true);
+      
+      if (returnTask) {
+        toast.success("Delivery done. Return task assigned!");
+        navigate(`/delivery/returns/${returnTask.id}`);
+      } else {
+        setShowSuccess(true);
+      }
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Delivery failed');
     }

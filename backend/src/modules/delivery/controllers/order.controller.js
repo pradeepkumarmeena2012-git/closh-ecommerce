@@ -1325,12 +1325,14 @@ export const handleArrivedAtCustomer = asyncHandler(async (req, res) => {
     if (isSpecializedOrder && (!flow.tryAndBuyItems || flow.tryAndBuyItems.length === 0)) {
         flow.tryAndBuyItems = (order.items || []).map(item => ({
             productId: item.productId,
+            vendorId: item.vendorId,
             name: item.name,
             image: item.image,
             price: item.price,
             originalPrice: item.originalPrice || item.price,
             quantity: item.quantity,
             variant: item.variant,
+            variantKey: item.variantKey,
             decision: 'pending',
         }));
     }
@@ -1610,6 +1612,113 @@ export const verifyDoorstepPayment = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, order, "Payment verified successfully."));
 });
 
+const createTryBuyReturn = async (order, rejectedItems, riderId) => {
+    // 1. Group rejected items by vendor
+    const vendorGroups = {};
+    for (const item of rejectedItems) {
+        const vid = item.vendorId ? item.vendorId.toString() : (order.vendorItems?.[0]?.vendorId?.toString() || order.userId?.toString());
+        if (!vendorGroups[vid]) {
+            vendorGroups[vid] = { items: [] };
+        }
+        vendorGroups[vid].items.push({
+            productId: item.productId,
+            name: item.name,
+            image: item.image || '',
+            price: item.price || item.originalPrice || 0,
+            quantity: item.quantity || 1,
+            reason: 'Try & Buy Rejected'
+        });
+    }
+
+    const vendorIds = Object.keys(vendorGroups);
+    const vendors = await Vendor.find({ _id: { $in: vendorIds } });
+    
+    // Build vendorDropoffs array
+    let vendorDropoffs = [];
+    for (const vendor of vendors) {
+        const vid = vendor._id.toString();
+        const otp = DeliveryOtpService.generateOtp();
+        const fullAddress = vendor.shopAddress
+            || [vendor.address?.street, vendor.address?.city, vendor.address?.state, vendor.address?.zipCode]
+                .filter(Boolean).join(', ')
+            || '';
+            
+        vendorDropoffs.push({
+            vendorId: vendor._id,
+            vendorName: vendor.storeName || 'Vendor',
+            shopLocation: vendor.shopLocation,
+            shopAddress: fullAddress,
+            vendorPhone: vendor.phone || '',
+            items: vendorGroups[vid].items,
+            status: 'pending',
+            dropoffOtpHash: DeliveryOtpService.hashOtp(otp),
+            dropoffOtpDebug: otp
+        });
+    }
+
+    // Sort by nearest to customer dropoffLocation
+    const customerCoords = order.dropoffLocation?.coordinates;
+    if (customerCoords && customerCoords.length >= 2) {
+        vendorDropoffs.sort((a, b) => {
+            const distA = calculateDistance(customerCoords, a.shopLocation?.coordinates || [0, 0]);
+            const distB = calculateDistance(customerCoords, b.shopLocation?.coordinates || [0, 0]);
+            return distA - distB;
+        });
+    }
+
+    // Calculate total distance for return trip
+    let totalReturnDistance = 0;
+    let lastCoords = customerCoords;
+    for (const dropoff of vendorDropoffs) {
+        if (lastCoords && dropoff.shopLocation?.coordinates) {
+            totalReturnDistance += calculateDistance(lastCoords, dropoff.shopLocation.coordinates);
+            lastCoords = dropoff.shopLocation.coordinates;
+        }
+    }
+    
+    // Earnings: ₹7 per km
+    const deliveryEarnings = Math.ceil(totalReturnDistance * 7);
+
+    // Create the ReturnRequest
+    const returnReq = await ReturnRequest.create({
+        orderId: order._id,
+        returnId: `RET-${Date.now().toString(36).toUpperCase()}`,
+        userId: order.userId,
+        vendorId: vendorDropoffs.length === 1 ? vendorDropoffs[0].vendorId : undefined,
+        isMultiVendor: vendorDropoffs.length > 1,
+        vendorDropoffs,
+        trySessionActive: true,
+        items: rejectedItems.map(i => ({
+            productId: i.productId,
+            name: i.name,
+            image: i.image || '',
+            price: i.price || i.originalPrice || 0,
+            quantity: i.quantity || 1,
+            reason: 'Try & Buy Rejected'
+        })),
+        reason: 'Try & Buy Auto-Return',
+        status: 'processing', // Already approved and assigned
+        deliveryBoyId: riderId,
+        originalDeliveryBoyId: riderId,
+        pickupLocation: order.dropoffLocation,
+        dropoffLocation: vendorDropoffs.length === 1 ? vendorDropoffs[0].shopLocation : order.dropoffLocation,
+        refundAmount: 0, // Customer didn't pay for these, so no refund
+        deliveryDistance: totalReturnDistance,
+        deliveryEarnings: deliveryEarnings,
+        pickupOtpHash: DeliveryOtpService.hashOtp('123456'), // Auto pickup from customer (already has it)
+        pickupOtpDebug: '123456',
+        pickupPhoto: order.deliveryPhoto || order.openBoxPhoto || 'default.jpg' // Use delivery photo as initial pickup photo
+    });
+
+    // Notify Rider
+    emitEvent(`delivery_${riderId}`, 'try_buy_return_created', {
+        returnId: returnReq._id,
+        message: 'Auto-return task created for rejected items.'
+    });
+
+    return returnReq;
+};
+
 // PATCH /api/delivery/orders/:id/complete
 export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     const { otp, openBoxPhoto, deliveryProofPhoto } = req.body;
@@ -1697,8 +1806,15 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
         console.error(`[Wallet] Error processing earnings for order ${order._id}:`, err);
     });
 
-    // Re-enable rider availability since they have completed the order
-    const updatedRider = await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: 'available' }, { new: true }).select('availableBalance totalEarnings totalDeliveries');
+    let returnReq = null;
+    const rejectedItems = flow.tryAndBuyItems ? flow.tryAndBuyItems.filter(i => i.decision === 'rejected') : [];
+    if (rejectedItems.length > 0) {
+        returnReq = await createTryBuyReturn(order, rejectedItems, req.user.id);
+    }
+
+    // Re-enable rider availability if no return task is created, else keep them busy
+    const nextRiderStatus = returnReq ? 'busy' : 'available';
+    const updatedRider = await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: nextRiderStatus }, { new: true }).select('availableBalance totalEarnings totalDeliveries');
 
     // Notify everyone
     await OrderNotificationService.notifyOrderUpdate(order._id, 'delivered', {
@@ -1712,14 +1828,19 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
         totalDeliveries: updatedRider?.totalDeliveries,
     });
 
-    res.status(200).json(new ApiResponse(200, {
+    const responsePayload = {
         order,
         rider: {
             availableBalance: updatedRider?.availableBalance,
             totalEarnings: updatedRider?.totalEarnings,
             totalDeliveries: updatedRider?.totalDeliveries,
         },
-    }, 'Delivery completed!'));
+    };
+    if (returnReq) {
+        responsePayload.returnTask = { id: returnReq._id, returnId: returnReq.returnId };
+    }
+
+    res.status(200).json(new ApiResponse(200, responsePayload, 'Delivery completed!'));
 });
 
 // PATCH /api/delivery/batch/select

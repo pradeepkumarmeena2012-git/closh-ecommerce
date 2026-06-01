@@ -184,14 +184,6 @@ const AdminLogin = () => {
             </button>
           </form>
 
-          {/* Demo Credentials */}
-          <div className="mt-10 p-6 bg-gray-50 rounded-[2rem] border border-gray-100/50">
-            <p className="text-[11px] font-black text-gray-900 uppercase tracking-widest mb-3 px-1">Master Credentials:</p>
-            <div className="space-y-1 px-1">
-              <p className="text-sm font-medium text-gray-700">User: <span className="text-gray-900 font-bold">admin@closh.com</span></p>
-              <p className="text-sm font-medium text-gray-700">Token: <span className="text-gray-900 font-bold">admin123</span></p>
-            </div>
-          </div>
         </motion.div>
       </div>
     </div>

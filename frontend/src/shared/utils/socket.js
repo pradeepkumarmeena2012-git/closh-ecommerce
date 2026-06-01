@@ -2,17 +2,9 @@ import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
 // In production, force the API URL to our production domain if env is missing
-// Intelligent URL detection for Production vs Development
-const getSocketUrl = () => {
-    const envUrl = import.meta.env.VITE_API_URL;
-    const hostname = window.location.hostname;
-    const isProduction = hostname.includes('closh.in') || hostname.includes('vercel.app');
-    
-    if (isProduction) return 'https://api.closh.in';
-    return envUrl || 'http://localhost:5000';
-};
+import { IMAGE_BASE_URL } from './constants.js';
 
-const SOCKET_URL = getSocketUrl();
+const SOCKET_URL = IMAGE_BASE_URL;
 
 class SocketService {
     constructor() {

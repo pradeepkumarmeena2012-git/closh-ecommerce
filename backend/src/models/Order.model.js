@@ -83,12 +83,14 @@ const vendorPickupStopSchema = new mongoose.Schema({
 // ──────────── Delivery Flow (Antigravity Engine) ────────────
 const deliveryFlowItemSchema = new mongoose.Schema({
     productId: { type: mongoose.Schema.Types.ObjectId },
+    vendorId: { type: mongoose.Schema.Types.ObjectId },
     name: String,
     image: String,
     price: Number,
     originalPrice: Number,
     quantity: Number,
     variant: mongoose.Schema.Types.Mixed,
+    variantKey: String,
     decision: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
 }, { _id: false });
 

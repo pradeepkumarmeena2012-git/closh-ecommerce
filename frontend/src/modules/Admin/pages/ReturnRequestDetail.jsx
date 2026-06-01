@@ -434,6 +434,35 @@ const ReturnRequestDetail = () => {
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* OTP Verification Codes */}
+          {(returnRequest.pickupOtpDebug || returnRequest.deliveryOtpDebug || (returnRequest.vendorDropoffs && returnRequest.vendorDropoffs.length > 0)) && (
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <FiAlertCircle className="text-amber-500 text-base" />
+                OTP Verification Codes
+              </h2>
+              <div className="space-y-3">
+                {returnRequest.pickupOtpDebug && (
+                  <div className="flex justify-between items-center bg-blue-50 p-2 rounded-lg border border-blue-100">
+                    <span className="text-xs font-semibold text-blue-800">Customer Pickup:</span>
+                    <span className="text-sm font-black tracking-widest text-blue-900">{returnRequest.pickupOtpDebug}</span>
+                  </div>
+                )}
+                {returnRequest.deliveryOtpDebug && !returnRequest.isMultiVendor && (
+                  <div className="flex justify-between items-center bg-green-50 p-2 rounded-lg border border-green-100">
+                    <span className="text-xs font-semibold text-green-800">Vendor Dropoff:</span>
+                    <span className="text-sm font-black tracking-widest text-green-900">{returnRequest.deliveryOtpDebug}</span>
+                  </div>
+                )}
+                {returnRequest.isMultiVendor && returnRequest.vendorDropoffs && returnRequest.vendorDropoffs.map((vd, idx) => (
+                  <div key={idx} className="flex justify-between items-center bg-amber-50 p-2 rounded-lg border border-amber-100">
+                    <span className="text-xs font-semibold text-amber-800 line-clamp-1 max-w-[120px]">{vd.vendorName || `Vendor ${idx+1}`}:</span>
+                    <span className="text-sm font-black tracking-widest text-amber-900">{vd.dropoffOtpDebug}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Assign Delivery Boy */}
           {(returnRequest.status === 'approved' || returnRequest.status === 'pending' || returnRequest.status === 'processing') && (
             <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
