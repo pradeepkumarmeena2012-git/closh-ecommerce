@@ -74,6 +74,17 @@ export default function MultiVendorPickup() {
         };
     }, [fetchOrder, batch?.batchId, batch?._id, orderId]);
 
+    // Redirect to the main order detail page once all pickups are done
+    useEffect(() => {
+        if (!order) return;
+        const s = String(order.status || '').toLowerCase();
+        // If the order has progressed past the pickup phase, redirect to the normal detail page
+        // where Try & Buy, Delivery map, and Customer OTP logic is already robustly handled.
+        if (['picked_up', 'out_for_delivery', 'delivered', 'returning_unselected_items', 'returning_unselected'].includes(s)) {
+            navigate(`/delivery/orders/${orderId || order._id}`, { replace: true });
+        }
+    }, [order, navigate, orderId]);
+
     const doAction = async (fn) => {
         setActionLoading(true);
         setError('');

@@ -796,29 +796,64 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
         const { WalletService } = await import('../../../services/wallet.service.js');
         await WalletService.processOrderCompletion(order);
 
-        order.status = 'delivered';
+        const isTryAndBuy = order.orderType === 'try_and_buy' || order.orderType === 'check_and_buy';
+        const flow = order.deliveryFlow || {};
+        const hasRejectedItems = isTryAndBuy && flow.rejectedItems && flow.rejectedItems.length > 0;
+        const finalPhase = hasRejectedItems ? 'returning_unselected' : 'delivered';
+        const finalStatus = hasRejectedItems ? 'returning_unselected_items' : 'delivered';
+
+        order.status = finalStatus;
+        if (!hasRejectedItems) {
+            order.deliveredAt = new Date();
+        }
         if (order.deliveryFlow) {
-            order.deliveryFlow.phase = 'delivered';
+            order.deliveryFlow.phase = finalPhase;
         }
 
         // Sync vendorItems statuses
         if (order.vendorItems && order.vendorItems.length > 0) {
             order.vendorItems.forEach(group => {
-                group.status = 'delivered';
-                group.deliveredAt = new Date();
+                if (hasRejectedItems && group.quantity === 0) {
+                    group.status = 'returning_unselected_items';
+                } else {
+                    group.status = finalStatus;
+                    if (!hasRejectedItems) group.deliveredAt = new Date();
+                }
             });
+        }
+
+        // Generate return stops for vendors if needed
+        if (hasRejectedItems && order.deliveryFlow) {
+            const returnVendorIds = [...new Set(order.deliveryFlow.rejectedItems.map(i => {
+                const vi = order.vendorItems.find(g => g.items.some(item => String(item.productId) === String(i.productId)));
+                return vi ? String(vi.vendorId._id || vi.vendorId) : null;
+            }).filter(Boolean))];
+
+            const returnStops = returnVendorIds.map(vid => {
+                const vi = order.vendorItems.find(g => String(g.vendorId._id || g.vendorId) === vid);
+                return {
+                    vendorId: vid,
+                    vendorName: vi ? vi.vendorName : 'Vendor',
+                    shopLocation: vi ? vi.shopLocation : undefined,
+                    shopAddress: vi ? vi.shopAddress : undefined,
+                    vendorPhone: vi ? vi.phone : undefined,
+                    status: 'pending'
+                };
+            });
+            order.vendorReturnStops = returnStops;
         }
 
         await order.save();
 
-        await order.save();
+        let updatedRider;
+        if (!hasRejectedItems) {
+            updatedRider = await DeliveryBoy.findById(req.user.id).select('name availableBalance totalEarnings totalDeliveries');
+        }
 
-        const updatedRider = await DeliveryBoy.findById(req.user.id).select('name availableBalance totalEarnings totalDeliveries');
-
-        await OrderNotificationService.notifyOrderUpdate(order._id, status, {
+        await OrderNotificationService.notifyOrderUpdate(order._id, finalStatus, {
             excludeRecipientId: req.user.id,
-            title: `Order #${order.orderId} Delivered`,
-            message: `Order ${order.orderId} has been successfully delivered by ${updatedRider?.name || 'Partner'}.`
+            title: `Order #${order.orderId} ${hasRejectedItems ? 'Partial Delivery' : 'Delivered'}`,
+            message: hasRejectedItems ? `Order ${order.orderId} customer selection completed. Rider will return unselected items.` : `Order ${order.orderId} has been successfully delivered by ${updatedRider?.name || 'Partner'}.`
         });
 
         await cacheInvalidate(`dash:${req.user.id}`, `profile:${req.user.id}`);
@@ -1423,30 +1458,14 @@ export const handleTryAndBuy = asyncHandler(async (req, res) => {
         });
     }
 
+    // Store rejected items to be returned to vendors
+    const rejectedItems = tryItems.filter(i => i.decision === 'rejected');
+    flow.rejectedItems = rejectedItems;
+
     await order.save();
 
-    // Restore stock for rejected items
-    const rejectedItems = tryItems.filter(i => i.decision === 'rejected');
-    for (const item of rejectedItems) {
-        const qty = Number(item.quantity || 1);
-        const variantKey = item.variantKey;
-
-        const incUpdate = { stockQuantity: qty };
-        if (variantKey) {
-            incUpdate[`variants.stockMap.${variantKey}`] = qty;
-        }
-
-        const updatedProduct = await Product.findByIdAndUpdate(
-            item.productId,
-            { $inc: incUpdate },
-            { new: true }
-        );
-
-        if (updatedProduct) {
-            const nextStockState = updatedProduct.stockQuantity <= 0 ? 'out_of_stock' : (updatedProduct.stockQuantity <= (updatedProduct.lowStockThreshold || 10) ? 'low_stock' : 'in_stock');
-            await Product.updateOne({ _id: updatedProduct._id }, { $set: { stock: nextStockState } });
-        }
-    }
+    // Note: Stock is NO LONGER restored here. It will be restored only after
+    // the delivery partner successfully returns the items to the respective vendors.
 
     res.status(200).json(new ApiResponse(200, order, 'Item decisions recorded. Proceed to payment.'));
 });
@@ -1765,7 +1784,11 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     }
 
     // ── Finalize ──
-    flow.phase = 'delivered';
+    const hasRejectedItems = isTryAndBuy && flow.rejectedItems && flow.rejectedItems.length > 0;
+    const finalPhase = hasRejectedItems ? 'returning_unselected' : 'delivered';
+    const finalStatus = hasRejectedItems ? 'returning_unselected_items' : 'delivered';
+
+    flow.phase = finalPhase;
     flow.openBoxPhoto = openBoxPhoto;
     flow.deliveryProofPhoto = deliveryProofPhoto;
     flow.otpVerified = true;
@@ -1774,8 +1797,10 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     flow.paymentCollectedAt = new Date();
 
     // Sync legacy fields
-    order.status = 'delivered';
-    order.deliveredAt = new Date();
+    order.status = finalStatus;
+    if (!hasRejectedItems) {
+        order.deliveredAt = new Date();
+    }
     order.openBoxPhoto = openBoxPhoto;
     order.deliveryPhoto = deliveryProofPhoto;
     order.deliveryOtpVerifiedAt = new Date();
@@ -1793,18 +1818,55 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     // Sync vendorItems statuses
     if (order.vendorItems && order.vendorItems.length > 0) {
         order.vendorItems.forEach(group => {
-            group.status = 'delivered';
-            group.deliveredAt = new Date();
+            if (hasRejectedItems && group.quantity === 0) {
+                // Keep it pending or mark as returning
+                group.status = 'returning_unselected_items';
+            } else {
+                group.status = finalStatus;
+                if (!hasRejectedItems) group.deliveredAt = new Date();
+            }
         });
+    }
+
+    // Generate return stops for vendors if needed
+    if (hasRejectedItems) {
+        const returnVendorIds = [...new Set(flow.rejectedItems.map(i => {
+            // Find vendorId from order.vendorItems
+            const vi = order.vendorItems.find(g => g.items.some(item => String(item.productId) === String(i.productId)));
+            return vi ? String(vi.vendorId._id || vi.vendorId) : null;
+        }).filter(Boolean))];
+
+        const returnStops = returnVendorIds.map(vid => {
+            const vi = order.vendorItems.find(g => String(g.vendorId._id || g.vendorId) === vid);
+            
+            // vi.vendorId is populated, so it has shopLocation, shopAddress, phone
+            const vendorDoc = vi && vi.vendorId && vi.vendorId._id ? vi.vendorId : null;
+            const shopAddress = vendorDoc?.shopAddress 
+                || (vendorDoc?.address ? `${vendorDoc.address.street || ''}, ${vendorDoc.address.city || ''}, ${vendorDoc.address.state || ''} ${vendorDoc.address.zipCode || ''}`.replace(/, ,|, $|^, /g, '').trim() : undefined)
+                || undefined;
+
+            return {
+                vendorId: vid,
+                vendorName: vendorDoc?.storeName || (vi ? vi.vendorName : 'Vendor'),
+                shopLocation: vendorDoc ? vendorDoc.shopLocation : undefined,
+                shopAddress: shopAddress,
+                vendorPhone: vendorDoc ? vendorDoc.phone : undefined,
+                status: 'pending'
+            };
+        });
+        order.vendorReturnStops = returnStops;
     }
 
     await order.save();
     await cacheInvalidate(`dash:${req.user.id}`, `profile:${req.user.id}`);
 
     // Process financial earnings (Rider + Vendor) and ledger entries
-    await WalletService.processOrderCompletion(order).catch(err => {
-        console.error(`[Wallet] Error processing earnings for order ${order._id}:`, err);
-    });
+    // Only process completion if fully delivered. For Try & Buy with rejects, process after return is complete.
+    if (!hasRejectedItems) {
+        await WalletService.processOrderCompletion(order).catch(err => {
+            console.error(`[Wallet] Error processing earnings for order ${order._id}:`, err);
+        });
+    }
 
     let returnReq = null;
     const rejectedItems = flow.tryAndBuyItems ? flow.tryAndBuyItems.filter(i => i.decision === 'rejected') : [];
@@ -1814,19 +1876,32 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
 
     // Re-enable rider availability if no return task is created, else keep them busy
     const nextRiderStatus = returnReq ? 'busy' : 'available';
-    const updatedRider = await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: nextRiderStatus }, { new: true }).select('availableBalance totalEarnings totalDeliveries');
+    let updatedRider = await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: nextRiderStatus }, { new: true }).select('availableBalance totalEarnings totalDeliveries');
+    
+    if (!hasRejectedItems) {
+        // If it was a multi-vendor order, also mark the DeliveryBatch as delivered
+        if (order.isMultiVendor) {
+            const DeliveryBatch = mongoose.model('DeliveryBatch');
+            await DeliveryBatch.findOneAndUpdate(
+                { deliveryBoyId: req.user.id, isMultiVendor: true, status: { $ne: 'delivered' } },
+                { status: 'delivered' }
+            );
+        }
+    }
 
     // Notify everyone
-    await OrderNotificationService.notifyOrderUpdate(order._id, 'delivered', {
+    await OrderNotificationService.notifyOrderUpdate(order._id, finalStatus, {
         excludeRecipientId: req.user.id,
-        title: `Order #${order.orderId} Delivered`,
-        message: `Order ${order.orderId} has been successfully delivered.`,
+        title: `Order #${order.orderId} ${hasRejectedItems ? 'Partial Delivery' : 'Delivered'}`,
+        message: hasRejectedItems ? `Order ${order.orderId} customer selection completed. Rider will return unselected items.` : `Order ${order.orderId} has been successfully delivered.`,
     });
-    emitEvent(`delivery_${req.user.id}`, 'earnings_updated', {
-        availableBalance: updatedRider?.availableBalance,
-        totalEarnings: updatedRider?.totalEarnings,
-        totalDeliveries: updatedRider?.totalDeliveries,
-    });
+    if (!hasRejectedItems) {
+        emitEvent(`delivery_${req.user.id}`, 'earnings_updated', {
+            availableBalance: updatedRider?.availableBalance,
+            totalEarnings: updatedRider?.totalEarnings,
+            totalDeliveries: updatedRider?.totalDeliveries,
+        });
+    }
 
     const responsePayload = {
         order,
@@ -1841,6 +1916,210 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     }
 
     res.status(200).json(new ApiResponse(200, responsePayload, 'Delivery completed!'));
+});
+
+// POST /api/delivery/orders/:id/vendor-returns/:vendorId/arrive
+export const arriveAtVendorReturnStop = asyncHandler(async (req, res) => {
+    const { id, vendorId } = req.params;
+    const order = await findOrderForRider(id, req.user.id, true);
+    if (!order) throw new ApiError(404, 'Order not found.');
+
+    if (order.status !== 'returning_unselected_items') {
+        throw new ApiError(400, 'Order is not in a return state.');
+    }
+
+    const vendorStop = order.vendorReturnStops.find(s => String(s.vendorId) === String(vendorId));
+    if (!vendorStop) {
+        throw new ApiError(404, 'Vendor return stop not found for this order.');
+    }
+
+    if (vendorStop.status !== 'pending') {
+        throw new ApiError(409, `Stop already in status: ${vendorStop.status}`);
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    vendorStop.status = 'arrived';
+    vendorStop.arrivedAt = new Date();
+    vendorStop.handoverOtp = otp;
+    vendorStop.handoverOtpDebug = otp; // plain-text for dev
+    vendorStop.handoverOtpSentAt = new Date();
+
+    order.markModified('vendorReturnStops');
+    await order.save();
+
+    // Notify vendor
+    emitEvent(`vendor_${vendorId}`, 'return_rider_arrived', { 
+        orderId: order.orderId, 
+        otp 
+    });
+
+    res.status(200).json(new ApiResponse(200, { verified: false }, 'Arrived at vendor return stop. OTP generated.'));
+});
+// POST /api/delivery/orders/:id/vendor-returns/:vendorId/resend-otp
+export const resendVendorReturnOtp = asyncHandler(async (req, res) => {
+    const { id, vendorId } = req.params;
+    const order = await findOrderForRider(id, req.user.id, true);
+    if (!order) throw new ApiError(404, 'Order not found.');
+
+    if (order.status !== 'returning_unselected_items') {
+        throw new ApiError(400, 'Order is not in a return state.');
+    }
+
+    const vendorStop = order.vendorReturnStops.find(s => String(s.vendorId) === String(vendorId));
+    if (!vendorStop) {
+        throw new ApiError(404, 'Vendor return stop not found for this order.');
+    }
+
+    if (vendorStop.status !== 'arrived') {
+        throw new ApiError(409, 'Stop must be in arrived status to resend OTP.');
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    vendorStop.handoverOtp = otp;
+    vendorStop.handoverOtpDebug = otp;
+    vendorStop.handoverOtpSentAt = new Date();
+
+    order.markModified('vendorReturnStops');
+    await order.save();
+
+    // Notify only the specific vendor
+    emitEvent(`vendor_${vendorId}`, 'return_rider_arrived', { 
+        orderId: order.orderId, 
+        otp 
+    });
+
+    res.status(200).json(new ApiResponse(200, { verified: false }, 'Vendor Return OTP resent successfully.'));
+});
+
+// POST /api/delivery/orders/:id/vendor-returns/:vendorId/verify-otp
+export const verifyVendorReturnOtp = asyncHandler(async (req, res) => {
+    const { id, vendorId } = req.params;
+    const { otp } = req.body;
+    
+    if (!otp) throw new ApiError(400, 'OTP is required.');
+
+    const order = await findOrderForRider(id, req.user.id, true);
+    if (!order) throw new ApiError(404, 'Order not found.');
+
+    const vendorStop = order.vendorReturnStops.find(s => String(s.vendorId) === String(vendorId));
+    if (!vendorStop) {
+        throw new ApiError(404, 'Vendor return stop not found for this order.');
+    }
+
+    if (vendorStop.status !== 'arrived') {
+        throw new ApiError(409, 'Mark arrived at this stop first.');
+    }
+
+    const isValid = String(vendorStop.handoverOtp || '') === String(otp) ||
+                    String(vendorStop.handoverOtpDebug || '') === String(otp);
+
+    if (!isValid) {
+        vendorStop.handoverOtpAttempts = (vendorStop.handoverOtpAttempts || 0) + 1;
+        order.markModified('vendorReturnStops');
+        await order.save();
+        throw new ApiError(400, `Incorrect OTP. Attempt ${vendorStop.handoverOtpAttempts}.`);
+    }
+
+    vendorStop.status = 'otp_verified';
+    vendorStop.handoverOtpVerifiedAt = new Date();
+    order.markModified('vendorReturnStops');
+    await order.save();
+
+    res.status(200).json(new ApiResponse(200, { verified: true }, 'Vendor Return OTP verified.'));
+});
+
+// POST /api/delivery/orders/:id/vendor-returns/:vendorId/complete
+export const markTryBuyVendorReturned = asyncHandler(async (req, res) => {
+    const { id, vendorId } = req.params;
+    
+    // Pass true for selectOtp to get all details, though we might not need otp here.
+    const order = await findOrderForRider(id, req.user.id, true);
+    if (!order) throw new ApiError(404, 'Order not found.');
+
+    if (order.status !== 'returning_unselected_items') {
+        throw new ApiError(400, 'Order is not in a return state.');
+    }
+
+    const flow = order.deliveryFlow;
+    if (!flow || flow.phase !== 'returning_unselected') {
+        throw new ApiError(400, 'Delivery flow phase is invalid for vendor return.');
+    }
+
+    const vendorStop = order.vendorReturnStops.find(s => String(s.vendorId) === String(vendorId));
+    if (!vendorStop) {
+        throw new ApiError(404, 'Vendor return stop not found for this order.');
+    }
+
+    if (vendorStop.status !== 'otp_verified') {
+        throw new ApiError(400, 'Verify OTP before confirming return.');
+    }
+
+    // Process stock restoration for this vendor's items
+    const vendorRejectedItems = flow.rejectedItems.filter(i => {
+        const vi = order.vendorItems.find(g => String(g.vendorId._id || g.vendorId) === String(vendorId));
+        return vi && vi.items.some(item => String(item.productId) === String(i.productId));
+    });
+
+    for (const item of vendorRejectedItems) {
+        const qty = Number(item.quantity || 1);
+        const variantKey = item.variantKey;
+
+        const incUpdate = { stockQuantity: qty };
+        if (variantKey) {
+            incUpdate[`variants.stockMap.${variantKey}`] = qty;
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(
+            item.productId,
+            { $inc: incUpdate },
+            { new: true }
+        );
+
+        if (updatedProduct) {
+            const nextStockState = updatedProduct.stockQuantity <= 0 ? 'out_of_stock' : (updatedProduct.stockQuantity <= (updatedProduct.lowStockThreshold || 10) ? 'low_stock' : 'in_stock');
+            await Product.updateOne({ _id: updatedProduct._id }, { $set: { stock: nextStockState } });
+        }
+    }
+
+    vendorStop.status = 'returned';
+    vendorStop.returnedAt = new Date();
+
+    // Check if all return stops are completed
+    const allReturned = order.vendorReturnStops.every(s => s.status === 'returned');
+
+    if (allReturned) {
+        order.status = 'try_buy_completed';
+        flow.phase = 'try_buy_completed';
+        
+        const { WalletService } = await import('../../../services/wallet.service.js');
+        await WalletService.processOrderCompletion(order).catch(err => {
+            console.error(`[Wallet] Error processing earnings for order ${order._id}:`, err);
+        });
+
+        const updatedRider = await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: 'available' }, { new: true }).select('availableBalance totalEarnings totalDeliveries');
+
+        if (order.isMultiVendor) {
+            const DeliveryBatch = mongoose.model('DeliveryBatch');
+            await DeliveryBatch.findOneAndUpdate(
+                { deliveryBoyId: req.user.id, isMultiVendor: true, status: { $ne: 'delivered' } },
+                { status: 'delivered' }
+            );
+        }
+
+        await OrderNotificationService.notifyOrderUpdate(order._id, 'try_buy_completed', {
+            excludeRecipientId: req.user.id,
+            title: `Order #${order.orderId} Completed`,
+            message: `Order ${order.orderId} Try & Buy return flow is complete.`
+        });
+        emitEvent(`delivery_${req.user.id}`, 'earnings_updated', {
+            availableBalance: updatedRider?.availableBalance,
+            totalEarnings: updatedRider?.totalEarnings,
+            totalDeliveries: updatedRider?.totalDeliveries,
+        });
+    }
+
+    await order.save();
+    res.status(200).json(new ApiResponse(200, order, `Returned unselected items to vendor ${vendorId}`));
 });
 
 // PATCH /api/delivery/batch/select

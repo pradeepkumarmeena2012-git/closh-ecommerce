@@ -82,6 +82,10 @@ router.patch('/orders/:id/payment', ...deliveryAuth, orderController.handlePayme
 router.post('/orders/:id/verify-qr-payment', ...deliveryAuth, orderController.verifyQrPayment);
 router.post('/orders/:id/verify-payment', ...deliveryAuth, orderController.verifyDoorstepPayment);
 router.patch('/orders/:id/complete', ...deliveryAuth, orderController.handleCompleteDelivery);
+router.post('/orders/:id/vendor-returns/:vendorId/arrive', ...deliveryAuth, orderController.arriveAtVendorReturnStop);
+router.post('/orders/:id/vendor-returns/:vendorId/resend-otp', ...deliveryAuth, orderController.resendVendorReturnOtp);
+router.post('/orders/:id/vendor-returns/:vendorId/verify-otp', ...deliveryAuth, orderController.verifyVendorReturnOtp);
+router.post('/orders/:id/vendor-returns/:vendorId/complete', ...deliveryAuth, orderController.markTryBuyVendorReturned);
 router.patch('/batch/select', ...deliveryAuth, orderController.handleBatchSelect);
 
 // ── Multi-Vendor Pickup Flow ──

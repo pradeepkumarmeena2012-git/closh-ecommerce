@@ -47,7 +47,10 @@ const vendorItemGroupSchema = new mongoose.Schema({
             'delivered',
             'cancelled',
             'return requested',
-            'returned'
+            'returned',
+            'returning_unselected_items',
+            'returned_to_vendor',
+            'try_buy_completed'
         ],
         default: 'pending',
     },
@@ -66,11 +69,12 @@ const vendorPickupStopSchema = new mongoose.Schema({
     sequence: { type: Number, default: 0 }, // nearest-first sorted index
     status: {
         type: String,
-        enum: ['pending', 'arrived', 'otp_verified', 'picked_up'],
+        enum: ['pending', 'arrived', 'otp_verified', 'picked_up', 'returned'],
         default: 'pending',
     },
     arrivedAt: Date,
     pickedUpAt: Date,
+    returnedAt: Date,
     handoverOtp: { type: String },
     handoverOtpHash: { type: String },
     handoverOtpDebug: { type: String }, // plain-text for dev
@@ -97,7 +101,7 @@ const deliveryFlowItemSchema = new mongoose.Schema({
 const deliveryFlowSchema = new mongoose.Schema({
     phase: {
         type: String,
-        enum: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'try_and_buy', 'payment_pending', 'delivered'],
+        enum: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'try_and_buy', 'payment_pending', 'delivered', 'returning_unselected', 'try_buy_completed'],
         default: 'assigned',
     },
     // Pickup
@@ -111,6 +115,7 @@ const deliveryFlowSchema = new mongoose.Schema({
     // Try & Buy
     tryAndBuyItems: [deliveryFlowItemSchema],
     tryAndBuyCompletedAt: Date,
+    rejectedItems: [deliveryFlowItemSchema], // Track items not purchased during Try & Buy
     // Payment
     paymentMethod: { type: String, enum: ['cash', 'qr', 'online'] },
     paymentCollected: { type: Boolean, default: false },
@@ -176,13 +181,18 @@ const orderSchema = new mongoose.Schema(
                 'try_active',           // Try & Buy session active
                 'cancelled',            // Cancelled by any party or timeout
                 'return requested',     // Customer requested return
-                'returned'              // Order returned
+                'returned',             // Order returned
+                'returning_unselected_items', // Delivery boy returning unselected Try & Buy items
+                'returned_to_vendor',         // (Not actively used, but available as status)
+                'try_buy_completed'           // Try & Buy fully completed (payment + returns)
             ],
             default: 'pending',
             index: true,
         },
         // Multi-vendor: per-vendor pickup stops (populated when all vendors ready)
         vendorPickups: [vendorPickupStopSchema],
+        // Try & Buy Return: per-vendor return stops for unselected items
+        vendorReturnStops: [vendorPickupStopSchema],
         isMultiVendor: { type: Boolean, default: false },
         orderType: {
             type: String,

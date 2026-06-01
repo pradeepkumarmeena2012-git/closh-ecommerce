@@ -124,11 +124,13 @@ const OrderDetail = () => {
         socketService.on('order_picked_up', handleRealTimeUpdate);
         socketService.on('order_delivered', handleRealTimeUpdate);
         socketService.on('order_status_updated', handleRealTimeUpdate);
+        socketService.on('return_rider_arrived', handleRealTimeUpdate);
 
         return () => {
             socketService.off('order_picked_up');
             socketService.off('order_delivered');
             socketService.off('order_status_updated');
+            socketService.off('return_rider_arrived');
         };
     }, [id, vendorId]);
 
@@ -722,6 +724,33 @@ const OrderDetail = () => {
                                 <div className="mt-3 p-2 bg-white/10 rounded-lg">
                                     <p className="text-[9px] font-bold text-indigo-100 text-center uppercase tracking-wider">
                                         Stop: {myPickup?.status?.replace(/_/g, ' ') || 'Pending'}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {currentStatus === 'returning_unselected_items' && (() => {
+                        const myReturn = (order.vendorReturnStops || []).find(vp => {
+                            const vpVendorId = vp.vendorId?._id || vp.vendorId;
+                            return String(vpVendorId) === String(vendorId);
+                        });
+                        const otp = myReturn?.handoverOtpDebug || myReturn?.handoverOtp;
+                        if (!otp) return null;
+                        return (
+                            <div className="bg-gradient-to-br from-rose-600 to-rose-700 rounded-xl p-4 shadow-lg shadow-rose-500/20 text-white">
+                                <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-rose-200">
+                                    🔄 Return Reception OTP
+                                </p>
+                                <p className="text-4xl font-black tracking-[0.3em] text-center text-white mb-3">
+                                    {otp}
+                                </p>
+                                <p className="text-[10px] text-rose-200 text-center leading-tight">
+                                    Share this OTP with the delivery partner when they return unselected items to you.
+                                </p>
+                                <div className="mt-3 p-2 bg-white/10 rounded-lg">
+                                    <p className="text-[9px] font-bold text-rose-100 text-center uppercase tracking-wider">
+                                        Stop: {myReturn?.status?.replace(/_/g, ' ') || 'Pending'}
                                     </p>
                                 </div>
                             </div>
