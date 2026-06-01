@@ -109,6 +109,9 @@ const DeliveryOrderDetail = () => {
     if (['picked-up', 'picked_up', 'picked up', 'out-for-delivery', 'out_for_delivery', 'out for delivery', 'shipped', 'processing', 'arrived', 'return_requested', 'return requested', 'awaiting_return', 'awaiting return'].includes(s) ||
       ['picked_up', 'picked up', 'out_for_delivery', 'out for delivery', 'processing', 'arrived', 'return_requested', 'return requested'].includes(rawS)) return 'delivery';
 
+    if (['returning_unselected_items', 'returning_unselected', 'returning unselected items', 'returning unselected'].includes(s) || 
+      ['returning_unselected_items', 'returning_unselected', 'returning unselected items', 'returning unselected'].includes(rawS)) return 'returning_unselected';
+
     return null;
   };
 
@@ -138,8 +141,14 @@ const DeliveryOrderDetail = () => {
     try {
       const response = await fetchOrderById(id);
       if (response?.isMultiVendor && response?.type !== 'return') {
-        navigate(`/delivery/multi-vendor/${id}`, { replace: true });
-        return;
+        const s = String(response.status || '').toLowerCase();
+        const rawS = String(response.rawStatus || '').toLowerCase();
+        const isPickupPhase = ['pending', 'ready_for_pickup', 'assigned', 'accepted'].includes(s) || ['pending', 'ready_for_pickup', 'assigned', 'accepted'].includes(rawS);
+        
+        if (isPickupPhase) {
+          navigate(`/delivery/multi-vendor/${id}`, { replace: true });
+          return;
+        }
       }
       // If this order is actually a return, redirect to the correct return detail page
       if (response?.type === 'return') {
@@ -439,10 +448,66 @@ const DeliveryOrderDetail = () => {
         deliveryProofPhoto
       });
       setOrder(updated);
-      setShowSuccess(true);
+      
+      const newStatus = String(updated.status || '').toLowerCase();
+      if (newStatus === 'returning_unselected_items' || newStatus === 'returning_unselected') {
+        toast.success('Items delivered. Now please return the unselected items to the vendor.');
+      } else {
+        setShowSuccess(true);
+      }
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Delivery failed');
     }
+  };
+
+  const [vendorReturnOtps, setVendorReturnOtps] = useState({});
+
+  const handleArriveVendorReturn = async (vendorId) => {
+    try {
+      const res = await api.post(`/delivery/orders/${id}/vendor-returns/${vendorId}/arrive`);
+      await loadOrder();
+      toast.success(res?.message || res?.data?.message || 'Arrived at vendor');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to mark arrival');
+    }
+  };
+
+  const handleResendVendorReturnOtp = async (vendorId) => {
+    try {
+      const res = await api.post(`/delivery/orders/${id}/vendor-returns/${vendorId}/resend-otp`);
+      toast.success(res?.message || res?.data?.message || 'OTP Resent');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to resend OTP');
+    }
+  };
+
+  const handleVerifyVendorReturnOtp = async (vendorId) => {
+    const otp = vendorReturnOtps[vendorId];
+    if (!otp) return toast.error('Please enter OTP');
+    
+    try {
+      const res = await api.post(`/delivery/orders/${id}/vendor-returns/${vendorId}/verify-otp`, { otp });
+      await loadOrder();
+      toast.success(res?.message || res?.data?.message || 'OTP verified');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to verify OTP');
+    }
+  };
+
+  const handleCompleteVendorReturn = async (vendorId) => {
+      try {
+          const res = await api.post(`/delivery/orders/${id}/vendor-returns/${vendorId}/complete`);
+          await loadOrder();
+          toast.success(res?.message || res?.data?.message || 'Returned items to vendor');
+          
+          // Use the raw status from the backend to check if the try_buy phase is totally complete
+          const backendStatus = res?.data?.status || res?.data?.order?.status || res?.status;
+          if (backendStatus === 'try_buy_completed') {
+              setShowSuccess(true);
+          }
+      } catch (err) {
+          toast.error(err?.response?.data?.message || 'Failed to mark return');
+      }
   };
 
   // handleImage: set primary photo with compression
@@ -507,7 +572,7 @@ const DeliveryOrderDetail = () => {
 
   if (!order) return <div className="p-8 text-center text-slate-500 text-sm">Order not found</div>;
 
-  if (showSuccess || order.status === 'delivered') {
+  if (showSuccess || order.status === 'delivered' || order.status === 'try_buy_completed') {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white mb-4 border-4 border-emerald-50">
@@ -604,6 +669,78 @@ const DeliveryOrderDetail = () => {
 
           <div className="p-4 space-y-4">
             {/* ACTIONS SECTION */}
+            {currentPhase === 'returning_unselected' && (
+              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mt-4 mb-4">
+                <p className="text-[11px] font-bold text-slate-800 uppercase tracking-widest mb-3">Return Unselected Items</p>
+                <div className="space-y-3">
+                  {order.vendorReturnStops?.map((stop, idx) => (
+                      <div key={idx} className="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="text-xs font-bold text-slate-800">{stop.vendorName}</p>
+                            <p className="text-[10px] text-slate-500 mb-2">{stop.shopAddress}</p>
+                          </div>
+                          <button
+                            onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.vendorItems?.find(vi => String(vi.vendorId?._id || vi.vendorId) === String(stop.vendorId))?.shopLocation?.coordinates?.[1] || 0},${order.vendorItems?.find(vi => String(vi.vendorId?._id || vi.vendorId) === String(stop.vendorId))?.shopLocation?.coordinates?.[0] || 0}`, '_blank')}
+                            className="w-8 h-8 bg-slate-200 text-slate-600 rounded-lg flex items-center justify-center shrink-0 border border-slate-300 active:scale-95"
+                          >
+                            <FiNavigation size={14} />
+                          </button>
+                        </div>
+                        {stop.status === 'returned' ? (
+                           <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-bold">
+                             <FiCheckCircle size={12} /> RETURNED
+                           </div>
+                        ) : stop.status === 'pending' ? (
+                          <button
+                            onClick={() => handleArriveVendorReturn(stop.vendorId)}
+                            disabled={isUpdatingOrderStatus}
+                            className="w-full bg-slate-900 text-white text-[10px] font-bold py-2 rounded-lg uppercase tracking-widest active:scale-95 transition-all"
+                          >
+                            ARRIVE AT LOCATION
+                          </button>
+                        ) : stop.status === 'arrived' ? (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                placeholder="ENTER OTP FROM VENDOR"
+                                value={vendorReturnOtps[stop.vendorId] || ''}
+                                onChange={(e) => setVendorReturnOtps(prev => ({...prev, [stop.vendorId]: e.target.value}))}
+                                className="flex-1 bg-white border border-slate-200 rounded-lg px-3 text-xs font-bold tracking-[0.2em] text-center"
+                                maxLength={6}
+                              />
+                              <button
+                                onClick={() => handleVerifyVendorReturnOtp(stop.vendorId)}
+                                disabled={isUpdatingOrderStatus || !vendorReturnOtps[stop.vendorId]}
+                                className="bg-indigo-600 text-white px-4 rounded-lg text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50"
+                              >
+                                VERIFY
+                              </button>
+                            </div>
+                            <button
+                                onClick={() => handleResendVendorReturnOtp(stop.vendorId)}
+                                disabled={isUpdatingOrderStatus}
+                                className="w-full bg-slate-100 text-slate-600 text-[10px] font-bold py-2 rounded-lg uppercase tracking-widest active:scale-95 transition-all mt-1 border border-slate-200"
+                              >
+                                RESEND OTP
+                              </button>
+                          </div>
+                        ) : stop.status === 'otp_verified' ? (
+                          <button
+                            onClick={() => handleCompleteVendorReturn(stop.vendorId)}
+                            disabled={isUpdatingOrderStatus}
+                            className="w-full bg-emerald-600 text-white text-[10px] font-bold py-2 rounded-lg uppercase tracking-widest active:scale-95 transition-all"
+                          >
+                            CONFIRM RETURN
+                          </button>
+                        ) : null}
+                      </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {(!hasArrived && currentPhase === 'delivery') || (currentPhase === 'pickup') ? (
               <div className="space-y-3">
                 {currentPhase === 'pickup' ? (
@@ -678,7 +815,7 @@ const DeliveryOrderDetail = () => {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : currentPhase !== 'returning_unselected' ? (
               <>
                 {/* ADDRESS & DETAILS */}
                 <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
@@ -873,7 +1010,7 @@ const DeliveryOrderDetail = () => {
                   )}
                 </div>
               </>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -927,7 +1064,7 @@ const DeliveryOrderDetail = () => {
             ) : (
               <div className="text-center py-2">
                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Mission Active</p>
-                <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Complete {currentPhase === 'pickup' ? 'Pickup Verification' : 'Arrival & OTP'} to Finish</p>
+                <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Complete {currentPhase === 'pickup' ? 'Pickup Verification' : currentPhase === 'returning_unselected' ? 'Vendor Returns' : 'Arrival & OTP'} to Finish</p>
               </div>
             )
           ) : (

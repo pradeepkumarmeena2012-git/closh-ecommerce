@@ -88,7 +88,7 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
         $or: idFilter,
         'vendorItems.vendorId': req.user.id,
     })
-      .select('+vendorPickups.handoverOtp +vendorPickups.handoverOtpHash +vendorPickups.handoverOtpDebug')
+      .select('+vendorPickups.handoverOtp +vendorPickups.handoverOtpHash +vendorPickups.handoverOtpDebug +vendorReturnStops.handoverOtp +vendorReturnStops.handoverOtpHash +vendorReturnStops.handoverOtpDebug')
       .populate('deliveryBoyId', 'name phone profileImage vehicleNumber status')
       .populate('userId', 'name email phone')
       .populate('items.productId')
@@ -117,7 +117,7 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
         await Order.findByIdAndUpdate(order._id, { vendorPickups: rawStops });
         // Fetch again with selections
         order = await Order.findOne({ _id: order._id })
-          .select('+vendorPickups.handoverOtp +vendorPickups.handoverOtpHash +vendorPickups.handoverOtpDebug')
+          .select('+vendorPickups.handoverOtp +vendorPickups.handoverOtpHash +vendorPickups.handoverOtpDebug +vendorReturnStops.handoverOtp +vendorReturnStops.handoverOtpHash +vendorReturnStops.handoverOtpDebug')
           .populate('deliveryBoyId', 'name phone profileImage vehicleNumber status')
           .populate('userId', 'name email phone')
           .populate('items.productId')
