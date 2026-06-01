@@ -76,7 +76,9 @@ const InventoryReport = () => {
             alt={value}
             className="w-10 h-10 object-cover rounded-lg"
             onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/50x50?text=Product';
+              if (e.target.src !== 'https://via.placeholder.com/50x50?text=Product') {
+                e.target.src = 'https://via.placeholder.com/50x50?text=Product';
+              }
             }}
           />
           <span className="font-medium">{value}</span>
@@ -101,7 +103,7 @@ const InventoryReport = () => {
             status === 'LOW_STOCK' ? 'bg-yellow-100 text-yellow-800' :
               'bg-red-100 text-red-800'
             }`}>
-            {status.replace('_', ' ')}
+            {status.replace(/_/g, ' ')}
           </span>
         );
       },

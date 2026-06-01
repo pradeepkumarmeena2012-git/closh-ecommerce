@@ -71,7 +71,7 @@ const SalesReport = () => {
       key: 'createdAt',
       label: 'Date',
       sortable: true,
-      render: (value) => new Date(value).toLocaleString(),
+      render: (value) => value ? new Date(value).toISOString().split('T')[0] : '',
     },
     {
       key: 'total',
@@ -163,7 +163,7 @@ const SalesReport = () => {
               headers={[
                 { label: 'Order ID', accessor: (row) => row.orderId || row._id },
                 { label: 'Customer', accessor: (row) => row.userId?.name || 'Guest' },
-                { label: 'Date', accessor: (row) => new Date(row.createdAt).toLocaleString() },
+                { label: 'Date', accessor: (row) => row.createdAt ? new Date(row.createdAt).toISOString().split('T')[0] : '' },
                 { label: 'Amount', accessor: (row) => formatPrice(row.total) },
                 { label: 'Status', accessor: (row) => row.status },
               ]}

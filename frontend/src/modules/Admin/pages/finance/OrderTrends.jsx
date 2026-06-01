@@ -57,11 +57,26 @@ const OrderTrends = () => {
 
   const orderTrends = useMemo(() => {
     if (!revenueData) return [];
-    return revenueData.map((day) => ({
-      date: day._id,
-      orders: day.orders || 0,
-    }));
-  }, [revenueData]);
+    if (period === 'year') {
+      return revenueData.map((day) => ({ date: day._id, orders: day.orders || 0 }));
+    }
+    const range = getRangeForPeriod(period);
+    const start = new Date(range.startDate);
+    const end = new Date(range.endDate);
+    const dataMap = {};
+    revenueData.forEach(item => { dataMap[item._id] = item; });
+    const filledData = [];
+    let current = new Date(start);
+    while (current <= end) {
+      const dateStr = current.toISOString().split('T')[0];
+      filledData.push({
+        date: dateStr,
+        orders: dataMap[dateStr]?.orders || 0,
+      });
+      current.setDate(current.getDate() + 1);
+    }
+    return filledData;
+  }, [revenueData, period]);
 
   const totalOrders = orderTrends.reduce((sum, day) => sum + day.orders, 0);
   const averageOrders =

@@ -24,7 +24,7 @@ const OrderTrendsLineChart = ({ data, period = "month" }) => {
     const filtered = filterByDateRange(data, range.start, range.end);
     return filtered.map((item) => ({
       ...item,
-      dateLabel: formatDate(item.date, { month: "short", day: "numeric" }),
+      dateLabel: item.date ? new Date(item.date).toLocaleDateString('en-GB') : '',
     }));
   }, [data, period]);
 

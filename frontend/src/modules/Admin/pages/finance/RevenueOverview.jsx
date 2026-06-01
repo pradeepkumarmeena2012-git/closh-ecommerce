@@ -56,13 +56,34 @@ const RevenueOverview = () => {
   }, [period, fetchFinancialSummary]);
 
   const chartData = useMemo(() => {
-    return financialSummary.map(item => ({
-      ...item,
-      date: item._id, 
-      revenue: item.netRevenue || 0, // Override revenue for the chart to show Net Revenue
-      grossRevenue: item.revenue || 0,
-    }));
-  }, [financialSummary]);
+    if (period === 'year') {
+      return financialSummary.map(item => ({
+        ...item,
+        date: item._id, 
+        revenue: item.netRevenue || 0,
+        grossRevenue: item.revenue || 0,
+      }));
+    }
+    const range = getRangeForPeriod(period);
+    const start = new Date(range.startDate);
+    const end = new Date(range.endDate);
+    const dataMap = {};
+    financialSummary.forEach(item => { dataMap[item._id] = item; });
+    const filledData = [];
+    let current = new Date(start);
+    while (current <= end) {
+      const dateStr = current.toISOString().split('T')[0];
+      filledData.push({
+        ...(dataMap[dateStr] || {}),
+        date: dateStr,
+        revenue: dataMap[dateStr]?.netRevenue || 0,
+        grossRevenue: dataMap[dateStr]?.revenue || 0,
+        orders: dataMap[dateStr]?.orders || 0,
+      });
+      current.setDate(current.getDate() + 1);
+    }
+    return filledData;
+  }, [financialSummary, period]);
 
   const stats = useMemo(() => {
     const grossRevenue = financialSummary.reduce((sum, item) => sum + item.revenue, 0);

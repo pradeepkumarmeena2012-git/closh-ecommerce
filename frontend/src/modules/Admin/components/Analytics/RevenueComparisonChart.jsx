@@ -25,7 +25,7 @@ const RevenueComparisonChart = ({ data, period = "month" }) => {
     // We trust the parent component to provide pre-filtered data for the selected period
     return data.map((item) => ({
       ...item,
-      dateLabel: formatDate(item.date, { month: "short", day: "numeric" }),
+      dateLabel: item.date ? new Date(item.date).toLocaleDateString('en-GB') : '',
       averageOrderValue: item.orders > 0 ? (item.grossRevenue || item.revenue) / item.orders : 0,
     }));
   }, [data]);
@@ -122,7 +122,7 @@ const RevenueComparisonChart = ({ data, period = "month" }) => {
               fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
+              tickFormatter={(value) => value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`}
               width={60}
             />
             <YAxis

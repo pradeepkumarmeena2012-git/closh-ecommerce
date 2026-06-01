@@ -14,6 +14,7 @@ const ExportButton = ({ data, headers, filename, className = '' }) => {
 
   return (
     <Button
+      type="button"
       onClick={handleExport}
       variant="success"
       size="sm"
