@@ -279,10 +279,10 @@ const ManageProducts = () => {
               <ExportButton
                 data={filteredProducts}
                 headers={[
-                  { label: "ID", accessor: (row) => String(row._id ?? row.id) },
-                  { label: "Name", accessor: (row) => row.name },
-                  { label: "Price", accessor: (row) => formatPrice(row.price) },
-                  { label: "Stock", accessor: (row) => row.stockQuantity || 0 },
+                    { label: "ID", accessor: (row) => String(row._id ?? row.id) },
+                    { label: "Name", accessor: (row) => row.name },
+                    { label: "Your Price", accessor: (row) => formatPrice(row.vendorPrice || 0) },
+                    { label: "Stock", accessor: (row) => row.stockQuantity || 0 },
                   { label: "Status", accessor: (row) => row.stock || "N/A" },
                 ]}
                 filename="vendor-products"

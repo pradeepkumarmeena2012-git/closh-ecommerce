@@ -202,7 +202,7 @@ const ProductForm = () => {
     setFormData({
       name: product.name || "",
       unit: product.unit || "",
-      price: product.vendorPrice || product.price || "",
+      price: product.vendorPrice || "",
       originalPrice: product.originalPrice || "",
       image: product.image || "",
       images: product.images || [],
@@ -1328,28 +1328,11 @@ const ProductForm = () => {
                       <div className="w-full">
                         <input
                           type="number"
-                          min="0"
-                          step="0.01"
-                          value={formData.variants?.prices?.[combo.key] ?? ""}
-                          onChange={(e) => {
-                            const nextValue = e.target.value;
-                            setFormData((prev) => ({
-                              ...prev,
-                              variants: {
-                                ...prev.variants,
-                                prices: {
-                                  ...(prev.variants?.prices || {}),
-                                  [combo.key]: nextValue === "" ? "" : Number(nextValue),
-                                },
-                              },
-                            }));
-                          }}
-                          className={`w-full px-2 py-1.5 border rounded-lg focus:outline-none focus:ring-2 text-xs ${originalPriceVal !== null && formData.variants?.prices?.[combo.key] && originalPriceVal <= formData.variants.prices[combo.key] ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
-                          placeholder="Use base price"
+                          readOnly
+                          value={formData.price}
+                          className="w-full px-2 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs text-gray-500 cursor-not-allowed"
+                          placeholder="Same as base price"
                         />
-                        {originalPriceVal !== null && formData.variants?.prices?.[combo.key] && originalPriceVal <= formData.variants.prices[combo.key] && (
-                          <p className="text-red-500 text-[10px] mt-1 font-medium leading-tight">Must be &lt; MRP</p>
-                        )}
                       </div>
                       <input
                         type="number"

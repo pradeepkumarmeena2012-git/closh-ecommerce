@@ -386,7 +386,7 @@ const StockManagement = () => {
       key: "vendorPrice",
       label: "Your Price",
       sortable: true,
-      render: (value, row) => formatPrice(value || row.price),
+      render: (value, row) => formatPrice(value || 0),
     },
     {
       key: "stockQuantity",
@@ -557,7 +557,7 @@ const StockManagement = () => {
                 headers={[
                   { label: "ID", accessor: (row) => String(row._id ?? row.id ?? "") },
                   { label: "Name", accessor: (row) => row.name },
-                  { label: "Your Price", accessor: (row) => formatPrice(row.vendorPrice || row.price) },
+                  { label: "Your Price", accessor: (row) => formatPrice(row.vendorPrice || 0) },
                   { label: "Stock", accessor: (row) => row.stockQuantity || 0 },
                   { label: "Status", accessor: (row) => row.stock || "N/A" },
                 ]}
@@ -807,13 +807,10 @@ const StockManagement = () => {
                                 <td className="px-3 py-2">
                                   <input 
                                     type="number" 
-                                    value={formData.variants.prices[combo.key] ?? ""} 
-                                    onChange={(e) => setFormData(prev => ({
-                                      ...prev,
-                                      variants: { ...prev.variants, prices: { ...prev.variants.prices, [combo.key]: e.target.value } }
-                                    }))}
-                                    className="w-full px-2 py-1 bg-emerald-50/20 border border-emerald-50 rounded focus:ring-1 focus:ring-emerald-500" 
-                                    placeholder="Base"
+                                    readOnly
+                                    value={formData.price} 
+                                    className="w-full px-2 py-1 bg-emerald-50/20 border border-emerald-50 rounded text-emerald-800 cursor-not-allowed" 
+                                    placeholder="Same as base price"
                                   />
                                 </td>
                                 <td className="px-3 py-2">

@@ -162,7 +162,7 @@ const InventoryReports = () => {
             headers={[
               { label: "Product", accessor: (row) => row.name },
               { label: "Current Stock", accessor: (row) => row.currentStock },
-              { label: "Price", accessor: (row) => formatPrice(row.price) },
+              { label: "Your Price", accessor: (row) => formatPrice(row.vendorPrice || 0) },
               { label: "Stock Value", accessor: (row) => formatPrice(row.stockValue) },
               { label: "Units Sold", accessor: (row) => row.sold },
             ]}

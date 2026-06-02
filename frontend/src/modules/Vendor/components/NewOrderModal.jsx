@@ -26,6 +26,12 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzer
     const firstItem = items[0];
     const itemImage = getFullImageUrl(firstItem?.image || firstItem?.productId?.image);
 
+    // Calculate vendor-specific total based on vendorPrice
+    const vendorTotal = items.reduce((sum, it) => {
+        const itemVendorPrice = it.vendorPrice || it.productId?.vendorPrice || 0;
+        return sum + (itemVendorPrice * (it.quantity || 1));
+    }, 0);
+
     return createPortal(
         <AnimatePresence>
             {isOpen && order && (
@@ -74,7 +80,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzer
                         <div className="px-8 py-2">
                             <div className="p-6 bg-slate-900 rounded-2xl text-white">
                                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Total Amount</p>
-                                <p className="text-3xl font-bold">{formatPrice(order.total || 0)}</p>
+                                <p className="text-3xl font-bold">{formatPrice(vendorTotal)}</p>
                             </div>
                         </div>
 
@@ -97,7 +103,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzer
                                                     )}
                                                 </div>
                                             </div>
-                                            <span className="text-slate-400 font-medium ml-4 whitespace-nowrap">{formatPrice(it.price * (it.quantity || 1))}</span>
+                                            <span className="text-slate-400 font-medium ml-4 whitespace-nowrap">{formatPrice((it.vendorPrice || it.productId?.vendorPrice || 0) * (it.quantity || 1))}</span>
                                         </div>
                                     ))}
                                 </div>

@@ -877,7 +877,7 @@ const OfflineSales = () => {
               headers={[
                 { label: "ID", accessor: "id" }, 
                 { label: "Product", accessor: "productName" }, 
-                { label: "Your Price", accessor: (row) => formatPrice(row.price) }
+                { label: "Your Price", accessor: (row) => formatPrice(row.vendorPrice || 0) }
               ]} 
               filename="offline-sales" 
             />
