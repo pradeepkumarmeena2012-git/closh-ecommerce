@@ -61,9 +61,9 @@ export const generateCSV = (data, headers, filename) => {
   // Create data rows
   const dataRows = data.map((row) => {
     return headers.map((header) => {
-      const value = header.accessor(row);
+      const value = typeof header.accessor === 'function' ? header.accessor(row) : row[header.accessor];
       // Escape quotes and wrap in quotes
-      return `"${String(value).replace(/"/g, '""')}"`;
+      return `"${String(value ?? '').replace(/"/g, '""')}"`;
     }).join(',');
   });
 

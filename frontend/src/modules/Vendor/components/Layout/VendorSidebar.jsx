@@ -256,21 +256,21 @@ const VendorSidebar = ({ isOpen, onClose }) => {
 
   // Sidebar content
   const sidebarContent = (
-    <div className="h-full flex flex-col bg-slate-800 shadow-xl">
+    <div className="h-full w-full flex flex-col bg-slate-800 shadow-xl overflow-hidden">
       {/* Header Section */}
-      <div className="p-4 border-b border-slate-700 bg-slate-900">
+      <div className="p-4 border-b border-slate-700 bg-slate-900 shrink-0 w-full">
         {/* Header with Close Button and Vendor Info */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 w-full">
           {/* Vendor User Info */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
               <FiShoppingBag className="text-white text-xl" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <h2 className="font-semibold text-white text-sm truncate">
                 {vendor?.storeName || vendor?.name || "Vendor Store"}
               </h2>
-              <p className="text-xs text-gray-400 truncate">
+              <p className="text-xs text-gray-400 truncate" title={vendor?.email || "vendor@example.com"}>
                 {vendor?.email || "vendor@example.com"}
               </p>
             </div>

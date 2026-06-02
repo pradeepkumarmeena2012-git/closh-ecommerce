@@ -127,7 +127,11 @@ const PaymentPage = () => {
     const taxableAmount = Math.max(0, subtotal - promoDiscount);
     const tax = 0;
 
-    const finalTotal = subtotal - promoDiscount + platformFee + shipping + tax;
+    const baseTotal = subtotal - promoDiscount + platformFee + shipping + tax;
+    const codFeePercentage = settings?.payment?.paymentFees?.cod !== undefined ? Number(settings.payment.paymentFees.cod) : 0;
+    const codFeeAmount = (paymentMethod === 'COD' || paymentMethod === 'cod') ? (baseTotal * codFeePercentage / 100) : 0;
+
+    const finalTotal = baseTotal + codFeeAmount;
 
     const handleApplyPromo = (codeToApply) => {
         const finalCode = (typeof codeToApply === 'string' ? codeToApply : promoCode).trim();
@@ -619,6 +623,12 @@ const PaymentPage = () => {
                             <span className="text-gray-500 font-medium">Shipping Fee</span>
                             <span className="text-emerald-600 font-bold">{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
                         </div>
+                        {(paymentMethod === 'COD' || paymentMethod === 'cod') && codFeeAmount > 0 && (
+                            <div className="flex justify-between text-[13px] animate-fadeInUp">
+                                <span className="text-gray-500 font-medium">COD Fee ({codFeePercentage}%)</span>
+                                <span className="text-gray-900 font-bold">₹{Number(codFeeAmount.toFixed(2))}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
                         <span className="text-[14px] font-bold text-gray-900 uppercase ">Total Amount</span>
