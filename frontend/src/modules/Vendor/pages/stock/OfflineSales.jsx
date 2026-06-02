@@ -3,17 +3,11 @@ import {
   FiSearch, 
   FiPlus, 
   FiShoppingBag, 
-  FiCalendar, 
-  FiDollarSign, 
   FiEdit, 
   FiTrash2, 
   FiShoppingCart,
   FiX,
-  FiUpload,
   FiImage,
-  FiLayers,
-  FiSettings,
-  FiType,
   FiMaximize,
   FiBox,
   FiCheck,
@@ -28,7 +22,6 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useVendorProductStore } from "../../store/vendorProductStore";
 import { 
-  getVendorProducts, 
   updateVendorStock, 
   updateVendorVariantStock,
   createVendorProduct,
@@ -37,10 +30,7 @@ import {
 } from "../../services/vendorService";
 import MultiSelect from "../../../Admin/components/MultiSelect";
 import { PRODUCT_SIZES } from "../../../../shared/utils/constants";
-import { useCategoryStore } from "../../../../shared/store/categoryStore";
-import { useBrandStore } from "../../../../shared/store/brandStore";
-import CategorySelector from "../../../Admin/components/CategorySelector";
-import AnimatedSelect from "../../../Admin/components/AnimatedSelect";
+
 import { 
   buildVariantCombinations, 
   syncVariantPricesWithAxes, 
@@ -49,7 +39,7 @@ import {
   parseVariantAxis
 } from "../../utils/variantHelpers";
 import toast from "react-hot-toast";
-import { uploadVendorImage } from "../../services/vendorService";
+
 
 const OfflineSales = () => {
   const { vendor } = useVendorAuthStore();
@@ -66,14 +56,9 @@ const OfflineSales = () => {
   const [saleQuantity, setSaleQuantity] = useState(1);  const [variantSaleQty, setVariantSaleQty] = useState({});
   const [variantActionLoading, setVariantActionLoading] = useState(null);
 
-  const { categories, initialize: initCategories } = useCategoryStore();
-  const { brands, initialize: initBrands } = useBrandStore();
-
   useEffect(() => {
     fetchProducts();
-    initCategories();
-    initBrands();
-  }, [initCategories, initBrands]);
+  }, []);
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -299,24 +284,7 @@ const OfflineSales = () => {
     setIsModalOpen(true);
   };
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
 
-    setIsLoading(true);
-    try {
-      const uploadResponse = await uploadVendorImage(file);
-      const imageUrl = uploadResponse.data?.url || uploadResponse.data;
-      if (imageUrl) {
-        setFormData(prev => ({ ...prev, image: imageUrl }));
-        toast.success("Image uploaded");
-      }
-    } catch (error) {
-      toast.error("Upload failed");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const updateVariantAxes = (axis, rawText) => {
     const parsed = parseVariantAxis(rawText);
@@ -1029,107 +997,8 @@ const OfflineSales = () => {
                 {/* Scrollable Body */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar">
                   <form onSubmit={handleSave} className="space-y-6">
-                {/* 1. Basic Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="md:col-span-2 space-y-1">
-                     <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Product Name *</label>
-                     <input type="text" required value={formData.productName} onChange={(e) => setFormData({ ...formData, productName: e.target.value.replace(/[^a-zA-Z0-9\s]/g, '') })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="T-Shirt..." />
-                  </div>
-                  <div className="space-y-1">
-                     <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Unit</label>
-                     <input type="text" value={formData.unit} onChange={(e) => setFormData({ ...formData, unit: e.target.value.replace(/[^a-zA-Z0-9\s]/g, '') })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="Piece/Box" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Division *</label>
-                    <AnimatedSelect
-                      value={formData.division}
-                      onChange={(e) => setFormData({ ...formData, division: e.target.value })}
-                      options={[
-                        { value: "Men", label: "Men" },
-                        { value: "Women", label: "Women" },
-                        { value: "Boys", label: "Boys" },
-                        { value: "Girls", label: "Girls" },
-                        { value: "Unisex", label: "Unisex" },
-                      ]}
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Category *</label>
-                    <CategorySelector
-                      value={formData.categoryId}
-                      subcategoryId={formData.subcategoryId}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        [e.target.name]: e.target.value 
-                      }))}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Brand</label>
-                    <AnimatedSelect
-                      value={formData.brandId || ""}
-                      onChange={(e) => setFormData({ ...formData, brandId: e.target.value || null })}
-                      placeholder="Select Brand"
-                      options={[
-                        { value: "", label: "No Brand" },
-                        ...brands.map(b => ({ value: b._id || b.id, label: b.name }))
-                      ]}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Description</label>
-                  <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-3 py-2.5 bg-emerald-50/20 border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" rows={2} placeholder="Briefly describe..." />
-                </div>
-
-                {/* 2. Pricing & Stock */}
-                <div className="bg-emerald-50/10 p-4 rounded-2xl border border-emerald-50 space-y-4">
-                  <h3 className="text-xs font-black text-emerald-800 uppercase">Pricing & Base Inventory</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-1">
-                       <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Selling Price *</label>
-                       <input type="number" required value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-3 py-2.5 bg-white border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="0.00" />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] md:text-xs font-black text-gray-400 uppercase ml-1">MRP</label>
-                        <input type="number" value={formData.originalPrice} onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })} className="w-full px-3 py-2.5 bg-white border border-gray-100 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold" placeholder="0.00" />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Discount (%)</label>
-                        <input type="number" readOnly value={formData.discount} className="w-full px-3 py-2.5 bg-emerald-50/50 border border-emerald-50 rounded-xl text-emerald-600 text-xs md:text-sm font-black" placeholder="0" />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Stock Quantity *</label>
-                        <input 
-                          type="number" 
-                          required 
-                          readOnly={variantCombinations.length > 0}
-                          value={formData.stockQuantity} 
-                          onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })} 
-                          className={`w-full px-3 py-2.5 bg-white border border-emerald-50 rounded-xl focus:ring-1 focus:ring-emerald-500 text-xs md:text-sm font-bold ${variantCombinations.length > 0 ? 'bg-emerald-50/50 text-emerald-600' : ''}`} 
-                        />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Stock Status</label>
-                      <AnimatedSelect
-                        value={formData.stock}
-                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                        options={[
-                          { value: 'in_stock', label: 'In Stock' },
-                          { value: 'low_stock', label: 'Low Stock' },
-                          { value: 'out_of_stock', label: 'Out of Stock' },
-                        ]}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Variants Section */}
+                {/* Product Variants Section */}
                 <div className="bg-emerald-50/10 p-4 rounded-2xl border border-emerald-50 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-black text-emerald-800 uppercase">Product Variants</h3>
@@ -1341,65 +1210,6 @@ const OfflineSales = () => {
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* 4. Media & Additional Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Product Media</label>
-                    <div className="relative border-2 border-dashed border-emerald-100 rounded-xl bg-emerald-50/10 p-4 text-center cursor-pointer hover:border-emerald-300">
-                      <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                      {formData.image ? (
-                        <div className="flex items-center gap-3">
-                          <img src={formData.image} className="w-12 h-12 rounded-lg object-cover" />
-                          <div className="text-left"><p className="text-xs font-black">Main Image Set</p><p className="text-[10px] text-emerald-500 font-bold uppercase">Change</p></div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-1">
-                          <FiUpload className="text-emerald-300" size={20} />
-                          <p className="text-xs font-black">Upload Main Image</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                     <label className="text-[10px] md:text-xs font-black text-emerald-800 uppercase ml-1">Settings & SEO</label>
-                     <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400">HSN CODE</label>
-                          <input type="text" value={formData.hsnCode} onChange={(e) => setFormData({...formData, hsnCode: e.target.value.replace(/\D/g, '')})} className="w-full px-2 py-1.5 bg-white border border-gray-100 rounded-lg text-xs" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-gray-400">TAX RATE (%)</label>
-                          <input type="number" value={formData.taxRate} onChange={(e) => setFormData({...formData, taxRate: e.target.value})} className="w-full px-2 py-1.5 bg-white border border-gray-100 rounded-lg text-xs" />
-                        </div>
-                     </div>
-                  </div>
-                </div>
-
-                {/* Tags & Options */}
-                <div className="flex flex-wrap gap-4">
-                   <div className="flex-1 min-w-[200px] space-y-1">
-                      <label className="text-[10px] font-bold text-emerald-800 uppercase">Tags (Comma separated)</label>
-                      <input 
-                        type="text" 
-                        value={formData.tags.join(', ')} 
-                        onChange={(e) => setFormData({...formData, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean)})}
-                        className="w-full px-3 py-2 bg-emerald-50/10 border border-emerald-50 rounded-xl text-xs font-bold" 
-                        placeholder="shoes, adidas, sporty..."
-                      />
-                   </div>
-                   <div className="flex items-center gap-4 pt-4">
-                      <label className="flex items-center gap-2 cursor-pointer group">
-                        <input type="checkbox" checked={formData.flashSale} onChange={(e) => setFormData({...formData, flashSale: e.target.checked})} className="w-4 h-4 rounded border-emerald-200 text-emerald-600 focus:ring-emerald-500" />
-                        <span className="text-[10px] font-bold text-gray-600 uppercase group-hover:text-emerald-600 transition-colors">Flash Sale</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer group">
-                        <input type="checkbox" checked={formData.isVisible} onChange={(e) => setFormData({...formData, isVisible: e.target.checked})} className="w-4 h-4 rounded border-emerald-200 text-emerald-600 focus:ring-emerald-500" />
-                        <span className="text-[10px] font-bold text-gray-600 uppercase group-hover:text-emerald-600 transition-colors">Visible</span>
-                      </label>
-                   </div>
                 </div>
 
                   </form>
