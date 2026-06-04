@@ -814,9 +814,10 @@ const AddProduct = () => {
                 name="originalPrice"
                 value={formData.originalPrice}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 min="0"
                 step="0.01"
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${originalPriceError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm no-spinner ${originalPriceError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
                 placeholder="0.00"
               />
               {originalPriceError && <p className="text-red-500 text-[10px] mt-1 font-medium">{originalPriceError}</p>}
@@ -831,10 +832,11 @@ const AddProduct = () => {
                 name="price"
                 value={formData.price}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 required
                 min="0"
                 step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm no-spinner"
                 placeholder="0.00"
               />
             </div>
@@ -989,9 +991,10 @@ const AddProduct = () => {
                 name="stockQuantity"
                 value={formData.stockQuantity}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 required
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm no-spinner"
                 placeholder="0"
               />
               {variantCombinations.length > 0 && (
@@ -1035,8 +1038,9 @@ const AddProduct = () => {
                 name="totalAllowedQuantity"
                 value={formData.totalAllowedQuantity}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm no-spinner"
                 placeholder="Limit per user"
               />
             </div>
@@ -1050,8 +1054,9 @@ const AddProduct = () => {
                 name="minimumOrderQuantity"
                 value={formData.minimumOrderQuantity}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 min="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm no-spinner"
                 placeholder="1"
               />
             </div>
@@ -1276,7 +1281,8 @@ const AddProduct = () => {
                             },
                           }));
                         }}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
+                        onWheel={(e) => e.target.blur()}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs no-spinner"
                         placeholder={getRecommendedPlaceholder(combo.key)}
                       />
                       <div className="flex items-center gap-2">

@@ -304,6 +304,61 @@ export const createProduct = asyncHandler(async (req, res) => {
 export const updateProduct = asyncHandler(async (req, res) => {
     const product = await Product.findOne({ _id: req.params.id, vendorId: req.user.id });
     if (!product) throw new ApiError(404, 'Product not found or access denied.');
+
+    if (product.approvalStatus === 'approved' && product.isActive) {
+        // STAGED UPDATES: Save changes into pendingUpdates instead of directly modifying the active product.
+        const updates = { ...req.body };
+
+        if (typeof updates.price !== 'undefined') {
+            const vendorRequestedPrice = Number(updates.price);
+            if (!Number.isFinite(vendorRequestedPrice) || vendorRequestedPrice < 0) {
+                throw new ApiError(400, 'Invalid product price.');
+            }
+            updates.vendorPrice = vendorRequestedPrice;
+            // Admin will set the final price
+            updates.price = undefined;
+        }
+        if (Object.prototype.hasOwnProperty.call(updates, 'faqs')) {
+            updates.faqs = sanitizeFaqs(updates.faqs);
+        }
+        if (typeof updates.stockQuantity !== 'undefined' || typeof updates.lowStockThreshold !== 'undefined') {
+            const stockQuantity = Number(updates.stockQuantity ?? product.stockQuantity ?? 0);
+            const lowStockThreshold = Number(updates.lowStockThreshold ?? product.lowStockThreshold ?? 10);
+            if (!Number.isFinite(stockQuantity) || stockQuantity < 0) throw new ApiError(400, 'Invalid stock quantity.');
+            if (!Number.isFinite(lowStockThreshold) || lowStockThreshold < 0) throw new ApiError(400, 'Invalid low stock threshold.');
+            updates.stockQuantity = stockQuantity;
+            updates.lowStockThreshold = lowStockThreshold;
+            updates.stock = deriveStockStatus(stockQuantity, lowStockThreshold);
+        }
+        if (Object.prototype.hasOwnProperty.call(updates, 'variants')) {
+            const fallbackPrice = updates.vendorPrice ?? product.vendorPrice;
+            updates.variants = normalizeVariantsPayload(updates.variants, fallbackPrice);
+            const variantAggregateStock = calculateVariantAggregateStock(updates.variants);
+            if (Number.isFinite(variantAggregateStock)) {
+                updates.stockQuantity = variantAggregateStock;
+                updates.stock = deriveStockStatus(
+                    Number(updates.stockQuantity ?? 0),
+                    Number(updates.lowStockThreshold ?? product.lowStockThreshold ?? 10)
+                );
+            }
+        }
+
+        product.pendingUpdates = updates;
+        product.hasPendingUpdates = true;
+        await product.save();
+
+        emitEvent('admin_products', 'product_updated_by_vendor', {
+            productId: String(product._id),
+            name: product.name,
+            vendorId: String(req.user.id),
+            approvalStatus: 'approved',
+            hasPendingUpdates: true
+        });
+
+        return res.status(200).json(new ApiResponse(200, product, 'Product updates saved and sent for admin approval. Existing product remains live.'));
+    }
+
+    // Fallback for non-approved products: modify directly
     Object.assign(product, req.body);
     if (Object.prototype.hasOwnProperty.call(req.body, 'faqs')) {
         product.faqs = sanitizeFaqs(req.body.faqs);
@@ -446,16 +501,16 @@ export const recordOfflineSale = asyncHandler(async (req, res) => {
     const { quantity, variantKey } = req.body;
     const product = await Product.findOne({ _id: req.params.productId, vendorId: req.user.id });
     if (!product) throw new ApiError(404, 'Product not found.');
-    
+
     const qty = parseInt(quantity) || 1;
     product.offlineSold = (product.offlineSold || 0) + qty;
-    
+
     // Decrement stock
     if (variantKey && product.variants?.stockMap) {
         // Variants stock is a Map in Mongoose, use .get and .set
         const currentStock = product.variants.stockMap.get(variantKey) || 0;
         product.variants.stockMap.set(variantKey, Math.max(0, currentStock - qty));
-        
+
         // Recalculate total stock quantity from all variants
         const variantAggregateStock = calculateVariantAggregateStock(product.variants);
         if (Number.isFinite(variantAggregateStock)) {
@@ -465,16 +520,16 @@ export const recordOfflineSale = asyncHandler(async (req, res) => {
         // No variant specified, decrement total stock directly
         product.stockQuantity = Math.max(0, (product.stockQuantity || 0) - qty);
     }
-    
+
     // Update stock status based on the new total quantity
     product.stock = deriveStockStatus(
         Number(product.stockQuantity ?? 0),
         Number(product.lowStockThreshold ?? 10)
     );
-    
+
     await product.save();
-    
+
     await clearCachePattern('products:list:*');
-    
+
     res.status(200).json(new ApiResponse(200, product, 'Offline sale recorded successfully.'));
 });

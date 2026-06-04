@@ -289,7 +289,7 @@ const sanitizeBrandPayload = (payload = {}) => {
 
 // GET /api/admin/products
 export const getAllProducts = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20, search, vendorId, categoryId, status, approvalStatus, includeInactive = 'false' } = req.query;
+    const { page = 1, limit = 20, search, vendorId, categoryId, status, approvalStatus, hasPendingUpdates, includeInactive = 'false' } = req.query;
     const numericPage = Number(page) || 1;
     const numericLimit = Number(limit) || 20;
     const skip = (numericPage - 1) * numericLimit;
@@ -299,6 +299,7 @@ export const getAllProducts = asyncHandler(async (req, res) => {
     if (categoryId) filter.categoryId = categoryId;
     if (status) filter.stock = status;
     if (approvalStatus) filter.approvalStatus = approvalStatus;
+    if (hasPendingUpdates !== undefined) filter.hasPendingUpdates = hasPendingUpdates === 'true';
     if (String(includeInactive) !== 'true' && !approvalStatus) {
         filter.isActive = { $ne: false };
     }
@@ -432,6 +433,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
         }
     }
 
+    payload.pendingUpdates = undefined;
+    payload.hasPendingUpdates = false;
     const product = await Product.findByIdAndUpdate(req.params.id, payload, { new: true, runValidators: true });
     if (!product) throw new ApiError(404, 'Product not found.');
 
@@ -448,12 +451,36 @@ export const updateProductStatus = asyncHandler(async (req, res) => {
     }
 
     const payload = { approvalStatus };
+    const existingProduct = await Product.findById(req.params.id).lean();
+
     if (approvalStatus === 'approved') {
         payload.isActive = true;
         payload.isVisible = true;
-        const existingProduct = await Product.findById(req.params.id).select('price vendorPrice').lean();
-        if (existingProduct && (!existingProduct.price || existingProduct.price === 0)) {
-            payload.price = existingProduct.vendorPrice || 0;
+        
+        // Merge pending updates if any exist
+        if (existingProduct) {
+            if (existingProduct.hasPendingUpdates && existingProduct.pendingUpdates) {
+                Object.assign(payload, existingProduct.pendingUpdates);
+                // Admin must set the final price, so if the vendor requested a new price, it was stored in `price` of pendingUpdates but we need to ensure admin price logic is respected.
+                // Normally the admin sets it manually via ProductFormModal.
+                payload.pendingUpdates = undefined;
+                payload.hasPendingUpdates = false;
+            }
+            if (!existingProduct.price || existingProduct.price === 0) {
+                if (payload.price === undefined) {
+                    payload.price = existingProduct.vendorPrice || 0;
+                }
+            }
+        }
+    } else if (approvalStatus === 'rejected') {
+        if (existingProduct && existingProduct.approvalStatus === 'approved' && existingProduct.hasPendingUpdates) {
+            // Rejecting staged updates on an already approved product
+            payload.approvalStatus = 'approved'; // Keep it approved
+            payload.pendingUpdates = undefined;
+            payload.hasPendingUpdates = false;
+        } else {
+            payload.isActive = false;
+            payload.isVisible = false;
         }
     } else {
         payload.isActive = false;

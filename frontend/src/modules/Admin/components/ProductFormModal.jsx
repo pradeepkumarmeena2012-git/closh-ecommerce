@@ -37,6 +37,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
   const [tagInput, setTagInput] = useState("");
   const [targetStock, setTargetStock] = useState("");
   const [manuallyEditedVariants, setManuallyEditedVariants] = useState({});
+  const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -183,9 +184,25 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     const fetchProduct = async () => {
       try {
         const response = await getProductById(productId);
-        const product = response.data;
+        let product = response.data;
 
         if (product) {
+          if (product.hasPendingUpdates && product.pendingUpdates) {
+             setHasPendingUpdates(true);
+             toast("⚠️ This product has pending updates from the vendor.", {
+                 icon: '⚠️',
+                 style: {
+                   background: '#f59e0b',
+                   color: '#fff',
+                 },
+                 duration: 6000
+             });
+             // Merge pending updates over the original product for display
+             product = { ...product, ...product.pendingUpdates };
+          } else {
+             setHasPendingUpdates(false);
+          }
+
           const productCategoryId = extractId(product.categoryId);
           const productBrandId = extractId(product.brandId);
           const productVendorId = extractId(product.vendorId);
@@ -478,6 +495,23 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         }
       }
 
+      // If price was updated by the above logic, sync variant prices
+      if (next.price !== undefined && next.price !== prev.price) {
+        if (prev.variants?.prices) {
+          const nextPrices = { ...prev.variants.prices };
+          let hasVariants = false;
+          Object.keys(nextPrices).forEach(key => {
+            hasVariants = true;
+            if (nextPrices[key] === Number(prev.price) || nextPrices[key] === prev.price || nextPrices[key] === "" || nextPrices[key] === undefined) {
+              nextPrices[key] = next.price === "" ? "" : Number(next.price);
+            }
+          });
+          if (hasVariants) {
+            next.variants = { ...prev.variants, prices: nextPrices };
+          }
+        }
+      }
+
       return next;
     });
   };
@@ -595,8 +629,28 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
     const margin = parseFloat(val) || 0;
     const cost = parseFloat(formData.vendorPrice) || 0;
     if (cost > 0) {
-      const newPrice = cost + (cost * margin) / 100;
-      setFormData((prev) => ({ ...prev, price: newPrice.toFixed(2) }));
+      const newPriceStr = (cost + (cost * margin) / 100).toFixed(2);
+      
+      setFormData((prev) => {
+        const next = { ...prev, price: newPriceStr };
+        const oldPrice = prev.price;
+        
+        // Sync variant prices if they match the old price
+        if (prev.variants?.prices) {
+          const nextPrices = { ...prev.variants.prices };
+          let hasVariants = false;
+          Object.keys(nextPrices).forEach(key => {
+            hasVariants = true;
+            if (nextPrices[key] === Number(oldPrice) || nextPrices[key] === oldPrice || nextPrices[key] === "" || nextPrices[key] === undefined) {
+              nextPrices[key] = newPriceStr === "" ? "" : Number(newPriceStr);
+            }
+          });
+          if (hasVariants) {
+            next.variants = { ...prev.variants, prices: nextPrices };
+          }
+        }
+        return next;
+      });
     }
   };
 
@@ -1422,6 +1476,26 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                 </button>
               </div>
 
+              {hasPendingUpdates && (
+                <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mx-4 mt-4 sm:mx-6 rounded-r-lg">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <span className="text-amber-500 font-bold text-xl">⚠️</span>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-amber-800">
+                        Pending Updates from Vendor
+                      </h3>
+                      <div className="mt-1 text-sm text-amber-700">
+                        <p>
+                          This product has staged changes. The form below shows the vendor's proposed updates. Click <strong>Save Product</strong> to approve and apply these changes, or modify them as needed before saving.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Form Content - Scrollable */}
               <div className="overflow-y-auto flex-1 p-4 sm:p-6">
                 <form onSubmit={handleSubmit} noValidate className="space-y-6">
@@ -1543,9 +1617,10 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           name="originalPrice"
                           value={formData.originalPrice}
                           onChange={handleChange}
+                          onWheel={(e) => e.target.blur()}
                           min="0"
                           step="0.01"
-                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 bg-white font-bold ${originalPriceError ? 'border-red-500 focus:ring-red-500 text-red-900' : 'border-gray-300 focus:ring-gray-500'}`}
+                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 bg-white font-bold no-spinner ${originalPriceError ? 'border-red-500 focus:ring-red-500 text-red-900' : 'border-gray-300 focus:ring-gray-500'}`}
                           placeholder="MRP for strikethrough"
                         />
                         {originalPriceError ? (
@@ -1565,9 +1640,10 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           name="vendorPrice"
                           value={formData.vendorPrice}
                           onChange={handleChange}
+                          onWheel={(e) => e.target.blur()}
                           min="0"
                           step="0.01"
-                          className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-bold text-blue-900"
+                          className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-bold text-blue-900 no-spinner"
                           placeholder="Vendor's payment"
                         />
                         <p className="mt-1 text-xs text-blue-600">Base cost from vendor</p>
@@ -1584,6 +1660,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                             type="number"
                             value={marginInput}
                             onChange={handleMarginChange}
+                            onWheel={(e) => e.target.blur()}
                             step="0.1"
                             className="w-full pl-3 pr-8 py-2 text-sm border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white font-bold text-purple-900 no-spinner"
                             placeholder="Profit %"
@@ -1604,8 +1681,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           value={formData.price}
                           onChange={(e) => {
                             const newPrice = e.target.value;
-                            const oldPrice = formData.price;
                             setFormData(prev => {
+                              const oldPrice = prev.price;
                               const next = { ...prev, price: newPrice };
                               if (prev.variants?.prices) {
                                 const nextPrices = { ...prev.variants.prices };
@@ -1627,7 +1704,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                           required
                           min="0"
                           step="0.01"
-                          className="w-full px-3 py-2 text-sm border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white font-bold text-green-900"
+                          onWheel={(e) => e.target.blur()}
+                          className="w-full px-3 py-2 text-sm border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white font-bold text-green-900 no-spinner"
                           placeholder="Final price"
                         />
                         <p className="mt-1 text-xs text-green-600 font-medium">Customer-facing price</p>
@@ -1816,9 +1894,10 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                             name="stockQuantity"
                             value={formData.stockQuantity}
                             onChange={handleChange}
+                            onWheel={(e) => e.target.blur()}
                             required
                             min="0"
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 no-spinner"
                           />
                         </div>
                       </div>
@@ -2048,7 +2127,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                                                   },
                                                 }));
                                               }}
-                                              className={`w-full px-3 py-2 bg-white border rounded-lg focus:ring-2 outline-none text-sm font-medium ${originalPriceVal !== null && vPrice !== undefined && vPrice !== "" && originalPriceVal <= Number(vPrice) ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
+                                              onWheel={(e) => e.target.blur()}
+                                              className={`w-full px-3 py-2 bg-white border rounded-lg focus:ring-2 outline-none text-sm font-medium no-spinner ${originalPriceVal !== null && vPrice !== undefined && vPrice !== "" && originalPriceVal <= Number(vPrice) ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
                                               placeholder={formData.price || "Price"}
                                             />
                                             {originalPriceVal !== null && vPrice !== undefined && vPrice !== "" && originalPriceVal <= Number(vPrice) && (
@@ -2100,7 +2180,8 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
                                                 },
                                               }));
                                             }}
-                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm font-medium"
+                                            onWheel={(e) => e.target.blur()}
+                                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm font-medium no-spinner"
                                             placeholder={getRecommendedPlaceholder(combo.key)}
                                           />
                                           <button
