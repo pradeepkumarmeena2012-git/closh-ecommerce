@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { X, MapPin, CheckCircle2, ChevronLeft, Loader2, Home, Briefcase, Search, Target } from 'lucide-react';
+import { X, MapPin, CheckCircle2, ChevronLeft, Loader2, Home, Briefcase, Search, Target, Trash2 } from 'lucide-react';
 import { useUserLocation } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAddressStore } from '../../../../shared/store/addressStore';
@@ -136,26 +136,49 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
 
 
     const handleAddNew = () => {
-        // Direct to form as requested
         setFormData({
-                name: user?.fullName || user?.name || '',
-                mobile: user?.phone || user?.mobile || '',
-                pincode: '',
-                address: '',
-                locality: '',
-                city: '',
-                state: '',
-                type: 'Home'
-            });
+            name: user?.fullName || user?.name || '',
+            mobile: user?.phone || user?.mobile || '',
+            pincode: '',
+            address: '',
+            locality: '',
+            city: '',
+            state: '',
+            type: 'Home'
+        });
 
-            // Set default position if null
+        setView('map');
+
+        if (navigator.geolocation) {
+            const toastId = toast.loading("Fetching live location...");
+            navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                    toast.dismiss(toastId);
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    setPosition({ lat, lng });
+                    const addr = await getAddressFromCoords(lat, lng);
+                    if (addr) setFetchedAddress(addr);
+                    toast.success("Location found. Adjust pin if needed.");
+                },
+                (err) => {
+                    toast.dismiss(toastId);
+                    toast.error("Could not fetch live location. Please adjust pin manually.");
+                    const defaultPos = { lat: 22.7196, lng: 75.8577 };
+                    if (!position) {
+                        setPosition(defaultPos);
+                        getAddressFromCoords(defaultPos.lat, defaultPos.lng).then(setFetchedAddress);
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        } else {
             const defaultPos = { lat: 22.7196, lng: 75.8577 };
             if (!position) {
                 setPosition(defaultPos);
                 getAddressFromCoords(defaultPos.lat, defaultPos.lng).then(setFetchedAddress);
             }
-            
-            setView('map');
+        }
     };
 
     const handleUseCurrentLocation = () => {
@@ -335,7 +358,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto bg-gray-50/30">
+                <div className="flex-1 overflow-y-auto bg-gray-50/30 flex flex-col">
                     {view === 'list' && (
                         <div className="p-5 space-y-6 animate-fadeIn">
                             {/* Actions */}
@@ -406,7 +429,29 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                                         <div className={`w-2 h-2 rounded-full ${String(selectedAddressId) === String(addr.id || addr._id) ? 'bg-black' : 'bg-gray-200'}`} />
                                                         <span className="text-[11px] font-bold uppercase text-gray-400">{addr.type}</span>
                                                     </div>
-                                                    {addr.isDefault && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase ">Default</span>}
+                                                    <div className="flex items-center gap-2">
+                                                        {addr.isDefault && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase ">Default</span>}
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                if (window.confirm('Are you sure you want to remove this address?')) {
+                                                                    if (user) {
+                                                                        await useAddressStore.getState().deleteAddress(addr.id || addr._id);
+                                                                    } else {
+                                                                        const existing = JSON.parse(localStorage.getItem('userAddresses') || '[]');
+                                                                        const updated = existing.filter(a => String(a.id || a._id) !== String(addr.id || addr._id));
+                                                                        localStorage.setItem('userAddresses', JSON.stringify(updated));
+                                                                    }
+                                                                    refreshAddresses();
+                                                                    toast.success('Address removed');
+                                                                }
+                                                            }}
+                                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Remove Address"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <p className="text-[14px] font-bold text-black mb-1">{addr.fullName}</p>
                                                 <p className="text-[12px] text-gray-500 line-clamp-1 italic ">{addr.address}</p>
@@ -420,13 +465,19 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                     )}
 
                     {view === 'map' && (
-                        <div className="h-[400px] sm:h-[450px] relative animate-fadeIn">
+                        <div className="flex-1 min-h-[400px] sm:min-h-[450px] relative animate-fadeIn">
                             {isLoaded ? (
                                 <GoogleMap
                                     mapContainerStyle={{ height: '100%', width: '100%' }}
                                     center={position || { lat: 22.7196, lng: 75.8577 }}
                                     zoom={15}
-                                    options={{ disableDefaultUI: true, zoomControl: true }}
+                                    options={{ 
+                                        disableDefaultUI: true, 
+                                        zoomControl: true,
+                                        zoomControlOptions: {
+                                            position: window.google?.maps?.ControlPosition?.RIGHT_CENTER || 9
+                                        }
+                                    }}
                                     onClick={(e) => {
                                         const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
                                         setPosition(newPos);
