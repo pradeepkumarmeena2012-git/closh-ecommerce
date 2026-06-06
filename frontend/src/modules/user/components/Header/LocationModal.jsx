@@ -5,7 +5,7 @@ import { X, MapPin, CheckCircle2, ChevronLeft, Loader2, Home, Briefcase, Search,
 import { useUserLocation } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAddressStore } from '../../../../shared/store/addressStore';
-import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, MarkerF, Autocomplete } from '@react-google-maps/api';
 import api from '../../../../shared/utils/api';
 import toast from 'react-hot-toast';
 
@@ -90,6 +90,23 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     const [position, setPosition] = useState(null);
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [fetchedAddress, setFetchedAddress] = useState(null);
+
+    const autocompleteRef = useRef(null);
+
+    const handlePlaceChanged = () => {
+        if (autocompleteRef.current !== null) {
+            const place = autocompleteRef.current.getPlace();
+            if (!place || !place.geometry || !place.geometry.location) {
+                toast.error("Please select a location from the dropdown suggestions.");
+                return;
+            }
+            const lat = place.geometry.location.lat();
+            const lng = place.geometry.location.lng();
+            const newPos = { lat, lng };
+            setPosition(newPos);
+            getAddressFromCoords(lat, lng).then(setFetchedAddress);
+        }
+    };
 
     const [formData, setFormData] = useState({
         name: user?.fullName || user?.name || '',
@@ -431,6 +448,42 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                     <Loader2 className="animate-spin text-gray-400" size={32} />
                                 </div>
                             )}
+
+                            {/* Search Bar Overlay */}
+                            {isLoaded && (
+                                <div className="absolute top-4 left-4 right-4 z-[1000]">
+                                    <Autocomplete
+                                        onLoad={ref => autocompleteRef.current = ref}
+                                        onPlaceChanged={handlePlaceChanged}
+                                        options={{
+                                            bounds: position ? {
+                                                north: position.lat + 0.5,
+                                                south: position.lat - 0.5,
+                                                east: position.lng + 0.5,
+                                                west: position.lng - 0.5,
+                                            } : undefined,
+                                            componentRestrictions: { country: 'in' }
+                                        }}
+                                    >
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                                <Search size={18} className="text-gray-400" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Search for apartment, street name..."
+                                                className="w-full pl-12 pr-4 py-3.5 bg-white rounded-2xl shadow-lg border-0 focus:ring-2 focus:ring-black outline-none text-[14px] font-bold text-black"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    </Autocomplete>
+                                </div>
+                            )}
+
                             <div className="absolute bottom-5 left-5 right-5 bg-white p-4 rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-start gap-3">
                                 <MapPin size={20} className="text-black shrink-0 mt-1" />
                                 <p className="text-[12px] font-bold text-black line-clamp-3">
