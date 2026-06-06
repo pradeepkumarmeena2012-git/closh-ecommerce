@@ -535,6 +535,18 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                 </div>
                             )}
 
+                            {/* Live Location Button */}
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    triggerActualLocationFlow();
+                                }}
+                                className="absolute bottom-28 right-5 w-11 h-11 bg-white rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] flex items-center justify-center text-gray-700 hover:text-black hover:bg-gray-50 active:scale-95 transition-all z-[1000]"
+                                title="Use current location"
+                            >
+                                <Target size={22} className={loadingLocation ? "animate-pulse text-black" : ""} />
+                            </button>
+
                             <div className="absolute bottom-5 left-5 right-5 bg-white p-4 rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-start gap-3">
                                 <MapPin size={20} className="text-black shrink-0 mt-1" />
                                 <p className="text-[12px] font-bold text-black line-clamp-3">
