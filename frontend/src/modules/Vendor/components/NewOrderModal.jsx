@@ -19,12 +19,19 @@ const getFullImageUrl = (image) => {
     return `${IMAGE_BASE_URL}${cleanImage}`;
 };
 
-const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzerActive, onStopBuzzer }) => {
+const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzerActive, onStopBuzzer, vendorId }) => {
     if (!order && isOpen) return null;
 
-    const items = order?.vendorItems?.[0]?.items || order?.items || [];
+    let items = [];
+    if (order?.isMultiVendor || order?.vendorItems?.length > 1) {
+        const vendorGroup = order?.vendorItems?.find(vi => String(vi.vendorId?._id || vi.vendorId) === String(vendorId));
+        items = vendorGroup?.items || [];
+    } else {
+        items = order?.vendorItems?.[0]?.items || order?.items || [];
+    }
     const firstItem = items[0];
     const itemImage = getFullImageUrl(firstItem?.image || firstItem?.productId?.image);
+    const vendorTotal = items.reduce((sum, it) => sum + ((it.vendorPrice || it.price || 0) * (it.quantity || 1)), 0);
 
     return createPortal(
         <AnimatePresence>
@@ -74,7 +81,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzer
                         <div className="px-8 py-2">
                             <div className="p-6 bg-slate-900 rounded-2xl text-white">
                                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Total Amount</p>
-                                <p className="text-3xl font-bold">{formatPrice(order.total || 0)}</p>
+                                <p className="text-3xl font-bold">{formatPrice(vendorTotal)}</p>
                             </div>
                         </div>
 
@@ -97,7 +104,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzer
                                                     )}
                                                 </div>
                                             </div>
-                                            <span className="text-slate-400 font-medium ml-4 whitespace-nowrap">{formatPrice(it.price * (it.quantity || 1))}</span>
+                                            <span className="text-slate-400 font-medium ml-4 whitespace-nowrap">{formatPrice((it.vendorPrice || it.price || 0) * (it.quantity || 1))}</span>
                                         </div>
                                     ))}
                                 </div>

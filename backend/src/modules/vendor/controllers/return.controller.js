@@ -62,7 +62,13 @@ export const getVendorReturnRequests = asyncHandler(async (req, res) => {
     const numericPage = Math.max(1, Number(page) || 1);
     const numericLimit = Math.max(1, Number(limit) || 20);
 
-    const filter = { vendorId: req.user.id };
+    const filter = {
+        $or: [
+            { vendorId: req.user.id },
+            { 'vendorDropoffs.vendorId': req.user.id }
+        ]
+    };
+
     if (status && status !== 'all') {
         filter.status = status;
     }
@@ -84,7 +90,7 @@ export const getVendorReturnRequests = asyncHandler(async (req, res) => {
         const matchedOrderIds = matchedOrders.map((o) => o._id);
         const matchedUserIds = matchedUsers.map((u) => u._id);
 
-        const orFilters = [
+        const searchOrFilters = [
             { reason: regex },
             { 'items.name': regex },
             ...(matchedOrderIds.length > 0 ? [{ orderId: { $in: matchedOrderIds } }] : []),
@@ -92,10 +98,11 @@ export const getVendorReturnRequests = asyncHandler(async (req, res) => {
         ];
 
         if (isObjectId) {
-            orFilters.push({ _id: search }, { orderId: search });
+            searchOrFilters.push({ _id: search }, { orderId: search });
         }
 
-        filter.$or = orFilters;
+        // Combine the vendor condition with the search condition using $and
+        filter.$and = [{ $or: searchOrFilters }];
     }
 
     const [requests, total] = await Promise.all([
@@ -130,7 +137,10 @@ export const getVendorReturnRequests = asyncHandler(async (req, res) => {
 export const getVendorReturnRequestById = asyncHandler(async (req, res) => {
     const request = await ReturnRequest.findOne({
         _id: req.params.id,
-        vendorId: req.user.id,
+        $or: [
+            { vendorId: req.user.id },
+            { 'vendorDropoffs.vendorId': req.user.id }
+        ]
     })
         .populate('userId', 'name email phone')
         .populate('orderId', 'orderId total createdAt items vendorItems status paymentStatus');
@@ -172,7 +182,10 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
 
     const request = await ReturnRequest.findOne({
         _id: req.params.id,
-        vendorId: req.user.id,
+        $or: [
+            { vendorId: req.user.id },
+            { 'vendorDropoffs.vendorId': req.user.id }
+        ]
     })
         .populate('userId', 'name email phone')
         .populate('orderId', 'orderId total items vendorItems status paymentStatus');

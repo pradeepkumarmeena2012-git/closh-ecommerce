@@ -19,6 +19,8 @@ const OrderDetailsPage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userUpiId, setUserUpiId] = useState('');
     const [isSubmittingUpi, setIsSubmittingUpi] = useState(false);
+    const [selectedReturnItems, setSelectedReturnItems] = useState({});
+    const [perItemReasons, setPerItemReasons] = useState({});
     const cooldownRef = useRef(null);
 
 
@@ -293,33 +295,68 @@ const OrderDetailsPage = () => {
 
 
     const handleReturnSubmit = async () => {
-        if (!returnReason) {
-            toast.error('Please select a reason for return');
-            return;
-        }
+        if (isMultiVendorOrder) {
+            // Multi-vendor: validate per-item selections
+            const selectedItems = Object.values(selectedReturnItems).filter(Boolean);
+            if (selectedItems.length === 0) {
+                toast.error('Please select at least one item to return');
+                return;
+            }
+            const missingReason = selectedItems.find(si => !perItemReasons[si.productId]);
+            if (missingReason) {
+                toast.error('Please select a reason for each selected item');
+                return;
+            }
 
-        setIsSubmitting(true);
-        try {
-            // Call the real backend API through the order store
-            // We pass the orderId (which could be the ORD-xxx or mongo _id)
-            // and the reason. The store helper will POST to /api/user/orders/:id/returns
-            await useOrderStore.getState().requestReturn(orderId, {
-                reason: returnReason,
-                // If the backend requires specific items, we could pass them here
-                // but currently createReturnRequest defaults to all items if not specified
-            });
+            setIsSubmitting(true);
+            try {
+                // Submit one return request with all items
+                const allItemsToReturn = selectedItems.map(si => ({
+                    productId: si.productId,
+                    quantity: si.quantity,
+                    reason: perItemReasons[si.productId] || '',
+                }));
 
-            // Refresh order details to reflect the new status
-            const updatedOrder = await fetchOrderById(orderId);
-            if (updatedOrder) setOrder(updatedOrder);
+                await useOrderStore.getState().requestReturn(orderId, {
+                    reason: allItemsToReturn[0]?.reason || 'Multi-item return',
+                    items: allItemsToReturn,
+                });
 
-            setShowReturnModal(false);
-            toast.success('Return request submitted successfully. Our team will review it shortly.');
-        } catch (error) {
-            console.error("Return request failed:", error);
-            toast.error(error.message || 'Failed to submit return request. Please try again.');
-        } finally {
-            setIsSubmitting(false);
+                const updatedOrder = await fetchOrderById(orderId);
+                if (updatedOrder) setOrder(updatedOrder);
+
+                setShowReturnModal(false);
+                toast.success('Return request submitted successfully. Our team will review it shortly.');
+            } catch (error) {
+                console.error("Return request failed:", error);
+                toast.error(error.message || 'Failed to submit return request. Please try again.');
+            } finally {
+                setIsSubmitting(false);
+            }
+        } else {
+            // Single-vendor: original flow
+            if (!returnReason) {
+                toast.error('Please select a reason for return');
+                return;
+            }
+
+            setIsSubmitting(true);
+            try {
+                await useOrderStore.getState().requestReturn(orderId, {
+                    reason: returnReason,
+                });
+
+                const updatedOrder = await fetchOrderById(orderId);
+                if (updatedOrder) setOrder(updatedOrder);
+
+                setShowReturnModal(false);
+                toast.success('Return request submitted successfully. Our team will review it shortly.');
+            } catch (error) {
+                console.error("Return request failed:", error);
+                toast.error(error.message || 'Failed to submit return request. Please try again.');
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -401,12 +438,12 @@ const OrderDetailsPage = () => {
                 <div className="space-y-3 md:space-y-6">
                     {/* Multi-vendor Check & Buy Policy Banner */}
                     {isCheckAndBuy && isMultiVendorOrder && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-                            <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
+                            <ShieldCheck size={16} className="text-emerald-500 shrink-0 mt-0.5" />
                             <div>
-                                <p className="text-[11px] font-black text-amber-800 uppercase tracking-wide">Return Policy Notice</p>
-                                <p className="text-[10px] font-medium text-amber-700 leading-relaxed mt-0.5">
-                                    Check &amp; Buy return is supported only for single-vendor orders. This order contains items from multiple vendors and is not eligible for returns.
+                                <p className="text-[11px] font-black text-emerald-800 uppercase tracking-wide">Multi-Vendor Return Policy</p>
+                                <p className="text-[10px] font-medium text-emerald-700 leading-relaxed mt-0.5">
+                                    This is a multi-vendor Check &amp; Buy order. You can return items per vendor within 24 hours of delivery. Select specific products during the return process.
                                 </p>
                             </div>
                         </div>
@@ -1286,10 +1323,15 @@ const OrderDetailsPage = () => {
 
 
                             // Check & Buy or regular — show standard return button
-                            if (isDelivered && isWithin24h && !isTryAndBuyOrder && !hasExistingReturn && !(isCheckAndBuy && isMultiVendorOrder)) {
+                            if (isDelivered && isWithin24h && !isTryAndBuyOrder && !hasExistingReturn) {
                                 return (
                                     <button
-                                        onClick={() => setShowReturnModal(true)}
+                                        onClick={() => {
+                                            setSelectedReturnItems({});
+                                            setPerItemReasons({});
+                                            setReturnReason('');
+                                            setShowReturnModal(true);
+                                        }}
                                         className="flex-1 py-3 bg-white text-black border-2 border-black rounded-xl font-bold text-[11px] uppercase hover:bg-black hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
                                         <RefreshCcw size={14} />
@@ -1315,8 +1357,8 @@ const OrderDetailsPage = () => {
             {/* Return Request Modal */}
             {showReturnModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-                        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 max-h-[90vh] flex flex-col">
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-amber-100 text-amber-600 rounded-xl">
                                     <AlertTriangle size={20} />
@@ -1331,29 +1373,108 @@ const OrderDetailsPage = () => {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 overflow-y-auto flex-1">
                             <p className="text-sm font-bold text-gray-500">
-                                Please select a reason for returning the items in order <span className="text-black">#{order.id}</span>.
+                                {isMultiVendorOrder
+                                    ? <>Select items to return from order <span className="text-black">#{order.id}</span>. Choose a reason for each item.</>
+                                    : <>Please select a reason for returning the items in order <span className="text-black">#{order.id}</span>.</>
+                                }
                             </p>
 
-                            <div className="space-y-2">
-                                {RETURN_REASONS.map((reason, idx) => (
-                                    <label
-                                        key={idx}
-                                        className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${returnReason === reason ? 'border-black bg-white' : 'border-gray-100 hover:border-gray-200'}`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="returnReason"
-                                            value={reason}
-                                            checked={returnReason === reason}
-                                            onChange={(e) => setReturnReason(e.target.value)}
-                                            className="w-4 h-4 accent-black"
-                                        />
-                                        <span className="text-xs font-bold text-gray-700">{reason}</span>
-                                    </label>
-                                ))}
-                            </div>
+                            {/* Per-product selection for multi-vendor orders */}
+                            {isMultiVendorOrder ? (
+                                <div className="space-y-3">
+                                    {/* Product selection with per-item reason */}
+                                    {order.items.map((item, idx) => {
+                                        const itemId = String(item.productId || item._id || item.id || idx);
+                                        const isSelected = !!selectedReturnItems[itemId];
+                                        const itemReason = perItemReasons[itemId] || '';
+                                        return (
+                                            <div key={idx} className={`rounded-2xl border-2 transition-all overflow-hidden ${
+                                                isSelected ? 'border-black bg-white shadow-sm' : 'border-gray-100 hover:border-gray-200'
+                                            }`}>
+                                                {/* Product row with checkbox */}
+                                                <label className="flex items-center gap-3 p-3 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={(e) => {
+                                                            setSelectedReturnItems(prev => ({
+                                                                ...prev,
+                                                                [itemId]: e.target.checked ? { productId: itemId, quantity: item.quantity } : undefined
+                                                            }));
+                                                            if (!e.target.checked) {
+                                                                setPerItemReasons(prev => {
+                                                                    const next = { ...prev };
+                                                                    delete next[itemId];
+                                                                    return next;
+                                                                });
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 accent-black rounded shrink-0"
+                                                    />
+                                                    <div className="w-10 h-12 bg-gray-50 rounded-lg overflow-hidden shrink-0 border border-gray-100">
+                                                        <img src={item.image} alt="" className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[11px] font-bold text-gray-900 line-clamp-1">{item.name}</p>
+                                                        <p className="text-[9px] font-bold text-gray-400 uppercase">Qty: {item.quantity} • ₹{item.price}</p>
+                                                    </div>
+                                                </label>
+
+                                                {/* Per-item reason selector - shown when product is selected */}
+                                                {isSelected && (
+                                                    <div className="px-3 pb-3 pt-0">
+                                                        <p className="text-[9px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Select reason for this item</p>
+                                                        <div className="space-y-1">
+                                                            {RETURN_REASONS.map((reason, rIdx) => (
+                                                                <label
+                                                                    key={rIdx}
+                                                                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all cursor-pointer text-[10px] ${
+                                                                        itemReason === reason
+                                                                            ? 'border-black bg-gray-50 font-bold text-black'
+                                                                            : 'border-gray-100 hover:border-gray-200 text-gray-600'
+                                                                    }`}
+                                                                >
+                                                                    <input
+                                                                        type="radio"
+                                                                        name={`reason-${itemId}`}
+                                                                        value={reason}
+                                                                        checked={itemReason === reason}
+                                                                        onChange={() => setPerItemReasons(prev => ({ ...prev, [itemId]: reason }))}
+                                                                        className="w-3 h-3 accent-black"
+                                                                    />
+                                                                    {reason}
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                /* Single-vendor: original reason-only selector */
+                                <div className="space-y-2">
+                                    {RETURN_REASONS.map((reason, idx) => (
+                                        <label
+                                            key={idx}
+                                            className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${returnReason === reason ? 'border-black bg-white' : 'border-gray-100 hover:border-gray-200'}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="returnReason"
+                                                value={reason}
+                                                checked={returnReason === reason}
+                                                onChange={(e) => setReturnReason(e.target.value)}
+                                                className="w-4 h-4 accent-black"
+                                            />
+                                            <span className="text-xs font-bold text-gray-700">{reason}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
 
                             <div className="pt-4 flex gap-3">
                                 <button
@@ -1364,8 +1485,16 @@ const OrderDetailsPage = () => {
                                 </button>
                                 <button
                                     onClick={handleReturnSubmit}
-                                    disabled={!returnReason || isSubmitting}
-                                    className={`flex-1 py-3 rounded-xl font-bold text-[11px] uppercase  transition-all shadow-lg ${!returnReason || isSubmitting ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800 shadow-gray-200'}`}
+                                    disabled={isMultiVendorOrder
+                                        ? (Object.values(selectedReturnItems).filter(Boolean).length === 0 || Object.values(selectedReturnItems).filter(Boolean).some(si => !perItemReasons[si.productId]) || isSubmitting)
+                                        : (!returnReason || isSubmitting)
+                                    }
+                                    className={`flex-1 py-3 rounded-xl font-bold text-[11px] uppercase  transition-all shadow-lg ${
+                                        (isMultiVendorOrder
+                                            ? (Object.values(selectedReturnItems).filter(Boolean).length === 0 || Object.values(selectedReturnItems).filter(Boolean).some(si => !perItemReasons[si.productId]) || isSubmitting)
+                                            : (!returnReason || isSubmitting)
+                                        ) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800 shadow-gray-200'
+                                    }`}
                                 >
                                     {isSubmitting ? 'Submitting...' : 'Submit Request'}
                                 </button>

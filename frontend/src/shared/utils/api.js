@@ -267,7 +267,8 @@ api.interceptors.response.use(
 
     // 401/403 Handling (Logout & Redirect)
     if (status === 401) {
-      if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
+      const isExcluded = isExcludedAuthRequest(scope, originalRequest.url || '');
+      if (!isExcluded && !currentPath.includes('/login') && !currentPath.includes('/register')) {
         const canRefresh = shouldAttemptRefresh(error, scope);
         if (!canRefresh && !isRefreshing) {
           clearScopeAuth(scope);

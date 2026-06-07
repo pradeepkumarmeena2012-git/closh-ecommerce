@@ -128,7 +128,14 @@ const normalizeReturn = (raw) => {
     total: Number(raw.refundAmount || 0),
     status: status === 'approved' ? 'pending' : (status === 'processing' ? 'accepted' : status),
     rawStatus: status,
-    items: Array.isArray(raw.items) ? raw.items : []
+    items: Array.isArray(raw.items) ? raw.items : [],
+    vendorDropoffs: (raw.vendorDropoffs || []).map(dropoff => ({
+      ...dropoff,
+      shopLocation: dropoff.shopLocation || dropoff.vendorId?.shopLocation,
+      shopAddress: dropoff.shopAddress || dropoff.vendorId?.shopAddress || dropoff.vendorId?.address?.street || 'Vendor Address',
+      vendorName: dropoff.vendorName || dropoff.vendorId?.storeName || 'Vendor',
+      vendorPhone: dropoff.vendorPhone || dropoff.vendorId?.phone || '',
+    }))
   };
 };
 

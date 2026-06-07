@@ -154,7 +154,7 @@ const DeliveryReturnDetail = () => {
       let updated;
       if (returnReq.isMultiVendor && currentVendorDropoff) {
         updated = await dropoffReturnAtVendor(id, {
-          vendorId: String(currentVendorDropoff.vendorId),
+          vendorId: String(currentVendorDropoff.vendorId?._id || currentVendorDropoff.vendorId),
           otp,
           deliveryPhoto,
         });
@@ -185,8 +185,10 @@ const DeliveryReturnDetail = () => {
   const handleResendOtp = async () => {
     setIsResending(true);
     try {
-      const vendorIdToUse = currentPhase === 'multi_vendor_dropoff' ? currentVendorDropoff?.vendorId : undefined;
-      const res = await resendReturnVendorOtp(id, vendorIdToUse);
+      const vendorIdToUse = currentPhase === 'multi_vendor_dropoff' 
+        ? (currentVendorDropoff?.vendorId?._id || currentVendorDropoff?.vendorId) 
+        : undefined;
+      const res = await resendReturnVendorOtp(id, vendorIdToUse ? String(vendorIdToUse) : undefined);
       if (res?.otpDebug) {
         setResendDebugOtp(res.otpDebug);
       }

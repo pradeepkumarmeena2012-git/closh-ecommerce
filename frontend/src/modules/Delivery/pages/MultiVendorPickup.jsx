@@ -400,28 +400,59 @@ export default function MultiVendorPickup() {
 
                                         {/* Step 2: Enter vendor OTP */}
                                         {stop.status === 'arrived' && (
-                                            <div className="space-y-3">
-                                                <div className="flex justify-between items-center">
-                                                    <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Ask vendor for their OTP</p>
+                                            <div className="space-y-4">
+                                                {/* Products to Pickup */}
+                                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                                                    <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                        <Package size={14} /> Items to Pickup
+                                                    </p>
+                                                    <div className="space-y-3">
+                                                        {order.vendorItems?.find(vi => String(vi.vendorId) === String(stop.vendorId))?.items?.map((item, iIdx) => (
+                                                            <div key={iIdx} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                                                                <div className="w-12 h-14 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                                                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-[11px] font-bold text-slate-900 line-clamp-1">{item.name}</p>
+                                                                    <div className="flex gap-2 mt-1">
+                                                                        <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                                            Size: {item.selectedSize || item.variant?.size || 'N/A'}
+                                                                        </span>
+                                                                        <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                                            Qty: {item.quantity}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )) || (
+                                                            <p className="text-[11px] text-slate-500 font-medium">No items found for this vendor.</p>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Enter 6-digit OTP"
-                                                        className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-center text-xl font-black tracking-[0.3em] focus:outline-none focus:border-slate-900"
-                                                        value={otpInputs[stop.vendorId] || ''}
-                                                        onChange={e => setOtpInputs(p => ({ ...p, [stop.vendorId]: e.target.value }))}
-                                                        maxLength={6}
-                                                    />
+
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center">
+                                                        <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Ask vendor for their OTP</p>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="number"
+                                                            placeholder="Enter 6-digit OTP"
+                                                            className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-center text-xl font-black tracking-[0.3em] focus:outline-none focus:border-slate-900"
+                                                            value={otpInputs[stop.vendorId] || ''}
+                                                            onChange={e => setOtpInputs(p => ({ ...p, [stop.vendorId]: e.target.value }))}
+                                                            maxLength={6}
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        onClick={() => verifyOtp(stop.vendorId)}
+                                                        disabled={actionLoading || !otpInputs[stop.vendorId]?.length || !stop.proofPhoto}
+                                                        className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
+                                                    >
+                                                        {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                                                        Verify OTP
+                                                    </button>
                                                 </div>
-                                                <button
-                                                    onClick={() => verifyOtp(stop.vendorId)}
-                                                    disabled={actionLoading || !otpInputs[stop.vendorId]?.length}
-                                                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
-                                                >
-                                                    {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-                                                    Verify OTP
-                                                </button>
                                             </div>
                                         )}
 
@@ -434,7 +465,7 @@ export default function MultiVendorPickup() {
                                                 </div>
                                                 <button
                                                     onClick={() => confirmPickup(stop.vendorId)}
-                                                    disabled={actionLoading}
+                                                    disabled={actionLoading || !stop.proofPhoto}
                                                     className="w-full py-3 bg-emerald-500 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
                                                 >
                                                     {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}

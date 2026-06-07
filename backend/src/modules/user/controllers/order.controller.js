@@ -334,11 +334,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
     }
     console.log(`[OrderCalc] Subtotal: ₹${subtotal}, Vendors: ${Object.keys(vendorMap).length}`);
 
-    // Backend guard: Check & Buy is only permitted for single-vendor orders.
-    // This prevents API-level manipulation even if the frontend restriction is bypassed.
-    if (orderType === 'check_and_buy' && Object.keys(vendorMap).length > 1) {
-        throw new ApiError(400, 'Check & Buy is not available for orders containing items from multiple vendors. Please select Try & Buy.');
-    }
+    // Multi-vendor orders now support both Check & Buy and Try & Buy.
+    // Pickup routing is handled by autoAssignDeliveryBoy (nearest-to-farthest).
 
 
     // 2. Validate coupon
@@ -802,11 +799,8 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'Returns are only permitted for "Check & Buy" orders. "Try & Buy" orders are non-returnable after delivery.');
     }
 
-    // Multi-vendor Check & Buy restriction
-    const isMultiVendor = order.isMultiVendor || (order.vendorItems && order.vendorItems.length > 1);
-    if (order.orderType === 'check_and_buy' && isMultiVendor) {
-        throw new ApiError(400, 'Return policy is currently not available for multi-vendor Check & Buy orders.');
-    }
+    // Multi-vendor Check & Buy returns are now supported.
+    // Returns are scoped per-vendor and follow the same flow as single-vendor.
 
     // Check 24-hour validity
     if (order.deliveredAt) {
@@ -827,88 +821,78 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         }
     }
 
-    const requestedVendorId = String(req.body.vendorId || '').trim();
     const orderItems = Array.isArray(order.items) ? order.items : [];
-    const orderVendorIds = [...new Set(orderItems.map((item) => String(item?.vendorId || '')).filter(Boolean))];
-
-    let vendorId = requestedVendorId;
-    if (!vendorId) {
-        if (orderVendorIds.length > 1) {
-            throw new ApiError(400, 'vendorId is required for multi-vendor orders.');
-        }
-        vendorId = orderVendorIds[0] || '';
-    }
-    if (!vendorId) {
-        throw new ApiError(400, 'Unable to resolve vendor for return request.');
-    }
-
-    const vendorScopedItems = orderItems.filter((item) => String(item?.vendorId || '') === vendorId);
-    if (vendorScopedItems.length === 0) {
-        throw new ApiError(400, 'Selected vendor has no items in this order.');
-    }
-
     const requestedItems = Array.isArray(req.body.items) ? req.body.items : [];
-    let normalizedItems = [];
 
-    if (requestedItems.length > 0) {
-        normalizedItems = requestedItems.map((inputItem) => {
-            const productId = String(inputItem?.productId || '');
-            const orderItem = vendorScopedItems.find((it) => String(it?.productId || '') === productId);
-            if (!orderItem) {
-                throw new ApiError(400, `Product ${productId} is not valid for this return request.`);
-            }
+    if (requestedItems.length === 0) {
+        throw new ApiError(400, 'No items provided for return request.');
+    }
 
-            const requestedQty = Number(inputItem?.quantity || 0);
-            const maxQty = Number(orderItem?.quantity || 0);
-            if (!Number.isFinite(requestedQty) || requestedQty <= 0 || requestedQty > maxQty) {
-                throw new ApiError(400, `Invalid quantity for product ${orderItem.name || productId}.`);
-            }
+    const normalizedItems = [];
+    const vendorDropoffsMap = {};
+    let totalRefundAmount = 0;
+    const vendorIdsInvolved = new Set();
 
-            return {
-                productId: orderItem.productId,
-                name: orderItem.name,
-                image: orderItem.image || '',
-                price: orderItem.price || 0,
-                quantity: requestedQty,
-                reason: String(inputItem?.reason || req.body.reason || '').trim(),
+    for (const inputItem of requestedItems) {
+        const productId = String(inputItem?.productId || '');
+        const orderItem = orderItems.find((it) => String(it?.productId || '') === productId);
+        if (!orderItem) {
+            throw new ApiError(400, `Product ${productId} is not valid for this return request.`);
+        }
+
+        const requestedQty = Number(inputItem?.quantity || 0);
+        const maxQty = Number(orderItem?.quantity || 0);
+        if (!Number.isFinite(requestedQty) || requestedQty <= 0 || requestedQty > maxQty) {
+            throw new ApiError(400, `Invalid quantity for product ${orderItem.name || productId}.`);
+        }
+
+        const itemObj = {
+            productId: orderItem.productId,
+            name: orderItem.name,
+            image: orderItem.image || '',
+            price: orderItem.price || 0,
+            quantity: requestedQty,
+            reason: String(inputItem?.reason || req.body.reason || '').trim(),
+        };
+        normalizedItems.push(itemObj);
+
+        const vendorIdStr = String(orderItem.vendorId || '');
+        vendorIdsInvolved.add(vendorIdStr);
+        if (!vendorDropoffsMap[vendorIdStr]) {
+            vendorDropoffsMap[vendorIdStr] = {
+                vendorId: orderItem.vendorId,
+                items: [],
             };
+        }
+        vendorDropoffsMap[vendorIdStr].items.push(itemObj);
+        totalRefundAmount += (Number(orderItem.price || 0) * requestedQty);
+    }
+
+    for (const vId of vendorIdsInvolved) {
+        const existingOpen = await ReturnRequest.findOne({
+            orderId: order._id,
+            userId: req.user.id,
+            $or: [ { vendorId: vId }, { 'vendorDropoffs.vendorId': vId } ],
+            status: { $in: ['pending', 'approved', 'processing'] },
         });
-    } else {
-        normalizedItems = vendorScopedItems.map((item) => ({
-            productId: item.productId,
-            name: item.name,
-            image: item.image || '',
-            price: item.price || 0,
-            quantity: Number(item.quantity || 1),
-            reason: String(req.body.reason || '').trim(),
-        }));
+        if (existingOpen) {
+            throw new ApiError(409, 'An active return request already exists for one or more selected items.');
+        }
     }
 
-    const existingOpen = await ReturnRequest.findOne({
-        orderId: order._id,
-        userId: req.user.id,
-        vendorId,
-        status: { $in: ['pending', 'approved', 'processing'] },
-    });
-    if (existingOpen) {
-        throw new ApiError(409, 'An active return request already exists for this vendor in the selected order.');
-    }
-
-    const refundAmount = normalizedItems.reduce((sum, item) => {
-        const orderItem = vendorScopedItems.find((it) => String(it?.productId || '') === String(item.productId || ''));
-        const unitPrice = Number(orderItem?.price || 0);
-        return sum + unitPrice * Number(item.quantity || 0);
-    }, 0);
+    const isMultiVendor = vendorIdsInvolved.size > 1;
 
     const request = await ReturnRequest.create({
         orderId: order._id,
         returnId: generateReturnId(),
         userId: req.user.id,
-        vendorId,
+        vendorId: vendorIdsInvolved.size === 1 ? Array.from(vendorIdsInvolved)[0] : null,
+        isMultiVendor,
+        vendorDropoffs: isMultiVendor ? Object.values(vendorDropoffsMap) : [],
         items: normalizedItems,
         reason: String(req.body.reason || '').trim(),
         status: 'pending',
-        refundAmount: Number(refundAmount.toFixed(2)),
+        refundAmount: Number(totalRefundAmount.toFixed(2)),
         refundStatus: 'pending',
         images: Array.isArray(req.body.images) ? req.body.images : [],
     });
@@ -931,16 +915,18 @@ export const createReturnRequest = asyncHandler(async (req, res) => {
         ))
     );
 
-    const vendorNotificationTask = createNotification({
-        recipientId: vendorId,
-        recipientType: 'vendor',
-        title: 'New Return Request Received',
-        message: `Customer requested a return for Order #${order.orderId}.`,
-        type: 'order',
-        data: { returnRequestId: String(request._id), orderId: String(order.orderId) }
-    });
+    const vendorNotificationTasks = Array.from(vendorIdsInvolved).map(vid =>
+        createNotification({
+            recipientId: vid,
+            recipientType: 'vendor',
+            title: 'New Return Request Received',
+            message: `Customer requested a return for Order #${order.orderId}.`,
+            type: 'order',
+            data: { returnRequestId: String(request._id), orderId: String(order.orderId) }
+        })
+    );
 
-    await Promise.all([adminNotificationTask, vendorNotificationTask]);
+    await Promise.all([adminNotificationTask, ...vendorNotificationTasks]);
 
     const populated = await ReturnRequest.findById(request._id)
         .populate('orderId', 'orderId total createdAt')

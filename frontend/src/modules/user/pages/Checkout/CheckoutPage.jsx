@@ -95,12 +95,7 @@ const CheckoutPage = () => {
     }))].filter(Boolean);
     const isMultiVendor = uniqueVendorIds.length > 1;
 
-    // Auto-switch to try_and_buy when cart becomes multi-vendor (no reload / no flicker)
-    useEffect(() => {
-        if (isMultiVendor && deliveryType === 'check_and_buy') {
-            setDeliveryType('try_and_buy');
-        }
-    }, [isMultiVendor]);
+    // Multi-vendor carts now support both Try & Buy and Check & Buy
 
     // Dynamic values from settings
     const shippingThreshold = settings?.shipping?.freeShippingThreshold || 500;
@@ -396,10 +391,10 @@ const CheckoutPage = () => {
                                 </div>
                             </div>
                         )}
-                        {/* Service type options — grid for single-vendor, full-width for multi-vendor */}
-                        <div className={`gap-3 ${isMultiVendor ? 'flex' : 'grid grid-cols-2'}`}>
+                        {/* Service type options — always show both options */}
+                        <div className="grid grid-cols-2 gap-3">
                             {/* Try & Buy — always visible */}
-                            <label className="relative cursor-pointer flex-1">
+                            <label className="relative cursor-pointer">
                                 <input
                                     type="radio"
                                     name="deliveryType"
@@ -412,50 +407,55 @@ const CheckoutPage = () => {
                                     <p className="text-[7px] font-bold text-gray-400 leading-tight">Try at door</p>
                                 </div>
                             </label>
-                            {/* Check & Buy — hidden automatically when cart has multiple vendors */}
-                            {!isMultiVendor && (
-                                <label className="relative cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="deliveryType"
-                                        className="peer hidden"
-                                        checked={deliveryType === 'check_and_buy'}
-                                        onChange={() => setDeliveryType('check_and_buy')}
-                                    />
-                                    <div className="p-2 rounded-xl border-2 border-gray-100 peer-checked:border-black peer-checked:bg-white transition-all h-full text-center">
-                                        <span className="text-[9px] font-bold uppercase block mb-1 text-emerald-600">Check & Buy</span>
-                                        <p className="text-[7px] font-bold text-gray-400 leading-tight">Verify first</p>
-                                    </div>
-                                </label>
-                            )}
+                            {/* Check & Buy — always visible */}
+                            <label className="relative cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="deliveryType"
+                                    className="peer hidden"
+                                    checked={deliveryType === 'check_and_buy'}
+                                    onChange={() => setDeliveryType('check_and_buy')}
+                                />
+                                <div className="p-2 rounded-xl border-2 border-gray-100 peer-checked:border-black peer-checked:bg-white transition-all h-full text-center">
+                                    <span className="text-[9px] font-bold uppercase block mb-1 text-emerald-600">Check & Buy</span>
+                                    <p className="text-[7px] font-bold text-gray-400 leading-tight">Verify first</p>
+                                </div>
+                            </label>
                         </div>
 
                         {/* Info banners */}
-                        {isMultiVendor ? (
-                            // Multi-vendor: explain why Check & Buy is unavailable
+                        {isMultiVendor && (
                             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
                                 <ShieldCheck size={15} className="text-blue-600 shrink-0 mt-0.5" />
                                 <div className="text-left">
                                     <p className="text-[10px] font-black text-blue-800 uppercase tracking-wide">Multi-Vendor Order</p>
                                     <p className="text-[9px] font-bold text-blue-700 leading-relaxed mt-0.5">
-                                        Your cart has items from multiple vendors. Only Try &amp; Buy is available — Check &amp; Buy requires a single-vendor cart.
+                                        Your cart has items from multiple vendors. Both Try &amp; Buy and Check &amp; Buy services are available.
                                     </p>
                                 </div>
                             </div>
-                        ) : (
-                            // Single-vendor: show Try & Buy doorstep policy note when selected
-                            deliveryType === 'try_and_buy' ? (
-                                <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
-                                    <ShieldCheck size={15} className="text-indigo-600 shrink-0 mt-0.5" />
-                                    <div className="text-left">
-                                        <p className="text-[10px] font-black text-indigo-800 uppercase tracking-wide">Doorstep Return Policy</p>
-                                        <p className="text-[9px] font-bold text-indigo-700 leading-relaxed mt-0.5">
-                                            Try &amp; Buy items must be checked and returned instantly to the delivery partner at the doorstep. No post-delivery returns are allowed.
-                                        </p>
-                                    </div>
-                                </div>
-                            ) : null
                         )}
+                        {deliveryType === 'try_and_buy' ? (
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
+                                <ShieldCheck size={15} className="text-indigo-600 shrink-0 mt-0.5" />
+                                <div className="text-left">
+                                    <p className="text-[10px] font-black text-indigo-800 uppercase tracking-wide">Doorstep Return Policy</p>
+                                    <p className="text-[9px] font-bold text-indigo-700 leading-relaxed mt-0.5">
+                                        Try &amp; Buy items must be checked and returned instantly to the delivery partner at the doorstep. No post-delivery returns are allowed.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : deliveryType === 'check_and_buy' ? (
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
+                                <ShieldCheck size={15} className="text-emerald-600 shrink-0 mt-0.5" />
+                                <div className="text-left">
+                                    <p className="text-[10px] font-black text-emerald-800 uppercase tracking-wide">Check &amp; Buy Policy</p>
+                                    <p className="text-[9px] font-bold text-emerald-700 leading-relaxed mt-0.5">
+                                        Check the product in front of the delivery partner before payment. A 24-hour return option is available after delivery.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
 
 

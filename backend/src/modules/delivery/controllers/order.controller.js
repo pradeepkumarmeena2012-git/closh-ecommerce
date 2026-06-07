@@ -2198,7 +2198,8 @@ export const getReturnDetail = asyncHandler(async (req, res) => {
     const returnReq = await ReturnRequest.findById(id)
         .populate('userId', 'name email phone')
         .populate('orderId', 'orderId total items paymentMethod shippingAddress dropoffLocation')
-        .populate('vendorId', 'storeName email phone shopAddress shopLocation');
+        .populate('vendorId', 'storeName email phone shopAddress shopLocation')
+        .populate('vendorDropoffs.vendorId', 'storeName email phone shopAddress shopLocation');
 
     if (!returnReq) {
         throw new ApiError(404, 'Return request not found.');
@@ -2224,6 +2225,8 @@ export const getAvailableReturns = asyncHandler(async (req, res) => {
         ReturnRequest.find(filter)
             .populate('userId', 'name email phone')
             .populate('orderId', 'orderId total shippingAddress')
+            .populate('vendorId', 'storeName email phone shopAddress shopLocation')
+            .populate('vendorDropoffs.vendorId', 'storeName email phone shopAddress shopLocation')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(numericLimit),
