@@ -10,8 +10,9 @@ import { appLogo } from "../../../../data/logos";
 import { motion, AnimatePresence } from "framer-motion";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import SearchBar from "../../../../shared/components/SearchBar";
-import { categories } from "../../../../data/categories";
+import { categories as fallbackCategories } from "../../../../data/categories";
 import { useUserLocation } from "../../context/LocationContext";
+import { useCategoryStore } from "../../../../shared/store/categoryStore";
 import LocationModal from "./LocationModal";
 
 const MobileHeader = () => {
@@ -43,8 +44,37 @@ const MobileHeader = () => {
   );
   const { user, isAuthenticated, logout } = useAuthStore();
   const { activeAddress, serviceability } = useUserLocation();
+  const { categories, getRootCategories, initialize } = useCategoryStore();
 
   const [homeCategoryId, setHomeCategoryId] = useState(null);
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  const displayCategories = useMemo(() => {
+    const normalizeId = (value) => String(value ?? "").trim();
+    const roots = getRootCategories().filter(
+      (cat) => (!cat.parentId || cat.parentId === "" || cat.parentId === null) && cat.isActive !== false
+    );
+
+    if (!roots.length && categories.length === 0) return fallbackCategories;
+    if (!roots.length) return [];
+
+    return roots.map((cat) => {
+      const fallbackCat = fallbackCategories.find(
+        (fc) =>
+          normalizeId(fc.id) === normalizeId(cat.id || cat._id) ||
+          fc.name?.toLowerCase() === cat.name?.toLowerCase()
+      );
+      return {
+        ...(fallbackCat || {}),
+        ...cat,
+        id: cat.id || cat._id,
+        image: cat.image || fallbackCat?.image || "https://via.placeholder.com/100x100?text=Category",
+      };
+    });
+  }, [categories, getRootCategories]);
 
   const getCurrentCategoryId = () => {
     const match = location.pathname.match(/\/(?:app\/)?category\/([^/]+)/);
@@ -269,7 +299,7 @@ const MobileHeader = () => {
                     </div>
                     <span className="text-[9px] font-extrabold text-gray-600">All</span>
                 </button>
-                {categories.map((category) => (
+                {displayCategories.map((category) => (
                     <button
                         key={category.id}
                         onClick={() => {

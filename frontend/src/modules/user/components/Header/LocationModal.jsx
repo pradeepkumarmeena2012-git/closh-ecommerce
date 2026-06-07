@@ -1,11 +1,11 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { X, MapPin, CheckCircle2, ChevronLeft, Loader2, Home, Briefcase, Search, Target } from 'lucide-react';
+import { X, MapPin, CheckCircle2, ChevronLeft, Loader2, Home, Briefcase, Search, Target, Trash2 } from 'lucide-react';
 import { useUserLocation } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAddressStore } from '../../../../shared/store/addressStore';
-import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, MarkerF, Autocomplete } from '@react-google-maps/api';
 import api from '../../../../shared/utils/api';
 import toast from 'react-hot-toast';
 
@@ -91,6 +91,23 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [fetchedAddress, setFetchedAddress] = useState(null);
 
+    const autocompleteRef = useRef(null);
+
+    const handlePlaceChanged = () => {
+        if (autocompleteRef.current !== null) {
+            const place = autocompleteRef.current.getPlace();
+            if (!place || !place.geometry || !place.geometry.location) {
+                toast.error("Please select a location from the dropdown suggestions.");
+                return;
+            }
+            const lat = place.geometry.location.lat();
+            const lng = place.geometry.location.lng();
+            const newPos = { lat, lng };
+            setPosition(newPos);
+            getAddressFromCoords(lat, lng).then(setFetchedAddress);
+        }
+    };
+
     const [formData, setFormData] = useState({
         name: user?.fullName || user?.name || '',
         mobile: user?.phone || user?.mobile || '',
@@ -119,26 +136,49 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
 
 
     const handleAddNew = () => {
-        // Direct to form as requested
         setFormData({
-                name: user?.fullName || user?.name || '',
-                mobile: user?.phone || user?.mobile || '',
-                pincode: '',
-                address: '',
-                locality: '',
-                city: '',
-                state: '',
-                type: 'Home'
-            });
+            name: user?.fullName || user?.name || '',
+            mobile: user?.phone || user?.mobile || '',
+            pincode: '',
+            address: '',
+            locality: '',
+            city: '',
+            state: '',
+            type: 'Home'
+        });
 
-            // Set default position if null
+        setView('map');
+
+        if (navigator.geolocation) {
+            const toastId = toast.loading("Fetching live location...");
+            navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                    toast.dismiss(toastId);
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    setPosition({ lat, lng });
+                    const addr = await getAddressFromCoords(lat, lng);
+                    if (addr) setFetchedAddress(addr);
+                    toast.success("Location found. Adjust pin if needed.");
+                },
+                (err) => {
+                    toast.dismiss(toastId);
+                    toast.error("Could not fetch live location. Please adjust pin manually.");
+                    const defaultPos = { lat: 22.7196, lng: 75.8577 };
+                    if (!position) {
+                        setPosition(defaultPos);
+                        getAddressFromCoords(defaultPos.lat, defaultPos.lng).then(setFetchedAddress);
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        } else {
             const defaultPos = { lat: 22.7196, lng: 75.8577 };
             if (!position) {
                 setPosition(defaultPos);
                 getAddressFromCoords(defaultPos.lat, defaultPos.lng).then(setFetchedAddress);
             }
-            
-            setView('map');
+        }
     };
 
     const handleUseCurrentLocation = () => {
@@ -318,7 +358,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto bg-gray-50/30">
+                <div className="flex-1 overflow-y-auto bg-gray-50/30 flex flex-col">
                     {view === 'list' && (
                         <div className="p-5 space-y-6 animate-fadeIn">
                             {/* Actions */}
@@ -389,7 +429,29 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                                         <div className={`w-2 h-2 rounded-full ${String(selectedAddressId) === String(addr.id || addr._id) ? 'bg-black' : 'bg-gray-200'}`} />
                                                         <span className="text-[11px] font-bold uppercase text-gray-400">{addr.type}</span>
                                                     </div>
-                                                    {addr.isDefault && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase ">Default</span>}
+                                                    <div className="flex items-center gap-2">
+                                                        {addr.isDefault && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase ">Default</span>}
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                if (window.confirm('Are you sure you want to remove this address?')) {
+                                                                    if (user) {
+                                                                        await useAddressStore.getState().deleteAddress(addr.id || addr._id);
+                                                                    } else {
+                                                                        const existing = JSON.parse(localStorage.getItem('userAddresses') || '[]');
+                                                                        const updated = existing.filter(a => String(a.id || a._id) !== String(addr.id || addr._id));
+                                                                        localStorage.setItem('userAddresses', JSON.stringify(updated));
+                                                                    }
+                                                                    refreshAddresses();
+                                                                    toast.success('Address removed');
+                                                                }
+                                                            }}
+                                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Remove Address"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <p className="text-[14px] font-bold text-black mb-1">{addr.fullName}</p>
                                                 <p className="text-[12px] text-gray-500 line-clamp-1 italic ">{addr.address}</p>
@@ -403,13 +465,19 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                     )}
 
                     {view === 'map' && (
-                        <div className="h-[400px] sm:h-[450px] relative animate-fadeIn">
+                        <div className="flex-1 min-h-[400px] sm:min-h-[450px] relative animate-fadeIn">
                             {isLoaded ? (
                                 <GoogleMap
                                     mapContainerStyle={{ height: '100%', width: '100%' }}
                                     center={position || { lat: 22.7196, lng: 75.8577 }}
                                     zoom={15}
-                                    options={{ disableDefaultUI: true, zoomControl: true }}
+                                    options={{ 
+                                        disableDefaultUI: true, 
+                                        zoomControl: true,
+                                        zoomControlOptions: {
+                                            position: window.google?.maps?.ControlPosition?.RIGHT_CENTER || 9
+                                        }
+                                    }}
                                     onClick={(e) => {
                                         const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
                                         setPosition(newPos);
@@ -431,6 +499,54 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                     <Loader2 className="animate-spin text-gray-400" size={32} />
                                 </div>
                             )}
+
+                            {/* Search Bar Overlay */}
+                            {isLoaded && (
+                                <div className="absolute top-4 left-4 right-4 z-[1000]">
+                                    <Autocomplete
+                                        onLoad={ref => autocompleteRef.current = ref}
+                                        onPlaceChanged={handlePlaceChanged}
+                                        options={{
+                                            bounds: position ? {
+                                                north: position.lat + 0.5,
+                                                south: position.lat - 0.5,
+                                                east: position.lng + 0.5,
+                                                west: position.lng - 0.5,
+                                            } : undefined,
+                                            componentRestrictions: { country: 'in' }
+                                        }}
+                                    >
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                                <Search size={18} className="text-gray-400" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Search for apartment, street name..."
+                                                className="w-full pl-12 pr-4 py-3.5 bg-white rounded-2xl shadow-lg border-0 focus:ring-2 focus:ring-black outline-none text-[14px] font-bold text-black"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    </Autocomplete>
+                                </div>
+                            )}
+
+                            {/* Live Location Button */}
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    triggerActualLocationFlow();
+                                }}
+                                className="absolute bottom-28 right-5 w-11 h-11 bg-white rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] flex items-center justify-center text-gray-700 hover:text-black hover:bg-gray-50 active:scale-95 transition-all z-[1000]"
+                                title="Use current location"
+                            >
+                                <Target size={22} className={loadingLocation ? "animate-pulse text-black" : ""} />
+                            </button>
+
                             <div className="absolute bottom-5 left-5 right-5 bg-white p-4 rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-start gap-3">
                                 <MapPin size={20} className="text-black shrink-0 mt-1" />
                                 <p className="text-[12px] font-bold text-black line-clamp-3">

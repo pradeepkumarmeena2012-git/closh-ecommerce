@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
-import { 
-  FiSearch, 
-  FiPlus, 
-  FiShoppingBag, 
-  FiEdit, 
-  FiTrash2, 
+import {
+  FiSearch,
+  FiPlus,
+  FiShoppingBag,
+  FiEdit,
+  FiTrash2,
   FiShoppingCart,
   FiX,
   FiImage,
@@ -21,8 +21,8 @@ import Badge from "../../../../shared/components/Badge";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import { useVendorProductStore } from "../../store/vendorProductStore";
-import { 
-  updateVendorStock, 
+import {
+  updateVendorStock,
   updateVendorVariantStock,
   createVendorProduct,
   updateVendorProduct,
@@ -31,10 +31,10 @@ import {
 import MultiSelect from "../../../Admin/components/MultiSelect";
 import { PRODUCT_SIZES } from "../../../../shared/utils/constants";
 
-import { 
-  buildVariantCombinations, 
-  syncVariantPricesWithAxes, 
-  buildVariantPayload, 
+import {
+  buildVariantCombinations,
+  syncVariantPricesWithAxes,
+  buildVariantPayload,
   normalizeVariantStateForForm,
   parseVariantAxis
 } from "../../utils/variantHelpers";
@@ -49,11 +49,11 @@ const OfflineSales = () => {
   const [sales, setSales] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { products: storeProducts, fetchProducts: fetchStoreProducts } = useVendorProductStore();
-  
+
   const [isSaleConfirmOpen, setIsSaleConfirmOpen] = useState(false);
   const [saleProduct, setSaleProduct] = useState(null);
   const [saleSelection, setSaleSelection] = useState({});
-  const [saleQuantity, setSaleQuantity] = useState(1);  const [variantSaleQty, setVariantSaleQty] = useState({});
+  const [saleQuantity, setSaleQuantity] = useState(1); const [variantSaleQty, setVariantSaleQty] = useState({});
   const [variantActionLoading, setVariantActionLoading] = useState(null);
 
   useEffect(() => {
@@ -77,7 +77,7 @@ const OfflineSales = () => {
         id: p._id,
         productId: p._id,
         productName: p.name,
-        price: p.vendorPrice || p.price,
+        price: p.vendorPrice || 0,
         stock: p.stockQuantity,
         unit: p.unit || "Piece",
         category: p.categoryId?.name || "Uncategorized",
@@ -166,7 +166,7 @@ const OfflineSales = () => {
   useEffect(() => {
     const price = parseFloat(formData.price);
     const originalPrice = parseFloat(formData.originalPrice);
-    
+
     if (originalPrice && price && originalPrice > price) {
       const discount = Math.round(((originalPrice - price) / originalPrice) * 100);
       if (formData.discount !== discount) {
@@ -182,7 +182,7 @@ const OfflineSales = () => {
   const [currentColor, setCurrentColor] = useState("");
 
   const filteredSales = useMemo(() => {
-    return sales.filter(sale => 
+    return sales.filter(sale =>
       sale.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       sale.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -197,10 +197,10 @@ const OfflineSales = () => {
         variants: sale.variants
       } : sale;
       setEditingSale(sale);
-      
+
       const normalizedVariants = normalizeVariantStateForForm(
         p.variants || {},
-        p.vendorPrice || p.price || ""
+        p.vendorPrice || ""
       );
 
       setFormData({
@@ -211,7 +211,7 @@ const OfflineSales = () => {
         brandId: p.brandId?._id || p.brandId || null,
         division: p.division || "Unisex",
         description: p.description || "",
-        price: p.vendorPrice || p.price || "",
+        price: p.vendorPrice || "",
         originalPrice: p.originalPrice || "",
         discount: p.discount || 0,
         stock: p.stock || "in_stock",
@@ -385,7 +385,7 @@ const OfflineSales = () => {
   const getSelectedVariantStock = (product, selection) => {
     if (!product) return 0;
     const hasVariants = product.variants && (
-      (product.variants.attributes && product.variants.attributes.length > 0) || 
+      (product.variants.attributes && product.variants.attributes.length > 0) ||
       (product.variants.sizes && product.variants.sizes.length > 0)
     );
     if (!hasVariants) {
@@ -425,7 +425,7 @@ const OfflineSales = () => {
         setIsLoading(true);
         try {
           await updateVendorStock(product.productId, 0);
-          
+
           let updatedVariants = product.variants;
           if (product.variants && product.variants.stockMap) {
             const newStockMap = { ...product.variants.stockMap };
@@ -435,13 +435,13 @@ const OfflineSales = () => {
             await updateVendorVariantStock(product.productId, newStockMap);
             updatedVariants = { ...product.variants, stockMap: newStockMap };
           }
-          
-          setSales(sales.map(s => s.id === product.id ? { 
-            ...s, 
+
+          setSales(sales.map(s => s.id === product.id ? {
+            ...s,
             stock: 0,
             variants: updatedVariants
           } : s));
-          
+
           toast.success(`${product.productName} marked as Out of Stock!`);
         } catch (error) {
           toast.error("Failed to update stock to Out of Stock");
@@ -460,7 +460,7 @@ const OfflineSales = () => {
         setIsLoading(true);
         try {
           await updateVendorStock(product.productId, quantity);
-          
+
           let updatedVariants = product.variants;
           if (product.variants && product.variants.stockMap) {
             const newStockMap = { ...product.variants.stockMap };
@@ -474,13 +474,13 @@ const OfflineSales = () => {
             }
             updatedVariants = { ...product.variants, stockMap: newStockMap };
           }
-          
-          setSales(sales.map(s => s.id === product.id ? { 
-            ...s, 
+
+          setSales(sales.map(s => s.id === product.id ? {
+            ...s,
             stock: quantity,
             variants: updatedVariants
           } : s));
-          
+
           toast.success(`${product.productName} marked as In Stock with ${quantity} units!`);
         } catch (error) {
           toast.error("Failed to update stock to In Stock");
@@ -493,9 +493,9 @@ const OfflineSales = () => {
 
   const handleToggleSelectedVariantStock = async () => {
     if (!saleProduct) return;
-    
+
     const hasVariants = saleProduct.variants && (
-      (saleProduct.variants.attributes && saleProduct.variants.attributes.length > 0) || 
+      (saleProduct.variants.attributes && saleProduct.variants.attributes.length > 0) ||
       (saleProduct.variants.sizes && saleProduct.variants.sizes.length > 0)
     );
 
@@ -628,7 +628,7 @@ const OfflineSales = () => {
     if (target) {
       setSaleProduct(target);
       const initialSelection = {};
-      
+
       // Handle Size (either from attributes or simple sizes array)
       const sizeAttr = target.variants?.attributes?.find(a => a.name.toLowerCase() === 'size');
       if (sizeAttr) {
@@ -654,7 +654,7 @@ const OfflineSales = () => {
 
   const confirmSale = async () => {
     if (!saleProduct) return;
-    
+
     try {
       const quantity = parseInt(saleQuantity) || 1;
       if (quantity <= 0) {
@@ -663,7 +663,7 @@ const OfflineSales = () => {
       }
 
       const hasVariants = saleProduct.variants && (
-        (saleProduct.variants.attributes && saleProduct.variants.attributes.length > 0) || 
+        (saleProduct.variants.attributes && saleProduct.variants.attributes.length > 0) ||
         (saleProduct.variants.sizes && saleProduct.variants.sizes.length > 0)
       );
 
@@ -716,11 +716,11 @@ const OfflineSales = () => {
 
         await recordOfflineSale(saleProduct.productId, { quantity, variantKey: key });
 
-        setSales(sales.map(s => s.id === saleProduct.id ? { 
-          ...s, 
-          stock: s.stock - quantity, 
-          sold: (s.sold || 0) + quantity, 
-          variants: { ...s.variants, stockMap } 
+        setSales(sales.map(s => s.id === saleProduct.id ? {
+          ...s,
+          stock: s.stock - quantity,
+          sold: (s.sold || 0) + quantity,
+          variants: { ...s.variants, stockMap }
         } : s));
       } else {
         if (saleProduct.stock < quantity) {
@@ -753,7 +753,7 @@ const OfflineSales = () => {
       render: (value, row) => (
         <div className="flex items-center gap-2 min-w-[100px]">
           <div className="w-7 h-7 rounded bg-emerald-50 flex items-center justify-center overflow-hidden border border-emerald-100 shrink-0">
-             {row.image ? <img src={row.image} alt={value} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" size={12} />}
+            {row.image ? <img src={row.image} alt={value} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" size={12} />}
           </div>
           <div className="flex flex-col min-w-0">
             <span className="font-black text-gray-900 leading-tight text-[10px] truncate uppercase">{value}</span>
@@ -794,7 +794,7 @@ const OfflineSales = () => {
       label: "STATUS",
       render: (value, row) => (
         <Badge variant={row.stock > 0 ? "success" : "error"} className="text-[8px] py-0 px-1.5 uppercase">
-           {row.stock > 0 ? "In Stock" : "Out"}
+          {row.stock > 0 ? "In Stock" : "Out"}
         </Badge>
       )
     },
@@ -840,14 +840,14 @@ const OfflineSales = () => {
             />
           </div>
           <div className="flex justify-end">
-            <ExportButton 
-              data={filteredSales} 
+            <ExportButton
+              data={filteredSales}
               headers={[
-                { label: "ID", accessor: "id" }, 
-                { label: "Product", accessor: "productName" }, 
-                { label: "Your Price", accessor: (row) => formatPrice(row.price) }
-              ]} 
-              filename="offline-sales" 
+                { label: "ID", accessor: "id" },
+                { label: "Product", accessor: "productName" },
+                { label: "Your Price", accessor: (row) => formatPrice(row.price || 0) }
+              ]}
+              filename="offline-sales"
             />
           </div>
         </div>
@@ -861,7 +861,7 @@ const OfflineSales = () => {
         <div className="block md:hidden space-y-4">
           <AnimatePresence>
             {filteredSales.map((sale) => (
-              <motion.div 
+              <motion.div
                 key={sale.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -869,98 +869,98 @@ const OfflineSales = () => {
               >
                 {/* ID Row */}
                 <div className="flex items-center text-[10px] font-bold text-gray-400">
-                   <span className="w-28 uppercase">ID:</span>
-                   <span className="text-gray-900 font-black">#{sale.id}</span>
+                  <span className="w-28 uppercase">ID:</span>
+                  <span className="text-gray-900 font-black">#{sale.id}</span>
                 </div>
 
                 {/* Product Name Row */}
                 <div className="flex items-start text-[10px] font-bold text-gray-400">
-                   <span className="w-28 mt-2 uppercase">Product:</span>
-                   <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-black flex items-center justify-center overflow-hidden shrink-0 border border-emerald-50 shadow-sm">
-                         {sale.image ? <img src={sale.image} className="w-full h-full object-cover" /> : <div className="text-[10px] text-white font-black italic">CLOSH</div>}
-                      </div>
-                      <span className="text-gray-900 font-black text-xs leading-tight">{sale.productName.toLowerCase()}</span>
-                   </div>
+                  <span className="w-28 mt-2 uppercase">Product:</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-black flex items-center justify-center overflow-hidden shrink-0 border border-emerald-50 shadow-sm">
+                      {sale.image ? <img src={sale.image} className="w-full h-full object-cover" /> : <div className="text-[10px] text-white font-black italic">CLOSH</div>}
+                    </div>
+                    <span className="text-gray-900 font-black text-xs leading-tight">{sale.productName.toLowerCase()}</span>
+                  </div>
                 </div>
 
                 {/* Category & Brand Group */}
                 <div className="grid grid-cols-2 gap-2">
-                   <div className="flex flex-col gap-1">
-                      <span className="text-[8px] font-black text-gray-400 uppercase">Category</span>
-                      <span className="text-xs font-black text-emerald-700">{sale.category}</span>
-                   </div>
-                   <div className="flex flex-col gap-1">
-                      <span className="text-[8px] font-black text-gray-400 uppercase">Brand</span>
-                      <span className="text-xs font-black text-emerald-700">{sale.brand || "N/A"}</span>
-                   </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[8px] font-black text-gray-400 uppercase">Category</span>
+                    <span className="text-xs font-black text-emerald-700">{sale.category}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[8px] font-black text-gray-400 uppercase">Brand</span>
+                    <span className="text-xs font-black text-emerald-700">{sale.brand || "N/A"}</span>
+                  </div>
                 </div>
 
                 {/* Pricing & Stock Grid */}
                 <div className="grid grid-cols-3 gap-2 py-2 border-y border-emerald-50/50">
-                    <div className="flex flex-col gap-0.5">
-                       <span className="text-[8px] font-black text-gray-400 uppercase">Your Price</span>
-                       <span className="text-[11px] font-black text-gray-900">{formatPrice(sale.price)}</span>
-                    </div>
-                   <div className="flex flex-col gap-0.5">
-                      <span className="text-[8px] font-black text-gray-400 uppercase">Stock</span>
-                      <span className="text-[11px] font-black text-gray-900">{sale.stock} <span className="text-[8px] text-gray-400">{sale.unit}</span></span>
-                   </div>
-                   <div className="flex flex-col gap-0.5">
-                      <span className="text-[8px] font-black text-emerald-400 uppercase">Sold</span>
-                      <span className="text-[11px] font-black text-emerald-600">{sale.sold || 0}</span>
-                   </div>
-                   <div className="flex flex-col gap-0.5">
-                      <span className="text-[8px] font-black text-gray-400 uppercase">Status</span>
-                      <span className={`text-[9px] font-black ${sale.stock > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{sale.stock > 0 ? 'IN STOCK' : 'OUT'}</span>
-                   </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] font-black text-gray-400 uppercase">Your Price</span>
+                    <span className="text-[11px] font-black text-gray-900">{formatPrice(sale.price)}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] font-black text-gray-400 uppercase">Stock</span>
+                    <span className="text-[11px] font-black text-gray-900">{sale.stock} <span className="text-[8px] text-gray-400">{sale.unit}</span></span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] font-black text-emerald-400 uppercase">Sold</span>
+                    <span className="text-[11px] font-black text-emerald-600">{sale.sold || 0}</span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[8px] font-black text-gray-400 uppercase">Status</span>
+                    <span className={`text-[9px] font-black ${sale.stock > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{sale.stock > 0 ? 'IN STOCK' : 'OUT'}</span>
+                  </div>
                 </div>
 
                 {/* Description - Compact */}
                 <div className="flex flex-col gap-1">
-                   <span className="text-[8px] font-black text-gray-400 uppercase">Description:</span>
-                   <p className="text-[10px] text-gray-600 font-bold leading-relaxed line-clamp-2 italic">"{sale.description || "No description provided..."}"</p>
+                  <span className="text-[8px] font-black text-gray-400 uppercase">Description:</span>
+                  <p className="text-[10px] text-gray-600 font-bold leading-relaxed line-clamp-2 italic">"{sale.description || "No description provided..."}"</p>
                 </div>
 
                 {/* Variants - Small Badges */}
                 <div className="space-y-2">
-                   <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[8px] font-black text-gray-400 uppercase w-10">Colors:</span>
-                      <div className="flex flex-wrap gap-1">
-                         {sale.colors?.map(c => <span key={c} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[8px] font-black border border-emerald-100 uppercase">{c}</span>) || <span className="text-[8px] text-gray-400 italic">None</span>}
-                      </div>
-                   </div>
-                   <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[8px] font-black text-gray-400 uppercase w-10">Sizes:</span>
-                      <div className="flex flex-wrap gap-1">
-                         {sale.sizes?.map(s => <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[8px] font-black border border-blue-100 uppercase">{s}</span>) || <span className="text-[8px] text-gray-400 italic">None</span>}
-                      </div>
-                   </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[8px] font-black text-gray-400 uppercase w-10">Colors:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {sale.colors?.map(c => <span key={c} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[8px] font-black border border-emerald-100 uppercase">{c}</span>) || <span className="text-[8px] text-gray-400 italic">None</span>}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[8px] font-black text-gray-400 uppercase w-10">Sizes:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {sale.sizes?.map(s => <span key={s} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md text-[8px] font-black border border-blue-100 uppercase">{s}</span>) || <span className="text-[8px] text-gray-400 italic">None</span>}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Actions Row */}
                 <div className="flex items-center justify-between pt-4 border-t border-emerald-50 shadow-[0_-5px_10px_-5px_rgba(0,0,0,0.02)]">
-                   <div className="flex gap-1.5">
-                      <Badge variant={sale.approvalStatus || 'pending'} className="text-[8px] py-1 px-2.5 uppercase">{sale.approvalStatus || 'pending'}</Badge>
-                   </div>
-                   <div className="flex items-center gap-5">
-                      <button onClick={() => handleOpenModal(sale)} className="text-emerald-500 hover:text-emerald-700 transition-transform active:scale-90 p-2 bg-emerald-50 rounded-xl">
-                         <FiEdit size={20} />
-                      </button>
-                      <button onClick={() => handleDelete(sale.id)} className="text-red-400 hover:text-red-600 transition-transform active:scale-90 p-2 bg-red-50 rounded-xl">
-                         <FiTrash2 size={20} />
-                      </button>
-                      <button onClick={() => handleSale(sale.id)} className="text-blue-500 hover:text-blue-700 transition-transform active:scale-90 p-2 bg-blue-50 rounded-xl">
-                         <FiShoppingCart size={20} />
-                      </button>
-                   </div>
+                  <div className="flex gap-1.5">
+                    <Badge variant={sale.approvalStatus || 'pending'} className="text-[8px] py-1 px-2.5 uppercase">{sale.approvalStatus || 'pending'}</Badge>
+                  </div>
+                  <div className="flex items-center gap-5">
+                    <button onClick={() => handleOpenModal(sale)} className="text-emerald-500 hover:text-emerald-700 transition-transform active:scale-90 p-2 bg-emerald-50 rounded-xl">
+                      <FiEdit size={20} />
+                    </button>
+                    <button onClick={() => handleDelete(sale.id)} className="text-red-400 hover:text-red-600 transition-transform active:scale-90 p-2 bg-red-50 rounded-xl">
+                      <FiTrash2 size={20} />
+                    </button>
+                    <button onClick={() => handleSale(sale.id)} className="text-blue-500 hover:text-blue-700 transition-transform active:scale-90 p-2 bg-blue-50 rounded-xl">
+                      <FiShoppingCart size={20} />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
           {filteredSales.length === 0 && (
             <div className="text-center py-10">
-               <p className="text-xs font-bold text-gray-400">No records found matching your search.</p>
+              <p className="text-xs font-bold text-gray-400">No records found matching your search.</p>
             </div>
           )}
         </div>
@@ -970,20 +970,20 @@ const OfflineSales = () => {
         {isModalOpen && (
           <div className="fixed inset-0 z-[100]">
             {/* Full-screen Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              onClick={() => setIsModalOpen(false)} 
-              className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
             />
-            
+
             {/* Content Wrapper */}
             <div className="relative inset-0 h-full w-full flex items-center justify-center p-2 sm:p-4 pb-24 md:pb-4 pointer-events-none">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }} 
-                animate={{ opacity: 1, scale: 1, y: 0 }} 
-                exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 className="relative bg-white w-full max-w-4xl max-h-[92vh] flex flex-col rounded-[1.5rem] md:rounded-[2rem] shadow-2xl border border-emerald-50 pointer-events-auto overflow-hidden"
               >
                 {/* Fixed Header */}
@@ -998,219 +998,214 @@ const OfflineSales = () => {
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar">
                   <form onSubmit={handleSave} className="space-y-6">
 
-                {/* Product Variants Section */}
-                <div className="bg-emerald-50/10 p-4 rounded-2xl border border-emerald-50 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-black text-emerald-800 uppercase">Product Variants</h3>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const current = formData.variants?.attributes || [];
-                        updateVariantAttributes([...current, { name: "", values: [] }]);
-                      }}
-                      className="px-3 py-1 bg-[#003d29] text-white rounded-lg text-[10px] font-bold uppercase"
-                    >
-                      Add Attribute
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Sizes MultiSelect */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-emerald-700 uppercase">Standard Sizes</label>
-                      <MultiSelect
-                        value={formData.variants?.sizes || []}
-                        onChange={(e) => updateVariantAxes('sizes', e.target.value.join(', '))}
-                        options={PRODUCT_SIZES}
-                        placeholder="Select sizes..."
-                      />
-                    </div>
-
-                    {/* Dynamic Attributes */}
-                    {(formData.variants?.attributes || []).map((attr, index) => (
-                      <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
-                        <div className="md:col-span-3 space-y-1">
-                          <label className="text-[9px] font-bold text-gray-500 uppercase">Attr Name</label>
-                          <input 
-                            type="text" 
-                            value={attr.name} 
-                            onChange={(e) => {
-                              const next = [...formData.variants.attributes];
-                              next[index].name = e.target.value;
-                              updateVariantAttributes(next);
-                            }}
-                            className="w-full px-2 py-1.5 bg-white border border-emerald-50 rounded-lg text-xs font-bold" 
-                            placeholder="e.g. Material"
-                          />
-                        </div>
-                        <div className="md:col-span-8 space-y-1">
-                          <label className="text-[9px] font-bold text-gray-500 uppercase">Values (comma separated)</label>
-                          <input 
-                            type="text" 
-                            value={(attr.values || []).join(', ')} 
-                            onChange={(e) => {
-                              const next = [...formData.variants.attributes];
-                              next[index].values = parseVariantAxis(e.target.value);
-                              updateVariantAttributes(next);
-                            }}
-                            className="w-full px-2 py-1.5 bg-white border border-emerald-50 rounded-lg text-xs font-bold"
-                            placeholder="Cotton, Silk..."
-                          />
-                        </div>
-                        <button 
-                          type="button" 
-                          onClick={() => updateVariantAttributes(formData.variants.attributes.filter((_, i) => i !== index))}
-                          className="md:col-span-1 p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
+                    {/* Product Variants Section */}
+                    <div className="bg-emerald-50/10 p-4 rounded-2xl border border-emerald-50 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-black text-emerald-800 uppercase">Product Variants</h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = formData.variants?.attributes || [];
+                            updateVariantAttributes([...current, { name: "", values: [] }]);
+                          }}
+                          className="px-3 py-1 bg-[#003d29] text-white rounded-lg text-[10px] font-bold uppercase"
                         >
-                          <FiX size={14} className="mx-auto" />
+                          Add Attribute
                         </button>
                       </div>
-                    ))}
 
-                    {/* Variant Price/Stock/Actions Grid */}
-                    {variantCombinations.length > 0 && (
-                      <div className="mt-4 border border-emerald-100 rounded-xl overflow-hidden bg-white">
-                        <table className="w-full text-left text-[10px] md:text-xs">
-                          <thead className="bg-emerald-50/50 text-emerald-800 font-black uppercase">
-                            <tr>
-                              <th className="px-3 py-2">Variant</th>
-                              <th className="px-3 py-2">Price</th>
-                              <th className="px-3 py-2">Stock</th>
-                              <th className="px-3 py-2">Quick Sale</th>
-                              <th className="px-3 py-2 text-center">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-emerald-50">
-                            {variantCombinations.map((combo) => {
-                              const currentStock = parseInt(formData.variants.stockMap[combo.key] ?? 0, 10) || 0;
-                              const isOut = currentStock <= 0;
-                              const qty = parseInt(variantSaleQty[combo.key] || 0, 10);
-                              const isActionLoading = variantActionLoading === combo.key;
-                              return (
-                              <tr key={combo.key} className={isOut ? 'bg-red-50/30' : ''}>
-                                <td className="px-3 py-2 font-bold text-gray-700">
-                                  <div className="flex items-center gap-1.5">
-                                    {combo.label}
-                                    {isOut && <span className="text-[7px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-black uppercase">Out</span>}
-                                  </div>
-                                </td>
-                                <td className="px-3 py-2">
-                                  <input 
-                                    type="number" 
-                                    value={formData.variants.prices[combo.key] ?? ""} 
-                                    onChange={(e) => setFormData(prev => ({
-                                      ...prev,
-                                      variants: { ...prev.variants, prices: { ...prev.variants.prices, [combo.key]: e.target.value } }
-                                    }))}
-                                    className="w-full px-2 py-1 bg-emerald-50/20 border border-emerald-50 rounded focus:ring-1 focus:ring-emerald-500" 
-                                    placeholder="Base"
-                                  />
-                                </td>
-                                <td className="px-3 py-2">
-                                  <input 
-                                    type="number" 
-                                    readOnly
-                                    value={formData.variants.stockMap[combo.key] ?? ""} 
-                                    className={`w-full px-2 py-1 border rounded cursor-default ${isOut ? 'bg-red-50 border-red-200 text-red-600 font-black' : 'bg-emerald-50/50 border-emerald-50 text-emerald-700 font-bold'}`}
-                                    placeholder="0"
-                                  />
-                                </td>
-                                <td className="px-3 py-2">
-                                  <div className="flex items-center gap-1">
-                                    <input 
-                                      type="number" 
-                                      min="1"
-                                      value={variantSaleQty[combo.key] || ""}
-                                      onChange={(e) => setVariantSaleQty(prev => ({ ...prev, [combo.key]: e.target.value }))}
-                                      className="w-14 px-1.5 py-1 bg-white border border-blue-100 rounded focus:ring-1 focus:ring-blue-400 text-center"
-                                      placeholder="Qty"
-                                      disabled={isOut || isActionLoading}
-                                    />
-                                    <button
-                                      type="button"
-                                      disabled={isOut || !qty || qty <= 0 || qty > currentStock || isActionLoading}
-                                      onClick={async () => {
-                                        if (!editingSale || !qty || qty <= 0) return;
-                                        if (qty > currentStock) { toast.error(`Only ${currentStock} available for ${combo.label}`); return; }
-                                        setVariantActionLoading(combo.key);
-                                        try {
-                                          await recordOfflineSale(editingSale.productId, { quantity: qty, variantKey: combo.key });
-                                          const newStock = currentStock - qty;
-                                          setFormData(prev => ({
-                                            ...prev,
-                                            stockQuantity: Math.max(0, (parseInt(prev.stockQuantity, 10) || 0) - qty),
-                                            variants: { ...prev.variants, stockMap: { ...prev.variants.stockMap, [combo.key]: newStock } }
-                                          }));
-                                          setSales(prev => prev.map(s => s.id === editingSale.id ? {
-                                            ...s, stock: Math.max(0, s.stock - qty), sold: (s.sold || 0) + qty,
-                                            variants: { ...s.variants, stockMap: { ...s.variants.stockMap, [combo.key]: newStock } }
-                                          } : s));
-                                          setVariantSaleQty(prev => ({ ...prev, [combo.key]: "" }));
-                                          await fetchStoreProducts({ limit: 1000, fetchAll: true });
-                                          toast.success(`Sold ${qty}× ${combo.label}!`);
-                                        } catch { toast.error("Sale failed"); }
-                                        finally { setVariantActionLoading(null); }
-                                      }}
-                                      className={`px-2 py-1 rounded text-[9px] font-black uppercase whitespace-nowrap transition-all ${
-                                        isOut || !qty || qty <= 0 || qty > currentStock
-                                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                          : 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm'
-                                      }`}
-                                    >
-                                      {isActionLoading ? '...' : 'Sell'}
-                                    </button>
-                                  </div>
-                                </td>
-                                <td className="px-3 py-2 text-center">
-                                  <button
-                                    type="button"
-                                    disabled={isActionLoading}
-                                    onClick={async () => {
-                                      if (!editingSale) return;
-                                      setVariantActionLoading(combo.key);
-                                      try {
-                                        const newStockMap = { ...(formData.variants.stockMap || {}) };
-                                        if (isOut) {
-                                          const restockQty = parseInt(window.prompt(`Restock quantity for ${combo.label}:`, "10"), 10);
-                                          if (!restockQty || restockQty <= 0) { setVariantActionLoading(null); return; }
-                                          newStockMap[combo.key] = restockQty;
-                                        } else {
-                                          newStockMap[combo.key] = 0;
-                                        }
-                                        const newTotal = Object.values(newStockMap).reduce((s, v) => s + (parseInt(v, 10) || 0), 0);
-                                        await updateVendorStock(editingSale.productId, newTotal);
-                                        await updateVendorVariantStock(editingSale.productId, newStockMap);
-                                        setFormData(prev => ({
-                                          ...prev, stockQuantity: newTotal,
-                                          variants: { ...prev.variants, stockMap: newStockMap }
-                                        }));
-                                        setSales(prev => prev.map(s => s.id === editingSale.id ? {
-                                          ...s, stock: newTotal, variants: { ...s.variants, stockMap: newStockMap }
-                                        } : s));
-                                        await fetchStoreProducts({ limit: 1000, fetchAll: true });
-                                        toast.success(isOut ? `${combo.label} restocked!` : `${combo.label} marked Out of Stock`);
-                                      } catch { toast.error("Failed to update stock"); }
-                                      finally { setVariantActionLoading(null); }
-                                    }}
-                                    className={`p-1.5 rounded-lg transition-all ${isActionLoading ? 'opacity-50' : ''} ${
-                                      isOut
-                                        ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                                        : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-                                    }`}
-                                    title={isOut ? 'Restock' : 'Mark Out of Stock'}
-                                  >
-                                    {isOut ? <FiEye size={14} /> : <FiEyeOff size={14} />}
-                                  </button>
-                                </td>
-                              </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                      <div className="space-y-4">
+                        {/* Sizes MultiSelect */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-emerald-700 uppercase">Standard Sizes</label>
+                          <MultiSelect
+                            value={formData.variants?.sizes || []}
+                            onChange={(e) => updateVariantAxes('sizes', e.target.value.join(', '))}
+                            options={PRODUCT_SIZES}
+                            placeholder="Select sizes..."
+                          />
+                        </div>
+
+                        {/* Dynamic Attributes */}
+                        {(formData.variants?.attributes || []).map((attr, index) => (
+                          <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                            <div className="md:col-span-3 space-y-1">
+                              <label className="text-[9px] font-bold text-gray-500 uppercase">Attr Name</label>
+                              <input
+                                type="text"
+                                value={attr.name}
+                                onChange={(e) => {
+                                  const next = [...formData.variants.attributes];
+                                  next[index].name = e.target.value;
+                                  updateVariantAttributes(next);
+                                }}
+                                className="w-full px-2 py-1.5 bg-white border border-emerald-50 rounded-lg text-xs font-bold"
+                                placeholder="e.g. Material"
+                              />
+                            </div>
+                            <div className="md:col-span-8 space-y-1">
+                              <label className="text-[9px] font-bold text-gray-500 uppercase">Values (comma separated)</label>
+                              <input
+                                type="text"
+                                value={(attr.values || []).join(', ')}
+                                onChange={(e) => {
+                                  const next = [...formData.variants.attributes];
+                                  next[index].values = parseVariantAxis(e.target.value);
+                                  updateVariantAttributes(next);
+                                }}
+                                className="w-full px-2 py-1.5 bg-white border border-emerald-50 rounded-lg text-xs font-bold"
+                                placeholder="Cotton, Silk..."
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => updateVariantAttributes(formData.variants.attributes.filter((_, i) => i !== index))}
+                              className="md:col-span-1 p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
+                            >
+                              <FiX size={14} className="mx-auto" />
+                            </button>
+                          </div>
+                        ))}
+
+                        {/* Variant Price/Stock/Actions Grid */}
+                        {variantCombinations.length > 0 && (
+                          <div className="mt-4 border border-emerald-100 rounded-xl overflow-hidden bg-white">
+                            <table className="w-full text-left text-[10px] md:text-xs">
+                              <thead className="bg-emerald-50/50 text-emerald-800 font-black uppercase">
+                                <tr>
+                                  <th className="px-3 py-2">Variant</th>
+                                  <th className="px-3 py-2">Price</th>
+                                  <th className="px-3 py-2">Stock</th>
+                                  <th className="px-3 py-2">Quick Sale</th>
+                                  <th className="px-3 py-2 text-center">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-emerald-50">
+                                {variantCombinations.map((combo) => {
+                                  const currentStock = parseInt(formData.variants.stockMap[combo.key] ?? 0, 10) || 0;
+                                  const isOut = currentStock <= 0;
+                                  const qty = parseInt(variantSaleQty[combo.key] || 0, 10);
+                                  const isActionLoading = variantActionLoading === combo.key;
+                                  return (
+                                    <tr key={combo.key} className={isOut ? 'bg-red-50/30' : ''}>
+                                      <td className="px-3 py-2 font-bold text-gray-700">
+                                        <div className="flex items-center gap-1.5">
+                                          {combo.label}
+                                          {isOut && <span className="text-[7px] px-1.5 py-0.5 bg-red-100 text-red-600 rounded font-black uppercase">Out</span>}
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        <input
+                                          type="number"
+                                          readOnly
+                                          value={formData.price}
+                                          className="w-full px-2 py-1 bg-emerald-50/20 border border-emerald-50 rounded text-emerald-800 cursor-not-allowed"
+                                          placeholder="Same as base price"
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        <input
+                                          type="number"
+                                          readOnly
+                                          value={formData.variants.stockMap[combo.key] ?? ""}
+                                          className={`w-full px-2 py-1 border rounded cursor-default ${isOut ? 'bg-red-50 border-red-200 text-red-600 font-black' : 'bg-emerald-50/50 border-emerald-50 text-emerald-700 font-bold'}`}
+                                          placeholder="0"
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            value={variantSaleQty[combo.key] || ""}
+                                            onChange={(e) => setVariantSaleQty(prev => ({ ...prev, [combo.key]: e.target.value }))}
+                                            className="w-14 px-1.5 py-1 bg-white border border-blue-100 rounded focus:ring-1 focus:ring-blue-400 text-center"
+                                            placeholder="Qty"
+                                            disabled={isOut || isActionLoading}
+                                          />
+                                          <button
+                                            type="button"
+                                            disabled={isOut || !qty || qty <= 0 || qty > currentStock || isActionLoading}
+                                            onClick={async () => {
+                                              if (!editingSale || !qty || qty <= 0) return;
+                                              if (qty > currentStock) { toast.error(`Only ${currentStock} available for ${combo.label}`); return; }
+                                              setVariantActionLoading(combo.key);
+                                              try {
+                                                await recordOfflineSale(editingSale.productId, { quantity: qty, variantKey: combo.key });
+                                                const newStock = currentStock - qty;
+                                                setFormData(prev => ({
+                                                  ...prev,
+                                                  stockQuantity: Math.max(0, (parseInt(prev.stockQuantity, 10) || 0) - qty),
+                                                  variants: { ...prev.variants, stockMap: { ...prev.variants.stockMap, [combo.key]: newStock } }
+                                                }));
+                                                setSales(prev => prev.map(s => s.id === editingSale.id ? {
+                                                  ...s, stock: Math.max(0, s.stock - qty), sold: (s.sold || 0) + qty,
+                                                  variants: { ...s.variants, stockMap: { ...s.variants.stockMap, [combo.key]: newStock } }
+                                                } : s));
+                                                setVariantSaleQty(prev => ({ ...prev, [combo.key]: "" }));
+                                                await fetchStoreProducts({ limit: 1000, fetchAll: true });
+                                                toast.success(`Sold ${qty}× ${combo.label}!`);
+                                              } catch { toast.error("Sale failed"); }
+                                              finally { setVariantActionLoading(null); }
+                                            }}
+                                            className={`px-2 py-1 rounded text-[9px] font-black uppercase whitespace-nowrap transition-all ${isOut || !qty || qty <= 0 || qty > currentStock
+                                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                              : 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm'
+                                              }`}
+                                          >
+                                            {isActionLoading ? '...' : 'Sell'}
+                                          </button>
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2 text-center">
+                                        <button
+                                          type="button"
+                                          disabled={isActionLoading}
+                                          onClick={async () => {
+                                            if (!editingSale) return;
+                                            setVariantActionLoading(combo.key);
+                                            try {
+                                              const newStockMap = { ...(formData.variants.stockMap || {}) };
+                                              if (isOut) {
+                                                const restockQty = parseInt(window.prompt(`Restock quantity for ${combo.label}:`, "10"), 10);
+                                                if (!restockQty || restockQty <= 0) { setVariantActionLoading(null); return; }
+                                                newStockMap[combo.key] = restockQty;
+                                              } else {
+                                                newStockMap[combo.key] = 0;
+                                              }
+                                              const newTotal = Object.values(newStockMap).reduce((s, v) => s + (parseInt(v, 10) || 0), 0);
+                                              await updateVendorStock(editingSale.productId, newTotal);
+                                              await updateVendorVariantStock(editingSale.productId, newStockMap);
+                                              setFormData(prev => ({
+                                                ...prev, stockQuantity: newTotal,
+                                                variants: { ...prev.variants, stockMap: newStockMap }
+                                              }));
+                                              setSales(prev => prev.map(s => s.id === editingSale.id ? {
+                                                ...s, stock: newTotal, variants: { ...s.variants, stockMap: newStockMap }
+                                              } : s));
+                                              await fetchStoreProducts({ limit: 1000, fetchAll: true });
+                                              toast.success(isOut ? `${combo.label} restocked!` : `${combo.label} marked Out of Stock`);
+                                            } catch { toast.error("Failed to update stock"); }
+                                            finally { setVariantActionLoading(null); }
+                                          }}
+                                          className={`p-1.5 rounded-lg transition-all ${isActionLoading ? 'opacity-50' : ''} ${isOut
+                                            ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                            : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                                            }`}
+                                          title={isOut ? 'Restock' : 'Mark Out of Stock'}
+                                        >
+                                          {isOut ? <FiEye size={14} /> : <FiEyeOff size={14} />}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
 
                   </form>
                 </div>
@@ -1225,215 +1220,210 @@ const OfflineSales = () => {
             </div>
           </div>
         )}
-      <AnimatePresence>
-        {isSaleConfirmOpen && saleProduct && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsSaleConfirmOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-md max-h-[90vh] flex flex-col rounded-[2rem] shadow-2xl border border-emerald-50 overflow-hidden"
-            >
-              {/* Fixed Header */}
-              <div className="flex items-center justify-between p-6 md:p-8 border-b border-emerald-50 bg-white z-10">
-                <h3 className="text-xl font-black text-[#003d29] flex items-center gap-2">
-                  <FiShoppingCart className="text-emerald-600" /> Confirm Sale
-                </h3>
-                <button onClick={() => setIsSaleConfirmOpen(false)} className="p-2 bg-emerald-50 text-[#003d29] rounded-xl hover:bg-emerald-100 transition-colors">
-                  <FiX size={20} />
-                </button>
-              </div>
-
-              {/* Scrollable Body */}
-              <div className="flex-1 overflow-y-auto p-6 md:p-8 no-scrollbar">
-
-              <div className="flex items-center gap-4 mb-8 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-50">
-                <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center overflow-hidden border border-emerald-100 shadow-sm">
-                  {saleProduct.image ? <img src={saleProduct.image} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" size={24} />}
-                </div>
-                <div>
-                  <h4 className="font-black text-[#003d29] leading-tight">{saleProduct.productName}</h4>
-                  <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{saleProduct.category}</p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-sm font-black text-gray-900">{formatPrice(saleProduct.price)}</span>
-                    <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 rounded text-[10px] font-bold text-emerald-700">
-                      Sold: {saleProduct.sold || 0}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6 mb-8">
-                {/* Size Selection */}
-                {(saleProduct.sizes?.length > 0 || saleProduct.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')) && (
-                  <div className="space-y-3">
-                    <label className="text-xs font-black text-emerald-800 uppercase ml-1 flex items-center gap-1.5">
-                      <FiMaximize size={14} className="text-emerald-500" /> Select Size
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {(saleProduct.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.values || saleProduct.sizes).map(size => {
-                        const sizeAttrName = saleProduct.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.name || 'Size';
-                        const tempSelection = { ...saleSelection, [sizeAttrName]: size };
-                        const stockForThisSize = getSelectedVariantStock(saleProduct, tempSelection);
-                        const isOutOfStock = stockForThisSize <= 0;
-                        const isSelected = saleSelection[sizeAttrName] === size;
-                        return (
-                          <button
-                            key={size}
-                            onClick={() => setSaleSelection({...saleSelection, [sizeAttrName]: size})}
-                            className={`relative px-4 py-2.5 rounded-xl text-xs font-black transition-all border-2 overflow-hidden ${
-                              isSelected 
-                              ? 'bg-[#003d29] text-white border-[#003d29] shadow-lg shadow-emerald-900/20' 
-                              : isOutOfStock
-                                ? 'bg-red-50/30 text-red-500 border-red-100 hover:border-red-200 hover:bg-red-50/50 shadow-sm shadow-red-100/10'
-                                : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200'
-                            }`}
-                          >
-                            <span className={isOutOfStock && !isSelected ? "line-through decoration-red-400 decoration-2" : ""}>
-                              {size}
-                            </span>
-                            {isOutOfStock && (
-                              <span className={`absolute top-0 right-0 text-[7px] px-1 font-black rounded-bl uppercase ${
-                                isSelected ? 'bg-red-500 text-white' : 'bg-red-100 text-red-600'
-                              }`}>
-                                Out
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Other Attributes */}
-                {saleProduct.variants?.attributes?.filter(a => a.name.toLowerCase() !== 'size').map(attr => (
-                  <div key={attr.name} className="space-y-3">
-                    <label className="text-xs font-black text-emerald-800 uppercase ml-1 flex items-center gap-1.5">
-                      <div className="size-1.5 rounded-full bg-emerald-500"></div> Select {attr.name}
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {attr.values.map(val => {
-                        const tempSelection = { ...saleSelection, [attr.name]: val };
-                        const stockForThisVal = getSelectedVariantStock(saleProduct, tempSelection);
-                        const isOutOfStock = stockForThisVal <= 0;
-                        const isSelected = saleSelection[attr.name] === val;
-                        return (
-                          <button
-                            key={val}
-                            onClick={() => setSaleSelection({...saleSelection, [attr.name]: val})}
-                            className={`relative px-4 py-2.5 rounded-xl text-xs font-black transition-all border-2 overflow-hidden ${
-                              isSelected
-                              ? 'bg-[#003d29] text-white border-[#003d29] shadow-lg shadow-emerald-900/20'
-                              : isOutOfStock
-                                ? 'bg-red-50/30 text-red-500 border-red-100 hover:border-red-200 hover:bg-red-50/50 shadow-sm shadow-red-100/10'
-                                : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200'
-                            }`}
-                          >
-                            <span className={isOutOfStock && !isSelected ? "line-through decoration-red-400 decoration-2" : ""}>
-                              {val}
-                            </span>
-                            {isOutOfStock && (
-                              <span className={`absolute top-0 right-0 text-[7px] px-1 font-black rounded-bl uppercase ${
-                                isSelected ? 'bg-red-500 text-white' : 'bg-red-100 text-red-600'
-                              }`}>
-                                Out
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Quantity Selection */}
-                <div className="space-y-3">
-                  <label className="text-xs font-black text-emerald-800 uppercase ml-1 flex items-center gap-1.5">
-                    <FiBox size={14} className="text-emerald-500" /> Quantity (Pieces)
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <button 
-                      onClick={() => setSaleQuantity(Math.max(1, saleQuantity - 1))}
-                      className="w-10 h-10 rounded-xl border-2 border-gray-100 flex items-center justify-center text-gray-500 hover:border-emerald-200 transition-all font-black"
-                    >
-                      -
-                    </button>
-                    <input 
-                      type="number" 
-                      value={saleQuantity}
-                      onChange={(e) => setSaleQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-20 text-center py-2 bg-emerald-50/20 border-2 border-emerald-50 rounded-xl font-black text-[#003d29]"
-                    />
-                    <button 
-                      onClick={() => setSaleQuantity(saleQuantity + 1)}
-                      className="w-10 h-10 rounded-xl border-2 border-gray-100 flex items-center justify-center text-gray-500 hover:border-emerald-200 transition-all font-black"
-                    >
-                      +
-                    </button>
-                  </div>
+        <AnimatePresence>
+          {isSaleConfirmOpen && saleProduct && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setIsSaleConfirmOpen(false)}
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="relative bg-white w-full max-w-md max-h-[90vh] flex flex-col rounded-[2rem] shadow-2xl border border-emerald-50 overflow-hidden"
+              >
+                {/* Fixed Header */}
+                <div className="flex items-center justify-between p-6 md:p-8 border-b border-emerald-50 bg-white z-10">
+                  <h3 className="text-xl font-black text-[#003d29] flex items-center gap-2">
+                    <FiShoppingCart className="text-emerald-600" /> Confirm Sale
+                  </h3>
+                  <button onClick={() => setIsSaleConfirmOpen(false)} className="p-2 bg-emerald-50 text-[#003d29] rounded-xl hover:bg-emerald-100 transition-colors">
+                    <FiX size={20} />
+                  </button>
                 </div>
 
-                {/* Stock Stats Display */}
-                {saleSelection && (
-                  <div className="space-y-3 mt-4">
-                    <div className="grid grid-cols-2 gap-3 p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50">
-                      <div className="text-center p-2 bg-white rounded-xl shadow-sm border border-blue-100/30">
-                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-wider mb-1">Available Stock</p>
-                        <p className="text-sm font-black text-blue-800">{getSelectedVariantStock(saleProduct, saleSelection)} Pcs</p>
+                {/* Scrollable Body */}
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 no-scrollbar">
+
+                  <div className="flex items-center gap-4 mb-8 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-50">
+                    <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center overflow-hidden border border-emerald-100 shadow-sm">
+                      {saleProduct.image ? <img src={saleProduct.image} className="w-full h-full object-cover" /> : <FiImage className="text-emerald-200" size={24} />}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-[#003d29] leading-tight">{saleProduct.productName}</h4>
+                      <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{saleProduct.category}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-sm font-black text-gray-900">{formatPrice(saleProduct.price)}</span>
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 rounded text-[10px] font-bold text-emerald-700">
+                          Sold: {saleProduct.sold || 0}
+                        </div>
                       </div>
-                      <div className="text-center p-2 bg-white rounded-xl shadow-sm border border-blue-100/30">
-                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-wider mb-1">Remaining Stock</p>
-                        <p className={`text-sm font-black ${getSelectedVariantStock(saleProduct, saleSelection) - saleQuantity < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                          {Math.max(0, getSelectedVariantStock(saleProduct, saleSelection) - saleQuantity)} Pcs
-                        </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6 mb-8">
+                    {/* Size Selection */}
+                    {(saleProduct.sizes?.length > 0 || saleProduct.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')) && (
+                      <div className="space-y-3">
+                        <label className="text-xs font-black text-emerald-800 uppercase ml-1 flex items-center gap-1.5">
+                          <FiMaximize size={14} className="text-emerald-500" /> Select Size
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {(saleProduct.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.values || saleProduct.sizes).map(size => {
+                            const sizeAttrName = saleProduct.variants?.attributes?.find(a => a.name.toLowerCase() === 'size')?.name || 'Size';
+                            const tempSelection = { ...saleSelection, [sizeAttrName]: size };
+                            const stockForThisSize = getSelectedVariantStock(saleProduct, tempSelection);
+                            const isOutOfStock = stockForThisSize <= 0;
+                            const isSelected = saleSelection[sizeAttrName] === size;
+                            return (
+                              <button
+                                key={size}
+                                onClick={() => setSaleSelection({ ...saleSelection, [sizeAttrName]: size })}
+                                className={`relative px-4 py-2.5 rounded-xl text-xs font-black transition-all border-2 overflow-hidden ${isSelected
+                                  ? 'bg-[#003d29] text-white border-[#003d29] shadow-lg shadow-emerald-900/20'
+                                  : isOutOfStock
+                                    ? 'bg-red-50/30 text-red-500 border-red-100 hover:border-red-200 hover:bg-red-50/50 shadow-sm shadow-red-100/10'
+                                    : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200'
+                                  }`}
+                              >
+                                <span className={isOutOfStock && !isSelected ? "line-through decoration-red-400 decoration-2" : ""}>
+                                  {size}
+                                </span>
+                                {isOutOfStock && (
+                                  <span className={`absolute top-0 right-0 text-[7px] px-1 font-black rounded-bl uppercase ${isSelected ? 'bg-red-500 text-white' : 'bg-red-100 text-red-600'
+                                    }`}>
+                                    Out
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Other Attributes */}
+                    {saleProduct.variants?.attributes?.filter(a => a.name.toLowerCase() !== 'size').map(attr => (
+                      <div key={attr.name} className="space-y-3">
+                        <label className="text-xs font-black text-emerald-800 uppercase ml-1 flex items-center gap-1.5">
+                          <div className="size-1.5 rounded-full bg-emerald-500"></div> Select {attr.name}
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {attr.values.map(val => {
+                            const tempSelection = { ...saleSelection, [attr.name]: val };
+                            const stockForThisVal = getSelectedVariantStock(saleProduct, tempSelection);
+                            const isOutOfStock = stockForThisVal <= 0;
+                            const isSelected = saleSelection[attr.name] === val;
+                            return (
+                              <button
+                                key={val}
+                                onClick={() => setSaleSelection({ ...saleSelection, [attr.name]: val })}
+                                className={`relative px-4 py-2.5 rounded-xl text-xs font-black transition-all border-2 overflow-hidden ${isSelected
+                                  ? 'bg-[#003d29] text-white border-[#003d29] shadow-lg shadow-emerald-900/20'
+                                  : isOutOfStock
+                                    ? 'bg-red-50/30 text-red-500 border-red-100 hover:border-red-200 hover:bg-red-50/50 shadow-sm shadow-red-100/10'
+                                    : 'bg-white text-gray-600 border-gray-100 hover:border-emerald-200'
+                                  }`}
+                              >
+                                <span className={isOutOfStock && !isSelected ? "line-through decoration-red-400 decoration-2" : ""}>
+                                  {val}
+                                </span>
+                                {isOutOfStock && (
+                                  <span className={`absolute top-0 right-0 text-[7px] px-1 font-black rounded-bl uppercase ${isSelected ? 'bg-red-500 text-white' : 'bg-red-100 text-red-600'
+                                    }`}>
+                                    Out
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Quantity Selection */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-black text-emerald-800 uppercase ml-1 flex items-center gap-1.5">
+                        <FiBox size={14} className="text-emerald-500" /> Quantity (Pieces)
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => setSaleQuantity(Math.max(1, saleQuantity - 1))}
+                          className="w-10 h-10 rounded-xl border-2 border-gray-100 flex items-center justify-center text-gray-500 hover:border-emerald-200 transition-all font-black"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          value={saleQuantity}
+                          onChange={(e) => setSaleQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-20 text-center py-2 bg-emerald-50/20 border-2 border-emerald-50 rounded-xl font-black text-[#003d29]"
+                        />
+                        <button
+                          onClick={() => setSaleQuantity(saleQuantity + 1)}
+                          className="w-10 h-10 rounded-xl border-2 border-gray-100 flex items-center justify-center text-gray-500 hover:border-emerald-200 transition-all font-black"
+                        >
+                          +
+                        </button>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleToggleSelectedVariantStock}
-                      className={`w-full py-3 rounded-xl font-black text-xs tracking-wider transition-all uppercase flex items-center justify-center gap-2 border ${
-                        getSelectedVariantStock(saleProduct, saleSelection) > 0
-                        ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                      }`}
-                    >
-                      {getSelectedVariantStock(saleProduct, saleSelection) > 0 ? (
-                        <>
-                          <FiEyeOff size={14} /> Mark Selected Size Out of Stock
-                        </>
-                      ) : (
-                        <>
-                          <FiEye size={14} /> Restock Selected Size
-                        </>
-                      )}
-                    </button>
+                    {/* Stock Stats Display */}
+                    {saleSelection && (
+                      <div className="space-y-3 mt-4">
+                        <div className="grid grid-cols-2 gap-3 p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50">
+                          <div className="text-center p-2 bg-white rounded-xl shadow-sm border border-blue-100/30">
+                            <p className="text-[9px] font-black text-blue-400 uppercase tracking-wider mb-1">Available Stock</p>
+                            <p className="text-sm font-black text-blue-800">{getSelectedVariantStock(saleProduct, saleSelection)} Pcs</p>
+                          </div>
+                          <div className="text-center p-2 bg-white rounded-xl shadow-sm border border-blue-100/30">
+                            <p className="text-[9px] font-black text-blue-400 uppercase tracking-wider mb-1">Remaining Stock</p>
+                            <p className={`text-sm font-black ${getSelectedVariantStock(saleProduct, saleSelection) - saleQuantity < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              {Math.max(0, getSelectedVariantStock(saleProduct, saleSelection) - saleQuantity)} Pcs
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleToggleSelectedVariantStock}
+                          className={`w-full py-3 rounded-xl font-black text-xs tracking-wider transition-all uppercase flex items-center justify-center gap-2 border ${getSelectedVariantStock(saleProduct, saleSelection) > 0
+                            ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            }`}
+                        >
+                          {getSelectedVariantStock(saleProduct, saleSelection) > 0 ? (
+                            <>
+                              <FiEyeOff size={14} /> Mark Selected Size Out of Stock
+                            </>
+                          ) : (
+                            <>
+                              <FiEye size={14} /> Restock Selected Size
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+
+                {/* Fixed Footer */}
+                <div className="p-6 md:p-8 border-t border-emerald-50 bg-white">
+                  <button
+                    onClick={confirmSale}
+                    className="w-full py-4 bg-[#003d29] text-white rounded-2xl font-black text-sm tracking-widest hover:bg-[#002a1c] transition-all uppercase flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/20"
+                  >
+                    <FiCheck className="size-5" /> Record Sale
+                  </button>
+                </div>
+              </motion.div>
             </div>
-
-            {/* Fixed Footer */}
-              <div className="p-6 md:p-8 border-t border-emerald-50 bg-white">
-                <button 
-                  onClick={confirmSale}
-                  className="w-full py-4 bg-[#003d29] text-white rounded-2xl font-black text-sm tracking-widest hover:bg-[#002a1c] transition-all uppercase flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/20"
-                >
-                  <FiCheck className="size-5" /> Record Sale
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
       </AnimatePresence>
-    </AnimatePresence>
-  </motion.div>
+    </motion.div>
   );
 };
 

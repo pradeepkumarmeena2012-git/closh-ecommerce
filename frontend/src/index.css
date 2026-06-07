@@ -414,3 +414,8 @@ body::-webkit-scrollbar {
     grid-template-columns: repeat(7, 1fr) !important;
   }
 }
+
+/* Google Maps Autocomplete Dropdown z-index fix */
+.pac-container {
+  z-index: 999999 !important;
+}

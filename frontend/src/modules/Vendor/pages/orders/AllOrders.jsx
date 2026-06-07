@@ -102,8 +102,8 @@ const AllOrders = () => {
       const vId = vi.vendorId?._id || vi.vendorId;
       return vId?.toString() === vendorId?.toString();
     });
-    // Prioritize price (selling price) over vendorPrice (cost price)
-    return vendorItem?.items?.reduce((sum, it) => sum + (it.price ?? it.vendorPrice ?? 0) * (it.quantity ?? 1), 0) ??
+    // Prioritize vendorPrice (cost price) over price (selling price)
+    return vendorItem?.items?.reduce((sum, it) => sum + (it.vendorPrice ?? it.price ?? 0) * (it.quantity ?? 1), 0) ??
            vendorItem?.subtotal ?? 0;
   };
 

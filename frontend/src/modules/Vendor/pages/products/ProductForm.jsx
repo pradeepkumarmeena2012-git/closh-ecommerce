@@ -202,7 +202,7 @@ const ProductForm = () => {
     setFormData({
       name: product.name || "",
       unit: product.unit || "",
-      price: product.vendorPrice || product.price || "",
+      price: product.vendorPrice || "",
       originalPrice: product.originalPrice || "",
       image: product.image || "",
       images: product.images || [],
@@ -962,9 +962,10 @@ const ProductForm = () => {
                 name="originalPrice"
                 value={formData.originalPrice}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 min="0"
                 step="0.01"
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm ${originalPriceError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm no-spinner ${originalPriceError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
                 placeholder="0.00"
               />
               {originalPriceError && <p className="text-red-500 text-[10px] mt-1 font-medium">{originalPriceError}</p>}
@@ -979,10 +980,11 @@ const ProductForm = () => {
                 name="price"
                 value={formData.price}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 required
                 min="0"
                 step="0.01"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm no-spinner"
                 placeholder="0.00"
               />
             </div>
@@ -1135,8 +1137,9 @@ const ProductForm = () => {
                 name="stockQuantity"
                 value={formData.stockQuantity}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm no-spinner"
                 placeholder="0"
               />
               {variantCombinations.length > 0 && (
@@ -1180,8 +1183,9 @@ const ProductForm = () => {
                 name="totalAllowedQuantity"
                 value={formData.totalAllowedQuantity}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm no-spinner"
                 placeholder="Limit per user"
               />
             </div>
@@ -1195,8 +1199,9 @@ const ProductForm = () => {
                 name="minimumOrderQuantity"
                 value={formData.minimumOrderQuantity}
                 onChange={handleChange}
+                onWheel={(e) => e.target.blur()}
                 min="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm no-spinner"
                 placeholder="1"
               />
             </div>
@@ -1328,28 +1333,11 @@ const ProductForm = () => {
                       <div className="w-full">
                         <input
                           type="number"
-                          min="0"
-                          step="0.01"
-                          value={formData.variants?.prices?.[combo.key] ?? ""}
-                          onChange={(e) => {
-                            const nextValue = e.target.value;
-                            setFormData((prev) => ({
-                              ...prev,
-                              variants: {
-                                ...prev.variants,
-                                prices: {
-                                  ...(prev.variants?.prices || {}),
-                                  [combo.key]: nextValue === "" ? "" : Number(nextValue),
-                                },
-                              },
-                            }));
-                          }}
-                          className={`w-full px-2 py-1.5 border rounded-lg focus:outline-none focus:ring-2 text-xs ${originalPriceVal !== null && formData.variants?.prices?.[combo.key] && originalPriceVal <= formData.variants.prices[combo.key] ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-primary-500'}`}
-                          placeholder="Use base price"
+                          readOnly
+                          value={formData.price}
+                          className="w-full px-2 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs text-gray-500 cursor-not-allowed"
+                          placeholder="Same as base price"
                         />
-                        {originalPriceVal !== null && formData.variants?.prices?.[combo.key] && originalPriceVal <= formData.variants.prices[combo.key] && (
-                          <p className="text-red-500 text-[10px] mt-1 font-medium leading-tight">Must be &lt; MRP</p>
-                        )}
                       </div>
                       <input
                         type="number"
@@ -1381,7 +1369,8 @@ const ProductForm = () => {
                             },
                           }));
                         }}
-                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs"
+                        onWheel={(e) => e.target.blur()}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-xs no-spinner"
                         placeholder={getRecommendedPlaceholder(combo.key)}
                       />
                       <div className="flex items-center gap-2">

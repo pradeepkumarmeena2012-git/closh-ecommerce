@@ -10,7 +10,8 @@ import socketService from "../../../../shared/utils/socket";
 import toast from "react-hot-toast";
 
 const PendingProducts = () => {
-    const [products, setProducts] = useState([]);
+    const [pendingNew, setPendingNew] = useState([]);
+    const [pendingUpdates, setPendingUpdates] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [productFormModal, setProductFormModal] = useState({
@@ -57,16 +58,22 @@ const PendingProducts = () => {
     const loadPendingProducts = async () => {
         setIsLoading(true);
         try {
-            // Fetch products with approvalStatus=pending
-            const response = await getAllProducts({ approvalStatus: "pending" });
-            const allProducts = Array.isArray(response.data) ? response.data : (response.data?.products || []);
+            const [resNew, resUpdates] = await Promise.all([
+                getAllProducts({ approvalStatus: "pending" }),
+                getAllProducts({ hasPendingUpdates: true })
+            ]);
 
-            const normalizedProducts = allProducts.map(p => ({
-                ...p,
-                id: p._id,
-                image: p.image || p.images?.[0] || "https://placehold.co/50x50?text=Product",
-            }));
-            setProducts(normalizedProducts);
+            const formatProducts = (response) => {
+                const allProducts = Array.isArray(response.data) ? response.data : (response.data?.products || []);
+                return allProducts.map(p => ({
+                    ...p,
+                    id: p._id,
+                    image: p.image || p.images?.[0] || "https://placehold.co/50x50?text=Product",
+                }));
+            };
+
+            setPendingNew(formatProducts(resNew));
+            setPendingUpdates(formatProducts(resUpdates));
         } catch (error) {
             console.error("Failed to load pending products:", error);
         } finally {
@@ -78,17 +85,24 @@ const PendingProducts = () => {
         try {
             await updateProductStatus(productId, status);
             toast.success(`Product ${status === 'approved' ? 'approved' : 'rejected'} successfully`);
-            setProducts(prev => prev.filter(p => p.id !== productId));
+            setPendingNew(prev => prev.filter(p => p.id !== productId));
+            setPendingUpdates(prev => prev.filter(p => p.id !== productId));
         } catch (error) {
             toast.error("Failed to update product status");
         }
     };
 
-    const filteredProducts = useMemo(() => {
-        return products.filter((product) =>
+    const filteredPendingNew = useMemo(() => {
+        return pendingNew.filter((product) =>
             product.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
-    }, [products, searchQuery]);
+    }, [pendingNew, searchQuery]);
+
+    const filteredPendingUpdates = useMemo(() => {
+        return pendingUpdates.filter((product) =>
+            product.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [pendingUpdates, searchQuery]);
 
     const columns = [
         {
@@ -205,16 +219,53 @@ const PendingProducts = () => {
                     </div>
                 </div>
 
-                <DataTable
-                    data={filteredProducts}
-                    columns={columns}
-                    pagination={true}
-                    itemsPerPage={10}
-                    isLoading={isLoading}
-                    onRowClick={(row) =>
-                        setProductFormModal({ isOpen: true, productId: row.id })
-                    }
-                />
+                <div className="space-y-8">
+                    {/* Section 1: New Products Pending Approval */}
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-4">
+                            New Products Pending Approval
+                        </h3>
+                        {filteredPendingNew.length === 0 && !isLoading ? (
+                            <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                                No new products pending approval.
+                            </div>
+                        ) : (
+                            <DataTable
+                                data={filteredPendingNew}
+                                columns={columns}
+                                pagination={true}
+                                itemsPerPage={10}
+                                isLoading={isLoading}
+                                onRowClick={(row) =>
+                                    setProductFormModal({ isOpen: true, productId: row.id })
+                                }
+                            />
+                        )}
+                    </div>
+
+                    {/* Section 2: Pending Updates to Live Products */}
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-4 flex items-center gap-2">
+                            Pending Updates <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">Approved Products</span>
+                        </h3>
+                        {filteredPendingUpdates.length === 0 && !isLoading ? (
+                            <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                                No staged updates pending approval.
+                            </div>
+                        ) : (
+                            <DataTable
+                                data={filteredPendingUpdates}
+                                columns={columns}
+                                pagination={true}
+                                itemsPerPage={10}
+                                isLoading={isLoading}
+                                onRowClick={(row) =>
+                                    setProductFormModal({ isOpen: true, productId: row.id })
+                                }
+                            />
+                        )}
+                    </div>
+                </div>
             </div>
 
             <ProductFormModal

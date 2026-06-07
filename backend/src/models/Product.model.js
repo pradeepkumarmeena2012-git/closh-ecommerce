@@ -76,6 +76,8 @@ const productSchema = new mongoose.Schema(
             default: 'pending',
             index: true
         },
+        pendingUpdates: { type: mongoose.Schema.Types.Mixed },
+        hasPendingUpdates: { type: Boolean, default: false, index: true },
     },
     { 
         timestamps: true,
