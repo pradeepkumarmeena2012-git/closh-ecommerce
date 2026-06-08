@@ -59,8 +59,8 @@ const ReturnRequestDetail = () => {
     : (returnRequest?.items || []);
 
   const displayRefundAmount = isMultiVendor && currentVendorDropoff
-    ? displayItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
-    : returnRequest?.refundAmount;
+    ? displayItems.reduce((sum, item) => sum + ((item.vendorPrice || item.price || 0) * (item.quantity || 1)), 0)
+    : (returnRequest?.items || []).reduce((sum, item) => sum + ((item.vendorPrice || item.price || 0) * (item.quantity || 1)), 0);
 
   useEffect(() => {
     if (!vendorId) return;
@@ -379,7 +379,7 @@ const ReturnRequestDetail = () => {
                     </p>
                     <div className="flex items-center gap-3 mt-1">
                       <p className="text-xs text-gray-600">
-                        {formatPrice(item.price || 0)} × {item.quantity || 1}
+                        {formatPrice(item.vendorPrice || item.price || 0)} × {item.quantity || 1}
                       </p>
                       {item.reason && (
                         <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">
@@ -389,7 +389,7 @@ const ReturnRequestDetail = () => {
                     </div>
                   </div>
                   <p className="font-bold text-sm text-gray-800">
-                    {formatPrice((item.price || 0) * (item.quantity || 1))}
+                    {formatPrice((item.vendorPrice || item.price || 0) * (item.quantity || 1))}
                   </p>
                 </div>
               ))}
@@ -481,7 +481,7 @@ const ReturnRequestDetail = () => {
                   {formatPrice(
                     displayItems.reduce(
                       (sum, item) =>
-                        sum + (item.price || 0) * (item.quantity || 1),
+                        sum + ((item.vendorPrice || item.price || 0) * (item.quantity || 1)),
                       0
                     )
                   )}

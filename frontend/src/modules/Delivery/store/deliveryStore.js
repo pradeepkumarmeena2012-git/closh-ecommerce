@@ -125,6 +125,7 @@ const normalizeReturn = (raw) => {
     address: toAddressLine(customerAddress) || 'Customer Address',
     vendorName: vendorData.storeName || 'Vendor',
     vendorAddress: vendorData.shopAddress || vendorData.address?.street || 'Vendor Address',
+    vendorPhone: vendorData.phone || '',
     total: Number(raw.refundAmount || 0),
     status: status === 'approved' ? 'pending' : (status === 'processing' ? 'accepted' : status),
     rawStatus: status,

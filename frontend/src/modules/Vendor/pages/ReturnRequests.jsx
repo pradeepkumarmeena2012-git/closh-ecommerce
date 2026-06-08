@@ -92,8 +92,8 @@ const ReturnRequests = () => {
         : (request.items || []);
         
       const displayRefundAmount = isMultiVendor && currentVendorDropoff
-        ? displayItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
-        : request.refundAmount;
+        ? displayItems.reduce((sum, item) => sum + ((item.vendorPrice || item.price || 0) * (item.quantity || 1)), 0)
+        : (request.items || []).reduce((sum, item) => sum + ((item.vendorPrice || item.price || 0) * (item.quantity || 1)), 0);
         
       return {
         ...request,

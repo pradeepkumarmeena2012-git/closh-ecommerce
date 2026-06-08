@@ -208,6 +208,7 @@ export const useCategoryStore = create(
     {
       name: 'category-storage',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ categories: state.categories }),
     }
   )
 );
