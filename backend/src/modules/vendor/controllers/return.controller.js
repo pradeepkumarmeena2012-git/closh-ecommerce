@@ -28,6 +28,7 @@ const enrichReturnItems = (request) => {
             ...item,
             name: item?.name || matchedOrderItem?.name || 'Unknown Product',
             price: Number(item?.price ?? matchedOrderItem?.price ?? 0),
+            vendorPrice: Number(matchedOrderItem?.vendorPrice ?? 0),
             image: item?.image || matchedOrderItem?.image || '',
         };
     });
