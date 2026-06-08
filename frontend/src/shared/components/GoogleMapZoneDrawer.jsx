@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, DrawingManager, Marker, Polygon } from '@react-google-maps/api';
-import { FiTrash2, FiMapPin } from 'react-icons/fi';
+import { GoogleMap, useJsApiLoader, MarkerF, PolygonF } from '@react-google-maps/api';
+import { FiTrash2, FiMapPin, FiEdit3, FiCheck } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 
 const containerStyle = {
   width: '100%',
   height: '100%'
 };
 
-const libraries = ['places', 'geometry', 'drawing'];
+const libraries = ['places', 'geometry']; // Removed 'drawing'
 
 const GoogleMapZoneDrawer = ({ 
   onLocationSelect, 
@@ -24,23 +25,20 @@ const GoogleMapZoneDrawer = ({
   });
 
   const [map, setMap] = useState(null);
-  const [activePolygon, setActivePolygon] = useState(null);
   
-  // Use a ref for initial polygon to avoid infinite loops
-  const initialPolygonProcessed = useRef(false);
+  // Custom drawing state
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawnPaths, setDrawnPaths] = useState([]);
 
   useEffect(() => {
     const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
     if (!key) {
       console.warn('[GoogleMapZone] API Key is MISSING!');
-    } else {
-      console.log(`[GoogleMapZone] API Key detected (Length: ${key.length}). Using @react-google-maps/api loader.`);
     }
   }, []);
 
   const onMapLoad = useCallback((mapInstance) => {
     setMap(mapInstance);
-    
     if (initialLocation) {
       mapInstance.panTo(initialLocation);
     }
@@ -51,8 +49,13 @@ const GoogleMapZoneDrawer = ({
       lat: e.latLng.lat(),
       lng: e.latLng.lng()
     };
-    if (onLocationSelect) onLocationSelect(location);
-  }, [onLocationSelect]);
+    
+    if (isDrawing) {
+      setDrawnPaths(prev => [...prev, location]);
+    } else {
+      if (onLocationSelect) onLocationSelect(location);
+    }
+  }, [isDrawing, onLocationSelect]);
 
   const onMarkerDragEnd = useCallback((e) => {
     const location = {
@@ -62,25 +65,19 @@ const GoogleMapZoneDrawer = ({
     if (onLocationSelect) onLocationSelect(location);
   }, [onLocationSelect]);
 
-  const onPolygonCompleteHandler = useCallback((poly) => {
-    // If we have a previous polygon from drawing manager, we need to handle it.
-    // However, @react-google-maps/api handles the drawing. 
-    // We want to capture the coordinates.
-    
-    const path = poly.getPath();
-    const coords = [];
-    for (let i = 0; i < path.getLength(); i++) {
-      const point = path.getAt(i);
-      coords.push([point.lng(), point.lat()]);
+  const finishDrawing = () => {
+    if (drawnPaths.length < 3) {
+      toast.error("Please add at least 3 points to create a zone.");
+      return;
     }
     
+    const coords = drawnPaths.map(p => [p.lng, p.lat]);
+    
     // Close loop for GeoJSON
-    if (coords.length > 0) {
-      const first = coords[0];
-      const last = coords[coords.length - 1];
-      if (first[0] !== last[0] || first[1] !== last[1]) {
-        coords.push([...first]);
-      }
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) {
+      coords.push([...first]);
     }
 
     if (onPolygonComplete) {
@@ -90,12 +87,14 @@ const GoogleMapZoneDrawer = ({
       });
     }
 
-    // Remove the temporary drawing and let our state-driven Polygon take over if needed
-    // but typically we just keep the reference.
-    poly.setMap(null);
-    
-    // We'll update the initialPolygon via the parent state
-  }, [onPolygonComplete]);
+    setIsDrawing(false);
+    setDrawnPaths([]); // clear temp paths since it's now in initialPolygon
+  };
+
+  const cancelDrawing = () => {
+    setIsDrawing(false);
+    setDrawnPaths([]);
+  };
 
   const clearPolygon = () => {
     if (onPolygonComplete) onPolygonComplete(null);
@@ -109,20 +108,22 @@ const GoogleMapZoneDrawer = ({
     );
   }
 
-  // Convert GeoJSON to Google Maps paths
-  const polygonPaths = (initialPolygon?.coordinates?.[0] || []).map(coord => ({
+  // Convert GeoJSON to Google Maps paths for existing saved polygon
+  const savedPolygonPaths = (initialPolygon?.coordinates?.[0] || []).map(coord => ({
     lat: coord[1],
     lng: coord[0]
   }));
 
-  // Remove the closing point for Google Maps display
-  if (polygonPaths.length > 1) {
-    const first = polygonPaths[0];
-    const last = polygonPaths[polygonPaths.length - 1];
+  if (savedPolygonPaths.length > 1) {
+    const first = savedPolygonPaths[0];
+    const last = savedPolygonPaths[savedPolygonPaths.length - 1];
     if (first.lat === last.lat && first.lng === last.lng) {
-      polygonPaths.pop();
+      savedPolygonPaths.pop();
     }
   }
+
+  // Choose which polygon to display (temp drawn one, or saved one)
+  const pathsToDisplay = isDrawing ? drawnPaths : savedPolygonPaths;
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-gray-300 shadow-inner bg-gray-50" style={{ height }}>
@@ -136,66 +137,82 @@ const GoogleMapZoneDrawer = ({
           mapTypeControl: true,
           streetViewControl: false,
           fullscreenControl: true,
+          draggableCursor: isDrawing ? 'crosshair' : 'default',
         }}
       >
         {initialLocation && (
-          <Marker
+          <MarkerF
             position={initialLocation}
-            draggable={true}
+            draggable={!isDrawing}
             onDragEnd={onMarkerDragEnd}
             title="Center Point"
           />
         )}
 
-        {polygonPaths.length > 0 && (
-          <Polygon
-            paths={polygonPaths}
+        {pathsToDisplay.length > 0 && (
+          <PolygonF
+            paths={pathsToDisplay}
             options={{
               fillColor: "#3b82f6",
               fillOpacity: 0.3,
               strokeWeight: 2,
               strokeColor: "#2563eb",
-              editable: true,
+              editable: !isDrawing && savedPolygonPaths.length > 0, // allow editing saved one if possible, though custom editing handles dragging vertices differently
               draggable: false,
-            }}
-            onMouseUp={() => {
-                // When user finishes dragging a vertex, update parent
-                // This is a bit complex with Polygon component, so we'd need to get the path
+              clickable: false,
             }}
           />
         )}
-
-        <DrawingManager
-          onPolygonComplete={onPolygonCompleteHandler}
-          options={{
-            drawingControl: true,
-            drawingControlOptions: {
-              position: window.google?.maps?.ControlPosition?.TOP_CENTER,
-              drawingModes: ['polygon'],
-            },
-            polygonOptions: {
-              fillColor: "#3b82f6",
-              fillOpacity: 0.3,
-              strokeWeight: 2,
-              strokeColor: "#2563eb",
-              editable: true,
-            },
-          }}
-        />
       </GoogleMap>
 
       {/* Controls Overlay */}
-      <div className="absolute top-4 right-16 flex flex-col gap-2 z-10">
-        {initialPolygon?.coordinates?.[0]?.length > 0 && (
-          <button
-            type="button"
-            onClick={clearPolygon}
-            className="bg-white p-2 rounded-lg shadow-lg text-red-600 hover:bg-red-50 transition-all border border-red-100 flex items-center gap-2 text-sm font-medium pointer-events-auto"
-            title="Clear Zone"
-          >
-            <FiTrash2 /> Clear Zone
-          </button>
-        )}
+      <div className="absolute top-4 left-4 right-16 flex justify-between items-start z-10 pointer-events-none">
+        {/* Left Side: Drawing Controls */}
+        <div className="flex flex-col gap-2 pointer-events-auto">
+          {!isDrawing ? (
+            <button
+              type="button"
+              onClick={() => setIsDrawing(true)}
+              className="bg-white p-2 px-4 rounded-lg shadow-lg text-primary-600 hover:bg-primary-50 transition-all border border-primary-100 flex items-center gap-2 text-sm font-medium"
+            >
+              <FiEdit3 /> Draw Zone
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={finishDrawing}
+                className="bg-primary-600 p-2 px-4 rounded-lg shadow-lg text-white hover:bg-primary-700 transition-all flex items-center gap-2 text-sm font-medium"
+              >
+                <FiCheck /> Finish Drawing
+              </button>
+              <button
+                type="button"
+                onClick={cancelDrawing}
+                className="bg-white p-2 px-4 rounded-lg shadow-lg text-gray-600 hover:bg-gray-50 transition-all border border-gray-200 flex items-center gap-2 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <div className="bg-white/90 p-2 rounded-lg shadow border border-gray-200 text-xs text-gray-600">
+                Click map to add points ({drawnPaths.length})
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Side: Clear Zone */}
+        <div className="flex flex-col gap-2 pointer-events-auto">
+          {!isDrawing && savedPolygonPaths.length > 0 && (
+            <button
+              type="button"
+              onClick={clearPolygon}
+              className="bg-white p-2 px-4 rounded-lg shadow-lg text-red-600 hover:bg-red-50 transition-all border border-red-100 flex items-center gap-2 text-sm font-medium"
+              title="Clear Zone"
+            >
+              <FiTrash2 /> Clear Zone
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end pointer-events-none z-10">
@@ -207,9 +224,17 @@ const GoogleMapZoneDrawer = ({
             <div>
               <p className="text-xs font-bold text-gray-800">Instructions:</p>
               <ul className="text-[10px] text-gray-600 list-disc list-inside space-y-0.5">
-                <li>Click map to set <b>Center Point</b></li>
-                <li>Use polygon icon (top) to draw <b>Zone Boundary</b></li>
-                <li>Zone will be saved when you close the loop</li>
+                {!isDrawing ? (
+                  <>
+                    <li>Click map to set <b>Center Point</b></li>
+                    <li>Click <b>Draw Zone</b> to draw boundary</li>
+                  </>
+                ) : (
+                  <>
+                    <li>Click around the map to trace boundary</li>
+                    <li>Click <b>Finish Drawing</b> when done</li>
+                  </>
+                )}
               </ul>
             </div>
           </div>

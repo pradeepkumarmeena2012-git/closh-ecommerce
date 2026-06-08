@@ -113,21 +113,19 @@ const ProductForm = () => {
       return;
     }
 
-    if (isEdit) {
-      // First try local cache, then fetch from API by id
-      const cached = getById(id);
-      if (cached) {
-        populateForm(cached, categories);
-      } else {
-        fetchProductById(id).then((product) => {
-          if (!product) {
-            toast.error("Product not found");
-            navigate("/vendor/products/manage-products");
-            return;
-          }
-          populateForm(product, categories);
-        });
-      }
+    if (isEdit && categories.length > 0) {
+      // Always fetch fresh data from API instead of local cache
+      fetchProductById(id).then((product) => {
+        if (!product) {
+          toast.error("Product not found");
+          navigate("/vendor/products/manage-products");
+          return;
+        }
+        populateForm(product, categories);
+      });
+    } else if (!isEdit) {
+      // Reset form for new product
+      setFormData((prev) => ({ ...prev, categoryId: null, subcategoryId: null }));
     }
   }, [isEdit, id, vendorId, navigate, categories, getById, fetchProductById]);
 

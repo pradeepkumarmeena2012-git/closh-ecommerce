@@ -99,9 +99,9 @@ const ServiceAreas = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between lg:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Service Areas</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Service Areas</h1>
           <p className="text-gray-600 text-sm mt-1">Manage delivery zones and serviceability</p>
         </div>
         <button

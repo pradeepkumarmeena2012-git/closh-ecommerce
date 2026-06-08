@@ -1,11 +1,14 @@
 import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { useCartStore } from '../../../shared/store/useStore';
+import { useAuth } from './AuthContext';
+import toast from 'react-hot-toast';
 
 const CartContext = createContext();
 
 export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }) => {
+    const { user } = useAuth();
     const items = useCartStore(state => state.items);
     const storeAddItem = useCartStore(state => state.addItem);
     const storeRemoveItem = useCartStore(state => state.removeItem);
@@ -18,6 +21,12 @@ export const CartProvider = ({ children }) => {
     const [lastAddedItem, setLastAddedItem] = useState(null);
 
     const addToCart = useCallback((product) => {
+        if (!user) {
+            window.dispatchEvent(new Event('openLoginModal'));
+            toast.error("Please login to add items to cart");
+            return;
+        }
+
         // The caller (e.g. ProductDetailsPage) resolves the correct variant price
         // and passes it as `product.price`. We must use that resolved price.
         // Only fall back to discountedPrice when no explicit price is given.
@@ -47,7 +56,7 @@ export const CartProvider = ({ children }) => {
             setLastAddedItem(product);
             setTimeout(() => setLastAddedItem(null), 3000);
         }
-    }, [storeAddItem]);
+    }, [storeAddItem, user]);
 
     const removeFromCart = useCallback((productId, variant = null) => {
         storeRemoveItem(productId, variant);

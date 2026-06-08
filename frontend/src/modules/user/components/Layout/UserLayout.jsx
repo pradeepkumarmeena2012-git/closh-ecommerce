@@ -2,7 +2,7 @@ import { useLocation } from 'react-router-dom';
 import Header from '../../components/Header/Header';
 import Footer from '../../components/Footer/Footer';
 import BottomNav from '../../components/Navigation/BottomNav';
-
+import ServiceAreaBlocker from './ServiceAreaBlocker';
 
 const UserLayout = ({ children, variant = 'default', showHeader = true, showCategoryBar = true }) => {
     const location = useLocation();
@@ -16,7 +16,11 @@ const UserLayout = ({ children, variant = 'default', showHeader = true, showCate
         <div id="user-layout-root" className="flex flex-col h-screen overflow-hidden bg-white">
             {displayHeader && <Header variant={variant} showCategoryBar={showCategoryBar} />}
             <div id="user-scroll-container" className="flex-1 overflow-y-auto scroll-smooth scrollbar-responsive">
-                <main className="flex-1">{children}</main>
+                <main className="flex-1">
+                    <ServiceAreaBlocker>
+                        {children}
+                    </ServiceAreaBlocker>
+                </main>
                 <div className={['product', 'account', 'cart', 'checkout', 'products', 'payment'].includes(variant) || isAddressPage || isTrackOrderPage ? "hidden lg:block" : (variant !== 'shop' ? "" : "hidden")}>
                     <Footer />
                 </div>
