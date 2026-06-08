@@ -327,7 +327,7 @@ const DeliveryOrderDetail = () => {
   };
 
   const toggleItem = (idx) => {
-    if (!order.isTryAndBuy) return;
+    if (!isTryAndBuy) return;
     const next = new Set(selectedItemIds);
     if (next.has(idx)) {
       next.delete(idx);
@@ -763,6 +763,36 @@ const DeliveryOrderDetail = () => {
                     )}
 
                     {/* MULTI-PHOTO GRID */}
+                    {hasArrivedAtVendor && (
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl mb-2">
+                          <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                              <FiPackage size={14} /> Items to Pickup
+                          </p>
+                          <div className="space-y-3">
+                              {order.items?.map((item, iIdx) => (
+                                  <div key={iIdx} className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                                      <div className="w-12 h-14 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                                          <img src={item.productId?.image || item.image || item.productId?.images?.[0]} alt={item.name} className="w-full h-full object-cover" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                          <p className="text-[11px] font-bold text-slate-900 line-clamp-1">{item.productId?.name || item.name}</p>
+                                          <div className="flex gap-2 mt-1">
+                                              <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                  Size: {item.selectedSize || item.variant?.size || 'N/A'}
+                                              </span>
+                                              <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                  Qty: {item.quantity}
+                                              </span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              )) || (
+                                  <p className="text-[11px] text-slate-500 font-medium">No items found.</p>
+                              )}
+                          </div>
+                      </div>
+                    )}
+                    
                     {(pickupPhoto || extraPickupPhotos.length > 0) && (
                       <div className="bg-white rounded-2xl border border-slate-100 p-3 shadow-sm">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">PICKUP PHOTOS ({1 + extraPickupPhotos.length})</p>
@@ -849,7 +879,7 @@ const DeliveryOrderDetail = () => {
                     <div className="space-y-2">
                       {order.items?.map((item, idx) => {
                         const isPicked = selectedItemIds.has(idx);
-                        const isSelectionMode = (order.isTryAndBuy || order.isCheckAndBuy) && hasArrived;
+                        const isSelectionMode = isTryAndBuy && hasArrived;
                         return (
                           <div
                             key={idx}
@@ -877,12 +907,12 @@ const DeliveryOrderDetail = () => {
                         );
                       })}
                     </div>
-                    {(order.isTryAndBuy || order.isCheckAndBuy) && hasArrived && !order.tryAndBuyCompleted && (
+                    {(isTryAndBuy || isCheckAndBuy) && hasArrived && !order.tryAndBuyCompleted && (
                       <button onClick={handleItemConfirmation}
                         disabled={isUpdatingOrderStatus}
                         className="w-full mt-4 h-10 bg-slate-900 text-white font-bold rounded-2xl text-[10px] uppercase tracking-[0.1em] disabled:opacity-50"
                       >
-                        {isUpdatingOrderStatus ? 'CONFIRMING...' : 'Confirm Selection'}</button>
+                        {isUpdatingOrderStatus ? 'CONFIRMING...' : (isTryAndBuy ? 'Confirm Selection' : 'Confirm Handover')}</button>
                     )}
                   </div>
                 </div>

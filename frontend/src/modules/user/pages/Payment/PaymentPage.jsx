@@ -59,12 +59,7 @@ const PaymentPage = () => {
     const uniqueVendorIds = [...new Set(cart.map(item => String(item.vendorId || '')))].filter(Boolean);
     const isMultiVendor = uniqueVendorIds.length > 1;
 
-    // Safety auto-correction: if cart is multi-vendor, force try_and_buy regardless of what was passed
-    useEffect(() => {
-        if (isMultiVendor && deliveryType === 'check_and_buy') {
-            setDeliveryType('try_and_buy');
-        }
-    }, [isMultiVendor]);
+    // Multi-vendor carts now support both Try & Buy and Check & Buy
 
     const isTryAndBuy = deliveryType === 'try_and_buy';
 

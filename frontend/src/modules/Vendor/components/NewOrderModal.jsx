@@ -19,16 +19,22 @@ const getFullImageUrl = (image) => {
     return `${IMAGE_BASE_URL}${cleanImage}`;
 };
 
-const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzerActive, onStopBuzzer }) => {
+const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzerActive, onStopBuzzer, vendorId }) => {
     if (!order && isOpen) return null;
 
-    const items = order?.vendorItems?.[0]?.items || order?.items || [];
+    let items = [];
+    if (order?.isMultiVendor || order?.vendorItems?.length > 1) {
+        const vendorGroup = order?.vendorItems?.find(vi => String(vi.vendorId?._id || vi.vendorId) === String(vendorId));
+        items = vendorGroup?.items || [];
+    } else {
+        items = order?.vendorItems?.[0]?.items || order?.items || [];
+    }
     const firstItem = items[0];
     const itemImage = getFullImageUrl(firstItem?.image || firstItem?.productId?.image);
 
     // Calculate vendor-specific total based on vendorPrice
     const vendorTotal = items.reduce((sum, it) => {
-        const itemVendorPrice = it.vendorPrice || it.productId?.vendorPrice || 0;
+        const itemVendorPrice = it.vendorPrice || it.productId?.vendorPrice || it.price || 0;
         return sum + (itemVendorPrice * (it.quantity || 1));
     }, 0);
 
@@ -103,7 +109,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, isBuzzer
                                                     )}
                                                 </div>
                                             </div>
-                                            <span className="text-slate-400 font-medium ml-4 whitespace-nowrap">{formatPrice((it.vendorPrice || it.productId?.vendorPrice || 0) * (it.quantity || 1))}</span>
+                                            <span className="text-slate-400 font-medium ml-4 whitespace-nowrap">{formatPrice((it.vendorPrice || it.productId?.vendorPrice || it.price || 0) * (it.quantity || 1))}</span>
                                         </div>
                                     ))}
                                 </div>

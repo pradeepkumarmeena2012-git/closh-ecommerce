@@ -321,6 +321,7 @@ const VendorLayout = () => {
         onClose={() => { stopBuzzer(); setShowOrderModal(false); }}
         isBuzzerActive={isBuzzerActive}
         onStopBuzzer={stopBuzzer}
+        vendorId={(vendor?.id || vendor?._id)}
       />
     </div>
   );

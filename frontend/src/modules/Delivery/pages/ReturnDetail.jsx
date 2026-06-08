@@ -154,7 +154,7 @@ const DeliveryReturnDetail = () => {
       let updated;
       if (returnReq.isMultiVendor && currentVendorDropoff) {
         updated = await dropoffReturnAtVendor(id, {
-          vendorId: String(currentVendorDropoff.vendorId),
+          vendorId: String(currentVendorDropoff.vendorId?._id || currentVendorDropoff.vendorId),
           otp,
           deliveryPhoto,
         });
@@ -185,8 +185,10 @@ const DeliveryReturnDetail = () => {
   const handleResendOtp = async () => {
     setIsResending(true);
     try {
-      const vendorIdToUse = currentPhase === 'multi_vendor_dropoff' ? currentVendorDropoff?.vendorId : undefined;
-      const res = await resendReturnVendorOtp(id, vendorIdToUse);
+      const vendorIdToUse = currentPhase === 'multi_vendor_dropoff' 
+        ? (currentVendorDropoff?.vendorId?._id || currentVendorDropoff?.vendorId) 
+        : undefined;
+      const res = await resendReturnVendorOtp(id, vendorIdToUse ? String(vendorIdToUse) : undefined);
       if (res?.otpDebug) {
         setResendDebugOtp(res.otpDebug);
       }
@@ -289,7 +291,7 @@ const DeliveryReturnDetail = () => {
               </Suspense>
               <button
                 onClick={() => {
-                  const dest = targetAddress ? encodeURIComponent(targetAddress) : `${targetCoords.lat},${targetCoords.lng}`;
+                  const dest = targetCoords ? `${targetCoords.lat},${targetCoords.lng}` : encodeURIComponent(targetAddress);
                   window.open(
                     `https://www.google.com/maps/dir/?api=1&destination=${dest}`,
                     '_blank'
@@ -349,6 +351,14 @@ const DeliveryReturnDetail = () => {
                       {targetAddress}
                     </p>
                   </div>
+                  {targetPhone && (
+                    <div className="flex items-center gap-1.5 mt-1 text-slate-500">
+                      <FiPhone className="shrink-0" size={11} />
+                      <p className="text-[11px] font-medium leading-relaxed">
+                        {targetPhone}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="w-10 h-10 bg-slate-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-slate-100 shrink-0">
                   {currentPhase === 'customer_pickup' ? <FiUser size={20} /> : <FiPackage size={20} />}

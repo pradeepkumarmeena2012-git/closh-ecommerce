@@ -7,7 +7,8 @@ const baseOptions = {
     },
     // Prevent unhandled error event crashes
     lazyConnect: false, 
-    maxRetriesPerRequest: null,
+    maxRetriesPerRequest: 0,
+    enableOfflineQueue: false,
 };
 
 let redisConnection;

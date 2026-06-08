@@ -182,12 +182,28 @@ const TrackingMap = ({
     ? (isPickedUp ? vendorLocation : customerLocation)
     : (isPickedUp ? customerLocation : (vendorLocation || customerLocation));
 
-  // --- Routing & Polyline ---
+  // --- Routing, Polyline & ETA ---
+  const [eta, setEta] = useState({ duration: '', distance: '' });
+  
   useEffect(() => {
-    if (!isLoaded || !window.google || !effectiveRider || !destination) return;
+    if (!isLoaded || !window.google || !effectiveRider || !destination) {
+      setDirections(null);
+      setEta({ duration: '', distance: '' });
+      return;
+    }
     
-    const routeKey = `${effectiveRider.lat},${effectiveRider.lng}-${destination.lat},${destination.lng}`;
+    // Truncate coordinates to 4 decimals to prevent micro-movements from triggering new requests
+    const routeKey = `${effectiveRider.lat.toFixed(4)},${effectiveRider.lng.toFixed(4)}|${destination.lat.toFixed(4)},${destination.lng.toFixed(4)}`;
     if (lastRouteParams === routeKey) return;
+
+    // Immediately update route key to prevent infinite loop
+    setLastRouteParams(routeKey);
+
+    // Skip Directions API call if there's no valid API key (prevents console spam & REQUEST_DENIED)
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey || apiKey === "your_google_maps_api_key") {
+      return;
+    }
 
     const directionsService = new window.google.maps.DirectionsService();
     directionsService.route(
@@ -199,7 +215,10 @@ const TrackingMap = ({
       (result, stat) => {
         if (stat === 'OK') {
           setDirections(result);
-          setLastRouteParams(routeKey);
+          
+          // Set ETA
+          const leg = result.routes[0]?.legs[0];
+          if (leg) setEta({ duration: leg.duration.text, distance: leg.distance.text });
           
           // Auto-Adjust Bounds to see both points
           if (map) {
@@ -208,6 +227,8 @@ const TrackingMap = ({
              bounds.extend(destination);
              map.fitBounds(bounds, { top: 50, bottom: 50, left: 50, right: 50 });
           }
+        } else {
+          console.warn("Directions request failed:", stat);
         }
       }
     );
@@ -234,31 +255,6 @@ const TrackingMap = ({
       map.panTo(effectiveRider);
     }
   }, [effectiveRider, followMode, map]);
-
-  // --- Directions ---
-  const [eta, setEta] = useState({ duration: '', distance: '' });
-  useEffect(() => {
-    if (isLoaded && effectiveRider && destination) {
-       const key = `${effectiveRider.lat.toFixed(5)},${effectiveRider.lng.toFixed(5)}|${destination.lat.toFixed(5)},${destination.lng.toFixed(5)}`;
-       if (key !== lastRouteParams) {
-          setLastRouteParams(key);
-          const service = new window.google.maps.DirectionsService();
-          service.route(
-            { origin: effectiveRider, destination, travelMode: 'DRIVING' },
-            (res, stat) => {
-              if (stat === 'OK') {
-                setDirections(res);
-                const leg = res.routes[0]?.legs[0];
-                if (leg) setEta({ duration: leg.duration.text, distance: leg.distance.text });
-              }
-            }
-          );
-       }
-    } else {
-       setDirections(null);
-       setEta({ duration: '', distance: '' });
-    }
-  }, [isLoaded, effectiveRider, destination, lastRouteParams]);
 
   const handleExternalNav = () => {
     if (effectiveRider) {

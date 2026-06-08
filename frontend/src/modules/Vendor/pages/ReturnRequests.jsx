@@ -79,7 +79,28 @@ const ReturnRequests = () => {
 
   // Filtered return requests
   const filteredRequests = useMemo(() => {
-    let filtered = returnRequests;
+    let filtered = returnRequests.map(request => {
+      const isMultiVendor = request.isMultiVendor;
+      const currentVendorDropoff = isMultiVendor && Array.isArray(request.vendorDropoffs)
+        ? request.vendorDropoffs.find(d => String(d.vendorId?._id || d.vendorId) === String(vendorId))
+        : null;
+      
+      const displayItems = isMultiVendor && currentVendorDropoff
+        ? (request.items || []).filter(item => 
+            currentVendorDropoff.items?.some(dropoffItem => String(dropoffItem.productId) === String(item.productId))
+          )
+        : (request.items || []);
+        
+      const displayRefundAmount = isMultiVendor && currentVendorDropoff
+        ? displayItems.reduce((sum, item) => sum + ((item.vendorPrice || item.price || 0) * (item.quantity || 1)), 0)
+        : (request.items || []).reduce((sum, item) => sum + ((item.vendorPrice || item.price || 0) * (item.quantity || 1)), 0);
+        
+      return {
+        ...request,
+        items: displayItems,
+        refundAmount: displayRefundAmount
+      };
+    });
 
     // Search filter
     if (searchQuery) {
