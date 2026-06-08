@@ -11,6 +11,7 @@ import { emitEvent } from '../../../services/socket.service.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import DeliveryBatch from '../../../models/DeliveryBatch.model.js';
+import Vendor from '../../../models/Vendor.model.js';
 import { calculateDistance } from '../../../utils/geo.js';
 
 // GET /api/admin/orders
@@ -46,6 +47,10 @@ export const getAllOrders = asyncHandler(async (req, res) => {
     }
     if (req.query.vendorId) {
         filter['vendorItems.vendorId'] = req.query.vendorId;
+    } else if (req.query.vendorCity) {
+        const cityVendors = await Vendor.find({ 'address.city': req.query.vendorCity }).select('_id').lean();
+        const cityVendorIds = cityVendors.map((v) => v._id);
+        filter['vendorItems.vendorId'] = { $in: cityVendorIds };
     }
     if (userId) {
         filter.userId = userId;

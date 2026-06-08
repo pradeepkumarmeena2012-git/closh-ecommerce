@@ -27,7 +27,7 @@ import ConfirmModal from "../../components/ConfirmModal";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import { formatPrice } from "../../../../shared/utils/helpers";
 import { formatCurrency, formatDateTime } from "../../utils/adminHelpers";
-import { getAllOrders, deleteOrder } from "../../services/adminService";
+import { getAllOrders, deleteOrder, getAllVendors } from "../../services/adminService";
 import toast from "react-hot-toast";
 
 // OrderItemsDropdown component
@@ -386,6 +386,10 @@ const AllOrders = () => {
     orderId: null,
   });
 
+  const [vendors, setVendors] = useState([]);
+  const [selectedCity, setSelectedCity] = useState("all");
+  const [selectedVendor, setSelectedVendor] = useState("all");
+
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchOrders = useCallback(async () => {
@@ -396,6 +400,8 @@ const AllOrders = () => {
         search: searchQuery,
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
+        vendorCity: selectedCity === "all" ? undefined : selectedCity,
+        vendorId: selectedVendor === "all" ? undefined : selectedVendor,
         limit: 100 // Fetch a larger set for the DataTable's internal pagination
       };
 
@@ -420,11 +426,45 @@ const AllOrders = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedStatus, searchQuery, dateRange]);
+  }, [selectedStatus, searchQuery, dateRange, selectedCity, selectedVendor]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  useEffect(() => {
+    const fetchVendorsData = async () => {
+      try {
+        const response = await getAllVendors({ limit: 500 });
+        const fetchedVendors = response?.data?.vendors || response?.vendors || [];
+        console.log("AllOrders fetched vendors:", fetchedVendors.length);
+        setVendors(fetchedVendors);
+      } catch (error) {
+        console.error("Failed to fetch vendors:", error);
+      }
+    };
+    fetchVendorsData();
+  }, []);
+
+  const cities = useMemo(() => {
+    const allCities = vendors.map((v) => {
+      if (v.address?.city) return v.address.city;
+      if (v.shopAddress && typeof v.shopAddress === 'string') {
+        const parts = v.shopAddress.split(',');
+        return parts.length > 1 ? parts[parts.length - 2]?.trim() : null;
+      }
+      return null;
+    }).filter(Boolean);
+    return [...new Set(allCities)].sort();
+  }, [vendors]);
+
+  const filteredVendors = useMemo(() => {
+    if (selectedCity === "all") return vendors;
+    return vendors.filter((v) => {
+      const city = v.address?.city || (v.shopAddress && v.shopAddress.includes(selectedCity) ? selectedCity : null);
+      return city === selectedCity;
+    });
+  }, [vendors, selectedCity]);
 
   // Calculate order status counts
   const orderStats = useMemo(() => {
@@ -826,6 +866,32 @@ const AllOrders = () => {
               { value: "returned", label: "Returned" },
             ]}
             className="w-full sm:w-auto min-w-[140px]"
+          />
+
+          <AnimatedSelect
+            value={selectedCity}
+            onChange={(e) => {
+              setSelectedCity(e.target.value);
+              setSelectedVendor("all"); // Reset vendor when city changes
+            }}
+            options={[
+              { value: "all", label: "All Cities" },
+              ...cities.map((city) => ({ value: city, label: city })),
+            ]}
+            className="w-full sm:w-auto min-w-[140px]"
+          />
+
+          <AnimatedSelect
+            value={selectedVendor}
+            onChange={(e) => setSelectedVendor(e.target.value)}
+            options={[
+              { value: "all", label: "All Vendors" },
+              ...filteredVendors.map((v) => ({
+                value: v.id || v._id,
+                label: v.storeName || v.name || "Unknown Vendor",
+              })),
+            ]}
+            className="w-full sm:w-auto min-w-[160px]"
           />
 
           {/* Date Range Selector */}

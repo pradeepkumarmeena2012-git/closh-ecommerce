@@ -8,6 +8,7 @@ import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
 import { useReturnStore } from '../../../shared/store/returnStore';
+import { getAllVendors } from '../services/adminService';
 
 import socketService from '../../../shared/utils/socket';
 import toast from 'react-hot-toast';
@@ -24,6 +25,10 @@ const ReturnRequests = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
+
+  const [vendors, setVendors] = useState([]);
+  const [selectedCity, setSelectedCity] = useState('all');
+  const [selectedVendor, setSelectedVendor] = useState('all');
 
   const loadRequests = () => {
     const now = new Date();
@@ -55,12 +60,14 @@ const ReturnRequests = () => {
       status: selectedStatus === 'all' ? undefined : selectedStatus,
       startDate,
       endDate,
+      vendorCity: selectedCity === 'all' ? undefined : selectedCity,
+      vendorId: selectedVendor === 'all' ? undefined : selectedVendor,
     });
   };
 
   useEffect(() => {
     loadRequests();
-  }, [searchQuery, selectedStatus, dateFilter, fetchReturnRequests]);
+  }, [searchQuery, selectedStatus, dateFilter, selectedCity, selectedVendor, fetchReturnRequests]);
 
   useEffect(() => {
     socketService.connect();
@@ -80,6 +87,40 @@ const ReturnRequests = () => {
       socketService.off('new_return_request', handleNewReturn);
     };
   }, []);
+
+  useEffect(() => {
+    const fetchVendorsData = async () => {
+      try {
+        const response = await getAllVendors({ limit: 500 });
+        const fetchedVendors = response?.data?.vendors || response?.vendors || [];
+        console.log("ReturnRequests fetched vendors:", fetchedVendors.length);
+        setVendors(fetchedVendors);
+      } catch (error) {
+        console.error("Failed to fetch vendors:", error);
+      }
+    };
+    fetchVendorsData();
+  }, []);
+
+  const cities = useMemo(() => {
+    const allCities = vendors.map((v) => {
+      if (v.address?.city) return v.address.city;
+      if (v.shopAddress && typeof v.shopAddress === 'string') {
+        const parts = v.shopAddress.split(',');
+        return parts.length > 1 ? parts[parts.length - 2]?.trim() : null;
+      }
+      return null;
+    }).filter(Boolean);
+    return [...new Set(allCities)].sort();
+  }, [vendors]);
+
+  const filteredVendors = useMemo(() => {
+    if (selectedCity === "all") return vendors;
+    return vendors.filter((v) => {
+      const city = v.address?.city || (v.shopAddress && v.shopAddress.includes(selectedCity) ? selectedCity : null);
+      return city === selectedCity;
+    });
+  }, [vendors, selectedCity]);
 
   const filteredRequests = useMemo(() => {
     return returnRequests;
@@ -335,6 +376,32 @@ const ReturnRequests = () => {
               { value: 'rejected', label: 'Rejected' },
             ]}
             className="w-full sm:w-auto min-w-[140px]"
+          />
+
+          <AnimatedSelect
+            value={selectedCity}
+            onChange={(e) => {
+              setSelectedCity(e.target.value);
+              setSelectedVendor('all');
+            }}
+            options={[
+              { value: 'all', label: 'All Cities' },
+              ...cities.map((city) => ({ value: city, label: city })),
+            ]}
+            className="w-full sm:w-auto min-w-[140px]"
+          />
+
+          <AnimatedSelect
+            value={selectedVendor}
+            onChange={(e) => setSelectedVendor(e.target.value)}
+            options={[
+              { value: 'all', label: 'All Vendors' },
+              ...filteredVendors.map((v) => ({
+                value: v.id || v._id,
+                label: v.storeName || v.name || "Unknown Vendor",
+              })),
+            ]}
+            className="w-full sm:w-auto min-w-[160px]"
           />
 
           {/* Date Filter */}

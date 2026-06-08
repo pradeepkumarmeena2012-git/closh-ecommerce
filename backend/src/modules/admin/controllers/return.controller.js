@@ -3,6 +3,7 @@ import Order from '../../../models/Order.model.js';
 import User from '../../../models/User.model.js';
 import Product from '../../../models/Product.model.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
+import Vendor from '../../../models/Vendor.model.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { ApiError } from '../../../utils/ApiError.js';
 import { ApiResponse } from '../../../utils/ApiResponse.js';
@@ -70,7 +71,7 @@ const normalizeReturnRequest = (requestDoc) => {
  * @access  Private (Admin)
  */
 export const getAllReturnRequests = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, search = '', status, startDate, endDate } = req.query;
+    const { page = 1, limit = 10, search = '', status, startDate, endDate, vendorId, vendorCity } = req.query;
     const numericPage = Number(page) || 1;
     const numericLimit = Number(limit) || 10;
 
@@ -83,6 +84,14 @@ export const getAllReturnRequests = asyncHandler(async (req, res) => {
         filter.createdAt = {};
         if (startDate) filter.createdAt.$gte = new Date(startDate);
         if (endDate) filter.createdAt.$lte = new Date(new Date(endDate).setHours(23, 59, 59, 999));
+    }
+
+    if (vendorId) {
+        filter.vendorId = vendorId;
+    } else if (vendorCity) {
+        const cityVendors = await Vendor.find({ 'address.city': vendorCity }).select('_id').lean();
+        const cityVendorIds = cityVendors.map((v) => v._id);
+        filter.vendorId = { $in: cityVendorIds };
     }
 
     // Search by return id, order number, customer fields, and reason text
