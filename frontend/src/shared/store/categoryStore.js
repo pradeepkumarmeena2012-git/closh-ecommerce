@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { categories as initialCategories } from '../../data/categories';
 import {
   getAllCategories,
@@ -14,7 +13,6 @@ import toast from 'react-hot-toast';
 let hasFetchedCategories = false;
 
 export const useCategoryStore = create(
-  persist(
     (set, get) => ({
       categories: [],
       isLoading: false,
@@ -204,10 +202,5 @@ export const useCategoryStore = create(
           return false;
         }
       },
-    }),
-    {
-      name: 'category-storage',
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
+    })
 );

@@ -90,6 +90,27 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     const [position, setPosition] = useState(null);
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [fetchedAddress, setFetchedAddress] = useState(null);
+    const [pinServiceability, setPinServiceability] = useState({ loading: false, isServiceable: true, message: '' });
+
+    const checkPinServiceability = async (lat, lng, city = '') => {
+        setPinServiceability({ loading: true, isServiceable: true, message: '' });
+        try {
+            const response = await api.post('/check-serviceability', {
+                latitude: lat,
+                longitude: lng,
+                city: city
+            });
+            if (response.data) {
+                setPinServiceability({
+                    loading: false,
+                    isServiceable: response.data.isServiceable,
+                    message: response.data.message
+                });
+            }
+        } catch (error) {
+            setPinServiceability({ loading: false, isServiceable: true, message: '' });
+        }
+    };
 
     const autocompleteRef = useRef(null);
 
@@ -104,7 +125,10 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
             const lng = place.geometry.location.lng();
             const newPos = { lat, lng };
             setPosition(newPos);
-            getAddressFromCoords(lat, lng).then(setFetchedAddress);
+            getAddressFromCoords(lat, lng).then(addr => {
+                setFetchedAddress(addr);
+                checkPinServiceability(lat, lng, addr?.city);
+            });
         }
     };
 
@@ -158,7 +182,10 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                     const lng = pos.coords.longitude;
                     setPosition({ lat, lng });
                     const addr = await getAddressFromCoords(lat, lng);
-                    if (addr) setFetchedAddress(addr);
+                    if (addr) {
+                        setFetchedAddress(addr);
+                        checkPinServiceability(lat, lng, addr.city);
+                    }
                     toast.success("Location found. Adjust pin if needed.");
                 },
                 (err) => {
@@ -167,7 +194,10 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                     const defaultPos = { lat: 22.7196, lng: 75.8577 };
                     if (!position) {
                         setPosition(defaultPos);
-                        getAddressFromCoords(defaultPos.lat, defaultPos.lng).then(setFetchedAddress);
+                        getAddressFromCoords(defaultPos.lat, defaultPos.lng).then(addr => {
+                            setFetchedAddress(addr);
+                            checkPinServiceability(defaultPos.lat, defaultPos.lng, addr?.city);
+                        });
                     }
                 },
                 { enableHighAccuracy: true, timeout: 5000 }
@@ -176,7 +206,10 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
             const defaultPos = { lat: 22.7196, lng: 75.8577 };
             if (!position) {
                 setPosition(defaultPos);
-                getAddressFromCoords(defaultPos.lat, defaultPos.lng).then(setFetchedAddress);
+                getAddressFromCoords(defaultPos.lat, defaultPos.lng).then(addr => {
+                    setFetchedAddress(addr);
+                    checkPinServiceability(defaultPos.lat, defaultPos.lng, addr?.city);
+                });
             }
         }
     };
@@ -202,6 +235,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
             if (addr) {
                 setFetchedAddress(addr);
                 setPosition({ lat: latitude, lng: longitude });
+                checkPinServiceability(latitude, longitude, addr.city);
                 
                 // Show map so user can verify and adjust if GPS is slightly inaccurate
                 toast.success("Location found. Adjust pin if needed.");
@@ -481,7 +515,10 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                     onClick={(e) => {
                                         const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
                                         setPosition(newPos);
-                                        getAddressFromCoords(newPos.lat, newPos.lng).then(setFetchedAddress);
+                                        getAddressFromCoords(newPos.lat, newPos.lng).then(addr => {
+                                            setFetchedAddress(addr);
+                                            checkPinServiceability(newPos.lat, newPos.lng, addr?.city);
+                                        });
                                     }}
                                 >
                                     <MarkerF
@@ -490,7 +527,10 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                         onDragEnd={(e) => {
                                             const newPos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
                                             setPosition(newPos);
-                                            getAddressFromCoords(newPos.lat, newPos.lng).then(setFetchedAddress);
+                                            getAddressFromCoords(newPos.lat, newPos.lng).then(addr => {
+                                                setFetchedAddress(addr);
+                                                checkPinServiceability(newPos.lat, newPos.lng, addr?.city);
+                                            });
                                         }}
                                     />
                                 </GoogleMap>
@@ -535,23 +575,34 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                 </div>
                             )}
 
-                            {/* Live Location Button */}
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    triggerActualLocationFlow();
-                                }}
-                                className="absolute bottom-28 right-5 w-11 h-11 bg-white rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] flex items-center justify-center text-gray-700 hover:text-black hover:bg-gray-50 active:scale-95 transition-all z-[1000]"
-                                title="Use current location"
-                            >
-                                <Target size={22} className={loadingLocation ? "animate-pulse text-black" : ""} />
-                            </button>
+                            <div className="absolute bottom-5 left-5 right-5 z-[1000] flex flex-col items-end gap-4 pointer-events-none">
+                                {/* Live Location Button */}
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        triggerActualLocationFlow();
+                                    }}
+                                    className="w-11 h-11 bg-white rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.15)] flex items-center justify-center text-gray-700 hover:text-black hover:bg-gray-50 active:scale-95 transition-all pointer-events-auto"
+                                    title="Use current location"
+                                >
+                                    <Target size={22} className={loadingLocation ? "animate-pulse text-black" : ""} />
+                                </button>
 
-                            <div className="absolute bottom-5 left-5 right-5 bg-white p-4 rounded-2xl shadow-2xl z-[1000] border border-gray-100 flex items-start gap-3">
-                                <MapPin size={20} className="text-black shrink-0 mt-1" />
-                                <p className="text-[12px] font-bold text-black line-clamp-3">
-                                    {fetchedAddress ? fetchedAddress.formatted : 'Touch point on map to adjust...'}
-                                </p>
+                                {/* Address Card */}
+                                <div className="w-full bg-white p-4 rounded-2xl shadow-2xl border border-gray-100 flex flex-col gap-2 pointer-events-auto">
+                                    <div className="flex items-start gap-3">
+                                        <MapPin size={20} className="text-black shrink-0 mt-1" />
+                                        <p className="text-[12px] font-bold text-black line-clamp-3">
+                                            {fetchedAddress ? fetchedAddress.formatted : 'Touch point on map to adjust...'}
+                                        </p>
+                                    </div>
+                                    {!pinServiceability.isServiceable && !pinServiceability.loading && (
+                                        <div className="flex items-center gap-2 bg-red-50 text-red-600 p-2 rounded-xl mt-1">
+                                            <X size={16} className="shrink-0" />
+                                            <p className="text-[11px] font-bold">{pinServiceability.message || "Service not available at this location"}</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -649,7 +700,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                     <div className="p-6 bg-white border-t border-gray-100 sticky bottom-0 z-50">
                         <button
                             onClick={handleConfirm}
-                            disabled={view === 'list' && !selectedAddressId}
+                            disabled={(view === 'list' && !selectedAddressId) || (view === 'map' && (!pinServiceability.isServiceable || pinServiceability.loading))}
                             className="w-full py-4 bg-black text-white rounded-2xl font-bold text-[15px] shadow-xl active:scale-[0.98] transition-all disabled:opacity-50 uppercase "
                         >
                             {view === 'list' ? 'Confirm Selection' : view === 'map' ? 'Confirm Location' : 'Save & Select Address'}
