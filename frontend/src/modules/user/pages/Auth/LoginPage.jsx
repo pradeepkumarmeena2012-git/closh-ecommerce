@@ -171,9 +171,7 @@ const LoginPage = () => {
                 )}
 
                 <div className="text-center mb-10">
-                    <div className="w-24 h-24 bg-white border border-gray-100 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl transform -rotate-3 hover:rotate-0 transition-all p-3">
-                        <img src={logo} alt="CLOSH" className="w-full h-full object-contain" />
-                    </div>
+                    <img src={logo} alt="CLOSH" className="w-40 h-40 object-contain mx-auto mb-4" />
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">
                         {step === 1 ? 'Login / Signup' : step === 2 ? 'Welcome to Closh' : 'Verify OTP'}
                     </h2>

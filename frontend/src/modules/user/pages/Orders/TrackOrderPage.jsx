@@ -362,20 +362,31 @@ const TrackOrderPage = () => {
                 drag="y"
                 dragControls={dragControls}
                 dragListener={false}
-                dragConstraints={{ top: 0, bottom: 550 }}
+                dragConstraints={{ top: 0, bottom: 450 }}
                 dragElastic={0.05}
                 initial={{ y: 450 }}
-                animate={{ y: 450 }}
-                className="absolute inset-0 z-30 bg-white rounded-t-[32px] shadow-[0_-15px_40px_rgba(0,0,0,0.1)] border-t border-slate-100 flex flex-col overflow-hidden"
+                animate={{ y: cardExpanded ? 0 : 450 }}
+                onDragEnd={(e, info) => {
+                    if (info.offset.y > 50) {
+                        setCardExpanded(false); // Swipe Down
+                    } else if (info.offset.y < -50) {
+                        setCardExpanded(true); // Swipe Up
+                    }
+                }}
+                transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+                className="absolute inset-0 z-50 bg-white rounded-t-[32px] shadow-[0_-15px_40px_rgba(0,0,0,0.1)] border-t border-slate-100 flex flex-col overflow-hidden"
                 style={{ top: '80px' }}
             >
                 {/* Drag Handle Area */}
                 <div 
+                    onClick={() => setCardExpanded(!cardExpanded)}
                     onPointerDown={(e) => dragControls.start(e)}
-                    className="w-full flex flex-col items-center py-5 shrink-0 cursor-grab active:cursor-grabbing touch-none"
+                    className="w-full flex flex-col items-center py-5 shrink-0 cursor-pointer touch-none"
                 >
                     <div className="w-12 h-1.5 bg-slate-200 rounded-full mb-2" />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Swipe up for details</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                        {cardExpanded ? 'Swipe down to collapse' : 'Swipe up for details'}
+                    </p>
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-6 pb-12 scrollbar-hide pt-2">
