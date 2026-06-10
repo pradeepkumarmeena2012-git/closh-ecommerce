@@ -372,7 +372,7 @@ const CheckoutPage = () => {
                                         <div className="flex-1">
                                             <h4 className="text-[11px] font-bold text-gray-900 uppercase  mb-1">Try & Buy Service</h4>
                                             <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
-                                                Try the product at your doorstep before making the payment. If you like it, pay the delivery partner. You can also return the product instantly at the door if needed.
+                                                Try the product at home before making the payment. If you like the product, pay the delivery partner. If you don't, you can return it on the spot without any additional formalities.
                                             </p>
                                         </div>
                                     </div>
@@ -384,7 +384,7 @@ const CheckoutPage = () => {
                                         <div className="flex-1">
                                             <h4 className="text-[11px] font-bold text-gray-900 uppercase  mb-1">Check & Buy Service</h4>
                                             <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
-                                                You can check the product in front of the delivery partner before payment. Once satisfied, you can make the payment. A 24-hour return option is also available after delivery.
+                                                Check the product before making the payment. Make the payment only after verifying the product in the presence of the delivery partner. If you discover an issue after delivery, you can submit a return request within 24 hours.
                                             </p>
                                         </div>
                                     </div>
@@ -424,7 +424,7 @@ const CheckoutPage = () => {
                         </div>
 
                         {/* Info banners */}
-                        {isMultiVendor && (
+                        {false && isMultiVendor && (
                             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 flex items-start gap-2.5 mt-2 animate-fadeInUp">
                                 <ShieldCheck size={15} className="text-blue-600 shrink-0 mt-0.5" />
                                 <div className="text-left">
@@ -441,7 +441,7 @@ const CheckoutPage = () => {
                                 <div className="text-left">
                                     <p className="text-[10px] font-black text-indigo-800 uppercase tracking-wide">Doorstep Return Policy</p>
                                     <p className="text-[9px] font-bold text-indigo-700 leading-relaxed mt-0.5">
-                                        Try &amp; Buy items must be checked and returned instantly to the delivery partner at the doorstep. No post-delivery returns are allowed.
+                                        Try the product at home before making the payment. If you like the product, pay the delivery partner. If you don't, you can return it on the spot without any additional formalities.
                                     </p>
                                 </div>
                             </div>
@@ -451,7 +451,7 @@ const CheckoutPage = () => {
                                 <div className="text-left">
                                     <p className="text-[10px] font-black text-emerald-800 uppercase tracking-wide">Check &amp; Buy Policy</p>
                                     <p className="text-[9px] font-bold text-emerald-700 leading-relaxed mt-0.5">
-                                        Check the product in front of the delivery partner before payment. A 24-hour return option is available after delivery.
+                                        Check the product before making the payment. Make the payment only after verifying the product in the presence of the delivery partner. If you discover an issue after delivery, you can submit a return request within 24 hours.
                                     </p>
                                 </div>
                             </div>
