@@ -20,6 +20,9 @@ import * as adminWithdrawalController from '../controllers/adminWithdrawal.contr
 import * as serviceAreaController from '../controllers/serviceArea.controller.js';
 import * as riderSettlementController from '../controllers/riderSettlement.controller.js';
 
+import cancellationReasonRoutes from './cancellationReason.routes.js';
+import enquiryRoutes from './enquiry.routes.js';
+
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus, checkPermission, authorizeAdmin } from '../../../middlewares/authorize.js';
 import { authLimiter } from '../../../middlewares/rateLimiter.js';
@@ -280,5 +283,9 @@ router.post('/pincodes/import', ...adminAuth, checkPermission('settings_manage')
 router.put('/pincodes/:id', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.updatePincode);
 router.delete('/pincodes/:id', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.deletePincode);
 router.get('/pincodes/check/:pincode', ...adminAuth, checkPermission('settings_manage'), serviceAreaController.checkPincodeServiceability);
+
+// ─── Enquiries & Cancellation Reasons ──────────────────────────────────────────
+router.use('/enquiries', enquiryRoutes);
+router.use('/cancellation-reasons', cancellationReasonRoutes);
 
 export default router;

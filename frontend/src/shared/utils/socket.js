@@ -4,7 +4,8 @@ import toast from 'react-hot-toast';
 // In production, force the API URL to our production domain if env is missing
 import { IMAGE_BASE_URL } from './constants.js';
 
-const SOCKET_URL = IMAGE_BASE_URL;
+// Get the actual base URL, but force WS port to 5001 if local development
+const SOCKET_URL = IMAGE_BASE_URL.includes('localhost') ? 'http://localhost:5001' : IMAGE_BASE_URL;
 
 class SocketService {
     constructor() {

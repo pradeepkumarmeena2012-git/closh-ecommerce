@@ -3,25 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiAlertTriangle, FiSend } from 'react-icons/fi';
 import { createPortal } from 'react-dom';
 
-const CancellationModal = ({ isOpen, onClose, onConfirm, isSubmitting }) => {
-    const [reason, setReason] = useState('');
+const CancellationModal = ({ isOpen, onClose, onConfirm, isSubmitting, reasons = [] }) => {
+    const [reasonId, setReasonId] = useState('');
+    const [reasonText, setReasonText] = useState('');
     const [error, setError] = useState('');
 
     const handleSubmit = () => {
-        if (!reason.trim()) {
+        if (!reasonId && !reasonText.trim()) {
             setError('Please provide a reason for cancellation');
             return;
         }
-        onConfirm(reason.trim());
+        onConfirm({ reasonId, reasonText: reasonText.trim() });
     };
-
-    const commonReasons = [
-        'Customer Refused',
-        'Incorrect Address',
-        'Customer Unreachable',
-        'Item Damaged',
-        'Payment Issue'
-    ];
 
     return createPortal(
         <AnimatePresence>
@@ -55,25 +48,25 @@ const CancellationModal = ({ isOpen, onClose, onConfirm, isSubmitting }) => {
                             <p className="text-slate-500 text-[11px] font-bold uppercase tracking-wider mb-4 px-1">Choose a reason or type below:</p>
                             
                             <div className="flex flex-wrap gap-2 mb-6">
-                                {commonReasons.map((r) => (
+                                {reasons.map((r) => (
                                     <button
-                                        key={r}
-                                        onClick={() => { setReason(r); setError(''); }}
+                                        key={r._id}
+                                        onClick={() => { setReasonId(r._id); setReasonText(r.reason); setError(''); }}
                                         className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all border ${
-                                            reason === r 
+                                            reasonId === r._id 
                                             ? 'bg-rose-600 border-rose-600 text-white shadow-md' 
                                             : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100'
                                         }`}
                                     >
-                                        {r}
+                                        {r.reason}
                                     </button>
                                 ))}
                             </div>
 
                             <div className="relative group">
                                 <textarea
-                                    value={reason}
-                                    onChange={(e) => { setReason(e.target.value); setError(''); }}
+                                    value={reasonText}
+                                    onChange={(e) => { setReasonText(e.target.value); if (!reasons.find(r => r.reason === e.target.value)) setReasonId(''); setError(''); }}
                                     placeholder="Type details for cancellation..."
                                     className={`w-full h-24 bg-slate-50 border ${error ? 'border-rose-300' : 'border-slate-100'} rounded-2xl p-4 text-xs font-medium text-slate-800 outline-none focus:border-rose-400 focus:bg-white transition-all resize-none shadow-inner`}
                                 />

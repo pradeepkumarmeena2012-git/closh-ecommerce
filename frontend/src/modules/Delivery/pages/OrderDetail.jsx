@@ -66,6 +66,8 @@ const DeliveryOrderDetail = () => {
   const [extraDeliveryPhotos, setExtraDeliveryPhotos] = useState([]);
   const [hasArrived, setHasArrived] = useState(false);
   const [hasArrivedAtVendor, setHasArrivedAtVendor] = useState(false);
+
+  const [cancellationReasons, setCancellationReasons] = useState([]);
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [paymentSelection, setPaymentSelection] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -138,6 +140,18 @@ const DeliveryOrderDetail = () => {
   }, [liveLocation]);
 
   const loadOrder = useCallback(async () => {
+    const fetchReasons = async () => {
+      try {
+        const reasonsRes = await api.get('/delivery/cancellation-reasons');
+        if (reasonsRes?.success) {
+          setCancellationReasons(reasonsRes.data || []);
+        }
+      } catch (e) {
+        console.error('Failed to fetch cancellation reasons', e);
+      }
+    };
+    fetchReasons();
+
     try {
       const response = await fetchOrderById(id);
       if (response?.isMultiVendor && response?.type !== 'return') {
@@ -413,16 +427,16 @@ const DeliveryOrderDetail = () => {
     setIsCancellationModalOpen(true);
   };
 
-  const confirmCancellation = async (reason) => {
+  const confirmCancellation = async (reasonData) => {
     setIsCancelling(true);
     try {
-      const updated = await cancelOrder(id, reason);
+      const updated = await cancelOrder(id, reasonData);
       setOrder(updated);
-      toast.success('Order cancelled successfully');
+      toast.success('Cancellation request submitted to admin');
       setIsCancellationModalOpen(false);
       navigate('/delivery/dashboard');
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Cancellation failed');
+      toast.error(err?.response?.data?.message || 'Cancellation request failed');
     } finally {
       setIsCancelling(false);
     }
@@ -622,13 +636,13 @@ const DeliveryOrderDetail = () => {
             navigate(-1);
           }} className="p-2 bg-white shadow-sm rounded-lg shrink-0 border border-slate-100"><FiArrowLeft size={18} /></button>
           <div className="flex-1 min-w-0">
-            <h2 className="text-[13px] font-black text-slate-900 leading-tight mb-0.5">
+            <h2 className="text-[13px] font-black text-slate-900 leading-tight mb-0.5 truncate">
               {/* Use id from params as final fallback, and hunt for names in all possible places */}
               #{String(order.orderId || order.id || id).slice(-8).toUpperCase()} • {currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.storeName || order.vendorName || 'Pickup Location') : (order.customer || order.shippingAddress?.name || order.guestInfo?.name || 'Customer')}
             </h2>
-            <div className="flex items-center gap-1 overflow-hidden">
+            <div className="flex flex-wrap items-center gap-1.5 overflow-hidden">
               {getOrderTypeBadge()}
-              <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">• {String(order.status).toUpperCase()}</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-tighter shrink-0">• {String(order.status).replace(/_/g, ' ').toUpperCase()}</span>
             </div>
           </div>
           <a href={`tel:${currentPhase === 'pickup' ? (order.vendorItems?.[0]?.vendorId?.phone || order.vendorPhone) : (order.phone || order.shippingAddress?.phone)}`} className="w-9 h-9 bg-indigo-600/90 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50 shrink-0"><FiPhone size={18} /></a>
@@ -664,7 +678,31 @@ const DeliveryOrderDetail = () => {
                     <p className="text-[10px] font-medium text-slate-500 leading-snug line-clamp-2">{currentPhase === 'pickup' ? order.vendorAddress : order.address}</p>
                  </div>
                  <button
-                   onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentPhase === 'pickup' ? (order.vendorLatitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[1]) : (order.latitude || order.dropoffLocation?.coordinates?.[1])},${currentPhase === 'pickup' ? (order.vendorLongitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[0]) : (order.longitude || order.dropoffLocation?.coordinates?.[0])}`, '_blank')}
+                   onClick={() => {
+                       let destLat = 0;
+                       let destLng = 0;
+                       
+                       if (currentPhase === 'returning_unselected' && order.vendorReturnStops?.length > 0) {
+                           // Route to the first pending return stop
+                           const nextStop = order.vendorReturnStops.find(s => s.status === 'pending') || order.vendorReturnStops[0];
+                           const vendorInfo = order.vendorItems?.find(vi => String(vi.vendorId?._id || vi.vendorId) === String(nextStop.vendorId))?.vendorId;
+                           destLat = vendorInfo?.shopLocation?.coordinates?.[1] || nextStop.shopLocation?.coordinates?.[1] || 0;
+                           destLng = vendorInfo?.shopLocation?.coordinates?.[0] || nextStop.shopLocation?.coordinates?.[0] || 0;
+                       } else {
+                           destLat = currentPhase === 'pickup' ? (order.vendorLatitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[1]) : (order.latitude || order.dropoffLocation?.coordinates?.[1]);
+                           destLng = currentPhase === 'pickup' ? (order.vendorLongitude || order.vendorItems?.[0]?.vendorId?.shopLocation?.coordinates?.[0]) : (order.longitude || order.dropoffLocation?.coordinates?.[0]);
+                       }
+                       
+                       let mapUrl = `https://www.google.com/maps/dir//${destLat || 0},${destLng || 0}/`;
+                       if (currentLocation) {
+                           const currentLat = currentLocation.lat || currentLocation.coordinates?.[1] || currentLocation[1];
+                           const currentLng = currentLocation.lng || currentLocation.coordinates?.[0] || currentLocation[0];
+                           if (currentLat && currentLng) {
+                               mapUrl = `https://www.google.com/maps/dir/${currentLat},${currentLng}/${destLat || 0},${destLng || 0}/`;
+                           }
+                       }
+                       window.open(mapUrl, '_blank');
+                   }}
                    className="shrink-0 bg-slate-900 text-white w-[60px] h-[60px] rounded-2xl shadow-xl shadow-slate-300 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform pointer-events-auto border-2 border-slate-800"
                  >
                    <FiNavigation size={22} className="text-amber-400" />
@@ -688,7 +726,21 @@ const DeliveryOrderDetail = () => {
                             <p className="text-[10px] text-slate-500 mb-2">{stop.shopAddress}</p>
                           </div>
                           <button
-                            onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.vendorItems?.find(vi => String(vi.vendorId?._id || vi.vendorId) === String(stop.vendorId))?.shopLocation?.coordinates?.[1] || 0},${order.vendorItems?.find(vi => String(vi.vendorId?._id || vi.vendorId) === String(stop.vendorId))?.shopLocation?.coordinates?.[0] || 0}`, '_blank')}
+                            onClick={() => {
+                                const vendorInfo = order.vendorItems?.find(vi => String(vi.vendorId?._id || vi.vendorId) === String(stop.vendorId))?.vendorId;
+                                const destLat = vendorInfo?.shopLocation?.coordinates?.[1] || stop.shopLocation?.coordinates?.[1] || 0;
+                                const destLng = vendorInfo?.shopLocation?.coordinates?.[0] || stop.shopLocation?.coordinates?.[0] || 0;
+                                
+                                let mapUrl = `https://www.google.com/maps/dir//${destLat},${destLng}/`;
+                                if (currentLocation) {
+                                    const currentLat = currentLocation.lat || currentLocation.coordinates?.[1] || currentLocation[1];
+                                    const currentLng = currentLocation.lng || currentLocation.coordinates?.[0] || currentLocation[0];
+                                    if (currentLat && currentLng) {
+                                        mapUrl = `https://www.google.com/maps/dir/${currentLat},${currentLng}/${destLat},${destLng}/`;
+                                    }
+                                }
+                                window.open(mapUrl, '_blank');
+                            }}
                             className="w-8 h-8 bg-slate-200 text-slate-600 rounded-lg flex items-center justify-center shrink-0 border border-slate-300 active:scale-95"
                           >
                             <FiNavigation size={14} />
@@ -702,25 +754,25 @@ const DeliveryOrderDetail = () => {
                           <button
                             onClick={() => handleArriveVendorReturn(stop.vendorId)}
                             disabled={isUpdatingOrderStatus}
-                            className="w-full bg-slate-900 text-white text-[10px] font-bold py-2 rounded-lg uppercase tracking-widest active:scale-95 transition-all"
+                            className="w-full h-10 bg-slate-900 text-white text-[10px] font-bold rounded-lg uppercase tracking-widest active:scale-95 transition-all"
                           >
                             ARRIVE AT LOCATION
                           </button>
                         ) : stop.status === 'arrived' ? (
                           <div className="flex flex-col gap-2">
-                            <div className="flex gap-2">
+                            <div className="flex flex-row items-stretch gap-2 h-10">
                               <input
                                 type="text"
-                                placeholder="ENTER OTP FROM VENDOR"
+                                placeholder="ENTER OTP"
                                 value={vendorReturnOtps[stop.vendorId] || ''}
                                 onChange={(e) => setVendorReturnOtps(prev => ({...prev, [stop.vendorId]: e.target.value}))}
-                                className="flex-1 bg-white border border-slate-200 rounded-lg px-3 text-xs font-bold tracking-[0.2em] text-center"
+                                className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-2 text-xs font-bold tracking-widest text-center"
                                 maxLength={6}
                               />
                               <button
                                 onClick={() => handleVerifyVendorReturnOtp(stop.vendorId)}
                                 disabled={isUpdatingOrderStatus || !vendorReturnOtps[stop.vendorId]}
-                                className="bg-indigo-600 text-white px-4 rounded-lg text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50"
+                                className="shrink-0 bg-indigo-600 text-white px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-all disabled:opacity-50"
                               >
                                 VERIFY
                               </button>
@@ -728,7 +780,7 @@ const DeliveryOrderDetail = () => {
                             <button
                                 onClick={() => handleResendVendorReturnOtp(stop.vendorId)}
                                 disabled={isUpdatingOrderStatus}
-                                className="w-full bg-slate-100 text-slate-600 text-[10px] font-bold py-2 rounded-lg uppercase tracking-widest active:scale-95 transition-all mt-1 border border-slate-200"
+                                className="w-full h-10 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg uppercase tracking-widest active:scale-95 transition-all mt-1 border border-slate-200"
                               >
                                 RESEND OTP
                               </button>
@@ -737,7 +789,7 @@ const DeliveryOrderDetail = () => {
                           <button
                             onClick={() => handleCompleteVendorReturn(stop.vendorId)}
                             disabled={isUpdatingOrderStatus}
-                            className="w-full bg-emerald-600 text-white text-[10px] font-bold py-2 rounded-lg uppercase tracking-widest active:scale-95 transition-all"
+                            className="w-full h-10 bg-emerald-600 text-white text-[10px] font-bold rounded-lg uppercase tracking-widest active:scale-95 transition-all"
                           >
                             CONFIRM RETURN
                           </button>
@@ -776,14 +828,26 @@ const DeliveryOrderDetail = () => {
                                       </div>
                                       <div className="flex-1 min-w-0">
                                           <p className="text-[11px] font-bold text-slate-900 line-clamp-1">{item.productId?.name || item.name}</p>
-                                          <div className="flex gap-2 mt-1">
-                                              <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
-                                                  Size: {item.selectedSize || item.variant?.size || 'N/A'}
-                                              </span>
-                                              <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
-                                                  Qty: {item.quantity}
-                                              </span>
-                                          </div>
+                                              <div className="flex flex-wrap gap-2 mt-1">
+                                                  {Object.entries(item.variant || {}).map(([key, val]) => (
+                                                      <span key={key} className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                          {key}: {val}
+                                                      </span>
+                                                  ))}
+                                                  {!item.variant && item.selectedSize && (
+                                                      <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                          Size: {item.selectedSize}
+                                                      </span>
+                                                  )}
+                                                  {!item.variant && item.selectedColor && (
+                                                      <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                          Color: {item.selectedColor}
+                                                      </span>
+                                                  )}
+                                                  <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                      Qty: {item.quantity}
+                                                  </span>
+                                              </div>
                                       </div>
                                   </div>
                               )) || (
@@ -989,7 +1053,7 @@ const DeliveryOrderDetail = () => {
                             type="tel" maxLength={6} value={otpValue}
                             onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
                             placeholder="Enter 6-digit OTP"
-                            className="w-full h-14 bg-white border-2 border-slate-200 rounded-2xl text-center text-xl font-black tracking-[0.2em] text-slate-900 placeholder:text-slate-400 placeholder:text-[13px] placeholder:font-semibold placeholder:tracking-wide outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all shadow-sm"
+                            className="w-full h-14 bg-white border-2 border-slate-200 rounded-2xl text-center text-base sm:text-xl font-black tracking-widest sm:tracking-[0.2em] text-slate-900 placeholder:text-slate-400 placeholder:text-xs sm:placeholder:text-[13px] placeholder:font-semibold placeholder:tracking-wide outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all shadow-sm"
                           />
                           <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-20">
                             <FiShield size={18} />
@@ -1150,6 +1214,7 @@ const DeliveryOrderDetail = () => {
           onClose={() => setIsCancellationModalOpen(false)}
           onConfirm={confirmCancellation}
           isSubmitting={isCancelling}
+          reasons={cancellationReasons}
         />
       </div>
     </PageTransition>

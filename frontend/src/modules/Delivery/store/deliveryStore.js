@@ -466,10 +466,10 @@ export const useDeliveryAuthStore = create(
           throw e;
         }
       },
-      cancelOrder: async (id, reason) => {
+      cancelOrder: async (id, reasonData) => {
         set({ isUpdatingOrderStatus: true });
         try {
-          const res = await api.post(`/delivery/orders/${id}/cancel`, { reason });
+          const res = await api.post(`/delivery/orders/${id}/cancel`, reasonData);
           const order = normalizeOrder(res.data || res);
           set({
             orders: get().orders.map(o => o.id === id ? order : o),

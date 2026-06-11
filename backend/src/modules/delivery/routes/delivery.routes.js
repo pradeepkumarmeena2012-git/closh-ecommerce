@@ -57,6 +57,7 @@ router.get('/orders', ...deliveryAuth, orderController.getAssignedOrders);
 router.get('/orders/dashboard-summary', ...deliveryAuth, orderController.getDashboardSummary);
 router.get('/orders/profile-summary', ...deliveryAuth, orderController.getProfileSummary);
 router.get('/orders/rejected', ...deliveryAuth, orderController.getRejectedOrders);
+router.get('/cancellation-reasons', ...deliveryAuth, orderController.getCancellationReasons);
 router.get('/orders/:id', ...deliveryAuth, orderController.getOrderDetail);
 
 if (!IS_PRODUCTION) {

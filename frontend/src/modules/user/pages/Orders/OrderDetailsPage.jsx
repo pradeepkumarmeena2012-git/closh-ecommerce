@@ -917,7 +917,7 @@ const OrderDetailsPage = () => {
                                                     <Store size={13} className={isPickedUp || isReady ? 'text-white' : 'text-slate-400'} />
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs font-black text-slate-800">{vi.vendorName}</p>
+                                                    <p className="text-xs font-black text-slate-800">Closh {idx + 1}</p>
                                                     <p className="text-[10px] text-slate-400 font-medium">{vi.items?.length || 0} item{vi.items?.length !== 1 ? 's' : ''}</p>
                                                 </div>
                                             </div>
@@ -948,7 +948,7 @@ const OrderDetailsPage = () => {
                                     { label: 'All Vendors Ready', subtitle: 'Combined order confirmed', icon: CheckCircle },
                                     { label: 'Rider Assigned', subtitle: 'Multi-stop trip started', icon: Truck },
                                     ...(order.vendorItems || []).map((vi, i) => ({
-                                        label: `Pickup from ${vi.vendorName}`,
+                                        label: `Pickup from Closh ${i + 1}`,
                                         subtitle: 'OTP verified & collected',
                                         icon: Package,
                                         mvRankVal: 3 + i,

@@ -730,7 +730,7 @@ const OrderDetail = () => {
                         );
                     })()}
 
-                    {currentStatus === 'returning_unselected_items' && (() => {
+                    {['returning_unselected_items', 'returning_unselected'].includes(order.status) && (() => {
                         const myReturn = (order.vendorReturnStops || []).find(vp => {
                             const vpVendorId = vp.vendorId?._id || vp.vendorId;
                             return String(vpVendorId) === String(vendorId);

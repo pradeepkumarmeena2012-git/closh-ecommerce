@@ -39,6 +39,7 @@ import ServiceAreas from "./modules/Admin/pages/ServiceAreas";
 // Orders child pages
 import AllOrders from "./modules/Admin/pages/orders/AllOrders";
 import OrderTracking from "./modules/Admin/pages/orders/OrderTracking";
+import EnquiriesPage from "./modules/Admin/pages/orders/EnquiriesPage";
 
 import Invoice from "./modules/Admin/pages/orders/Invoice";
 // Products child pages
@@ -102,6 +103,7 @@ import OrdersCustomersSettings from "./modules/Admin/pages/settings/OrdersCustom
 import ProductsInventorySettings from "./modules/Admin/pages/settings/ProductsInventorySettings";
 import ContentFeaturesSettings from "./modules/Admin/pages/settings/ContentFeaturesSettings";
 import NotificationsSEOSettings from "./modules/Admin/pages/settings/NotificationsSEOSettings";
+import CancellationReasons from "./modules/Admin/pages/settings/CancellationReasons";
 // Policies child pages
 import PrivacyPolicy from "./modules/Admin/pages/policies/PrivacyPolicy";
 import RefundPolicy from "./modules/Admin/pages/policies/RefundPolicy";
@@ -220,6 +222,7 @@ const renderAdminRoutes = () => (
     <Route path="orders/:id/invoice" element={<Invoice />} />
     <Route path="orders/all-orders" element={<AllOrders />} />
     <Route path="orders/order-tracking" element={<OrderTracking />} />
+    <Route path="orders/enquiries" element={<EnquiriesPage />} />
     <Route path="return-requests" element={<ReturnRequests />} />
     <Route path="return-requests/:id" element={<ReturnRequestDetail />} />
     <Route path="customers" element={<Customers />} />
@@ -310,6 +313,7 @@ const renderAdminRoutes = () => (
     <Route path="settings/products-inventory" element={<Settings />} />
     <Route path="settings/content-features" element={<Settings />} />
     <Route path="settings/notifications-seo" element={<Settings />} />
+    <Route path="settings/cancellation-reasons" element={<CancellationReasons />} />
     <Route path="policies" element={<PrivacyPolicy />} />
     <Route path="policies/privacy-policy" element={<PrivacyPolicy />} />
     <Route path="policies/refund-policy" element={<RefundPolicy />} />

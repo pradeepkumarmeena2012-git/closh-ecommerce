@@ -147,23 +147,6 @@ export default function MultiVendorPickup() {
         api.post(`/delivery/multi-vendor/${orderId}/complete`, { otp: customerOtp })
     );
 
-    const handleRejectAssignment = async () => {
-        if (!window.confirm("Are you sure you want to reject this assignment? This order will be reassigned to another partner.")) {
-            return;
-        }
-        setActionLoading(true);
-        setError('');
-        try {
-            await api.post(`/delivery/orders/${orderId || order?._id || order?.id}/reject`);
-            toast.success("Assignment rejected. Returning to dashboard...");
-            navigate('/delivery/dashboard');
-        } catch (err) {
-            setError(err.response?.data?.message || 'Failed to reject assignment.');
-            toast.error(err.response?.data?.message || 'Failed to reject assignment.');
-        } finally {
-            setActionLoading(false);
-        }
-    };
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -414,10 +397,22 @@ export default function MultiVendorPickup() {
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-[11px] font-bold text-slate-900 line-clamp-1">{item.name}</p>
-                                                                    <div className="flex gap-2 mt-1">
-                                                                        <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
-                                                                            Size: {item.selectedSize || item.variant?.size || 'N/A'}
-                                                                        </span>
+                                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                                        {Object.entries(item.variant || {}).map(([key, val]) => (
+                                                                            <span key={key} className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                                                {key}: {val}
+                                                                            </span>
+                                                                        ))}
+                                                                        {!item.variant && item.selectedSize && (
+                                                                            <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                                                Size: {item.selectedSize}
+                                                                            </span>
+                                                                        )}
+                                                                        {!item.variant && item.selectedColor && (
+                                                                            <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
+                                                                                Color: {item.selectedColor}
+                                                                            </span>
+                                                                        )}
                                                                         <span className="bg-slate-50 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-500 uppercase">
                                                                             Qty: {item.quantity}
                                                                         </span>
@@ -430,6 +425,36 @@ export default function MultiVendorPickup() {
                                                     </div>
                                                 </div>
 
+                                                {/* Proof Image Upload moved here */}
+                                                {stop.status !== 'pending' && (
+                                                    <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                        <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider mb-2">Proof of Pickup (Photo)</p>
+                                                        {stop.proofPhoto ? (
+                                                            <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 group">
+                                                                <img src={stop.proofPhoto} alt="Pickup proof" className="w-full h-full object-cover" />
+                                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <label className="cursor-pointer px-3 py-1.5 bg-white text-slate-900 text-xs font-bold rounded-lg shadow hover:bg-slate-100">
+                                                                        Change Photo
+                                                                        <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, stop.vendorId)} />
+                                                                    </label>
+                                                                </div>
+                                                                <div className="absolute top-2 right-2 bg-emerald-500 text-white p-1 rounded-full shadow-sm">
+                                                                    <CheckCircle size={14} />
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <label className="flex flex-col items-center justify-center w-full h-24 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100/50 transition-colors">
+                                                                <div className="flex flex-col items-center justify-center pt-2 pb-2">
+                                                                    <QrCode size={20} className="text-slate-400 mb-1" />
+                                                                    <p className="text-[11px] text-slate-500 font-bold">Tap to Upload Shop Photo</p>
+                                                                    <p className="text-[9px] text-slate-400 mt-0.5">JPEG, PNG up to 5MB</p>
+                                                                </div>
+                                                                <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, stop.vendorId)} />
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 <div className="space-y-3">
                                                     <div className="flex justify-between items-center">
                                                         <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Ask vendor for their OTP</p>
@@ -438,7 +463,7 @@ export default function MultiVendorPickup() {
                                                         <input
                                                             type="number"
                                                             placeholder="Enter 6-digit OTP"
-                                                            className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-center text-xl font-black tracking-[0.3em] focus:outline-none focus:border-slate-900"
+                                                            className="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-center text-base sm:text-xl font-black tracking-widest sm:tracking-[0.3em] focus:outline-none focus:border-slate-900 w-full"
                                                             value={otpInputs[stop.vendorId] || ''}
                                                             onChange={e => setOtpInputs(p => ({ ...p, [stop.vendorId]: e.target.value }))}
                                                             maxLength={6}
@@ -466,43 +491,16 @@ export default function MultiVendorPickup() {
                                                 <button
                                                     onClick={() => confirmPickup(stop.vendorId)}
                                                     disabled={actionLoading || !stop.proofPhoto}
-                                                    className="w-full py-3 bg-emerald-500 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
+                                                    className="w-full py-3 px-3 bg-emerald-500 text-white rounded-xl font-black text-xs sm:text-sm flex flex-row items-center justify-center gap-2 active:scale-95 transition-transform disabled:opacity-60"
                                                 >
-                                                    {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
-                                                    Confirm Pickup from {stop.vendorName}
+                                                    <div className="shrink-0 flex items-center justify-center">
+                                                        {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
+                                                    </div>
+                                                    <span className="text-center leading-tight">Confirm Pickup from {stop.vendorName}</span>
                                                 </button>
                                             </div>
                                         )}
 
-                                        {/* Proof Image Upload */}
-                                        {stop.status !== 'pending' && (
-                                            <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                                <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider mb-2">Proof of Pickup (Photo)</p>
-                                                {stop.proofPhoto ? (
-                                                    <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 group">
-                                                        <img src={stop.proofPhoto} alt="Pickup proof" className="w-full h-full object-cover" />
-                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <label className="cursor-pointer px-3 py-1.5 bg-white text-slate-900 text-xs font-bold rounded-lg shadow hover:bg-slate-100">
-                                                                Change Photo
-                                                                <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, stop.vendorId)} />
-                                                            </label>
-                                                        </div>
-                                                        <div className="absolute top-2 right-2 bg-emerald-500 text-white p-1 rounded-full shadow-sm">
-                                                            <CheckCircle size={14} />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <label className="flex flex-col items-center justify-center w-full h-24 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100/50 transition-colors">
-                                                        <div className="flex flex-col items-center justify-center pt-2 pb-2">
-                                                            <QrCode size={20} className="text-slate-400 mb-1" />
-                                                            <p className="text-[11px] text-slate-500 font-bold">Tap to Upload Shop Photo</p>
-                                                            <p className="text-[9px] text-slate-400 mt-0.5">JPEG, PNG up to 5MB</p>
-                                                        </div>
-                                                        <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, stop.vendorId)} />
-                                                    </label>
-                                                )}
-                                            </div>
-                                        )}
                                     </div>
                                 )}
 
@@ -527,19 +525,6 @@ export default function MultiVendorPickup() {
                 </div>
             </div>
 
-            {/* Reject Assignment Action */}
-            {order.status === 'assigned' && (
-                <div className="mx-4 mt-6">
-                    <button
-                        onClick={handleRejectAssignment}
-                        disabled={actionLoading}
-                        className="w-full py-4 bg-rose-50 border border-rose-200 text-rose-600 rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-rose-100 disabled:opacity-50"
-                    >
-                        {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <AlertCircle size={16} />}
-                        Reject Assignment
-                    </button>
-                </div>
-            )}
 
             {/* Final Delivery Actions */}
             {allPicked && (

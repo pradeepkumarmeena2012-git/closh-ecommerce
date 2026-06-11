@@ -30,9 +30,9 @@ const MobileOrderDetail = () => {
   const orderItems = Array.isArray(order?.items) ? order.items : [];
   const vendorOptions = Array.isArray(order?.vendorItems)
     ? order.vendorItems
-      .map((group) => ({
+      .map((group, idx) => ({
         id: String(group?.vendorId || ''),
-        name: group?.vendorName || 'Vendor',
+        name: `Closh ${idx + 1}`,
       }))
       .filter((group) => group.id)
     : [];
@@ -316,7 +316,7 @@ const MobileOrderDetail = () => {
                 <h2 className="text-base font-bold text-gray-800 mb-4">Order Items</h2>
                 {order.vendorItems && order.vendorItems.length > 0 ? (
                   <div className="space-y-4">
-                    {order.vendorItems.map((vendorGroup) => (
+                    {order.vendorItems.map((vendorGroup, idx) => (
                       <div key={vendorGroup.vendorId} className="space-y-2">
                         {/* Vendor Header */}
                         <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
@@ -324,7 +324,7 @@ const MobileOrderDetail = () => {
                             <FiShoppingBag className="text-white text-[10px]" />
                           </div>
                           <span className="text-sm font-bold text-gray-900 flex-1">
-                            {vendorGroup.vendorName}
+                            Closh {idx + 1}
                           </span>
                           <span className="text-xs font-bold text-gray-900 bg-white px-2 py-0.5 rounded-md border border-gray-100">
                             {formatPrice(vendorGroup.subtotal)}

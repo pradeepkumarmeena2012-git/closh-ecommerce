@@ -21,6 +21,8 @@ import redisConnection from '../../../config/redis.js';
 import { WalletService } from '../../../services/wallet.service.js';
 import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
 import Vendor from '../../../models/Vendor.model.js';
+import Enquiry from '../../../models/Enquiry.model.js';
+import CancellationReason from '../../../models/CancellationReason.model.js';
 
 const DELIVERY_OTP_TTL_MS = 10 * 60 * 1000;
 const DELIVERY_OTP_MAX_ATTEMPTS = 5;
@@ -77,7 +79,7 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     const filter = { deliveryBoyId: req.user.id, isDeleted: { $ne: true } };
 
     if (status === 'open') {
-        filter.status = { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'ready_for_pickup', 'all_vendors_ready'] };
+        filter.status = { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'returning_unselected_items', 'returning_unselected'] };
     } else if (status) {
         // Support comma-separated statuses (e.g. "delivered,cancelled")
         if (typeof status === 'string' && status.includes(',')) {
@@ -232,7 +234,7 @@ export const getAvailableOrders = asyncHandler(async (req, res) => {
         Order.exists({
             deliveryBoyId: req.user.id,
             isDeleted: { $ne: true },
-            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived'] }
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'returning_unselected_items', 'returning_unselected'] }
         }),
         ReturnRequest.exists({
             deliveryBoyId: req.user.id,
@@ -378,7 +380,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         Order.find({
             deliveryBoyId,
             isDeleted: { $ne: true },
-            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'ready_for_pickup', 'all_vendors_ready'] }
+            status: { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'returning_unselected_items', 'returning_unselected'] }
         })
             .select('orderId status total deliveryEarnings deliveryDistance orderType paymentMethod shippingAddress.name shippingAddress.phone guestInfo.name guestInfo.phone vendorItems.vendorId vendorItems.vendorName pickupLocation dropoffLocation items.name items.image items.quantity deliveryFlow.phase isMultiVendor vendorPickups createdAt updatedAt')
             .populate('vendorItems.vendorId', 'storeName shopAddress shopLocation')
@@ -905,10 +907,10 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, order, 'Delivery status updated.'));
 });
 
-// POST /api/delivery/orders/:id/cancel
+// POST /api/delivery/orders/:id/cancel (Creates an Enquiry instead of immediate cancellation)
 export const cancelOrder = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { reason } = req.body;
+    const { reasonId, reasonText } = req.body;
     const riderId = req.user.id;
 
     const query = {
@@ -923,60 +925,31 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     const order = await Order.findOne(query);
     if (!order) throw new ApiError(404, 'Order not found.');
 
-    const cancellableStatuses = ['assigned', 'picked_up', 'out_for_delivery', 'arrived'];
+    const cancellableStatuses = ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'ready_for_pickup', 'all_vendors_ready', 'processing'];
     if (!cancellableStatuses.includes(order.status)) {
         throw new ApiError(409, `Order cannot be cancelled in ${order.status} state.`);
     }
 
-    order.status = 'cancelled';
-    order.cancelledAt = new Date();
-    order.cancellationReason = reason || 'Refused by customer at delivery';
-
-    // Update vendor items statuses
-    if (order.vendorItems && order.vendorItems.length > 0) {
-        order.vendorItems.forEach(group => {
-            group.status = 'cancelled';
-        });
-    }
-
-    // Sync deliveryFlow if exists
-    if (order.deliveryFlow) {
-        order.deliveryFlow.phase = 'delivered'; // Phase-out the active mission
-    }
-
-    await order.save();
-    
-    // Re-enable rider availability since the order is cancelled
-    await DeliveryBoy.findByIdAndUpdate(riderId, { status: 'available' });
-    
-    await cacheInvalidate(`dash:${riderId}`, `profile:${riderId}`);
-
-    // Notify all parties
-    emitEvent(`order_${order.orderId}`, 'order_status_updated', {
-        orderId: order.orderId,
-        status: 'cancelled',
-    });
-    emitEvent(`user_${order.userId}`, 'order_cancelled', {
-        orderId: order.orderId,
-        status: 'cancelled',
-        reason: order.cancellationReason
+    // Create an Enquiry for Admin
+    const enquiry = new Enquiry({
+        orderId: order._id,
+        deliveryBoyId: riderId,
+        reasonId: reasonId || undefined,
+        reasonText: reasonText || '',
+        status: 'pending'
     });
 
-    // Notify vendors
-    order.vendorItems.forEach(group => {
-        emitEvent(`vendor_${group.vendorId}`, 'order_cancelled', {
-            orderId: order.orderId,
-            reason: order.cancellationReason
-        });
-    });
+    await enquiry.save();
 
-    await OrderNotificationService.notifyOrderUpdate(order._id, 'cancelled', {
-        excludeRecipientId: riderId,
-        title: `Order #${order.orderId} Cancelled`,
-        message: `Order #${order.orderId} has been cancelled. Reason: ${order.cancellationReason}`
-    });
+    // Optionally update order status to indicate pending cancellation
+    // Or just emit an event to admin
+    res.status(200).json(new ApiResponse(200, enquiry, 'Cancellation request submitted to admin for approval.'));
+});
 
-    res.status(200).json(new ApiResponse(200, order, 'Order cancelled successfully.'));
+// GET /api/delivery/cancellation-reasons
+export const getCancellationReasons = asyncHandler(async (req, res) => {
+    const reasons = await CancellationReason.find({ isActive: true }).sort({ createdAt: -1 });
+    res.status(200).json(new ApiResponse(200, reasons, 'Cancellation reasons fetched.'));
 });
 
 // POST /api/delivery/orders/:id/resend-delivery-otp

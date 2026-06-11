@@ -69,6 +69,7 @@ const getChildRoute = (parentRoute, childName, admin) => {
     [`${basePrefix}/orders`]: {
       "All Orders": `${basePrefix}/orders/all-orders`,
       "Order Tracking": `${basePrefix}/orders/order-tracking`,
+      "Cancellation Enquiries": `${basePrefix}/orders/enquiries`,
     },
     [`${basePrefix}/products`]: {
       "Manage Products": `${basePrefix}/products/manage-products`,
@@ -143,6 +144,7 @@ const getChildRoute = (parentRoute, childName, admin) => {
       "Products & Inventory": `${basePrefix}/settings/products-inventory`,
       "Content & Features": `${basePrefix}/settings/content-features`,
       "Notifications & SEO": `${basePrefix}/settings/notifications-seo`,
+      "Cancellation Reasons": `${basePrefix}/settings/cancellation-reasons`,
     },
     [`${basePrefix}/policies`]: {
       "Privacy Policy": `${basePrefix}/policies/privacy-policy`,

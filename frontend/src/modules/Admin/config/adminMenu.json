@@ -17,7 +17,8 @@
     "permission": "orders_manage",
     "children": [
       "All Orders",
-      "Order Tracking"
+      "Order Tracking",
+      "Cancellation Enquiries"
     ]
   },
   {
@@ -185,7 +186,8 @@
       "Orders & Customers",
       "Products & Inventory",
       "Content & Features",
-      "Notifications & SEO"
+      "Notifications & SEO",
+      "Cancellation Reasons"
     ]
   },
   {
