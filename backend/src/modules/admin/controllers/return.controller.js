@@ -249,7 +249,10 @@ export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
                     request.refundId = refund.id;
                     request.refundNotes = `Automated Razorpay Refund successful. Refund ID: ${refund.id}`;
                     
-                    // Mark order payment status as refunded
+                    // Fallback for local development where webhook cannot reach
+                    if (process.env.NODE_ENV !== 'production' || !process.env.RAZORPAY_WEBHOOK_SECRET) {
+                        request.refundStatus = 'processed';
+                    }
                     order.paymentStatus = 'refunded';
                     await order.save();
                 } catch (error) {

@@ -233,6 +233,16 @@ const ReturnRequests = () => {
       render: (value) => <Badge variant={getStatusVariant(value)}>{value}</Badge>,
     },
     {
+      key: 'refundStatus',
+      label: 'Refund Status',
+      sortable: true,
+      render: (value) => (
+        <Badge variant={value === 'processed' ? 'approved' : value === 'failed' ? 'rejected' : 'pending'}>
+          {value || 'none'}
+        </Badge>
+      ),
+    },
+    {
       key: 'actions',
       label: 'Actions',
       sortable: false,

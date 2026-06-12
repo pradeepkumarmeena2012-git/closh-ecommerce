@@ -13,6 +13,7 @@ import ReturnRequest from '../../../models/ReturnRequest.model.js';
 import DeliveryBatch from '../../../models/DeliveryBatch.model.js';
 import Vendor from '../../../models/Vendor.model.js';
 import { calculateDistance } from '../../../utils/geo.js';
+import { refundPayment } from '../../../services/razorpay.service.js';
 
 // GET /api/admin/orders
 export const getAllOrders = asyncHandler(async (req, res) => {
@@ -249,6 +250,36 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                 },
             }
         );
+
+        // Process full refund if prepaid
+        if (order.paymentMethod !== 'cod' && order.paymentMethod !== 'cash' && order.razorpayPaymentId && order.paymentStatus !== 'refunded') {
+            try {
+                const refund = await refundPayment({
+                    paymentId: order.razorpayPaymentId,
+                    amount: order.total || 0,
+                    notes: { orderId: String(order._id) }
+                });
+                if (process.env.NODE_ENV !== 'production' || !process.env.RAZORPAY_WEBHOOK_SECRET) {
+                    order.refundStatus = 'processed';
+                } else {
+                    order.refundStatus = 'pending';
+                }
+                order.refundId = refund.id;
+                order.refundAmount = order.total;
+                order.paymentStatus = 'refunded';
+                await order.save();
+            } catch (refundError) {
+                console.error('Admin Cancellation Refund Error:', refundError?.error || refundError?.message || refundError);
+                console.error('Refund Error Details:', JSON.stringify({
+                    paymentId: order.razorpayPaymentId,
+                    amount: order.total,
+                    amountInPaise: Math.round((order.total || 0) * 100),
+                    razorpayError: refundError?.error || refundError?.statusCode || 'unknown'
+                }));
+                order.refundStatus = 'failed';
+                await order.save();
+            }
+        }
     }
 
     // Unified role-aware notifications

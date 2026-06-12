@@ -15,7 +15,7 @@ import { getCache, setCache } from '../utils/cache.js';
 import { optionalAuth } from '../middlewares/authenticate.js';
 import { Order } from '../models/Order.model.js';
 import { validateCoupon } from '../services/coupon.service.js';
-
+import { handleRazorpayWebhook } from '../modules/payment/webhook.controller.js';
 
 const router = Router();
 
@@ -903,5 +903,8 @@ router.get('/service-areas', asyncHandler(async (req, res) => {
 
 // Legacy support: GET /api/:id (only ObjectId-like values to avoid swallowing unknown routes)
 router.get('/:id([a-fA-F0-9]{24})', getProductDetail);
+
+// Razorpay Webhook
+router.post('/payment/webhook', handleRazorpayWebhook);
 
 export default router;

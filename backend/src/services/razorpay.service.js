@@ -111,10 +111,17 @@ export const refundPayment = async ({ paymentId, amount, notes = {} }) => {
             key_secret: KEY_SECRET,
         });
 
-        const refund = await instance.payments.refund(paymentId, {
+        const payload = {
             amount: Math.round(amount * 100), // convert to paise
-            notes
-        });
+            notes,
+            speed: 'normal', // Use normal speed so it uses Current Balance, not Reserve Balance
+        };
+
+        if (notes.receipt) {
+            payload.receipt = notes.receipt;
+        }
+
+        const refund = await instance.payments.refund(paymentId, payload);
         
         return refund;
     } catch (error) {

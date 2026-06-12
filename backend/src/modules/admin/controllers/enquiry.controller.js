@@ -1,6 +1,7 @@
 import Enquiry from '../../../models/Enquiry.model.js';
 import { Order } from '../../../models/Order.model.js';
 import { emitEvent } from '../../../services/socket.service.js';
+import { refundPayment } from '../../../services/razorpay.service.js';
 
 // Helper function to calculate distance between two coordinates in km (Haversine formula)
 const calculateDistance = (coord1, coord2) => {
@@ -120,9 +121,31 @@ export const handleEnquiry = async (req, res) => {
                     variantKey: i.variantKey,
                     decision: 'rejected'
                 }));
-            } else {
                 order.status = 'cancelled';
                 order.cancellationReason = enquiry.reasonText || 'Approved via Admin Enquiry';
+            }
+
+            // Process full refund if prepaid (for both direct cancellation and return flows)
+            if (order.paymentMethod !== 'cod' && order.paymentMethod !== 'cash' && order.razorpayPaymentId && order.paymentStatus !== 'refunded') {
+                try {
+                    const refund = await refundPayment({
+                        paymentId: order.razorpayPaymentId,
+                        amount: order.total || 0,
+                        notes: { orderId: String(order._id) }
+                    });
+                    // Fallback for local development where webhook cannot reach
+                    if (process.env.NODE_ENV !== 'production' || !process.env.RAZORPAY_WEBHOOK_SECRET) {
+                        order.refundStatus = 'processed';
+                    } else {
+                        order.refundStatus = 'pending'; // Will be updated to processed by webhook
+                    }
+                    order.refundId = refund.id;
+                    order.refundAmount = order.total;
+                    order.paymentStatus = 'refunded';
+                } catch (refundError) {
+                    console.error('Cancellation Refund Error:', refundError);
+                    order.refundStatus = 'failed';
+                }
             }
 
             await order.save();

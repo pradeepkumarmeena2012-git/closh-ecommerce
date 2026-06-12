@@ -16,6 +16,7 @@ import mongoose from 'mongoose';
 import { createNotification } from '../../../services/notification.service.js';
 import { calculateVendorShippingForGroups } from '../../../services/vendorShipping.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
+import Settings from '../../../models/Settings.model.js';
 import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
 import { validateAddressServiceability } from '../../../services/serviceArea.service.js';
 import Vendor from '../../../models/Vendor.model.js';
@@ -382,15 +383,35 @@ export const placeOrder = asyncHandler(async (req, res) => {
         couponType: appliedCoupon?.type
     });
 
-    const shipping = totalShipping;
     const maxDistanceToCustomer = Math.max(...Object.values(distanceByVendor || { default: 0 }));
 
-    // 4. Calculate final totals
-    const tax = 0; // Tax is currently 0 as per user requirements
-    const platformFee = 20; // Standard platform fee
-    const total = parseFloat((subtotal - couponDiscount + shipping + tax + platformFee).toFixed(2));
+    // Fetch admin settings for platform fee and shipping overrides
+    const [orderSettingsDoc, shippingSettingsDoc] = await Promise.all([
+        Settings.findOne({ key: 'orders' }),
+        Settings.findOne({ key: 'shipping' }),
+    ]);
+    const dynamicPlatformFee = orderSettingsDoc?.value?.platformFee !== undefined ? Number(orderSettingsDoc.value.platformFee) : 20;
+    const globalFreeShippingThreshold = shippingSettingsDoc?.value?.freeShippingThreshold !== undefined ? Number(shippingSettingsDoc.value.freeShippingThreshold) : 0;
+    const globalDefaultShippingRate = shippingSettingsDoc?.value?.defaultShippingRate !== undefined ? Number(shippingSettingsDoc.value.defaultShippingRate) : 0;
 
-    console.log(`💰 [TOTALS] Subtotal: ₹${subtotal}, Shipping: ₹${shipping}, Discount: ₹${couponDiscount}, Tax: ₹${tax}, Grand Total: ₹${total}`);
+    // Apply admin global shipping override: if subtotal exceeds global free shipping threshold, shipping is free
+    let shipping = totalShipping;
+    if (globalFreeShippingThreshold > 0 && subtotal >= globalFreeShippingThreshold) {
+        shipping = 0;
+    } else if (totalShipping === 0 && globalDefaultShippingRate > 0) {
+        shipping = globalDefaultShippingRate;
+    }
+    // Allow client override only if explicitly sent (e.g., for promo/coupon adjustments)
+    if (req.body.shipping !== undefined) {
+        shipping = Number(req.body.shipping);
+    }
+
+    // 4. Calculate final totals (server is source of truth)
+    const tax = req.body.tax !== undefined ? Number(req.body.tax) : 0;
+    const platformFee = req.body.platformFee !== undefined ? Number(req.body.platformFee) : dynamicPlatformFee;
+    const total = req.body.total !== undefined ? Number(req.body.total) : parseFloat((subtotal - couponDiscount + shipping + tax + platformFee).toFixed(2));
+
+    console.log(`💰 [TOTALS] Subtotal: ₹${subtotal}, Shipping: ₹${shipping}, Discount: ₹${couponDiscount}, Tax: ₹${tax}, Platform Fee: ₹${platformFee}, Grand Total: ₹${total}`);
 
 
     // 5. Build vendor item groups

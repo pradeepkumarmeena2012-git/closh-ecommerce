@@ -442,6 +442,70 @@ const MobileOrderDetail = () => {
                 </div>
               </div>
 
+              {/* Refund Info */}
+              {order.refundId && (
+                <div className="glass-card rounded-2xl p-4">
+                  <h2 className="text-base font-bold text-green-600 mb-3 flex items-center gap-2">
+                    <FiCheckCircle className="text-green-600" />
+                    Refund Details
+                  </h2>
+                  <div className="text-sm text-gray-600 space-y-2">
+                    <div className="flex justify-between">
+                      <span>Refund Status:</span>
+                      <span className="font-bold text-green-600 capitalize">
+                        {order.refundStatus}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Refund Amount:</span>
+                      <span className="font-semibold text-gray-800">
+                        {formatPrice(order.refundAmount || order.total)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Refund ID:</span>
+                      <span className="font-semibold text-gray-800">{order.refundId}</span>
+                    </div>
+                    {order.cancelledAt && (
+                      <div className="flex justify-between">
+                        <span>Issued On:</span>
+                        <span className="font-semibold text-gray-800">
+                          {formatDate(order.cancelledAt)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Refund Timeline */}
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <p className="font-semibold text-gray-800 mb-4 text-xs tracking-wider uppercase">Refund Timeline</p>
+                      <div className="space-y-0 pl-2">
+                        <div className="flex gap-4">
+                          <div className="flex flex-col items-center">
+                            <div className="w-3 h-3 rounded-full bg-green-500 ring-4 ring-green-50"></div>
+                            <div className="w-[2px] h-12 bg-green-500 my-1"></div>
+                          </div>
+                          <div className="pb-4 pt-0.5">
+                            <p className="font-bold text-gray-800 text-xs uppercase tracking-wider">Refund Processing</p>
+                            <p className="text-[10px] text-gray-500 mt-1">Takes 3-5 working days</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-4">
+                          <div className="flex flex-col items-center">
+                            <div className={`w-3 h-3 rounded-full ${order.refundStatus === 'processed' ? 'bg-green-500 ring-4 ring-green-50' : 'bg-gray-300 ring-4 ring-gray-50'}`}></div>
+                          </div>
+                          <div className="pt-0.5">
+                            <p className={`font-bold text-xs uppercase tracking-wider ${order.refundStatus === 'processed' ? 'text-gray-800' : 'text-gray-400'}`}>Refund Processed</p>
+                            <p className="text-[10px] text-gray-500 mt-1 leading-relaxed pr-4">
+                              Amount will be credited to customer's bank account within 5-7 working days after the refund has processed.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Order Summary */}
               <div className="glass-card rounded-2xl p-4">
                 <h2 className="text-base font-bold text-gray-800 mb-3">Order Summary</h2>

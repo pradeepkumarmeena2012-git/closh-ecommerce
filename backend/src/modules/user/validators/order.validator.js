@@ -24,6 +24,16 @@ export const placeOrderSchema = Joi.object({
     shippingOption: Joi.string().valid('standard', 'express', 'try_and_buy', 'check_and_buy', 'online').default('online'),
     orderType: Joi.string().valid('check_and_buy', 'try_and_buy').required(),
     deliveryType: Joi.string().valid('online').default('online'),
+    dropoffLocation: Joi.object({
+        type: Joi.string().valid('Point').optional(),
+        coordinates: Joi.array().items(Joi.number()).length(2).optional(),
+    }).optional().allow(null),
+    deviceToken: Joi.string().optional().allow(''),
+    subtotal: Joi.number().min(0).optional(),
+    tax: Joi.number().min(0).optional(),
+    shipping: Joi.number().min(0).optional(),
+    platformFee: Joi.number().min(0).optional(),
+    total: Joi.number().min(0).optional(),
 });
 
 export const createReturnRequestSchema = Joi.object({

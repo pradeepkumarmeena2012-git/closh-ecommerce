@@ -65,6 +65,7 @@ const buildIdempotencyKey = (payload, userId = null) => {
     couponCode: payload?.couponCode || "",
     orderType: payload?.orderType || "check_and_buy",
     dropoffLocation: payload?.dropoffLocation || null,
+    total: payload?.total || 0,
     timeWindow,
   });
 
@@ -125,7 +126,12 @@ export const useOrderStore = create(
             orderType: orderData.orderType || 'check_and_buy',
             dropoffLocation: orderData.dropoffLocation || null,
             deviceToken: orderData.deviceToken || undefined,
-            deliveryType: orderData.deliveryType || 'online'
+            deliveryType: orderData.deliveryType || 'online',
+            subtotal: orderData.subtotal,
+            tax: orderData.tax,
+            shipping: orderData.shipping,
+            platformFee: orderData.platformFee,
+            total: orderData.total
           };
           const idempotencyKey = buildIdempotencyKey(payload, orderData.userId);
 
