@@ -11,7 +11,7 @@ const OrderDetailsPage = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { fetchOrderById, getOrder, resendDeliveryOtp } = useOrderStore();
+    const { fetchOrderById, getOrder, resendDeliveryOtp, cancelOrder } = useOrderStore();
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [showReturnModal, setShowReturnModal] = useState(false);
@@ -22,6 +22,13 @@ const OrderDetailsPage = () => {
     const [selectedReturnItems, setSelectedReturnItems] = useState({});
     const [perItemReasons, setPerItemReasons] = useState({});
     const cooldownRef = useRef(null);
+
+    // Cancel Order states
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');
+    const [customCancelReason, setCustomCancelReason] = useState('');
+    const [isCancelling, setIsCancelling] = useState(false);
+    const [cancelStep, setCancelStep] = useState(1); // 1 = reason, 2 = confirm
 
 
 
@@ -35,6 +42,45 @@ const OrderDetailsPage = () => {
         "Quality not as expected",
         "Received wrong item"
     ];
+
+    const CANCEL_REASONS = [
+        'Changed my mind',
+        'Ordered by mistake',
+        'Found a better price elsewhere',
+        'Delivery taking too long',
+        'Wrong delivery address selected',
+        'Want to modify items in the order',
+        'Payment issue',
+        'Duplicate order placed',
+        'Product no longer needed',
+        'Other (Please specify)'
+    ];
+
+    const CANCELLABLE_STATUSES = ['pending', 'accepted', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'ready_for_delivery', 'searching'];
+    const canCancelOrder = order && CANCELLABLE_STATUSES.includes(order.status?.toLowerCase()) && order.status?.toLowerCase() !== 'cancelled';
+
+    const handleCancelOrder = async () => {
+        const reason = cancelReason === 'Other (Please specify)' ? customCancelReason.trim() : cancelReason;
+        if (!reason || reason.length < 5) {
+            toast.error('Please provide a valid cancellation reason');
+            return;
+        }
+        setIsCancelling(true);
+        try {
+            await cancelOrder(orderId, reason);
+            toast.success('Order cancelled successfully');
+            setShowCancelModal(false);
+            setCancelStep(1);
+            setCancelReason('');
+            setCustomCancelReason('');
+            navigate('/orders');
+        } catch (error) {
+            const msg = error?.response?.data?.message || error?.message || 'Failed to cancel order';
+            toast.error(msg);
+        } finally {
+            setIsCancelling(false);
+        }
+    };
 
     useEffect(() => {
         const loadOrder = async () => {
@@ -1372,6 +1418,20 @@ const OrderDetailsPage = () => {
 
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                        {canCancelOrder && (
+                            <button
+                                onClick={() => {
+                                    setCancelReason('');
+                                    setCustomCancelReason('');
+                                    setCancelStep(1);
+                                    setShowCancelModal(true);
+                                }}
+                                className="flex-1 py-3 bg-white text-red-600 border-2 border-red-200 rounded-xl font-bold text-[10px] uppercase hover:bg-red-50 hover:border-red-400 transition-all active:scale-95 flex items-center justify-center gap-2"
+                            >
+                                <X size={14} />
+                                Cancel Order
+                            </button>
+                        )}
                         <button
                             onClick={() => navigate(`/track-order/${orderId}`)}
                             className="flex-1 py-3 bg-black text-white rounded-xl font-bold text-[10px] uppercase hover:bg-gray-800 transition-all active:scale-95"
@@ -1566,6 +1626,138 @@ const OrderDetailsPage = () => {
                                     {isSubmitting ? 'Submitting...' : 'Submit Request'}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Order Modal */}
+            {showCancelModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 max-h-[90vh] flex flex-col">
+                        {/* Modal Header */}
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-red-100 text-red-600 rounded-xl">
+                                    <AlertTriangle size={18} />
+                                </div>
+                                <h3 className="text-lg font-bold uppercase">{cancelStep === 1 ? 'Cancel Order' : 'Confirm Cancellation'}</h3>
+                            </div>
+                            <button
+                                onClick={() => { setShowCancelModal(false); setCancelStep(1); }}
+                                className="p-2 hover:bg-gray-100 rounded-xl transition-all"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 overflow-y-auto flex-1">
+                            {cancelStep === 1 ? (
+                                <>
+                                    <p className="text-xs text-gray-500 font-medium mb-4">Please tell us why you want to cancel this order.</p>
+                                    <div className="space-y-2">
+                                        {CANCEL_REASONS.map((reason, idx) => (
+                                            <label
+                                                key={idx}
+                                                className={`flex items-center gap-3 p-3 rounded-2xl border-2 transition-all cursor-pointer ${cancelReason === reason ? 'border-red-400 bg-red-50' : 'border-gray-100 hover:border-gray-200'}`}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name="cancelReason"
+                                                    value={reason}
+                                                    checked={cancelReason === reason}
+                                                    onChange={(e) => setCancelReason(e.target.value)}
+                                                    className="w-4 h-4 accent-red-500"
+                                                />
+                                                <span className="text-xs font-bold text-gray-700">{reason}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+
+                                    {cancelReason === 'Other (Please specify)' && (
+                                        <div className="mt-4">
+                                            <textarea
+                                                value={customCancelReason}
+                                                onChange={(e) => setCustomCancelReason(e.target.value)}
+                                                placeholder="Please enter your reason (minimum 10 characters)..."
+                                                rows={3}
+                                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl text-xs font-medium focus:outline-none focus:border-red-400 transition-all resize-none"
+                                            />
+                                            <p className={`text-[9px] mt-1 font-bold ${customCancelReason.trim().length >= 10 ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                                {customCancelReason.trim().length}/10 characters minimum
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-4 flex gap-3">
+                                        <button
+                                            onClick={() => { setShowCancelModal(false); setCancelStep(1); }}
+                                            className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold text-[11px] uppercase hover:bg-gray-200 transition-all"
+                                        >
+                                            Go Back
+                                        </button>
+                                        <button
+                                            onClick={() => setCancelStep(2)}
+                                            disabled={!cancelReason || (cancelReason === 'Other (Please specify)' && customCancelReason.trim().length < 10)}
+                                            className={`flex-1 py-3 rounded-xl font-bold text-[11px] uppercase transition-all shadow-lg ${
+                                                (!cancelReason || (cancelReason === 'Other (Please specify)' && customCancelReason.trim().length < 10))
+                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                    : 'bg-red-600 text-white hover:bg-red-700 shadow-red-200'
+                                            }`}
+                                        >
+                                            Continue
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="text-center py-4">
+                                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <AlertTriangle size={28} className="text-red-500" />
+                                        </div>
+                                        <h4 className="text-base font-bold text-gray-900 mb-2">Are you sure you want to cancel this order?</h4>
+                                        <div className="bg-gray-50 rounded-2xl p-4 text-left space-y-2 mt-4">
+                                            <div className="flex justify-between text-xs">
+                                                <span className="font-bold text-gray-500">Order ID</span>
+                                                <span className="font-black text-gray-900">#{order?.orderId || order?.id}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs">
+                                                <span className="font-bold text-gray-500">Refund Amount</span>
+                                                <span className="font-black text-emerald-600">₹{order?.total}</span>
+                                            </div>
+                                            <div className="flex justify-between text-xs">
+                                                <span className="font-bold text-gray-500">Reason</span>
+                                                <span className="font-bold text-gray-700 text-right max-w-[200px] truncate">
+                                                    {cancelReason === 'Other (Please specify)' ? customCancelReason.trim() : cancelReason}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] text-red-500 font-bold mt-4 uppercase tracking-wider">This action cannot be undone.</p>
+                                    </div>
+
+                                    <div className="pt-4 flex gap-3">
+                                        <button
+                                            onClick={() => { setShowCancelModal(false); setCancelStep(1); }}
+                                            disabled={isCancelling}
+                                            className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold text-[11px] uppercase hover:bg-gray-200 transition-all"
+                                        >
+                                            Keep Order
+                                        </button>
+                                        <button
+                                            onClick={handleCancelOrder}
+                                            disabled={isCancelling}
+                                            className={`flex-1 py-3 rounded-xl font-bold text-[11px] uppercase transition-all shadow-lg ${
+                                                isCancelling
+                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                    : 'bg-red-600 text-white hover:bg-red-700 shadow-red-200'
+                                            }`}
+                                        >
+                                            {isCancelling ? 'Cancelling...' : 'Confirm Cancellation'}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

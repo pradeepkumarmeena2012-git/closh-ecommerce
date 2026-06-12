@@ -23,6 +23,7 @@ import Vendor from '../../../models/Vendor.model.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
 import { geocodeAddress, getDistanceMatrix } from '../../../services/googleMaps.service.js';
 import { applyActiveCampaigns } from '../../../utils/productUtils.js';
+import { refundPayment } from '../../../services/razorpay.service.js';
 import { validateCoupon } from '../../../services/coupon.service.js';
 import { autoAssignDeliveryBoy } from '../../../services/autoAssignment.service.js';
 import * as DeliveryOtpService from '../../../services/deliveryOtp.service.js';
@@ -704,11 +705,12 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
 // PATCH /api/user/orders/:id/cancel
 export const cancelOrder = asyncHandler(async (req, res) => {
     const session = await mongoose.startSession();
+    let cancelledOrder;
     try {
         await session.withTransaction(async () => {
             const order = await Order.findOne({ orderId: req.params.id, userId: req.user.id }).session(session);
             if (!order) throw new ApiError(404, 'Order not found.');
-            if (!['pending', 'processing'].includes(order.status)) throw new ApiError(400, 'Order cannot be cancelled at this stage.');
+            if (!['pending', 'accepted', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'ready_for_delivery', 'searching'].includes(order.status)) throw new ApiError(400, 'Order cannot be cancelled at this stage.');
 
             order.status = 'cancelled';
             order.cancelledAt = new Date();
@@ -767,14 +769,42 @@ export const cancelOrder = asyncHandler(async (req, res) => {
                 },
                 { session }
             );
+
+            // Process full refund if prepaid
+            if (order.paymentMethod !== 'cod' && order.paymentMethod !== 'cash' && order.razorpayPaymentId && order.paymentStatus !== 'refunded') {
+                try {
+                    const refund = await refundPayment({
+                        paymentId: order.razorpayPaymentId,
+                        amount: order.total || 0,
+                        notes: { orderId: String(order._id) }
+                    });
+                    if (process.env.NODE_ENV !== 'production' || !process.env.RAZORPAY_WEBHOOK_SECRET) {
+                        order.refundStatus = 'processed';
+                    } else {
+                        order.refundStatus = 'pending';
+                    }
+                    order.refundId = refund.id;
+                    order.refundAmount = order.total;
+                    order.paymentStatus = 'refunded';
+                    await order.save({ session });
+                } catch (refundError) {
+                    console.error('User Cancellation Refund Error:', refundError?.error || refundError?.message || refundError);
+                    order.refundStatus = 'failed';
+                    await order.save({ session });
+                }
+            }
+            
+            cancelledOrder = order;
         });
 
         // Unified Notification to all parties
-        await OrderNotificationService.notifyOrderUpdate(order._id, 'cancelled', {
-            excludeRecipientId: req.user.id,
-            title: `Order #${order.orderId} Cancelled`,
-            message: `Order ${order.orderId} has been cancelled by the customer.`
-        });
+        if (cancelledOrder) {
+            await OrderNotificationService.notifyOrderUpdate(cancelledOrder._id, 'cancelled', {
+                excludeRecipientId: req.user.id,
+                title: `Order #${cancelledOrder.orderId} Cancelled`,
+                message: `Order ${cancelledOrder.orderId} has been cancelled by the customer.`
+            });
+        }
     } finally {
         await session.endSession();
     }

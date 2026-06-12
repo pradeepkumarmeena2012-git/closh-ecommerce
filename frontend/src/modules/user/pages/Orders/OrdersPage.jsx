@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import AccountLayout from '../../components/Profile/AccountLayout';
-import { ShoppingBag, Package, Clock, ChevronRight, RefreshCw } from 'lucide-react';
+import { ShoppingBag, Package, Clock, ChevronRight, RefreshCw, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 import toast from 'react-hot-toast';
@@ -141,18 +141,30 @@ const OrdersPage = () => {
                                     )}
                                 </div>
 
-                                <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center gap-4">
-                                    <div className="flex items-center gap-2 text-[9px] font-bold text-emerald-600 uppercase tracking-widest flex-1 truncate">
+                                <div className="mt-6 pt-4 border-t border-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+                                    <div className="flex items-center gap-2 text-[9px] font-bold text-emerald-600 uppercase tracking-widest w-full sm:flex-1 truncate">
                                         <Package size={14} className="shrink-0" />
                                         <span className="truncate">Instant Delivery (60 Mins)</span>
                                     </div>
-                                    <div className="flex gap-2 relative z-10">
+                                    <div className="flex flex-wrap sm:flex-nowrap gap-2 relative z-10 w-full sm:w-auto">
+                                        {['pending', 'accepted', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'ready_for_delivery', 'searching'].includes(order.status?.toLowerCase()) && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/orders/${order.orderId || order.id}`);
+                                                }}
+                                                className="flex-1 sm:flex-none px-2 sm:px-5 py-2.5 bg-white border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-50 hover:border-red-400 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                                            >
+                                                <X size={12} strokeWidth={3} />
+                                                Cancel
+                                            </button>
+                                        )}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 navigate(`/support?orderId=${order.orderId || order.id}`);
                                             }}
-                                            className="px-6 py-2.5 bg-white border border-gray-200 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all active:scale-95"
+                                            className="flex-1 sm:flex-none px-3 sm:px-6 py-2.5 bg-white border border-gray-200 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all active:scale-95"
                                         >
                                             Help
                                         </button>
@@ -161,7 +173,7 @@ const OrdersPage = () => {
                                                 e.stopPropagation();
                                                 navigate(`/track-order/${order.orderId || order.id}`);
                                             }}
-                                            className="px-8 py-2.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-black/10"
+                                            className="flex-[1.5] sm:flex-none px-4 sm:px-8 py-2.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-black/10"
                                         >
                                             Track
                                         </button>
