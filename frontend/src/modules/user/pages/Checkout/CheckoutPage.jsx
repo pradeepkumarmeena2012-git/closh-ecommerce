@@ -85,7 +85,7 @@ const CheckoutPage = () => {
         initializePublic().catch(() => { });
     }, [fetchAddresses, initializePublic]);
 
-    const totalPrice = getCartTotal();
+    const totalPrice = Number(getCartTotal());
     const totalMRP = cart.reduce((acc, item) => acc + (Number(item.originalPrice || item.price) * item.quantity), 0);
     const bagDiscount = Math.max(0, totalMRP - totalPrice);
     
@@ -98,8 +98,8 @@ const CheckoutPage = () => {
     // Multi-vendor carts now support both Try & Buy and Check & Buy
 
     // Dynamic values from settings
-    const shippingThreshold = settings?.shipping?.freeShippingThreshold || 500;
-    const defaultShippingRate = settings?.shipping?.defaultShippingRate || 40;
+    const shippingThreshold = settings?.shipping?.freeShippingThreshold !== undefined ? Number(settings.shipping.freeShippingThreshold) : 500;
+    const defaultShippingRate = settings?.shipping?.defaultShippingRate !== undefined ? Number(settings.shipping.defaultShippingRate) : 40;
     const platformFee = settings?.orders?.platformFee !== undefined ? Number(settings.orders.platformFee) : 20;
 
     const shipping = totalPrice > shippingThreshold ? 0 : defaultShippingRate;
@@ -117,7 +117,7 @@ const CheckoutPage = () => {
         }
     }
 
-    const finalTotal = totalPrice + shipping + tax + platformFee - promoDiscount;
+    const finalTotal = Number(totalPrice) + Number(shipping) + Number(tax) + Number(platformFee) - Number(promoDiscount);
 
     // Auto-remove coupon if cart total falls below minimum order value
     useEffect(() => {
@@ -300,25 +300,27 @@ const CheckoutPage = () => {
                                 </div>
 
                                 {/* Details */}
-                                <div className="flex-1 py-1 pr-8">
-                                    <h4 className="text-[12px] font-bold uppercase  text-gray-400 mb-0.5">
-                                        {item.brand}
-                                    </h4>
-                                    <h3 className="text-sm font-bold text-gray-800 line-clamp-1 mb-3">
-                                        {item.name}
-                                    </h3>
+                                <div className="flex-1 py-1 flex flex-col min-w-0">
+                                    <div className="pr-14">
+                                        <h4 className="text-[12px] font-bold uppercase text-gray-400 mb-0.5 truncate">
+                                            {item.brand}
+                                        </h4>
+                                        <h3 className="text-sm font-bold text-gray-800 line-clamp-1 mb-2">
+                                            {item.name}
+                                        </h3>
+                                    </div>
 
                                     {/* Selection Controls */}
-                                    <div className="flex gap-2 mb-4">
+                                    <div className="flex flex-wrap items-center gap-2 mb-3">
                                         <div 
                                             onClick={() => setShowSizeModal(item)}
-                                            className="flex items-center gap-1.5 bg-[#F3F4F6] px-3 py-1.5 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+                                            className="flex items-center gap-1.5 bg-[#F3F4F6] px-2 sm:px-3 py-1.5 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer shrink-0"
                                         >
                                             <span className="text-[10px] font-bold uppercase text-gray-600">Size:</span>
                                             <span className="text-[10px] font-bold text-black">{item.selectedSize || item.variant?.size || 'XL'}</span>
                                             <ChevronDown size={14} className="text-gray-400" />
                                         </div>
-                                        <div className="flex items-center gap-2 bg-[#F3F4F6] px-2 py-1.5 rounded-xl">
+                                        <div className="flex items-center gap-2 bg-[#F3F4F6] px-2 py-1.5 rounded-xl shrink-0">
                                             <button
                                                 onClick={() => updateQuantity(item.id, item.quantity - 1, item.variant)}
                                                 className="w-5 h-5 flex items-center justify-center hover:bg-white hover:text-black rounded-md transition-colors"
@@ -336,12 +338,12 @@ const CheckoutPage = () => {
                                     </div>
 
                                     {/* Price */}
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-base font-bold text-black">₹{(Number(item.price) * item.quantity).toFixed(2)}</span>
+                                    <div className="flex flex-wrap items-baseline gap-1.5 sm:gap-2 mt-auto">
+                                        <span className="text-[15px] sm:text-base font-bold text-black">₹{(Number(item.price) * item.quantity).toFixed(2)}</span>
                                         {Number(item.originalPrice) > Number(item.price) && (
-                                            <span className="text-[11px] text-gray-400 line-through font-bold">₹{(Number(item.originalPrice) * item.quantity).toFixed(2)}</span>
+                                            <span className="text-[10px] sm:text-[11px] text-gray-400 line-through font-bold">₹{(Number(item.originalPrice) * item.quantity).toFixed(2)}</span>
                                         )}
-                                        <span className="text-[11px] font-bold text-[#F97316] uppercase er">
+                                        <span className="text-[10px] sm:text-[11px] font-bold text-[#F97316] uppercase tracking-tight">
                                             {item.discount || (item.originalPrice > item.price ? `${Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% Off` : '')}
                                         </span>
                                     </div>
