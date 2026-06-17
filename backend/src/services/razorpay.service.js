@@ -114,7 +114,7 @@ export const refundPayment = async ({ paymentId, amount, notes = {} }) => {
         const payload = {
             amount: Math.round(amount * 100), // convert to paise
             notes,
-            speed: 'normal', // Use normal speed so it uses Current Balance, not Reserve Balance
+            speed: 'optimum', // Use optimum speed for instant refunds
         };
 
         if (notes.receipt) {
