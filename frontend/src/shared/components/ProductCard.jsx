@@ -61,33 +61,34 @@ const ProductCard = ({ product }) => {
         </div>
 
         {/* INFO AREA - Compact */}
-        <div className="pt-2 pb-0.5 flex flex-col">
-          <Link to={productLink} className="flex flex-col gap-0.5">
-            <span className="text-[#1A1A1A] text-[10px] md:text-[14px] font-black uppercase tracking-tight line-clamp-1">
+        <div className="pt-2 pb-0.5 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between w-full gap-1">
+            <span className="text-[#1A1A1A] text-[10px] md:text-[14px] font-black uppercase tracking-tight truncate flex-1 min-w-0">
               {(product.brandName && product.brandName !== 'AAPZETO' && product.brandName !== 'Appzeto') ? product.brandName : ((product.brand && product.brand !== 'AAPZETO' && product.brand !== 'Appzeto') ? product.brand : 'CLOSH')}
             </span>
-            <h3 className="text-gray-500 text-[9px] md:text-[13px] font-medium line-clamp-1 leading-tight">
+            {product.originalPrice && product.originalPrice > product.price && (
+               <div className="bg-[#D8FFBD] text-[#388E3C] text-[9px] md:text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+                 {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
+               </div>
+            )}
+          </div>
+          <Link to={productLink} className="flex flex-col mt-0.5">
+            <h3 className="text-gray-500 text-[9px] md:text-[13px] font-medium truncate leading-tight">
               {product.name}
             </h3>
           </Link>
           
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-             <div className="flex items-center gap-1.5">
-                <span className="text-gray-900 text-[11px] md:text-[14px] font-bold">
+          <div className="mt-auto flex flex-nowrap items-center w-full pt-1">
+             <div className="flex items-center gap-1.5 shrink-0 min-w-0 overflow-hidden">
+                <span className="text-[12px] md:text-[14px] font-black text-gray-900 whitespace-nowrap tracking-tight">
                    {formatPrice(product.price)}
                 </span>
                 {product.originalPrice && product.originalPrice > product.price && (
-                  <span className="text-gray-400 text-[10px] md:text-[13px] line-through font-medium">
+                  <span className="text-[10px] md:text-[12px] text-gray-400 line-through font-semibold whitespace-nowrap truncate">
                     {formatPrice(product.originalPrice)}
                   </span>
                 )}
              </div>
-             
-             {product.originalPrice && product.originalPrice > product.price && (
-                <div className="bg-[#D8FFBD] text-[#388E3C] text-[8px] md:text-[11px] font-bold px-1.5 md:px-2 py-0.5 rounded-sm">
-                  {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
-                </div>
-             )}
           </div>
         </div>
       </motion.div>

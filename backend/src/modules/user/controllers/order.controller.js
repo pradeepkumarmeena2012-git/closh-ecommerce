@@ -772,26 +772,27 @@ export const cancelOrder = asyncHandler(async (req, res) => {
 
             // Process full refund if prepaid
             if (order.paymentMethod !== 'cod' && order.paymentMethod !== 'cash' && order.razorpayPaymentId && order.paymentStatus !== 'refunded') {
+                let refundSuccess = false;
+                let refundObj = null;
                 try {
-                    const refund = await refundPayment({
+                    refundObj = await refundPayment({
                         paymentId: order.razorpayPaymentId,
                         amount: order.total || 0,
                         notes: { orderId: String(order._id) }
                     });
-                    if (process.env.NODE_ENV !== 'production' || !process.env.RAZORPAY_WEBHOOK_SECRET) {
-                        order.refundStatus = 'processed';
-                    } else {
-                        order.refundStatus = 'pending';
-                    }
-                    order.refundId = refund.id;
-                    order.refundAmount = order.total;
-                    order.paymentStatus = 'refunded';
-                    await order.save({ session });
+                    refundSuccess = true;
                 } catch (refundError) {
                     console.error('User Cancellation Refund Error:', refundError?.error || refundError?.message || refundError);
                     order.refundStatus = 'failed';
-                    await order.save({ session });
                 }
+
+                if (refundSuccess && refundObj) {
+                    order.refundStatus = refundObj.status === 'processed' ? 'processed' : 'pending';
+                    order.refundId = refundObj.id;
+                    order.refundAmount = order.total;
+                    order.paymentStatus = 'refunded';
+                }
+                await order.save({ session });
             }
             
             cancelledOrder = order;

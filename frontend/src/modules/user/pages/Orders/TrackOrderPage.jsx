@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { ArrowLeft, CheckCircle, Package, Truck, MapPin, Clock, Shield, Phone, ChevronUp, ChevronDown, Store, Navigation, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Package, Truck, MapPin, Clock, Shield, Phone, ChevronUp, ChevronDown, Store, Navigation, RefreshCw, ChevronRight } from 'lucide-react';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 import socketService from '../../../../shared/utils/socket';
 import TrackingMap from '../../../../shared/components/TrackingMap';
+
+// Statuses that mean a rider has been assigned (show live tracking map)
+const ASSIGNED_STATUSES = ['assigned', 'picked_up', 'shipped', 'out_for_delivery', 'delivered', 'try_active', 'returning_unselected_items', 'returned_to_vendor', 'try_buy_completed'];
 
 const TrackOrderPage = () => {
     const { orderId } = useParams();
@@ -115,6 +118,9 @@ const TrackOrderPage = () => {
     const address = order.shippingAddress;
 
     const isCancelled = status === 'cancelled' || status === 'canceled';
+    
+    // Determine if rider has been assigned — this controls which view to show
+    const isRiderAssigned = ASSIGNED_STATUSES.includes(status);
 
     const getStepState = (stepIndex) => {
         if (isCancelled) return 'pending';
@@ -242,7 +248,266 @@ const TrackOrderPage = () => {
     const isActiveDelivery = ['picked_up', 'out_for_delivery', 'assigned'].includes(status);
     const showOtp = (riderArrived || status === 'out_for_delivery' || status === 'picked_up') && order.deliveryOtpDebug;
 
+    // ─────────── Helper: get dispatching status label & progress for pre-assignment view ───────────
+    const getDispatchingInfo = () => {
+        const vendorStatuses = (order.vendorItems || []).map(vi => String(vi.status || 'pending').toLowerCase());
+        const isConfirmed = vendorStatuses.length > 0 && vendorStatuses.some(s => ['accepted', 'processing', 'ready_for_pickup'].includes(s));
+        const isReadyForPickup = vendorStatuses.length > 0 && vendorStatuses.every(s => ['ready_for_pickup'].includes(s));
+        
+        if (status === 'searching' || status === 'all_vendors_ready' || status === 'ready_for_delivery') {
+            return { label: 'RIDER DISPATCHING', progress: 3 };
+        }
+        if (isReadyForPickup) {
+            return { label: 'READY FOR PICKUP', progress: 2 };
+        }
+        if (status === 'processing' || isConfirmed) {
+            return { label: 'PREPARING ORDER', progress: 1 };
+        }
+        if (status === 'accepted') {
+            return { label: 'ORDER ACCEPTED', progress: 1 };
+        }
+        if (isCancelled) {
+            return { label: 'ORDER CANCELLED', progress: 0 };
+        }
+        return { label: 'ORDER PLACED', progress: 0 };
+    };
 
+    const dispatchInfo = getDispatchingInfo();
+
+    // ═══════════════════════════════════════════════════════
+    // PRE-ASSIGNMENT VIEW: "Finding your delivery partner..."
+    // ═══════════════════════════════════════════════════════
+    if (!isRiderAssigned) {
+        return (
+            <div className="min-h-screen bg-[#F5F7FA] font-sans flex flex-col select-none">
+                {/* Top Header */}
+                <div className="flex items-center gap-3 px-5 pt-5 pb-3">
+                    <button 
+                        onClick={() => navigate(-1)} 
+                        className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center text-slate-600 active:scale-95 transition-transform shadow-sm border border-slate-100"
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
+                    <div className="flex-1">
+                        <h1 className="text-[17px] font-black text-slate-900 leading-tight">Finding your delivery partner...</h1>
+                    </div>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto scrollbar-hide px-5 pb-28">
+                    {/* 3D Delivery Rider Image */}
+                    <motion.div 
+                        className="flex justify-center py-6"
+                        initial={{ opacity: 0, y: 30, scale: 0.8 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.7, ease: "easeOut" }}
+                    >
+                        <div className="relative" style={{ perspective: '800px' }}>
+                            {/* Soft shadow underneath */}
+                            <motion.div
+                                className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-40 h-6 rounded-[50%] bg-slate-900/10 blur-xl"
+                                animate={{ 
+                                    scaleX: [1, 1.1, 1, 0.95, 1],
+                                    opacity: [0.3, 0.2, 0.3, 0.35, 0.3]
+                                }}
+                                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                            />
+                            
+                            {/* 3D Floating Image */}
+                            <motion.div
+                                animate={{ 
+                                    y: [0, -12, 0, -6, 0],
+                                    rotateY: [0, 3, 0, -3, 0],
+                                    rotateX: [0, -2, 0, 2, 0],
+                                    rotateZ: [0, 1, 0, -1, 0],
+                                }}
+                                transition={{ 
+                                    duration: 4, 
+                                    repeat: Infinity, 
+                                    ease: "easeInOut" 
+                                }}
+                                style={{ transformStyle: 'preserve-3d' }}
+                                className="relative"
+                            >
+                                <img 
+                                    src="/download-removebg-preview.png" 
+                                    alt="Delivery Partner" 
+                                    className="w-52 h-44 md:w-60 md:h-52 object-contain drop-shadow-2xl"
+                                    style={{ 
+                                        filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.15))',
+                                    }}
+                                />
+                                
+                                {/* Subtle glow ring behind */}
+                                <motion.div
+                                    className="absolute inset-0 -z-10 rounded-full"
+                                    style={{
+                                        background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)',
+                                        transform: 'scale(1.3) translateZ(-20px)',
+                                    }}
+                                    animate={{ 
+                                        scale: [1.3, 1.4, 1.3],
+                                        opacity: [0.6, 1, 0.6]
+                                    }}
+                                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                />
+                            </motion.div>
+                        </div>
+                    </motion.div>
+
+                    {/* Status Badge */}
+                    <motion.div 
+                        className="flex justify-center mb-4"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2 }}
+                    >
+                        <div className="inline-flex items-center gap-2 bg-white px-5 py-2.5 rounded-full shadow-sm border border-slate-100">
+                            <motion.div 
+                                className="w-2.5 h-2.5 rounded-full bg-emerald-500"
+                                animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                            />
+                            <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest">{dispatchInfo.label}</span>
+                        </div>
+                    </motion.div>
+
+                    {/* Main Heading */}
+                    <motion.div 
+                        className="text-center mb-6"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                    >
+                        <h2 className="text-[22px] font-black text-slate-900 leading-tight mb-2">
+                            {isCancelled ? 'Order Cancelled' : 
+                             dispatchInfo.progress >= 3 ? 'Finding your delivery partner...' :
+                             dispatchInfo.progress >= 2 ? 'Order is ready!' :
+                             dispatchInfo.progress >= 1 ? 'Preparing your order...' :
+                             'Processing your order...'}
+                        </h2>
+                        <p className="text-[13px] text-slate-500 font-medium leading-relaxed px-4">
+                            {isCancelled ? 'This order has been cancelled.' :
+                             dispatchInfo.progress >= 3 ? "We're matching your order with the nearest delivery partner. High fashion is worth the wait." :
+                             dispatchInfo.progress >= 2 ? "Your items are ready and waiting for a delivery partner to pick them up." :
+                             dispatchInfo.progress >= 1 ? "The store is carefully preparing your items for dispatch." :
+                             "Your order has been placed and is being reviewed."}
+                        </p>
+                    </motion.div>
+
+                    {/* Order Info Cards */}
+                    <motion.div 
+                        className="flex gap-3 mb-6"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                    >
+                        <div className="flex-1 bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Order ID</p>
+                            <p className="text-[15px] font-black text-slate-900">#{(order.orderId || orderId).slice(-10)}</p>
+                        </div>
+                        <div className="flex-1 bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Est. Delivery</p>
+                            <p className="text-[15px] font-black text-slate-900">
+                                {order.estimatedDelivery 
+                                    ? new Date(order.estimatedDelivery).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                    : '15-20 Mins'
+                                }
+                            </p>
+                        </div>
+                    </motion.div>
+
+                    {/* Order Status Card */}
+                    <motion.div 
+                        className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm mb-6"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Order Status</p>
+                            <ChevronRight size={16} className="text-slate-300" />
+                        </div>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                                <Package size={22} />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-[14px] font-black text-slate-900 leading-tight">
+                                    {isCancelled ? 'Order Cancelled' :
+                                     dispatchInfo.progress >= 3 ? 'Searching for Rider' :
+                                     dispatchInfo.progress >= 2 ? 'Ready for Pickup' :
+                                     dispatchInfo.progress >= 1 ? 'Preparing Luxury Parcel' :
+                                     'Order Received'}
+                                </h3>
+                            </div>
+                        </div>
+
+                        {/* Progress Steps */}
+                        {!isCancelled && (
+                            <div className="flex items-center gap-0">
+                                {['Accepted', 'In Transit', 'Delivered'].map((label, idx) => {
+                                    const isCompleted = dispatchInfo.progress > idx;
+                                    const isActive = dispatchInfo.progress === idx;
+                                    return (
+                                        <div key={label} className="flex-1 text-center">
+                                            <div className={`h-[3px] rounded-full mb-2 mx-0.5 transition-all duration-500 ${
+                                                isCompleted ? 'bg-indigo-600' : 
+                                                isActive ? 'bg-indigo-300' : 
+                                                'bg-slate-100'
+                                            }`} />
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                                                isCompleted ? 'text-indigo-600' : 
+                                                isActive ? 'text-indigo-400' : 
+                                                'text-slate-300'
+                                            }`}>
+                                                {label}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </motion.div>
+
+                    {/* Items Preview */}
+                    {order.items && order.items.length > 0 && (
+                        <motion.div 
+                            className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm mb-6"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.6 }}
+                        >
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                {order.items.length} item{order.items.length > 1 ? 's' : ''} in order
+                            </p>
+                            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                                {order.items.slice(0, 4).map((item, idx) => (
+                                    <div key={idx} className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden shrink-0">
+                                        <img src={item.image} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                ))}
+                                {order.items.length > 4 && (
+                                    <div className="w-14 h-14 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                                        <span className="text-[11px] font-black text-slate-500">+{order.items.length - 4}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </div>
+
+                <style dangerouslySetInnerHTML={{ __html: `
+                    .scrollbar-hide::-webkit-scrollbar { display: none; }
+                    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+                `}} />
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // POST-ASSIGNMENT VIEW: Live Tracking Map
+    // ═══════════════════════════════════════════════════════
     return (
         <div className="h-screen w-full bg-[#F8FAFC] flex flex-col relative overflow-hidden font-sans select-none">
             

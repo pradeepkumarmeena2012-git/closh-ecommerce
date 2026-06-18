@@ -54,32 +54,33 @@ const ProductCard = ({ product }) => {
                     </div>
 
                     {/* Content Area - Matching Image 2 Minimalist Style */}
-                    <div className="pt-2.5 pb-1.5 flex flex-col flex-1 items-start text-left">
-                        <h3 className="text-[11px] md:text-[13px] font-black text-gray-900 uppercase tracking-tight mb-0.5 truncate w-full">
-                            {(product.brand && product.brand !== 'AAPZETO' && product.brand !== 'Appzeto') ? product.brand : ((product.brandName && product.brandName !== 'AAPZETO' && product.brandName !== 'Appzeto') ? product.brandName : 'CLOSH')}
-                        </h3>
+                    <div className="pt-2.5 pb-1.5 flex flex-col flex-1 items-start text-left overflow-hidden">
+                        <div className="flex items-center justify-between w-full mb-0.5 gap-1">
+                            <h3 className="text-[11px] md:text-[13px] font-black text-gray-900 uppercase tracking-tight truncate flex-1 min-w-0">
+                                {(product.brand && product.brand !== 'AAPZETO' && product.brand !== 'Appzeto') ? product.brand : ((product.brandName && product.brandName !== 'AAPZETO' && product.brandName !== 'Appzeto') ? product.brandName : 'CLOSH')}
+                            </h3>
+                            {product.originalPrice && product.originalPrice > (product.discountedPrice || product.price) && (
+                                <div className="bg-[#D8FFBD] text-[#388E3C] text-[9px] md:text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+                                    {Math.round(((product.originalPrice - (product.discountedPrice || product.price)) / product.originalPrice) * 100)}% OFF
+                                </div>
+                            )}
+                        </div>
 
-                        <p className="text-[10px] md:text-[12px] font-medium text-gray-500 line-clamp-1 mb-1 w-full">
+                        <p className="text-[10px] md:text-[12px] font-medium text-gray-500 truncate mb-1 w-full">
                             {product.name}
                         </p>
 
-                        <div className="mt-auto flex flex-wrap items-center gap-1.5 md:gap-2 w-full">
-                            <div className="flex items-center gap-1">
-                                <span className="text-[11px] md:text-[13px] font-bold text-gray-900">
+                        <div className="mt-auto flex flex-nowrap items-center w-full pt-1">
+                            <div className="flex items-center gap-1.5 shrink-0 min-w-0 overflow-hidden">
+                                <span className="text-[12px] md:text-[14px] font-black text-gray-900 whitespace-nowrap tracking-tight">
                                     ₹{product.discountedPrice || product.price}
                                 </span>
                                 {product.originalPrice && product.originalPrice > (product.discountedPrice || product.price) && (
-                                    <span className="text-[9px] md:text-[11px] text-gray-400 line-through font-medium">
+                                    <span className="text-[10px] md:text-[12px] text-gray-400 line-through font-semibold whitespace-nowrap truncate">
                                         ₹{product.originalPrice}
                                     </span>
                                 )}
                             </div>
-                            
-                            {product.originalPrice && product.originalPrice > (product.discountedPrice || product.price) && (
-                                <div className="bg-[#D8FFBD] text-[#388E3C] text-[9px] md:text-[11px] font-bold px-1 py-0.5 rounded-sm">
-                                    {Math.round(((product.originalPrice - (product.discountedPrice || product.price)) / product.originalPrice) * 100)}% OFF
-                                </div>
-                            )}
                         </div>
                     </div>
                 </Link>
