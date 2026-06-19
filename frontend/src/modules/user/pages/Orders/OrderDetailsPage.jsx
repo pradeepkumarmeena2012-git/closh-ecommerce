@@ -6,6 +6,7 @@ import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Pri
 import { useAuth } from '../../context/AuthContext';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 import socketService from '../../../../shared/utils/socket';
+import DeliveryRatingCard from '../../components/Profile/DeliveryRatingCard';
 
 const OrderDetailsPage = () => {
     const { orderId } = useParams();
@@ -1477,6 +1478,16 @@ const OrderDetailsPage = () => {
                         )}
                     </div>
                 </div>
+
+                {/* Delivery Rating Card */}
+                {order.status?.toLowerCase() === 'delivered' && (order.deliveryBoyId || order.assignedDeliveryBoy) && (
+                    <DeliveryRatingCard 
+                        orderId={order._id || orderId} 
+                        deliveryBoyId={typeof order.deliveryBoyId === 'object' ? (order.deliveryBoyId?._id || order.deliveryBoyId?.id) : (order.deliveryBoyId || (typeof order.assignedDeliveryBoy === 'object' ? (order.assignedDeliveryBoy?._id || order.assignedDeliveryBoy?.id) : order.assignedDeliveryBoy))}
+                        deliveryBoyName={order.deliveryBoyId?.name || order.assignedDeliveryBoy?.name || 'Your Rider'}
+                        deliveryBoyAvatar={order.deliveryBoyId?.avatar || order.assignedDeliveryBoy?.avatar}
+                    />
+                )}
             </div>
 
 

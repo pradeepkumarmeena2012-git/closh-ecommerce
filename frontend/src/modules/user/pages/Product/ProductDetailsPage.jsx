@@ -30,6 +30,7 @@ import { useUserLocation } from '../../context/LocationContext';
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/Modals/LoginModal';
 import { getVariantSignature } from '../../../../shared/utils/variant';
+import ProductReviews from '../../components/Product/ProductReviews';
 
 const ProductDetailsPage = () => {
     const { id } = useParams();
@@ -799,6 +800,13 @@ const ProductDetailsPage = () => {
                         </div>
                     </div>
                 </div>
+                
+                {/* Product Reviews Section */}
+                <ProductReviews 
+                    productId={id} 
+                    initialRating={product.rating} 
+                    initialReviewCount={product.reviewCount} 
+                />
             </div>
             {/* Removed sticky bottom actions */}
             {/* Size Chart Modal */}

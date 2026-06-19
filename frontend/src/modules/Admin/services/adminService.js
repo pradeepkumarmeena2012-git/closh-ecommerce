@@ -276,6 +276,12 @@ export const updateReviewStatus = (id, status) =>
 export const deleteReview = (id) =>
     api.delete(`/admin/reviews/${id}`);
 
+export const getDeliveryReviews = (params = {}) =>
+    api.get('/admin/delivery-reviews', { params });
+
+export const getReviewAnalytics = () =>
+    api.get('/admin/reviews/analytics');
+
 // ——— Support Tickets —————————————————————————————————————————————————————————————
 export const getAllTickets = (params = {}) =>
     api.get('/admin/support/tickets', { params });

@@ -30,29 +30,45 @@ const ReviewForm = ({ productId, onSubmit }) => {
     setImages(images.filter((_, i) => i !== index));
   };
 
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const onFormSubmit = async (data) => {
     if (rating === 0) {
       toast.error('Please select a rating');
       return;
     }
 
-    const reviewData = {
-      ...data,
-      rating,
-      images,
-      productId,
-      date: new Date().toISOString(),
-    };
+    try {
+      const base64Images = await Promise.all(images.map((img) => fileToBase64(img)));
+      
+      const reviewData = {
+        ...data,
+        rating,
+        images: base64Images,
+        productId,
+        date: new Date().toISOString(),
+      };
 
-    if (onSubmit) {
-      const result = await onSubmit(reviewData);
-      if (result === false) {
-        return;
+      if (onSubmit) {
+        const result = await onSubmit(reviewData);
+        if (result === false) {
+          return;
+        }
+        reset();
+        setRating(0);
+        setImages([]);
+        toast.success('Review submitted successfully!');
       }
-      reset();
-      setRating(0);
-      setImages([]);
-      toast.success('Review submitted successfully!');
+    } catch (error) {
+      toast.error('Failed to process images');
+      console.error(error);
     }
   };
 
@@ -60,7 +76,7 @@ const ReviewForm = ({ productId, onSubmit }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-card rounded-2xl p-6 mb-8"
+      className="bg-gray-50 border border-gray-100 rounded-2xl p-4 sm:p-6 mb-8"
     >
       <h3 className="text-xl font-bold text-gray-800 mb-6">Write a Review</h3>
 
@@ -70,27 +86,29 @@ const ReviewForm = ({ productId, onSubmit }) => {
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Rating <span className="text-red-500">*</span>
           </label>
-          <div className="flex items-center gap-2">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                onClick={() => setRating(star)}
-                onMouseEnter={() => setHoveredRating(star)}
-                onMouseLeave={() => setHoveredRating(0)}
-                className="focus:outline-none"
-              >
-                <FiStar
-                  className={`text-3xl transition-colors ${
-                    star <= (hoveredRating || rating)
-                      ? 'text-yellow-400 fill-yellow-400'
-                      : 'text-gray-300'
-                  }`}
-                />
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  onMouseEnter={() => setHoveredRating(star)}
+                  onMouseLeave={() => setHoveredRating(0)}
+                  className="focus:outline-none touch-manipulation"
+                >
+                  <FiStar
+                    className={`text-3xl transition-colors ${
+                      star <= (hoveredRating || rating)
+                        ? 'text-yellow-400 fill-yellow-400'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
             {rating > 0 && (
-              <span className="ml-2 text-sm text-gray-600">({rating} out of 5)</span>
+              <span className="text-sm text-gray-600">({rating} out of 5)</span>
             )}
           </div>
         </div>

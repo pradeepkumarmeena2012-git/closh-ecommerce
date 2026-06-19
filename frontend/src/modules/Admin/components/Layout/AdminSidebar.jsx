@@ -44,6 +44,7 @@ const iconMap = {
   Notifications: FiBell,
   "Customer Support": FiMessageCircle,
   "Vendor Support": FiMessageCircle,
+  Reviews: FiMessageCircle,
   Reports: FiFileText,
   "Analytics & Finance": FiBarChart2,
   Settings: FiSettings,

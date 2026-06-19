@@ -32,6 +32,7 @@ import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { useDeliveryTracking } from '../../../shared/hooks/useDeliveryTracking';
 import socketService from '../../../shared/utils/socket';
+import CustomerRatingCard from '../components/CustomerRatingCard';
 
 const DeliveryOrderDetail = () => {
   const { id } = useParams();
@@ -601,7 +602,17 @@ const DeliveryOrderDetail = () => {
         </motion.div>
         <h1 className="text-xl font-bold text-slate-800">Job Complete</h1>
         <p className="text-slate-500 text-[10px] mt-2 mb-8 max-w-[240px] leading-relaxed uppercase tracking-widest font-bold">Delivery recorded successfully. <br /> Records have been updated.</p>
-        <button onClick={() => navigate('/delivery/dashboard')} className="w-full max-w-[200px] h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest">Back to Home</button>
+        
+        {/* Customer Rating Card - Only for successful deliveries, not returns */}
+        {order.type !== 'return' && (
+            <CustomerRatingCard 
+                orderId={order._id || id} 
+                customerId={typeof order.userId === 'object' ? (order.userId?._id || order.userId?.id) : (order.userId || order.customerData?.id || order.customerData?._id)}
+                customerName={typeof order.userId === 'object' ? (order.userId?.name) : (order.customer || order.shippingAddress?.name)}
+            />
+        )}
+        
+        <button onClick={() => navigate('/delivery/dashboard')} className="w-full max-w-[200px] h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest mt-4">Back to Home</button>
       </div>
     );
   }
