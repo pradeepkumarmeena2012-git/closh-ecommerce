@@ -6,6 +6,7 @@ import * as notificationController from '../controllers/notification.controller.
 import * as withdrawalController from '../controllers/withdrawal.controller.js';
 import * as settlementController from '../controllers/settlement.controller.js';
 import * as mvController from '../controllers/multiVendorPickup.controller.js';
+import * as reviewController from '../controllers/review.controller.js';
 import { authenticate } from '../../../middlewares/authenticate.js';
 import { authorize, enforceAccountStatus } from '../../../middlewares/authorize.js';
 import { authLimiter } from '../../../middlewares/rateLimiter.js';
@@ -100,6 +101,10 @@ router.post('/multi-vendor/:orderId/start-delivery', ...deliveryAuth, mvControll
 router.post('/multi-vendor/:orderId/arrive-customer', ...deliveryAuth, mvController.arriveAtCustomer);
 router.post('/multi-vendor/:orderId/complete', ...deliveryAuth, mvController.completeMultiVendorDelivery);
 router.post('/uploads/image', ...deliveryAuth, uploadSingle('image'), mvController.uploadProofImage);
+
+// Reviews
+router.post('/reviews/customer', ...deliveryAuth, reviewController.submitCustomerRating);
+router.get('/reviews/order/:orderId', ...deliveryAuth, reviewController.getMyReviewForOrder);
 
 // Returns
 router.get('/returns/available', ...deliveryAuth, orderController.getAvailableReturns);

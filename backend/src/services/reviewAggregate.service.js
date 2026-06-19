@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import Review from '../models/Review.model.js';
 import Product from '../models/Product.model.js';
 import Vendor from '../models/Vendor.model.js';
+import DeliveryReview from '../models/DeliveryReview.model.js';
+import DeliveryBoy from '../models/DeliveryBoy.model.js';
 
 const toObjectId = (value) => {
     if (!value) return null;
@@ -85,6 +87,40 @@ export const syncProductAndVendorReviewStats = async (productId) => {
             $set: {
                 reviewCount: Number(vendorStats?.reviewCount || 0),
                 rating: round2(vendorStats?.averageRating || 0),
+            },
+        }
+    );
+};
+
+/**
+ * Recalculate and sync a delivery boy's average rating from DeliveryReview entries.
+ */
+export const syncDeliveryBoyRating = async (deliveryBoyId) => {
+    const resolvedId = toObjectId(deliveryBoyId);
+    if (!resolvedId) return;
+
+    const [stats] = await DeliveryReview.aggregate([
+        {
+            $match: {
+                targetType: 'delivery_boy',
+                targetId: resolvedId,
+                isApproved: true,
+            },
+        },
+        {
+            $group: {
+                _id: null,
+                averageRating: { $avg: '$rating' },
+                totalReviews: { $sum: 1 },
+            },
+        },
+    ]);
+
+    await DeliveryBoy.updateOne(
+        { _id: resolvedId },
+        {
+            $set: {
+                rating: round2(stats?.averageRating || 0),
             },
         }
     );

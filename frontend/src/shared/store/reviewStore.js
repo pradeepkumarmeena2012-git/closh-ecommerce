@@ -12,6 +12,31 @@ export const useReviewStore = create((set, get) => ({
         limit: 10,
         pages: 1
     },
+    analytics: null,
+
+    fetchReviewAnalytics: async () => {
+        try {
+            const response = await adminService.getReviewAnalytics();
+            set({ analytics: response.data || response });
+        } catch (error) {
+            console.error('Failed to fetch review analytics', error);
+        }
+    },
+
+    fetchDeliveryReviews: async (params = {}) => {
+        set({ isLoading: true });
+        try {
+            const response = await adminService.getDeliveryReviews(params);
+            set({
+                reviews: response.data?.reviews || [],
+                pagination: response.data?.pagination || { total: 0, page: 1, limit: 10, pages: 1 },
+                isLoading: false
+            });
+        } catch (error) {
+            set({ error: error.message, isLoading: false });
+            toast.error(error.message || 'Failed to fetch delivery reviews');
+        }
+    },
 
     fetchReviews: async (params = {}) => {
         set({ isLoading: true });

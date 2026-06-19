@@ -39,6 +39,12 @@
     ]
   },
   {
+    "title": "Reviews",
+    "route": "/admin/reviews",
+    "permission": "products_manage",
+    "children": []
+  },
+  {
     "title": "Categories",
     "route": "/admin/categories",
     "permission": "categories_manage",

@@ -208,8 +208,10 @@ router.delete('/support/ticket-types/:id', ...adminAuth, checkPermission('suppor
 
 // ─── Product Reviews ──────────────────────────────────────────────────────────
 router.get('/reviews', ...adminAuth, checkPermission('products_manage'), reviewController.getAllReviews);
+router.get('/reviews/analytics', ...adminAuth, checkPermission('products_manage'), reviewController.getReviewAnalytics);
 router.patch('/reviews/:id/status', ...adminAuth, checkPermission('products_manage'), reviewController.updateReviewStatus);
 router.delete('/reviews/:id', ...adminAuth, checkPermission('products_manage'), reviewController.deleteReview);
+router.get('/delivery-reviews', ...adminAuth, checkPermission('products_manage'), reviewController.getDeliveryReviews);
 router.post('/uploads/image', ...adminAuth, uploadSingle('image'), uploadController.uploadImage);
 
 // ─── Attribute Management ─────────────────────────────────────────────────────

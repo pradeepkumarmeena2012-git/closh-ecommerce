@@ -633,6 +633,20 @@ export const useDeliveryAuthStore = create(
         } catch (e) { throw e; }
       },
 
+      // --- REVIEW ACTIONS ---
+      submitCustomerRating: async (orderId, userId, rating, comment) => {
+        try {
+          const res = await api.post('/delivery/reviews/customer', { orderId, userId, rating, comment });
+          return res.data || res;
+        } catch (e) { throw e; }
+      },
+      getMyReviewForOrder: async (orderId) => {
+        try {
+          const res = await api.get(`/delivery/reviews/order/${orderId}`);
+          return res.data || res;
+        } catch { return { review: null }; }
+      },
+
       initialize: () => {
         const token = localStorage.getItem('delivery-token');
         if (token) {

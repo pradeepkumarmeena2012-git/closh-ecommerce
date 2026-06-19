@@ -234,6 +234,31 @@ export const useReviewsStore = create(
 
         return sorted;
       },
+
+      // Submit delivery review (user rates delivery boy)
+      submitDeliveryReview: async (orderId, deliveryBoyId, rating, comment) => {
+        try {
+          const response = await api.post('/user/reviews/delivery', {
+            orderId,
+            deliveryBoyId,
+            rating,
+            comment,
+          });
+          return response?.data || response;
+        } catch (error) {
+          throw error;
+        }
+      },
+
+      // Get existing reviews for an order (product + delivery)
+      getMyOrderReviews: async (orderId) => {
+        try {
+          const response = await api.get(`/user/reviews/order/${orderId}`);
+          return response?.data || response;
+        } catch {
+          return { productReviews: [], deliveryReview: null };
+        }
+      },
     }),
     {
       name: 'reviews-storage',
