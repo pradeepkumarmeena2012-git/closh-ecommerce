@@ -4,7 +4,7 @@ import { useReviewsStore } from '../../../../shared/store/reviewsStore';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useOrderStore } from '../../../../shared/store/orderStore';
-import ReviewForm from '../../../../shared/components/Product/ReviewForm'; // kept for potential future use
+import ReviewForm from '../../../../shared/components/Product/ReviewForm';
 
 const isMongoId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ""));
 
@@ -137,7 +137,22 @@ const ProductReviews = ({ productId, initialRating, initialReviewCount }) => {
                     </div>
                 </div>
 
+                {/* Reviews List */}
                 <div className="flex-1">
+                    {isAuthenticated && isMongoId(productId) && (
+                        <div className="mb-8">
+                            {eligibleDeliveredOrderId ? (
+                                <ReviewForm
+                                    productId={productId}
+                                    onSubmit={handleSubmitReview}
+                                />
+                            ) : (
+                                <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-medium text-gray-500 text-center">
+                                    Reviews are only available after this product has been delivered to you.
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
                         <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">
