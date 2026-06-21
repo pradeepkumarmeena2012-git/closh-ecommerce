@@ -88,6 +88,13 @@ const DeliveryOrderDetail = () => {
   const openBoxInputRef = useRef(null);
   const openBoxGalleryRef = useRef(null);
 
+  // Webcam state for desktop camera capture
+  const [showWebcam, setShowWebcam] = useState(false);
+  const [webcamTarget, setWebcamTarget] = useState(null);
+  const webcamVideoRef = useRef(null);
+  const webcamStreamRef = useRef(null);
+  const webcamCanvasRef = useRef(null);
+
   const isReturn = order?.type === 'return';
   const isCod = order?.paymentMethod === 'cod' || order?.paymentMethod === 'cash';
   // Derived type flags from orderType string
@@ -554,22 +561,84 @@ const DeliveryOrderDetail = () => {
     }
   };
 
-  const openCamera = async (target) => {
-    // If we're already checking permission, don't trigger again
-    if (isUpdatingOrderStatus) return;
+  // Detect mobile device (where capture="environment" works natively)
+  const isMobileDevice = () => {
+    return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      || ('ontouchstart' in window && navigator.maxTouchPoints > 1);
+  };
 
+  // Stop any active webcam stream
+  const stopWebcamStream = useCallback(() => {
+    if (webcamStreamRef.current) {
+      webcamStreamRef.current.getTracks().forEach(track => track.stop());
+      webcamStreamRef.current = null;
+    }
+  }, []);
+
+  // Start webcam stream for desktop capture
+  const startWebcam = async () => {
     try {
-      // Explicitly request permission first to ensure mobile wrappers trigger native prompt
-      // We do this BEFORE clicking the input to ensure the native prompt is handled
-      const hasPermission = await requestCameraPermission();
-      if (!hasPermission) return;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      webcamStreamRef.current = stream;
+      if (webcamVideoRef.current) {
+        webcamVideoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Webcam start failed:', err);
+      toast.error('Failed to access webcam. Please use Gallery instead.');
+      setShowWebcam(false);
+      stopWebcamStream();
+    }
+  };
 
-      // Small delay to ensure any native permission dialogs have closed before triggering file picker
-      setTimeout(() => {
-        if (target === 'pickup' && pickupInputRef.current) pickupInputRef.current.click();
-        if (target === 'delivery' && deliveryInputRef.current) deliveryInputRef.current.click();
-        if (target === 'openBox' && openBoxInputRef.current) openBoxInputRef.current.click();
-      }, 100);
+  // Capture a frame from the webcam video
+  const captureWebcamPhoto = () => {
+    const video = webcamVideoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = webcamCanvasRef.current || document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const target = webcamTarget;
+    if (target === 'pickup') {
+      if (pickupPhoto) { setExtraPickupPhotos(prev => [...prev, dataUrl]); } else { setPickupPhoto(dataUrl); }
+    } else if (target === 'delivery') {
+      if (deliveryPhoto) { setExtraDeliveryPhotos(prev => [...prev, dataUrl]); } else { setDeliveryPhoto(dataUrl); }
+    } else if (target === 'openBox') {
+      setOpenBoxPhoto(dataUrl);
+    }
+    toast.success('Photo captured!');
+    closeWebcam();
+  };
+
+  // Close webcam modal and stop stream
+  const closeWebcam = () => {
+    stopWebcamStream();
+    setShowWebcam(false);
+    setWebcamTarget(null);
+  };
+
+  const openCamera = async (target) => {
+    if (isUpdatingOrderStatus) return;
+    try {
+      // On mobile: use native file input with capture="environment"
+      if (isMobileDevice()) {
+        const hasPermission = await requestCameraPermission();
+        if (!hasPermission) return;
+        setTimeout(() => {
+          if (target === 'pickup' && pickupInputRef.current) pickupInputRef.current.click();
+          if (target === 'delivery' && deliveryInputRef.current) deliveryInputRef.current.click();
+          if (target === 'openBox' && openBoxInputRef.current) openBoxInputRef.current.click();
+        }, 100);
+        return;
+      }
+      // On desktop: open webcam modal with live video stream
+      setWebcamTarget(target);
+      setShowWebcam(true);
     } catch (err) {
       console.error("Camera trigger failed:", err);
       toast.error("Failed to open camera. Please try using the Gallery.");
@@ -896,12 +965,12 @@ const DeliveryOrderDetail = () => {
                       </div>
                     )}
 
-                    {/* Camera/Gallery buttons - always visible */}
-                    {!pickupPhoto && (
+                    {/* Camera/Gallery buttons - only after reaching vendor */}
+                    {hasArrivedAtVendor && !pickupPhoto && (
                       <div className="flex gap-2">
                         <div className="flex-1 flex gap-2">
-                          <button onClick={() => openCamera('pickup')} className="flex-[2] h-12 bg-white border-2 border-slate-900 text-slate-900 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:bg-slate-50 transition-all"><FiCamera size={16} /> CAMERA</button>
-                          <button onClick={() => pickupGalleryRef.current.click()} className="flex-1 h-12 bg-slate-50 text-slate-500 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 active:bg-slate-100 transition-all"><FiImage size={14} /> GALLERY</button>
+                          <button onClick={() => openCamera('pickup')} className="w-full h-12 bg-white border-2 border-slate-900 text-slate-900 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:bg-slate-50 transition-all"><FiCamera size={16} /> CAMERA</button>
+                          {/* <button onClick={() => pickupGalleryRef.current.click()} className="flex-1 h-12 bg-slate-50 text-slate-500 rounded-2xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border border-slate-200 active:bg-slate-100 transition-all"><FiImage size={14} /> GALLERY</button> */}
                         </div>
                       </div>
                     )}
@@ -1013,11 +1082,11 @@ const DeliveryOrderDetail = () => {
                               <FiCamera size={28} />
                               <span className="text-[9px] font-black uppercase tracking-tight">OPEN CAMERA</span>
                             </button>
-                            <div className="w-12 h-px bg-slate-200" />
+                            {/* <div className="w-12 h-px bg-slate-200" />
                             <button onClick={() => (currentPhase === 'pickup' ? pickupGalleryRef.current : deliveryGalleryRef.current).click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
                               <FiImage size={24} />
                               <span className="text-[8px] font-black uppercase tracking-tight">GALLERY</span>
-                            </button>
+                            </button> */}
                           </div>
                         )}
                         <input type="file" accept="image/*" capture="environment" ref={deliveryInputRef} onChange={(e) => handleImage(e.target.files[0], currentPhase === 'pickup' ? setPickupPhoto : setDeliveryPhoto)} className="hidden" />
@@ -1039,10 +1108,10 @@ const DeliveryOrderDetail = () => {
                                   <FiCamera size={26} />
                                   <span className="text-[8px] font-black uppercase tracking-tight leading-none">OPEN CAMERA</span>
                                 </button>
-                                <button onClick={() => openBoxGalleryRef.current.click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
+                                {/* <button onClick={() => openBoxGalleryRef.current.click()} className="flex flex-col items-center gap-1.5 text-slate-400 active:scale-95 transition-transform">
                                   <FiImage size={24} />
                                   <span className="text-[8px] font-black uppercase tracking-tight leading-none">GALLERY</span>
-                                </button>
+                                </button> */}
                               </div>
                             )}
                             <input type="file" accept="image/*" capture="environment" ref={openBoxInputRef} onChange={(e) => handleImage(e.target.files[0], setOpenBoxPhoto)} className="hidden" />
@@ -1216,6 +1285,55 @@ const DeliveryOrderDetail = () => {
                   </button>
                 </div>
               </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Desktop Webcam Capture Modal */}
+        <AnimatePresence>
+          {showWebcam && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999] bg-black/90 flex flex-col items-center justify-center"
+              onClick={closeWebcam}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="relative w-full max-w-lg mx-4 bg-slate-900 rounded-3xl overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-5 py-4 bg-slate-800/50">
+                  <p className="text-[11px] font-black text-white uppercase tracking-widest">
+                    {webcamTarget === 'pickup' ? 'Pickup Photo' : webcamTarget === 'delivery' ? 'Delivery Photo' : 'Inspection Photo'}
+                  </p>
+                  <button onClick={closeWebcam} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-white active:scale-90 transition-transform">
+                    <FiX size={18} />
+                  </button>
+                </div>
+                <div className="relative aspect-[4/3] bg-black">
+                  <video
+                    ref={(el) => { webcamVideoRef.current = el; if (el && !el.srcObject) startWebcam(); }}
+                    autoPlay playsInline muted
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-6 pointer-events-none">
+                    <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/40 rounded-tl-lg" />
+                    <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white/40 rounded-tr-lg" />
+                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white/40 rounded-bl-lg" />
+                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/40 rounded-br-lg" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-center py-6 bg-slate-800/50">
+                  <button onClick={captureWebcamPhoto} className="w-16 h-16 rounded-full bg-white border-4 border-slate-600 flex items-center justify-center active:scale-90 transition-transform shadow-lg">
+                    <div className="w-12 h-12 rounded-full bg-white border-2 border-slate-300" />
+                  </button>
+                </div>
+              </motion.div>
+              <canvas ref={webcamCanvasRef} className="hidden" />
             </motion.div>
           )}
         </AnimatePresence>

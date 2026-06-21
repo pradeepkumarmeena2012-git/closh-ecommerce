@@ -144,7 +144,7 @@ const OrderSuccessPage = () => {
                             {vendorGroups.map((group, idx) => (
                                 <div key={group.vendorId || idx} className="bg-gray-50 rounded-xl p-3 flex items-center justify-between">
                                     <div>
-                                        <p className="text-xs font-bold text-gray-900">{group.vendorName || `Store ${idx + 1}`}</p>
+                                        <p className="text-xs font-bold text-gray-900">{`Closh ${idx + 1} Store`}</p>
                                         <p className="text-[10px] text-gray-400 font-medium">
                                             {group.items?.length || 0} item{(group.items?.length || 0) !== 1 ? 's' : ''} · ₹{Number(group.subtotal || 0).toLocaleString()}
                                         </p>

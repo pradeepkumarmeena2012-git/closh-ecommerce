@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { ArrowLeft, CheckCircle, Package, Truck, MapPin, Clock, Shield, Phone, ChevronUp, ChevronDown, Store, Navigation, RefreshCw, ChevronRight } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Package, Truck, MapPin, Clock, Shield, Phone, ChevronUp, ChevronDown, Store, Navigation, RefreshCw, ChevronRight, ShoppingBag } from 'lucide-react';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 import socketService from '../../../../shared/utils/socket';
 import TrackingMap from '../../../../shared/components/TrackingMap';
@@ -119,8 +119,26 @@ const TrackOrderPage = () => {
 
     const isCancelled = status === 'cancelled' || status === 'canceled';
     
-    // Determine if rider has been assigned — this controls which view to show
-    const isRiderAssigned = ASSIGNED_STATUSES.includes(status);
+    // ─── Multi-vendor pickup progress ───
+    const isMultiVendor = !!(order.isMultiVendor || (order.vendorItems && order.vendorItems.length > 1));
+    const vendorPickups = order.vendorPickups || [];
+    const allVendorsPickedUp = isMultiVendor && vendorPickups.length > 0
+        ? vendorPickups.every(vp => vp.status === 'picked_up')
+        : true;
+    const pickedUpCount = vendorPickups.filter(vp => vp.status === 'picked_up').length;
+    const totalVendorStops = vendorPickups.length;
+
+    // For multi-vendor orders with 2+ stops, show vendor pickup progress in the pre-assignment view
+    const multiVendorStillPickingUp = isMultiVendor && totalVendorStops > 1
+        && ASSIGNED_STATUSES.includes(status)
+        && !['picked_up', 'shipped', 'out_for_delivery', 'delivered'].includes(status);
+
+    // Statuses that mean the order has been picked up and is on its way to customer (show map)
+    const POST_PICKUP_STATUSES = ['picked_up', 'shipped', 'out_for_delivery', 'delivered', 'try_active', 'returning_unselected_items', 'returned_to_vendor', 'try_buy_completed'];
+
+    // Show map/live-tracking only AFTER order is picked up (not just 'assigned').
+    // 'assigned' means rider is heading to vendor — user sees the status page, not map.
+    const isRiderAssigned = POST_PICKUP_STATUSES.includes(status);
 
     const getStepState = (stepIndex) => {
         if (isCancelled) return 'pending';
@@ -253,6 +271,19 @@ const TrackOrderPage = () => {
         const vendorStatuses = (order.vendorItems || []).map(vi => String(vi.status || 'pending').toLowerCase());
         const isConfirmed = vendorStatuses.length > 0 && vendorStatuses.some(s => ['accepted', 'processing', 'ready_for_pickup'].includes(s));
         const isReadyForPickup = vendorStatuses.length > 0 && vendorStatuses.every(s => ['ready_for_pickup'].includes(s));
+
+        // Multi-vendor: rider assigned but still picking up from vendors
+        if (multiVendorStillPickingUp) {
+            if (pickedUpCount > 0 && pickedUpCount < totalVendorStops) {
+                return { label: 'COLLECTING FROM VENDORS', progress: 4 };
+            }
+            return { label: 'RIDER ASSIGNED — PICKING UP', progress: 4 };
+        }
+
+        // Single-vendor: rider assigned, heading to vendor for pickup
+        if (status === 'assigned') {
+            return { label: 'RIDER ASSIGNED — PICKING UP', progress: 4 };
+        }
         
         if (status === 'searching' || status === 'all_vendors_ready' || status === 'ready_for_delivery') {
             return { label: 'RIDER DISPATCHING', progress: 3 };
@@ -329,14 +360,52 @@ const TrackOrderPage = () => {
                                 style={{ transformStyle: 'preserve-3d' }}
                                 className="relative"
                             >
-                                <img 
-                                    src="/download-removebg-preview.png" 
-                                    alt="Delivery Partner" 
-                                    className="w-52 h-44 md:w-60 md:h-52 object-contain drop-shadow-2xl"
-                                    style={{ 
-                                        filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.15))',
-                                    }}
-                                />
+                                <div className="relative w-52 h-44 md:w-60 md:h-52 flex items-center justify-center">
+                                    {/* Clothes falling animation */}
+                                    {['👕', '👖', '👗', '👚', '🧥', '🧦'].map((emoji, idx) => (
+                                        <motion.div
+                                            key={idx}
+                                            className="absolute top-0 left-1/2 text-2xl md:text-3xl z-0"
+                                            style={{ 
+                                                marginLeft: `${(idx % 3 - 1) * 20}px`, 
+                                                filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))'
+                                            }}
+                                            animate={{
+                                                y: [-80, 40, 80, 80],
+                                                opacity: [0, 1, 0, 0],
+                                                scale: [0.5, 1, 0.2, 0.2],
+                                                rotate: [0, Math.random() * 60 - 30, Math.random() * 120 - 60]
+                                            }}
+                                            transition={{
+                                                duration: 3.5,
+                                                repeat: Infinity,
+                                                times: [0, 0.4, 0.6, 1],
+                                                delay: idx * 0.15,
+                                                ease: "easeIn"
+                                            }}
+                                        >
+                                            {emoji}
+                                        </motion.div>
+                                    ))}
+
+                                    {/* Box Image with squash/stretch animation */}
+                                    <motion.img 
+                                        src="/pickup-removebg-preview.png" 
+                                        alt="Pickup Box" 
+                                        className="w-full h-full object-contain drop-shadow-2xl relative z-10"
+                                        style={{ filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.15))' }}
+                                        animate={{ 
+                                            scaleY: [1, 1, 0.85, 1.1, 1],
+                                            scaleX: [1, 1, 1.05, 0.95, 1],
+                                        }}
+                                        transition={{ 
+                                            duration: 3.5, 
+                                            repeat: Infinity, 
+                                            times: [0, 0.6, 0.7, 0.8, 1],
+                                            ease: "easeInOut" 
+                                        }}
+                                    />
+                                </div>
                                 
                                 {/* Subtle glow ring behind */}
                                 <motion.div
@@ -380,7 +449,9 @@ const TrackOrderPage = () => {
                         transition={{ delay: 0.3 }}
                     >
                         <h2 className="text-[22px] font-black text-slate-900 leading-tight mb-2">
-                            {isCancelled ? 'Order Cancelled' : 
+                            {isCancelled ? 'Order Cancelled' :
+                             multiVendorStillPickingUp ? 'Collecting your items...' :
+                             status === 'assigned' ? 'Rider is on the way to store...' :
                              dispatchInfo.progress >= 3 ? 'Finding your delivery partner...' :
                              dispatchInfo.progress >= 2 ? 'Order is ready!' :
                              dispatchInfo.progress >= 1 ? 'Preparing your order...' :
@@ -388,6 +459,8 @@ const TrackOrderPage = () => {
                         </h2>
                         <p className="text-[13px] text-slate-500 font-medium leading-relaxed px-4">
                             {isCancelled ? 'This order has been cancelled.' :
+                             multiVendorStillPickingUp ? `Your rider is picking up items from ${totalVendorStops} vendor${totalVendorStops > 1 ? 's' : ''}. ${pickedUpCount} of ${totalVendorStops} collected.` :
+                             status === 'assigned' ? 'Your rider has been assigned and is heading to the store to pick up your order.' :
                              dispatchInfo.progress >= 3 ? "We're matching your order with the nearest delivery partner. High fashion is worth the wait." :
                              dispatchInfo.progress >= 2 ? "Your items are ready and waiting for a delivery partner to pick them up." :
                              dispatchInfo.progress >= 1 ? "The store is carefully preparing your items for dispatch." :
@@ -409,10 +482,7 @@ const TrackOrderPage = () => {
                         <div className="flex-1 bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Est. Delivery</p>
                             <p className="text-[15px] font-black text-slate-900">
-                                {order.estimatedDelivery 
-                                    ? new Date(order.estimatedDelivery).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                                    : '15-20 Mins'
-                                }
+                                60 Mins
                             </p>
                         </div>
                     </motion.div>
@@ -435,6 +505,8 @@ const TrackOrderPage = () => {
                             <div className="flex-1">
                                 <h3 className="text-[14px] font-black text-slate-900 leading-tight">
                                     {isCancelled ? 'Order Cancelled' :
+                                     multiVendorStillPickingUp ? `Picking Up (${pickedUpCount}/${totalVendorStops})` :
+                                     status === 'assigned' ? 'Rider Assigned' :
                                      dispatchInfo.progress >= 3 ? 'Searching for Rider' :
                                      dispatchInfo.progress >= 2 ? 'Ready for Pickup' :
                                      dispatchInfo.progress >= 1 ? 'Preparing Luxury Parcel' :
@@ -447,8 +519,13 @@ const TrackOrderPage = () => {
                         {!isCancelled && (
                             <div className="flex items-center gap-0">
                                 {['Accepted', 'In Transit', 'Delivered'].map((label, idx) => {
-                                    const isCompleted = dispatchInfo.progress > idx;
-                                    const isActive = dispatchInfo.progress === idx;
+                                    // Phase 1: Accepted/Preparing/Assigned, Phase 2: Picked Up/In Transit, Phase 3: Delivered
+                                    const timelinePhase = ['delivered', 'try_buy_completed'].includes(status) ? 3 :
+                                                          ['picked_up', 'shipped', 'out_for_delivery', 'try_active', 'returning_unselected_items', 'returned_to_vendor'].includes(status) ? 2 :
+                                                          ['accepted', 'processing', 'ready_for_pickup', 'searching', 'all_vendors_ready', 'assigned', 'ready_for_delivery'].includes(status) ? 1 : 0;
+                                    
+                                    const isCompleted = timelinePhase > idx;
+                                    const isActive = false; // Keep it clean: either filled (completed) or empty
                                     return (
                                         <div key={label} className="flex-1 text-center">
                                             <div className={`h-[3px] rounded-full mb-2 mx-0.5 transition-all duration-500 ${
@@ -469,6 +546,83 @@ const TrackOrderPage = () => {
                             </div>
                         )}
                     </motion.div>
+
+                    {/* ── Multi-Vendor Pickup Progress (only when rider is collecting) ── */}
+                    {multiVendorStillPickingUp && vendorPickups.length > 0 && (
+                        <motion.div
+                            className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm mb-6"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.55 }}
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Vendor Pickup Progress</p>
+                                <span className="text-[10px] font-black text-slate-500">{pickedUpCount}/{totalVendorStops}</span>
+                            </div>
+
+                            <div className="space-y-3">
+                                {[...vendorPickups].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0)).map((vp, idx) => {
+                                    const vpStatus = String(vp.status || 'pending').toLowerCase();
+                                    const isDone = vpStatus === 'picked_up';
+                                    const isArrived = vpStatus === 'arrived' || vpStatus === 'otp_verified';
+                                    const isPending = vpStatus === 'pending';
+                                    return (
+                                        <div key={vp.vendorId || idx} className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-300 ${
+                                            isDone ? 'bg-emerald-50 border-emerald-200' :
+                                            isArrived ? 'bg-amber-50 border-amber-200' :
+                                            'bg-slate-50 border-slate-100'
+                                        }`}>
+                                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                                                isDone ? 'bg-emerald-500 text-white' :
+                                                isArrived ? 'bg-amber-500 text-white' :
+                                                'bg-slate-200 text-slate-400'
+                                            }`}>
+                                                {isDone ? <CheckCircle size={18} /> : <Store size={18} />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-[12px] font-bold truncate ${
+                                                    isDone ? 'text-emerald-800' :
+                                                    isArrived ? 'text-amber-800' :
+                                                    'text-slate-600'
+                                                }`}>
+                                                    {vp.vendorName || `Vendor ${idx + 1}`}
+                                                </p>
+                                                <p className="text-[10px] text-slate-400 font-medium truncate">
+                                                    {isDone ? 'Picked up ✓' :
+                                                     isArrived ? 'Rider at store' :
+                                                     'Awaiting pickup'}
+                                                </p>
+                                            </div>
+                                            <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md ${
+                                                isDone ? 'bg-emerald-100 text-emerald-700' :
+                                                isArrived ? 'bg-amber-100 text-amber-700' :
+                                                'bg-slate-100 text-slate-400'
+                                            }`}>
+                                                {isDone ? 'Done' : isArrived ? 'At Store' : 'Pending'}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Overall progress bar */}
+                            <div className="mt-4">
+                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <motion.div
+                                        className="h-full bg-emerald-500 rounded-full"
+                                        initial={{ width: 0 }}
+                                        animate={{ width: totalVendorStops > 0 ? `${(pickedUpCount / totalVendorStops) * 100}%` : '0%' }}
+                                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                                    />
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-medium mt-1.5 text-center">
+                                    {pickedUpCount === 0 ? 'Rider heading to first vendor...' :
+                                     pickedUpCount < totalVendorStops ? `${totalVendorStops - pickedUpCount} vendor${totalVendorStops - pickedUpCount > 1 ? 's' : ''} remaining` :
+                                     'All vendors collected!'}
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
 
                     {/* Items Preview */}
                     {order.items && order.items.length > 0 && (

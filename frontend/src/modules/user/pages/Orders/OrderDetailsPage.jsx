@@ -2,17 +2,20 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
-import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw, CheckCircle, Truck, Store, ThumbsUp, UserCheck, CheckCircle2, Layers } from 'lucide-react';
+import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw, CheckCircle, Truck, Store, ThumbsUp, UserCheck, CheckCircle2, Layers, Star } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrderStore } from '../../../../shared/store/orderStore';
+import { useReviewsStore } from '../../../../shared/store/reviewsStore';
 import socketService from '../../../../shared/utils/socket';
 import DeliveryRatingCard from '../../components/Profile/DeliveryRatingCard';
+import ReviewForm from '../../../../shared/components/Product/ReviewForm';
 
 const OrderDetailsPage = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
     const { fetchOrderById, getOrder, resendDeliveryOtp, cancelOrder } = useOrderStore();
+    const { addReview, fetchReviews } = useReviewsStore();
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [showReturnModal, setShowReturnModal] = useState(false);
@@ -23,6 +26,10 @@ const OrderDetailsPage = () => {
     const [selectedReturnItems, setSelectedReturnItems] = useState({});
     const [perItemReasons, setPerItemReasons] = useState({});
     const cooldownRef = useRef(null);
+
+    // Review modal state
+    const [reviewItem, setReviewItem] = useState(null);
+    const [reviewedProductIds, setReviewedProductIds] = useState({});
 
     // Cancel Order states
     const [showCancelModal, setShowCancelModal] = useState(false);
@@ -59,6 +66,41 @@ const OrderDetailsPage = () => {
 
     const CANCELLABLE_STATUSES = ['pending', 'accepted', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'ready_for_delivery', 'searching'];
     const canCancelOrder = order && CANCELLABLE_STATUSES.includes(order.status?.toLowerCase()) && order.status?.toLowerCase() !== 'cancelled';
+
+    const isOrderDelivered = order?.status?.toLowerCase() === 'delivered';
+
+    // Check which products have already been reviewed
+    useEffect(() => {
+        if (!isOrderDelivered || !order?.items?.length) return;
+        const checkExisting = async () => {
+            try {
+                const result = await useReviewsStore.getState().getMyOrderReviews(order._id || orderId);
+                const reviewed = {};
+                (result?.productReviews || []).forEach(r => {
+                    const pid = String(r.productId?._id || r.productId || '');
+                    if (pid) reviewed[pid] = true;
+                });
+                setReviewedProductIds(reviewed);
+            } catch { /* ignore */ }
+        };
+        checkExisting();
+    }, [isOrderDelivered, order?._id, orderId]);
+
+    const handleSubmitProductReview = async (reviewData) => {
+        if (!reviewItem) return false;
+        const productId = String(reviewItem.productId || reviewItem.id || reviewItem._id);
+        const ok = await addReview(productId, {
+            ...reviewData,
+            orderId: order._id || orderId,
+        });
+        if (!ok) {
+            toast.error('Unable to submit review');
+            return false;
+        }
+        setReviewedProductIds(prev => ({ ...prev, [productId]: true }));
+        setReviewItem(null);
+        return true;
+    };
 
     const handleCancelOrder = async () => {
         const reason = cancelReason === 'Other (Please specify)' ? customCancelReason.trim() : cancelReason;
@@ -533,6 +575,22 @@ const OrderDetailsPage = () => {
                                                 </span>
                                             </div>
                                             <p className="text-[12px] md:text-base font-bold text-black mt-1">₹{item.discountedPrice || item.price}</p>
+                                            {isOrderDelivered && (() => {
+                                                const pid = String(item.productId || item.id || item._id || '');
+                                                const alreadyReviewed = reviewedProductIds[pid];
+                                                return alreadyReviewed ? (
+                                                    <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-bold uppercase border border-emerald-100">
+                                                        <CheckCircle size={10} /> Reviewed
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setReviewItem(item)}
+                                                        className="inline-flex items-center gap-1 mt-1.5 px-2.5 py-1 bg-black text-white rounded-lg text-[9px] font-bold uppercase hover:bg-gray-800 transition-all active:scale-95 shadow-sm"
+                                                    >
+                                                        <Star size={10} /> Rate / Review
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 );
@@ -1769,6 +1827,47 @@ const OrderDetailsPage = () => {
                                     </div>
                                 </>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Product Review Modal */}
+            {reviewItem && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 max-h-[90vh] flex flex-col">
+                        <div className="p-5 border-b border-gray-100 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                                    <Star size={18} />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold uppercase">Write a Review</h3>
+                                    <p className="text-[10px] text-gray-400 font-bold line-clamp-1">{reviewItem.name}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setReviewItem(null)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-5 overflow-y-auto flex-1">
+                            <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                                <div className="w-14 h-18 bg-white rounded-lg overflow-hidden shrink-0 border border-gray-100">
+                                    <img src={reviewItem.image} alt="" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="text-[12px] font-bold text-gray-900 line-clamp-1">{reviewItem.name}</h4>
+                                    <p className="text-[9px] font-bold text-gray-400 uppercase">{reviewItem.brand || 'Premium Piece'}</p>
+                                    <p className="text-[11px] font-bold text-black mt-0.5">₹{reviewItem.discountedPrice || reviewItem.price}</p>
+                                </div>
+                            </div>
+                            <ReviewForm
+                                productId={String(reviewItem.productId || reviewItem.id || reviewItem._id)}
+                                onSubmit={handleSubmitProductReview}
+                            />
                         </div>
                     </div>
                 </div>

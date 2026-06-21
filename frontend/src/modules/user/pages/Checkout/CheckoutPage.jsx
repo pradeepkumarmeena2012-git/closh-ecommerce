@@ -40,7 +40,9 @@ const CheckoutPage = () => {
 
     const [showSizeModal, setShowSizeModal] = useState(null); // productId for which to show modal
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-    const [deliveryType, setDeliveryType] = useState('try_and_buy');
+    const [deliveryType, setDeliveryType] = useState(() => {
+        return sessionStorage.getItem('checkout-delivery-type') || 'try_and_buy';
+    });
     const [showServiceInfo, setShowServiceInfo] = useState(false);
 
     // Promo Code States
@@ -52,6 +54,11 @@ const CheckoutPage = () => {
     const [upsellProducts, setUpsellProducts] = useState([]);
     const [isUpsellLoading, setIsUpsellLoading] = useState(true);
     const [zoomedImage, setZoomedImage] = useState(null);
+
+    // Persist delivery type selection so it survives back-navigation from payment page
+    useEffect(() => {
+        sessionStorage.setItem('checkout-delivery-type', deliveryType);
+    }, [deliveryType]);
 
     useEffect(() => {
         const fetchUpsells = async () => {
@@ -470,13 +477,13 @@ const CheckoutPage = () => {
                             <span className="text-sm font-bold uppercase ">Delivery Estimate</span>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="bg-blue-50/50 px-4 py-3 rounded-2xl border border-blue-100/50 flex items-center justify-between w-full">
-                                <div className="flex flex-col">
-                                    <p className="text-[10px] font-bold text-blue-600/60 uppercase tracking-wider mb-0.5">Estimated Arrival</p>
-                                    <p className="text-sm font-bold text-gray-900">Delivery within <span className="text-blue-600">{getDeliveryDateInfo()}</span></p>
+                            <div className="bg-blue-50/50 p-3 sm:px-4 sm:py-3 rounded-2xl border border-blue-100/50 flex items-center justify-between gap-2 w-full">
+                                <div className="flex flex-col min-w-0 pr-2">
+                                    <p className="text-[9px] sm:text-[10px] font-bold text-blue-600/60 uppercase tracking-wider mb-0.5">Estimated Arrival</p>
+                                    <p className="text-[12px] sm:text-sm font-bold text-gray-900 leading-tight">Delivery within <span className="text-blue-600 whitespace-nowrap">{getDeliveryDateInfo()}</span></p>
                                 </div>
-                                <div className="px-3 py-1.5 bg-blue-600 rounded-xl shadow-sm shadow-blue-100">
-                                    <span className="text-[10px] font-bold text-white uppercase tracking-tight">Instant Delivery</span>
+                                <div className="px-2.5 sm:px-3 py-1.5 bg-blue-600 rounded-xl shadow-sm shadow-blue-100 shrink-0">
+                                    <span className="text-[9px] sm:text-[10px] font-bold text-white uppercase tracking-tight whitespace-nowrap">Instant Delivery</span>
                                 </div>
                             </div>
                         </div>

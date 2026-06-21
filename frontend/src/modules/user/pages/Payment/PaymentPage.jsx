@@ -632,29 +632,29 @@ const PaymentPage = () => {
                 </div>
 
                 {/* Fixed Footer for Mobile/Desktop */}
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 z-[90] md:relative md:border-t-0 md:bg-transparent md:p-0 md:mb-12 shadow-[0_-10px_25px_rgba(0,0,0,0.05)] md:shadow-none pb-safe">
-                     <div className="flex items-center justify-between container mx-auto max-w-2xl px-4 md:px-0">
-                         <div className="flex flex-col">
-                             <div className="flex items-center gap-2">
-                                 <span className="text-[11px] font-bold text-gray-400 line-through">₹{Number((totalMRP + platformFee + shipping).toFixed(2))}</span>
-                                 <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Save ₹{Number((totalMRP + platformFee + shipping - finalTotal).toFixed(2))}</span>
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-3 sm:p-4 z-[90] md:relative md:border-t-0 md:bg-transparent md:p-0 md:mb-12 shadow-[0_-10px_25px_rgba(0,0,0,0.05)] md:shadow-none pb-safe">
+                     <div className="flex items-center justify-between container mx-auto max-w-2xl gap-2 px-1 sm:px-4 md:px-0">
+                         <div className="flex flex-col min-w-0 pr-2">
+                             <div className="flex items-center gap-1.5 flex-wrap">
+                                 <span className="text-[10px] sm:text-[11px] font-bold text-gray-400 line-through">₹{Number((totalMRP + platformFee + shipping).toFixed(2))}</span>
+                                 <span className="text-[9px] sm:text-[10px] bg-emerald-100 text-emerald-700 px-1 sm:px-1.5 py-0.5 rounded font-black uppercase tracking-tighter whitespace-nowrap">Save ₹{Number((totalMRP + platformFee + shipping - finalTotal).toFixed(2))}</span>
                              </div>
-                             <span className="text-[20px] font-black text-gray-900 leading-none">₹{Number(finalTotal.toFixed(2))}</span>
+                             <span className="text-[18px] sm:text-[20px] font-black text-gray-900 leading-tight mt-0.5">₹{Number(finalTotal.toFixed(2))}</span>
                          </div>
                          <button
                              onClick={handlePlaceOrder}
                              disabled={isProcessing || !currentAddress || !paymentMethod}
-                             className="bg-black text-white px-8 py-4 rounded-2xl text-[12px] font-bold uppercase hover:bg-gray-800 active:scale-95 transition-all shadow-2xl shadow-black/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                             className="bg-black text-white px-5 sm:px-8 py-3.5 sm:py-4 rounded-[14px] sm:rounded-2xl text-[11px] sm:text-[12px] font-bold uppercase hover:bg-gray-800 active:scale-95 transition-all shadow-xl sm:shadow-2xl shadow-black/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0 whitespace-nowrap"
                          >
                              {isProcessing ? (
                                  <>
-                                     <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                     <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin shrink-0" />
                                      <span>Processing...</span>
                                  </>
                              ) : (
                                  <>
                                      <span>Place Order</span>
-                                     <ArrowLeft size={18} className="rotate-180" />
+                                     <ArrowLeft size={16} className="rotate-180 shrink-0 hidden sm:block" />
                                  </>
                              )}
                          </button>
