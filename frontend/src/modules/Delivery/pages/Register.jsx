@@ -333,8 +333,8 @@ const DeliveryRegister = () => {
                 const isCompleted = currentStep > step.id;
                 const isCurrent = currentStep === step.id;
                 return (
-                  <div key={step.id} className="flex items-center flex-1">
-                    <div className="flex flex-col items-center flex-shrink-0">
+                  <div key={step.id} className={`flex items-center ${index < STEPS.length - 1 ? 'flex-1' : 'flex-none'}`}>
+                    <div className="flex flex-col items-center flex-shrink-0 w-14 sm:w-auto">
                       <div
                         className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center border-2 transition-all duration-300 ${
                           isCompleted
@@ -346,12 +346,12 @@ const DeliveryRegister = () => {
                       >
                         {isCompleted ? <FiCheck size={18} /> : <Icon size={18} />}
                       </div>
-                      <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-wider mt-2 ${isCurrent ? 'text-indigo-600' : isCompleted ? 'text-emerald-500' : 'text-gray-400'}`}>
+                      <span className={`text-[8px] sm:text-[10px] text-center break-words leading-tight sm:leading-normal font-black uppercase tracking-widest sm:tracking-wider mt-2 ${isCurrent ? 'text-indigo-600' : isCompleted ? 'text-emerald-500' : 'text-gray-400'}`}>
                         {step.title}
                       </span>
                     </div>
                     {index < STEPS.length - 1 && (
-                      <div className={`flex-1 h-[3px] mx-2 sm:mx-4 rounded-full transition-all duration-500 ${isCompleted ? 'bg-emerald-400' : 'bg-gray-100'}`} />
+                      <div className={`flex-1 h-[3px] mx-1 sm:mx-4 rounded-full transition-all duration-500 ${isCompleted ? 'bg-emerald-400' : 'bg-gray-100'}`} />
                     )}
                   </div>
                 );
@@ -657,11 +657,11 @@ const DeliveryRegister = () => {
               )}
 
               {currentStep < 4 ? (
-                <button type="button" onClick={nextStep} className="flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-[#0f172a] text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm hover:bg-slate-800 active:scale-95 transition-all shadow-xl">
+                <button key="next-btn" type="button" onClick={nextStep} className="flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-[#0f172a] text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm hover:bg-slate-800 active:scale-95 transition-all shadow-xl">
                   Next <FiChevronRight size={18} />
                 </button>
               ) : (
-                <button type="submit" disabled={isLoading} className="flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-emerald-600 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-xl disabled:opacity-50">
+                <button key="submit-btn" type="submit" disabled={isLoading} className="flex items-center gap-2 px-6 sm:px-8 py-3.5 bg-emerald-600 text-white rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm hover:bg-emerald-700 active:scale-95 transition-all shadow-xl disabled:opacity-50">
                   {isLoading ? 'Submitting...' : 'Submit Application'}
                 </button>
               )}

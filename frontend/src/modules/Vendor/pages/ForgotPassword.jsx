@@ -110,7 +110,7 @@ const VendorForgotPassword = () => {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl min-h-[80vh] md:min-h-0 flex flex-col justify-center"
+          className="bg-white rounded-[2.5rem] p-6 sm:p-8 md:p-12 w-full max-w-md shadow-2xl min-h-[80vh] md:min-h-0 flex flex-col justify-center"
         >
           {/* Mobile Logo */}
           <div className="md:hidden text-center mb-10">
@@ -165,7 +165,7 @@ const VendorForgotPassword = () => {
                 <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-3 px-1">
                   Verification Code
                 </label>
-                <div className="flex justify-between gap-2">
+                <div className="flex justify-between gap-1 sm:gap-2">
                   {codes.map((code, index) => (
                     <input
                       key={index}
@@ -177,7 +177,7 @@ const VendorForgotPassword = () => {
                       onChange={(e) => handleCodeChange(index, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(index, e)}
                       onPaste={index === 0 ? handlePaste : undefined}
-                      className="w-12 h-14 text-center text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:border-[#0f172a] focus:ring-1 focus:ring-[#0f172a] focus:outline-none transition-all"
+                      className="w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold bg-gray-50 border border-gray-200 rounded-xl focus:border-[#0f172a] focus:ring-1 focus:ring-[#0f172a] focus:outline-none transition-all"
                     />
                   ))}
                 </div>
