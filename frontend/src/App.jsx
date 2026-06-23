@@ -116,6 +116,7 @@ import ScrollToTop from "./shared/components/ScrollToTop";
 import AppBootstrap from "./shared/components/AppBootstrap";
 
 // User Module Routes (main customer-facing frontend)
+import ComingSoonPage from "./modules/user/pages/ComingSoonPage";
 import UserLayout from "./modules/user/components/Layout/UserLayout";
 import UserProviders from "./modules/user/components/Layout/UserProviders";
 import UserHomePage from "./modules/user/pages/Home/HomePage";
@@ -447,7 +448,7 @@ const AppRoutes = () => {
           path="/"
           element={
             <RouteWrapper>
-              <UserLayout><UserHomePage /></UserLayout>
+              <ComingSoonPage />
             </RouteWrapper>
           }
         />
@@ -455,7 +456,7 @@ const AppRoutes = () => {
           path="/home"
           element={
             <RouteWrapper>
-              <UserLayout><UserHomePage /></UserLayout>
+              <ComingSoonPage />
             </RouteWrapper>
           }
         />
@@ -573,7 +574,7 @@ const AppRoutes = () => {
           path="/login"
           element={
             <RouteWrapper>
-              <UserLoginPage />
+              <ComingSoonPage />
             </RouteWrapper>
           }
         />
@@ -581,7 +582,7 @@ const AppRoutes = () => {
           path="/register"
           element={
             <RouteWrapper>
-              <UserRegisterPage />
+              <ComingSoonPage />
             </RouteWrapper>
           }
         />
