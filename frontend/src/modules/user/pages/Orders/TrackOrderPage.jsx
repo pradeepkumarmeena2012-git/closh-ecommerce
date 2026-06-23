@@ -286,7 +286,7 @@ const TrackOrderPage = () => {
         }
         
         if (status === 'searching' || status === 'all_vendors_ready' || status === 'ready_for_delivery') {
-            return { label: 'RIDER DISPATCHING', progress: 3 };
+            return { label: 'RIDER FINDING', progress: 3 };
         }
         if (isReadyForPickup) {
             return { label: 'READY FOR PICKUP', progress: 2 };
