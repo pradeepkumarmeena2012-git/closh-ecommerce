@@ -33,7 +33,7 @@ const ComingSoonPage = () => {
                 >
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-white/5 border border-white/10 mb-6 sm:mb-8 backdrop-blur-sm">
                         <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] sm:text-[11px] font-bold text-white/80 uppercase tracking-widest">Under Construction</span>
+                        <span className="text-[9px] sm:text-[11px] font-bold text-white/80 uppercase tracking-widest">Launching Soon</span>
                     </div>
                     
                     <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 tracking-tight leading-[1.1] mb-6 sm:mb-8 px-2">
