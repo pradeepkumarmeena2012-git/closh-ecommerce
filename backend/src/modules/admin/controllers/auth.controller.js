@@ -69,3 +69,27 @@ export const getProfile = asyncHandler(async (req, res) => {
     if (!admin) throw new ApiError(404, 'Admin not found.');
     res.status(200).json(new ApiResponse(200, admin, 'Profile fetched.'));
 });
+
+// PUT /api/admin/auth/profile
+export const updateProfile = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    const admin = await Admin.findById(req.user.id);
+    
+    if (!admin) throw new ApiError(404, 'Admin not found.');
+
+    if (email) {
+        const existingEmail = await Admin.findOne({ email, _id: { $ne: admin._id } });
+        if (existingEmail) throw new ApiError(400, 'Email is already in use by another admin.');
+        admin.email = email;
+    }
+    
+    if (password) {
+        admin.password = password; // pre-save hook will hash this
+    }
+
+    await admin.save();
+    
+    // We don't return password in response.
+    const updatedAdmin = await Admin.findById(req.user.id);
+    res.status(200).json(new ApiResponse(200, updatedAdmin, 'Profile updated successfully.'));
+});

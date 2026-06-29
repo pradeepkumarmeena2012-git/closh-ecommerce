@@ -1,14 +1,52 @@
 import { useState, useEffect } from "react";
-import { FiSave, FiSettings, FiImage, FiGlobe } from "react-icons/fi";
+import { FiSave, FiSettings, FiImage, FiGlobe, FiUser, FiEyeOff, FiEye } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
+import { useAdminAuthStore } from "../../store/adminStore";
+import { updateAdminProfile } from "../../services/adminService";
 import AnimatedSelect from "../../components/AnimatedSelect";
 import toast from "react-hot-toast";
 
 const GeneralSettings = () => {
   const { settings, updateSettings, initialize } = useSettingsStore();
+  const { admin } = useAdminAuthStore();
   const [formData, setFormData] = useState({});
   const [activeSection, setActiveSection] = useState("identity");
+  
+  const [profileData, setProfileData] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (admin) {
+      setProfileData({ email: admin.email || "", password: "" });
+    }
+  }, [admin]);
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const dataToUpdate = {};
+      if (profileData.email && profileData.email !== admin.email) {
+        dataToUpdate.email = profileData.email;
+      }
+      if (profileData.password) {
+        dataToUpdate.password = profileData.password;
+      }
+
+      if (Object.keys(dataToUpdate).length === 0) {
+        toast("No changes to update.", { icon: "ℹ️" });
+        return;
+      }
+
+      const res = await updateAdminProfile(dataToUpdate);
+      if (res.success) {
+        toast.success("Profile updated successfully! You may need to log in again if email changed.");
+        setProfileData({ ...profileData, password: "" });
+      }
+    } catch (err) {
+      // Error handled by interceptor
+    }
+  };
 
   useEffect(() => {
     initialize();
@@ -63,6 +101,7 @@ const GeneralSettings = () => {
     { id: "identity", label: "Store Identity", icon: FiSettings },
     { id: "contact", label: "Contact Info", icon: FiGlobe },
     { id: "vendors", label: "Vendor Settings", icon: FiSettings },
+    { id: "profile", label: "Admin Profile", icon: FiUser },
   ];
 
   return (
@@ -102,6 +141,57 @@ const GeneralSettings = () => {
           </div>
         </div>
 
+        {activeSection === "profile" ? (
+          <form onSubmit={handleProfileSubmit} className="p-3 sm:p-4 md:p-6">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={profileData.email}
+                    onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    New Password (optional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={profileData.password}
+                      onChange={(e) => setProfileData({ ...profileData, password: e.target.value })}
+                      placeholder="Leave blank to keep current"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-600 transition-colors"
+                    >
+                      {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end pt-4 sm:pt-6 border-t border-gray-200 mt-4 sm:mt-6">
+              <button
+                type="submit"
+                className="flex items-center gap-2 px-4 sm:px-6 py-2 gradient-green text-white rounded-lg hover:shadow-glow-green transition-all font-semibold text-sm sm:text-base w-full sm:w-auto">
+                <FiSave />
+                Update Profile
+              </button>
+            </div>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} className="p-3 sm:p-4 md:p-6">
           {/* Store Identity Section */}
           {activeSection === "identity" && (
@@ -574,6 +664,7 @@ const GeneralSettings = () => {
             </button>
           </div>
         </form>
+        )}
       </div>
     </motion.div>
   );

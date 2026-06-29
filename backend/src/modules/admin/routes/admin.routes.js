@@ -28,7 +28,7 @@ import { authorize, enforceAccountStatus, checkPermission, authorizeAdmin } from
 import { authLimiter } from '../../../middlewares/rateLimiter.js';
 import { validate } from '../../../middlewares/validate.js';
 import { uploadSingle, uploadDocumentSingle, uploadDocumentMultiple } from '../../../middlewares/upload.js';
-import { refreshTokenSchema, logoutSchema } from '../validators/auth.validator.js';
+import { refreshTokenSchema, logoutSchema, updateProfileSchema } from '../validators/auth.validator.js';
 import {
     createProductSchema,
     updateProductSchema,
@@ -84,6 +84,7 @@ router.post('/auth/login', authLimiter, authController.login);
 router.post('/auth/refresh', validate(refreshTokenSchema), authController.refresh);
 router.post('/auth/logout', validate(logoutSchema), authController.logout);
 router.get('/auth/profile', ...adminAuth, authController.getProfile);
+router.put('/auth/profile', ...adminAuth, validate(updateProfileSchema), authController.updateProfile);
 
 // ─── Employee Management ──────────────────────────────────────────────────────
 router.get('/employees', ...adminManager, checkPermission('staff_manage'), employeeController.getAllEmployees);

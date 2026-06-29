@@ -3,6 +3,7 @@ import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import crypto from 'crypto';
 import Vendor from '../../../models/Vendor.model.js';
+import VendorDocument from '../../../models/VendorDocument.model.js';
 import Admin from '../../../models/Admin.model.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { sendOTP } from '../../../services/otp.service.js';
@@ -18,9 +19,8 @@ import {
 import { clearCachePattern } from '../../../utils/cache.js';
 import { notifyWishlistUsersWhenVendorOnline } from '../../../services/vendorOnlineNotifier.service.js';
 
-// POST /api/vendor/auth/register
 export const register = asyncHandler(async (req, res) => {
-    const { name, email, password, phone, storeName, storeDescription, address, shopLocation } = req.body;
+    const { name, email, password, phone, storeName, storeDescription, address, shopLocation, gstNumber } = req.body;
 
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const existing = await Vendor.findOne({ email: normalizedEmail });
@@ -39,8 +39,27 @@ export const register = asyncHandler(async (req, res) => {
         storeDescription: String(storeDescription || '').trim(),
         address,
         shopLocation,
+        gstNumber,
+        documents: {
+            gst: req.file ? req.file.path || req.file.url : undefined
+        },
         status: 'pending'
     });
+
+    if (req.file) {
+        await VendorDocument.create({
+            vendorId: vendor._id,
+            name: 'GST Document',
+            category: 'Tax Document',
+            fileUrl: req.file.path || req.file.url,
+            filePublicId: req.file.filename || req.file.public_id || 'local-file',
+            fileName: req.file.originalname || req.file.name || 'GST_Document',
+            fileType: req.file.mimetype || 'application/pdf',
+            fileSize: req.file.size || 0,
+            status: 'pending'
+        });
+    }
+
     await sendOTP(vendor, 'vendor_verification');
 
     // Notify all active admins about a new vendor registration request.

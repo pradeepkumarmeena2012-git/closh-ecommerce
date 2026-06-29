@@ -250,6 +250,20 @@ export const registerVendor = asyncHandler(async (req, res) => {
         }
     });
 
+    if (req.file) {
+        await VendorDocument.create({
+            vendorId: vendor._id,
+            name: 'GST Document',
+            category: 'Tax Document',
+            fileUrl: req.file.path || req.file.url,
+            filePublicId: req.file.filename || req.file.public_id || 'local-file',
+            fileName: req.file.originalname || req.file.name || 'GST_Document',
+            fileType: req.file.mimetype || 'application/pdf',
+            fileSize: req.file.size || 0,
+            status: 'approved'
+        });
+    }
+
     const createdVendor = await Vendor.findById(vendor._id).select('-password');
 
     res.status(201).json(

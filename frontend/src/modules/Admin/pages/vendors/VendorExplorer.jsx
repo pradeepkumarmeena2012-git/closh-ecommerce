@@ -22,7 +22,7 @@ import { useVendorStore } from "../../store/vendorStore";
 import { getAllProducts, getAllOrders, getVendorDocuments, updateVendorDocumentStatus } from "../../services/adminService";
 import Badge from "../../../../shared/components/Badge";
 import DataTable from "../../components/DataTable";
-import { formatPrice } from "../../../../shared/utils/helpers";
+import { formatPrice, getImageUrl } from "../../../../shared/utils/helpers";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
@@ -284,7 +284,7 @@ const VendorExplorer = () => {
             render: (_, row) => (
                 <div className="flex items-center gap-3">
                     <a
-                        href={row.fileUrl}
+                        href={getImageUrl(row.fileUrl?.replace(/\\/g, '/'))}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-primary-600 font-bold text-xs hover:underline"

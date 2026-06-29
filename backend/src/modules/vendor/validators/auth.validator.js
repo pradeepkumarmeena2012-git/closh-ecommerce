@@ -19,6 +19,11 @@ export const registerSchema = Joi.object({
     }),
     storeName: Joi.string().trim().min(2).max(100).required(),
     storeDescription: Joi.string().trim().max(500).allow('').optional(),
+    gstNumber: Joi.string().trim().min(15).max(15).required().messages({
+        "string.min": "GST number must be 15 characters long",
+        "string.max": "GST number must be 15 characters long",
+        "any.required": "GST number is required"
+    }),
     address: Joi.object({
         street: Joi.string().allow('').optional(),
         city: Joi.string().regex(/^[a-zA-Z0-9\s]*$/).allow('').optional().messages({

@@ -44,7 +44,15 @@ const router = Router();
 const vendorAuth = [authenticate, authorize('vendor'), enforceAccountStatus];
 
 // Auth
-router.post('/auth/register', authLimiter, validate(registerSchema), authController.register);
+router.post('/auth/register', authLimiter, uploadSingle('document'), (req, res, next) => {
+    if (typeof req.body.address === 'string') {
+        try { req.body.address = JSON.parse(req.body.address); } catch (e) {}
+    }
+    if (typeof req.body.shopLocation === 'string') {
+        try { req.body.shopLocation = JSON.parse(req.body.shopLocation); } catch (e) {}
+    }
+    next();
+}, validate(registerSchema), authController.register);
 router.post('/auth/verify-otp', validate(verifyOtpSchema), authController.verifyOTP);
 router.post('/auth/resend-otp', validate(resendOtpSchema), authController.resendOTP);
 router.post('/auth/forgot-password', authLimiter, validate(forgotPasswordSchema), authController.forgotPassword);

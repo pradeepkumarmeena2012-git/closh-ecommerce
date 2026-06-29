@@ -18,6 +18,7 @@ const VendorRegister = () => {
     confirmPassword: '',
     storeName: '',
     storeDescription: '',
+    gstNumber: '',
     address: {
       street: '',
       city: '',
@@ -27,6 +28,7 @@ const VendorRegister = () => {
     },
     shopLocation: null,
   });
+  const [documentFile, setDocumentFile] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -143,17 +145,32 @@ const VendorRegister = () => {
       toast.error('Password must be at least 6 characters');
       return;
     }
+    if (formData.gstNumber && formData.gstNumber.length !== 15) {
+      toast.error('GST number must be exactly 15 characters');
+      return;
+    }
+    if (!documentFile) {
+      toast.error('Please upload your registration document (GST certificate etc.)');
+      return;
+    }
     try {
-      const result = await registerVendor({
-        name: formData.name.trim(),
-        email: formData.email.trim().toLowerCase(),
-        password: formData.password,
-        phone: formData.phone.trim(),
-        storeName: formData.storeName.trim(),
-        storeDescription: formData.storeDescription.trim(),
-        address: formData.address,
-        shopLocation: formData.shopLocation,
-      });
+      const submitData = new FormData();
+      submitData.append('name', formData.name.trim());
+      submitData.append('email', formData.email.trim().toLowerCase());
+      submitData.append('password', formData.password);
+      submitData.append('phone', formData.phone.trim());
+      submitData.append('storeName', formData.storeName.trim());
+      submitData.append('storeDescription', formData.storeDescription.trim());
+      submitData.append('gstNumber', formData.gstNumber.trim());
+      
+      submitData.append('address', JSON.stringify(formData.address));
+      if (formData.shopLocation) {
+        submitData.append('shopLocation', JSON.stringify(formData.shopLocation));
+      }
+      
+      submitData.append('document', documentFile);
+
+      const result = await registerVendor(submitData);
       toast.success(result.message || 'Registration successful!');
       navigate('/vendor/verification', { state: { phone: formData.phone } });
     } catch (error) {
@@ -211,6 +228,21 @@ const VendorRegister = () => {
                   <div className="relative">
                     <FiShoppingBag className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input type="text" name="storeName" value={formData.storeName} onChange={handleChange} placeholder="Elite Fashion Hub" required className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900" />
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-6 mt-6">
+                <div>
+                  <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2">GST Number</label>
+                  <div className="relative">
+                    <FiMapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleChange} placeholder="Enter 15-character GST Number" maxLength={15} required className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2">Upload Document (GST Certificate / PAN)</label>
+                  <div className="relative">
+                    <input type="file" name="document" accept=".jpg,.jpeg,.png,.pdf" onChange={(e) => setDocumentFile(e.target.files[0])} required className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
                   </div>
                 </div>
               </div>
