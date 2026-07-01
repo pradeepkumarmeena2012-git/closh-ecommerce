@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FiSave, FiSettings, FiImage, FiGlobe, FiUser, FiEyeOff, FiEye } from "react-icons/fi";
+import { FiSave, FiSettings, FiImage, FiGlobe, FiUser, FiEyeOff, FiEye, FiAlertTriangle } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import { useAdminAuthStore } from "../../store/adminStore";
@@ -100,6 +100,7 @@ const GeneralSettings = () => {
   const sections = [
     { id: "identity", label: "Store Identity", icon: FiSettings },
     { id: "contact", label: "Contact Info", icon: FiGlobe },
+    { id: "maintenance", label: "Maintenance", icon: FiAlertTriangle },
     { id: "vendors", label: "Vendor Settings", icon: FiSettings },
     { id: "profile", label: "Admin Profile", icon: FiUser },
   ];
@@ -651,6 +652,57 @@ const GeneralSettings = () => {
                     </label>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Maintenance Section */}
+          {activeSection === "maintenance" && (
+            <div className="space-y-6">
+              <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg flex items-start gap-4">
+                <FiAlertTriangle className="text-orange-500 text-xl mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-orange-900">Store Maintenance Mode</h4>
+                  <p className="text-orange-700 text-sm mt-1">
+                    Enabling this will block access to the User, Vendor, and Delivery panels. Only the Admin panel will remain accessible.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                <div>
+                  <label className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <div>
+                      <span className="block font-semibold text-gray-900">Temporarily Store Close</span>
+                      <span className="block text-sm text-gray-500 mt-1">Turn off all public and partner access</span>
+                    </div>
+                    <div className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="storeClosed"
+                        checked={formData.storeClosed || false}
+                        onChange={handleChange}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                    </div>
+                  </label>
+                </div>
+                
+                {formData.storeClosed && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Maintenance Message
+                    </label>
+                    <textarea
+                      name="storeClosedMessage"
+                      value={formData.storeClosedMessage || ""}
+                      onChange={handleChange}
+                      rows={3}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="Message to display when store is closed"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

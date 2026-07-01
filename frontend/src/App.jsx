@@ -112,11 +112,11 @@ import TermsConditions from "./modules/Admin/pages/policies/TermsConditions";
 import PushConfig from "./modules/Admin/pages/firebase/PushConfig";
 import Authentication from "./modules/Admin/pages/firebase/Authentication";
 import RouteWrapper from "./shared/components/RouteWrapper";
+import StoreMaintenanceGuard from "./shared/components/StoreMaintenanceGuard";
 import ScrollToTop from "./shared/components/ScrollToTop";
 import AppBootstrap from "./shared/components/AppBootstrap";
 
 // User Module Routes (main customer-facing frontend)
-import ComingSoonPage from "./modules/user/pages/ComingSoonPage";
 import UserLayout from "./modules/user/components/Layout/UserLayout";
 import UserProviders from "./modules/user/components/Layout/UserProviders";
 import UserHomePage from "./modules/user/pages/Home/HomePage";
@@ -359,8 +359,9 @@ const AppRoutes = () => {
           {renderAdminRoutes()}
         </Route>
 
-        {/* Delivery Routes */}
-        <Route path="/delivery/login" element={<DeliveryLogin />} />
+        <Route element={<StoreMaintenanceGuard />}>
+          {/* Delivery Routes */}
+          <Route path="/delivery/login" element={<DeliveryLogin />} />
         <Route path="/delivery/register" element={<DeliveryRegister />} />
         <Route path="/delivery/forgot-password" element={<DeliveryForgotPassword />} />
         <Route path="/delivery/reset-password" element={<DeliveryResetPassword />} />
@@ -448,7 +449,7 @@ const AppRoutes = () => {
           path="/"
           element={
             <RouteWrapper>
-              <ComingSoonPage />
+              <UserLayout><UserHomePage /></UserLayout>
             </RouteWrapper>
           }
         />
@@ -456,7 +457,7 @@ const AppRoutes = () => {
           path="/home"
           element={
             <RouteWrapper>
-              <ComingSoonPage />
+              <UserLayout><UserHomePage /></UserLayout>
             </RouteWrapper>
           }
         />
@@ -574,7 +575,7 @@ const AppRoutes = () => {
           path="/login"
           element={
             <RouteWrapper>
-              <ComingSoonPage />
+              <UserLoginPage />
             </RouteWrapper>
           }
         />
@@ -582,7 +583,7 @@ const AppRoutes = () => {
           path="/register"
           element={
             <RouteWrapper>
-              <ComingSoonPage />
+              <UserRegisterPage />
             </RouteWrapper>
           }
         />
@@ -690,6 +691,8 @@ const AppRoutes = () => {
         />
         {/* Catch-all for unmatched routes */}
         <Route path="*" element={<Navigate to="/" replace />} />
+        
+        </Route>
       </Routes>
     </Suspense>
   );

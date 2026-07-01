@@ -78,6 +78,9 @@ const Invoice = () => {
       ? order.finalTotal
       : subtotal + tax + shipping - discount;
 
+  const totalVendorTax = order.vendorItems?.reduce((sum, vi) => sum + (vi.vendorTax || 0), 0) || 0;
+  const totalCommissionTax = order.vendorItems?.reduce((sum, vi) => sum + (vi.commissionTax || 0), 0) || 0;
+
   // Format payment method
   const formatPaymentMethod = (method) => {
     if (!method) return "N/A";
@@ -124,7 +127,9 @@ ${items
 
 Subtotal: ${formatPrice(subtotal)}
 ${discount > 0 ? `Discount: -${formatPrice(discount)}\n` : ""}
-${tax > 0 ? `Tax: ${formatPrice(tax)}\n` : ""}
+${totalVendorTax > 0 ? `Vendor Tax: ${formatPrice(totalVendorTax)}\n` : ""}
+${totalCommissionTax > 0 ? `Commission Tax: ${formatPrice(totalCommissionTax)}\n` : ""}
+${(tax > 0 && totalVendorTax === 0 && totalCommissionTax === 0) ? `Tax: ${formatPrice(tax)}\n` : ""}
 ${shipping > 0 ? `Shipping: ${formatPrice(shipping)}\n` : ""}
 Total: ${formatPrice(finalTotal)}
 
@@ -326,7 +331,19 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
                 <span className="font-semibold">-{formatPrice(discount)}</span>
               </div>
             )}
-            {tax > 0 && (
+            {totalVendorTax > 0 && (
+              <div className="flex justify-between text-sm text-gray-700">
+                <span>Vendor Tax:</span>
+                <span className="font-semibold">{formatPrice(totalVendorTax)}</span>
+              </div>
+            )}
+            {totalCommissionTax > 0 && (
+              <div className="flex justify-between text-sm text-gray-700">
+                <span>Commission Tax:</span>
+                <span className="font-semibold">{formatPrice(totalCommissionTax)}</span>
+              </div>
+            )}
+            {(tax > 0 && totalVendorTax === 0 && totalCommissionTax === 0) && (
               <div className="flex justify-between text-sm text-gray-700">
                 <span>Tax:</span>
                 <span className="font-semibold">{formatPrice(tax)}</span>

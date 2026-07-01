@@ -9,7 +9,8 @@ import {
     FiCamera,
     FiTruck,
     FiPrinter,
-    FiDownload
+    FiDownload,
+    FiX
 } from 'react-icons/fi';
 import closhLogo from "../../../../shared/assets/closh_logo.svg";
 import { motion, AnimatePresence } from 'framer-motion';
@@ -222,6 +223,7 @@ const OrderDetail = () => {
                           vendorItem?.basePrice ?? 0;
 
     const [showInvoice, setShowInvoice] = useState(false);
+    const [showCommissionInvoice, setShowCommissionInvoice] = useState(false);
 
     const handlePrint = () => {
         window.print();
@@ -346,6 +348,10 @@ const OrderDetail = () => {
                                     <span className="text-gray-500">Your Base Price</span>
                                     <span className="font-bold text-gray-900">{formatPrice(vendorSubtotal)}</span>
                                 </div>
+                                <div className="flex justify-between text-sm pt-1">
+                                    <span className="text-gray-500">Vendor GST (18%) (Included gst)</span>
+                                    <span className="font-bold text-gray-900">{formatPrice(vendorItem?.vendorTax || 0)}</span>
+                                </div>
                                 <div className="flex justify-between text-sm border-t border-dashed border-gray-200 pt-2">
                                     <span className="text-gray-500">Platform Commission</span>
                                     <span className="font-bold text-red-500">-{formatPrice(vendorItem?.commissionAmount || 0)}</span>
@@ -432,6 +438,105 @@ const OrderDetail = () => {
 
             <AnimatePresence>
                 {showInvoice && <InvoiceModal />}
+                {showCommissionInvoice && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm overflow-hidden">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[1.5rem] md:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-emerald-50"
+                        >
+                            <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10 no-print">
+                                <div>
+                                    <h3 className="text-lg md:text-xl font-black text-gray-800 tracking-tight">Commission Bill (Admin to Vendor)</h3>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">#{order.orderId || order._id}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handlePrint}
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-[#003d29] text-white rounded-xl hover:bg-[#002a1c] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-900/10 transition-all"
+                                    >
+                                        <FiPrinter size={14} /> Print Bill
+                                    </button>
+                                    <button
+                                        onClick={() => setShowCommissionInvoice(false)}
+                                        className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-colors"
+                                    >
+                                        <FiX size={20} />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex-1 overflow-y-auto no-scrollbar p-6 sm:p-12 bg-white text-gray-800 font-sans" id="printable-invoice">
+                                <div className="flex flex-col sm:flex-row justify-between items-start gap-8 mb-12">
+                                    <div className="space-y-2 flex items-center gap-4">
+                                        <img src={closhLogo} alt="CLOSH Logo" className="h-12 w-auto" />
+                                        <h1 className="text-4xl font-black text-teal-600 tracking-tighter">CLOSH</h1>
+                                    </div>
+                                    <div className="text-right">
+                                        <h2 className="text-2xl font-bold text-gray-900 mb-1">COMMISSION INVOICE (B2B)</h2>
+                                        <p className="text-gray-500 text-sm">#{order.orderId || order._id}</p>
+                                        <p className="text-gray-500 text-sm">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12 py-8 border-y border-gray-100">
+                                    <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
+                                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed From (Platform)</h3>
+                                        <div className="space-y-1">
+                                            <p className="font-bold text-lg text-gray-900">CLOSH Marketplace</p>
+                                            <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{CLOSH_ADDRESS}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
+                                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed To (Vendor)</h3>
+                                        <div className="space-y-1">
+                                            <p className="font-bold text-lg text-gray-900">{vendor?.storeName}</p>
+                                            <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{vendor?.shopAddress}</p>
+                                            {vendor?.gstNumber && <p className="text-sm font-semibold text-gray-700">GSTIN: {vendor.gstNumber}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+                                <table className="w-full mb-12">
+                                    <thead>
+                                        <tr className="border-b-2 border-teal-600 bg-teal-100 text-teal-800">
+                                            <th className="py-4 text-left text-xs font-black uppercase tracking-wider">Service Description</th>
+                                            <th className="py-4 text-right text-xs font-black uppercase tracking-wider">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        <tr className="group">
+                                            <td className="py-6">
+                                                <p className="font-bold text-gray-900">Platform Services Commission</p>
+                                                <p className="text-xs text-gray-400 mt-1">Order #{order.orderId || order._id}</p>
+                                            </td>
+                                            <td className="py-6 text-right font-bold text-gray-900">{formatPrice(vendorItem?.commissionAmount || 0)}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <div className="flex justify-end">
+                                    <div className="w-full max-w-xs space-y-3">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Service Base Amount</span>
+                                            <span className="font-bold text-gray-900">{formatPrice(vendorItem?.commissionAmount || 0)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm border-t border-dashed border-gray-200 pt-2">
+                                            <span className="text-gray-500">Service GST (18%)</span>
+                                            <span className="font-bold text-gray-900">{formatPrice(vendorItem?.commissionTax || 0)}</span>
+                                        </div>
+                                        <div className="pt-4 border-t-2 border-gray-900 flex justify-between items-center">
+                                            <span className="text-lg font-black text-gray-900 uppercase">Total Bill</span>
+                                            <span className="text-2xl font-black text-emerald-600">{formatPrice((vendorItem?.commissionAmount || 0) + (vendorItem?.commissionTax || 0))}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-5 md:p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end no-print z-10">
+                                <button onClick={() => setShowCommissionInvoice(false)} className="px-8 py-3.5 bg-white border border-gray-200 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-[10px] uppercase tracking-widest shadow-sm">
+                                    Close Preview
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </AnimatePresence>
 
             <motion.div
@@ -472,7 +577,14 @@ const OrderDetail = () => {
                         className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold shadow-sm"
                     >
                         <FiDownload className="text-sm" />
-                        Download Invoice
+                        Cust Invoice
+                    </button>
+                    <button
+                        onClick={() => setShowCommissionInvoice(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold shadow-sm"
+                    >
+                        <FiDownload className="text-sm" />
+                        Comm. Bill
                     </button>
                     <AnimatedSelect
                         options={visibleStatusOptions}

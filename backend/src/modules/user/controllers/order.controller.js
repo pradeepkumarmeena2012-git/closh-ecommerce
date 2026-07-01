@@ -295,6 +295,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
         const itemVendorPrice = product.vendorPrice || 0;
         const itemCommissionAmount = (itemVendorPrice * item.quantity * itemCommissionRate) / 100;
         const itemMarginAmount = (itemPrice - itemVendorPrice) * item.quantity;
+        const itemVendorTax = parseFloat(((itemVendorPrice * item.quantity) * 0.18).toFixed(2));
+        const itemCommissionTax = parseFloat((itemCommissionAmount * 0.18).toFixed(2));
 
         const enriched = {
             productId: product._id,
@@ -308,6 +310,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
             commissionRate: itemCommissionRate,
             commissionAmount: itemCommissionAmount,
             marginAmount: itemMarginAmount,
+            vendorTax: itemVendorTax,
+            commissionTax: itemCommissionTax,
             variant: item.variant,
             variantKey: stockKeyInMap || variantKey || undefined,
             hasSpecificVariantStock: hasSpecificVariantStock,
@@ -419,6 +423,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
     const vendorItems = Object.values(vendorMap).map((v) => {
         const vendorCommissionAmount = v.items.reduce((sum, item) => sum + (item.commissionAmount || 0), 0);
         const vendorMarginAmount = v.items.reduce((sum, item) => sum + (item.marginAmount || 0), 0);
+        const vendorTaxAmount = v.items.reduce((sum, item) => sum + (item.vendorTax || 0), 0);
+        const vendorCommissionTaxAmount = v.items.reduce((sum, item) => sum + (item.commissionTax || 0), 0);
 
         return {
             vendorId: v.vendorId,
@@ -429,6 +435,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
             shipping: Number(shippingByVendor[String(v.vendorId)] || 0),
             distance: v.distance || 0,
             tax: 0,
+            vendorTax: vendorTaxAmount,
+            commissionTax: vendorCommissionTaxAmount,
             discount: 0,
             commissionRate: v.commissionRate,
             commissionAmount: vendorCommissionAmount,

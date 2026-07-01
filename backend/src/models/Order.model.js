@@ -12,6 +12,8 @@ const orderItemSchema = new mongoose.Schema({
     commissionRate: { type: Number, default: 0 }, // Snapshot of vendor.commissionRate or category commission
     commissionAmount: { type: Number, default: 0 }, // (Price - VendorPrice) * commissionRate (if applicable) OR standard commission
     marginAmount: { type: Number, default: 0 }, // (Price - VendorPrice) - this is the markup margin
+    vendorTax: { type: Number, default: 0 }, // GST on vendor base price
+    commissionTax: { type: Number, default: 0 }, // GST on admin commission
     variant: { type: mongoose.Schema.Types.Mixed, default: {} },
     variantKey: String,
     hasSpecificVariantStock: { type: Boolean, default: false },
@@ -25,6 +27,8 @@ const vendorItemGroupSchema = new mongoose.Schema({
     basePrice: Number,
     shipping: Number,
     tax: Number,
+    vendorTax: { type: Number, default: 0 },
+    commissionTax: { type: Number, default: 0 },
     discount: Number,
     platformFee: { type: Number, default: 0 },
     commissionRate: { type: Number, default: 0 },

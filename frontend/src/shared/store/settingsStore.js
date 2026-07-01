@@ -28,6 +28,8 @@ const defaultSettings = {
     customerSupportPhone: "+91 (800) 111-2222",
     vendorSupportEmail: "vendorsupport@clouse.com",
     vendorSupportPhone: "+91 (800) 123-4567",
+    storeClosed: false,
+    storeClosedMessage: "We are currently undergoing maintenance. Please check back later.",
   },
   payment: {
     paymentMethods: ["cod", "card", "wallet"],
