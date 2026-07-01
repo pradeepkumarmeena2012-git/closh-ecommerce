@@ -65,6 +65,9 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
 
         updateHeaderHeight();
 
+        const handleOpenDiscover = () => setIsDiscoverOpen(true);
+        window.addEventListener('open-discover-modal', handleOpenDiscover);
+
         const scrollContainer = document.getElementById('user-scroll-container');
         
         let resizeObserver;
@@ -81,6 +84,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
             window.removeEventListener('resize', updateHeaderHeight);
             if (scrollContainer) scrollContainer.removeEventListener('resize', updateHeaderHeight);
             if (resizeObserver) resizeObserver.disconnect();
+            window.removeEventListener('open-discover-modal', handleOpenDiscover);
         };
     }, []);
 
@@ -390,16 +394,18 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                 </div>
                                 
                                  <div className="flex items-center gap-3 justify-end">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleGlobalRefresh();
-                                        }}
-                                        disabled={isRefreshing}
-                                        className="w-8 h-8 rounded-full bg-white shadow-sm border border-black/5 flex items-center justify-center active:scale-90 transition-all disabled:opacity-50"
+                                    <Link
+                                        to="/wishlist"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="relative w-8 h-8 rounded-full bg-white shadow-sm border border-black/5 flex items-center justify-center active:scale-90 transition-all"
                                     >
-                                        <RefreshCw size={14} className={`text-gray-600 ${isRefreshing ? 'animate-spin' : ''}`} />
-                                    </button>
+                                        <Heart size={14} className="text-gray-600" />
+                                        {wishlistItems.length > 0 && (
+                                            <span className="absolute -top-1 -right-1 bg-red-500 border border-white text-white text-[7px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center shadow-sm">
+                                                {wishlistItems.length}
+                                            </span>
+                                        )}
+                                    </Link>
                                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-black/5">
                                         <Link to="/cart" onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[1px]">
                                             <ShoppingCart size={17} className="text-gray-600 group-hover/icon:text-black transition-colors" />

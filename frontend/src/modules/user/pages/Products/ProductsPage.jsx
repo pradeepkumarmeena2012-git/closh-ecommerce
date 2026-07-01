@@ -486,7 +486,44 @@ const ProductsPage = () => {
                 <div className="hidden md:flex flex-col mb-8 border-b border-gray-200 pb-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-[11px] font-bold text-gray-500 uppercase ">
-                            Home <span className="scale-75 text-white/20">›</span> {selectedBrands[0] || division || 'Shop'} <span className="scale-75 text-white/20">›</span> <span className="text-gray-900">{category || subCategoryFromUrl || 'All'}</span>
+                            <Link to="/" className="hover:text-black transition-colors cursor-pointer">Home</Link> 
+                            <span className="scale-75 text-white/20">›</span> 
+                            <Link 
+                                to={`/products${selectedBrands[0] ? `?brand=${selectedBrands[0]}` : division ? `?division=${division}` : ''}`}
+                                className="hover:text-black transition-colors cursor-pointer"
+                                onClick={() => {
+                                    const params = new URLSearchParams(searchParams);
+                                    params.delete('category');
+                                    params.delete('subCategory');
+                                    setSearchParams(params);
+                                }}
+                            >
+                                {selectedBrands[0] || division || 'Shop'}
+                            </Link> 
+                            <span className="scale-75 text-white/20">›</span> 
+                            <span 
+                                className="text-gray-900 hover:text-black transition-colors cursor-pointer"
+                                onClick={() => {
+                                    setSelectedSubCategories([]);
+                                    setSelectedSizes([]);
+                                    setSelectedFabrics([]);
+                                    setSelectedPatterns([]);
+                                    setSelectedFits([]);
+                                    setHeaderSearchValue('');
+                                    setSearchValue('');
+                                    setSelectedSort('newest');
+
+                                    const params = new URLSearchParams();
+                                    if (selectedBrands[0]) params.set('brand', selectedBrands[0]);
+                                    if (division) params.set('division', division);
+                                    if (category) params.set('category', category);
+                                    setSearchParams(params);
+
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                            >
+                                {category || subCategoryFromUrl || 'All'}
+                            </span>
                             <span className="ml-4 text-white/20 font-normal">|</span>
                             <span className="ml-4 text-black font-bold ">{filteredProducts.length} ITEMS</span>
                         </div>

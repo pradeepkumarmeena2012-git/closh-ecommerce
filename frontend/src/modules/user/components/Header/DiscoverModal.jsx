@@ -47,15 +47,15 @@ const DiscoverModal = ({ isOpen, onClose }) => {
     };
 
     const modalContent = (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-10 md:pt-20 px-4 overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center md:pt-20 md:px-4 overflow-hidden">
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/70 backdrop-blur-2xl transition-all duration-500" onClick={onClose} />
 
             {/* Modal Content */}
-            <div className="relative w-full max-w-[1000px] bg-white rounded-[32px] overflow-hidden shadow-2xl animate-fadeInUp flex h-[600px] border border-gray-200">
+            <div className="relative w-full h-full md:h-[600px] md:max-w-[1000px] bg-white md:rounded-[32px] overflow-hidden shadow-2xl animate-fadeInUp flex flex-col md:flex-row border-0 md:border md:border-gray-200">
                 {/* Left Side: Search & Alphabet Navigation */}
-                <div className="w-[300px] border-r border-gray-200 flex flex-col p-6 bg-white shrink-0">
-                    <div className="relative mb-8">
+                <div className="w-full md:w-[300px] border-b md:border-b-0 md:border-r border-gray-200 flex flex-col p-4 md:p-6 bg-white shrink-0 h-[40%] md:h-full">
+                    <div className="relative mb-4 md:mb-8">
                         <input
                             type="text"
                             placeholder="Search for Brands"
@@ -90,15 +90,18 @@ const DiscoverModal = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Right Side: Brand Grid */}
-                <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-                    <div className="flex justify-between items-center px-8 py-6 border-b border-gray-200">
-                        <h2 className="text-gray-900 text-xl font-bold uppercase ">Featured Brands</h2>
-                        <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors font-bold text-gray-900">
+                <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 h-[60%] md:h-full">
+                    <div className="flex justify-between items-center px-4 md:px-8 py-4 md:py-6 border-b border-gray-200">
+                        <h2 className="text-gray-900 text-lg md:text-xl font-bold uppercase ">Featured Brands</h2>
+                        <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors font-bold text-gray-900 md:hidden">
+                             <X size={20} />
+                        </button>
+                        <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors font-bold text-gray-900 hidden md:block">
                              <X size={24} />
                         </button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
+                    <div className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
                         {isLoading && brands.length === 0 ? (
                             <div className="flex items-center justify-center h-full">
                                 <div className="text-gray-400 font-bold uppercase tracking-widest animate-pulse">Loading Brands...</div>

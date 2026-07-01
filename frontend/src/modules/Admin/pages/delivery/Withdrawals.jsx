@@ -314,9 +314,9 @@ const Withdrawals = () => {
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl"
+                    className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl flex flex-col max-h-[95vh]"
                 >
-                    <div className="p-6 bg-slate-900 text-white">
+                    <div className="p-6 bg-slate-900 text-white shrink-0">
                         <div className="flex justify-between items-start mb-6">
                             <div>
                                 <h3 className="text-2xl font-black">Payout Processor</h3>
@@ -336,7 +336,7 @@ const Withdrawals = () => {
                         </div>
                     </div>
 
-                    <div className="p-6 space-y-4">
+                    <div className="p-4 md:p-6 space-y-4 overflow-y-auto custom-scrollbar">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                                 <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest mb-1">Beneficiary</p>

@@ -14,10 +14,10 @@ const MobileBottomNav = () => {
     { path: "/home", icon: FiHome, label: "Home" },
     { path: "/categories", icon: FiGrid, label: "Categories" },
     {
-      path: "/wishlist",
-      icon: FiHeart,
-      label: "Wishlist",
-      badge: wishlistCount > 0 ? wishlistCount : null,
+      action: () => window.dispatchEvent(new CustomEvent('open-discover-modal')),
+      icon: FiCompass,
+      label: "Discover",
+      id: "discover",
     },
     {
       path: isAuthenticated ? "/account" : "/login",
@@ -41,14 +41,9 @@ const MobileBottomNav = () => {
       <div className="flex items-center justify-around h-16 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = isActive(item.path);
+          const active = item.path ? isActive(item.path) : false;
 
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className="flex flex-col items-center justify-center flex-1 h-full relative"
-            >
+          const content = (
               <div className="relative flex flex-col items-center gap-1">
                 <motion.div
                   variants={iconVariants}
@@ -73,6 +68,27 @@ const MobileBottomNav = () => {
                   />
                 )}
               </div>
+          );
+
+          if (item.action) {
+            return (
+              <button
+                key={item.id}
+                onClick={item.action}
+                className="flex flex-col items-center justify-center flex-1 h-full relative"
+              >
+                {content}
+              </button>
+            );
+          }
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className="flex flex-col items-center justify-center flex-1 h-full relative"
+            >
+              {content}
             </Link>
           );
         })}
