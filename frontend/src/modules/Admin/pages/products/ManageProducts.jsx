@@ -68,7 +68,7 @@ const ManageProducts = () => {
       const products = [];
 
       do {
-        const response = await getAllProducts({ page: currentPage, limit: 100 });
+        const response = await getAllProducts({ page: currentPage, limit: 100, includeInactive: true });
         const pageProducts = Array.isArray(response.data)
           ? response.data
           : (response.data?.products || []);
