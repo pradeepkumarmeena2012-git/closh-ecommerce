@@ -122,6 +122,7 @@ const AppBootstrap = () => {
         }
 
         if (updated && !cancelled) {
+          console.log("🔥 AppBootstrap: dispatching catalog-cache-updated! updated=", updated);
           window.dispatchEvent(new Event("catalog-cache-updated"));
         }
       } catch {

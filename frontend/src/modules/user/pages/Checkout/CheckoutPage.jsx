@@ -85,12 +85,14 @@ const CheckoutPage = () => {
     }, []);
 
     useEffect(() => {
+        console.log('🔴 CheckoutPage: MOUNTED');
         // Scroll to top on mount
         window.scrollTo(0, 0);
         // Refresh addresses and settings to ensure latest data
         fetchAddresses().catch(() => { });
         initializePublic().catch(() => { });
-    }, [fetchAddresses, initializePublic]);
+        return () => console.log('🔴 CheckoutPage: UNMOUNTED');
+    }, []);
 
     const totalPrice = Number(getCartTotal());
     const totalMRP = cart.reduce((acc, item) => acc + (Number(item.originalPrice || item.price) * item.quantity), 0);

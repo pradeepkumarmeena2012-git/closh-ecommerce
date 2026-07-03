@@ -135,7 +135,10 @@
   {
     "title": "Notifications",
     "route": "/admin/notifications",
-    "permission": ["notifications_manage", "support_manage"],
+    "permission": [
+      "notifications_manage",
+      "support_manage"
+    ],
     "children": [
       "All Notifications",
       "Push Notifications"
@@ -193,7 +196,8 @@
       "Products & Inventory",
       "Content & Features",
       "Notifications & SEO",
-      "Cancellation Reasons"
+      "Cancellation Reasons",
+      "Tax Settings"
     ]
   },
   {

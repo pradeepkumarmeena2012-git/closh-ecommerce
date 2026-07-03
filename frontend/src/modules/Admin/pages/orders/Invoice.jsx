@@ -70,13 +70,21 @@ const Invoice = () => {
 
   // Calculate totals
   const subtotal = order.subtotal ?? order.total ?? 0;
-  const tax = order.tax ?? 0;
+  
   const discount = order.discount ?? 0;
   const shipping = order.shipping ?? 0;
   const finalTotal =
     order.finalTotal !== undefined
       ? order.finalTotal
-      : subtotal + tax + shipping - discount;
+      : subtotal + shipping - discount;
+
+  // Closh Bill inclusive GST logic: Calculate the Base Price excluding GST
+  // order.totalCustomerIgst, Cgst, Sgst are saved in backend
+  const cgst = order.totalCustomerCgst || 0;
+  const sgst = order.totalCustomerSgst || 0;
+  const igst = order.totalCustomerIgst || 0;
+  const totalGst = cgst + sgst + igst;
+  const baseSubtotal = subtotal - totalGst;
 
   const totalVendorTax = order.vendorItems?.reduce((sum, vi) => sum + (vi.vendorTax || 0), 0) || 0;
   const totalCommissionTax = order.vendorItems?.reduce((sum, vi) => sum + (vi.commissionTax || 0), 0) || 0;
@@ -125,13 +133,8 @@ ${items
         )
         .join("\n")}
 
-Subtotal: ${formatPrice(subtotal)}
-${discount > 0 ? `Discount: -${formatPrice(discount)}\n` : ""}
-${totalVendorTax > 0 ? `Vendor Tax: ${formatPrice(totalVendorTax)}\n` : ""}
-${totalCommissionTax > 0 ? `Commission Tax: ${formatPrice(totalCommissionTax)}\n` : ""}
-${(tax > 0 && totalVendorTax === 0 && totalCommissionTax === 0) ? `Tax: ${formatPrice(tax)}\n` : ""}
-${shipping > 0 ? `Shipping: ${formatPrice(shipping)}\n` : ""}
-Total: ${formatPrice(finalTotal)}
+Subtotal (Excl. GST): ${formatPrice(baseSubtotal)}
+${cgst > 0 ? `CGST: ${formatPrice(cgst)}\n` : ""}${sgst > 0 ? `SGST: ${formatPrice(sgst)}\n` : ""}${igst > 0 ? `IGST: ${formatPrice(igst)}\n` : ""}${discount > 0 ? `Discount: -${formatPrice(discount)}\n` : ""}${totalVendorTax > 0 ? `Vendor Tax: ${formatPrice(totalVendorTax)}\n` : ""}${totalCommissionTax > 0 ? `Commission Tax: ${formatPrice(totalCommissionTax)}\n` : ""}${shipping > 0 ? `Shipping: ${formatPrice(shipping)}\n` : ""}Total: ${formatPrice(finalTotal)}
 
 Payment Method: ${formatPaymentMethod(order.paymentMethod)}
 Status: ${order.status}
@@ -301,12 +304,22 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
                   <tr key={item.id || index} className="hover:bg-white hover:text-black">
                     <td className="px-4 py-3 text-sm text-gray-800">
                       {item.name || `Item ${index + 1}`}
+                      {item.variant && Object.keys(item.variant).length > 0 && (
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {Object.entries(item.variant).map(([k, v]) => `${k}: ${v}`).join(', ')}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 text-center">
                       {item.quantity || 1}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 text-right">
-                      {formatPrice(item.price || 0)}
+                    <td className="px-4 py-3 text-sm text-right">
+                      {item.originalPrice && item.originalPrice > item.price && (
+                        <div className="text-xs text-gray-500 line-through mb-0.5">
+                          {formatPrice(item.originalPrice)}
+                        </div>
+                      )}
+                      <div className="text-gray-700">{formatPrice(item.price || 0)}</div>
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-gray-800 text-right">
                       {formatPrice(itemTotal)}
@@ -322,9 +335,27 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
         <div className="flex justify-end">
           <div className="w-full sm:w-80 space-y-2">
             <div className="flex justify-between text-sm text-gray-700">
-              <span>Subtotal:</span>
-              <span className="font-semibold">{formatPrice(subtotal)}</span>
+              <span>Subtotal (Excl. GST):</span>
+              <span className="font-semibold">{formatPrice(baseSubtotal)}</span>
             </div>
+            {cgst > 0 && (
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>CGST:</span>
+                <span className="font-semibold">{formatPrice(cgst)}</span>
+              </div>
+            )}
+            {sgst > 0 && (
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>SGST:</span>
+                <span className="font-semibold">{formatPrice(sgst)}</span>
+              </div>
+            )}
+            {igst > 0 && (
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>IGST:</span>
+                <span className="font-semibold">{formatPrice(igst)}</span>
+              </div>
+            )}
             {discount > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span>Discount:</span>
@@ -341,12 +372,6 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
               <div className="flex justify-between text-sm text-gray-700">
                 <span>Commission Tax:</span>
                 <span className="font-semibold">{formatPrice(totalCommissionTax)}</span>
-              </div>
-            )}
-            {(tax > 0 && totalVendorTax === 0 && totalCommissionTax === 0) && (
-              <div className="flex justify-between text-sm text-gray-700">
-                <span>Tax:</span>
-                <span className="font-semibold">{formatPrice(tax)}</span>
               </div>
             )}
             {shipping > 0 && (

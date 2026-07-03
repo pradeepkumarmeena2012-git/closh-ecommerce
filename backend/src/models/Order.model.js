@@ -8,6 +8,16 @@ const orderItemSchema = new mongoose.Schema({
     price: Number,
     originalPrice: Number,
     quantity: Number,
+    basePrice: { type: Number, default: 0 }, // Selling Price excluding GST
+    gstRate: { type: Number, default: 0 }, // GST Rate applied (e.g. 5, 18)
+    customerGstType: { type: String, enum: ['IGST', 'CGST_SGST', 'NONE'], default: 'NONE' },
+    customerIgst: { type: Number, default: 0 },
+    customerCgst: { type: Number, default: 0 },
+    customerSgst: { type: Number, default: 0 },
+    vendorGstType: { type: String, enum: ['IGST', 'CGST_SGST', 'NONE'], default: 'NONE' },
+    vendorIgst: { type: Number, default: 0 },
+    vendorCgst: { type: Number, default: 0 },
+    vendorSgst: { type: Number, default: 0 },
     vendorPrice: { type: Number, default: 0 }, // Snapshot of product.vendorPrice
     commissionRate: { type: Number, default: 0 }, // Snapshot of vendor.commissionRate or category commission
     commissionAmount: { type: Number, default: 0 }, // (Price - VendorPrice) * commissionRate (if applicable) OR standard commission
@@ -27,7 +37,13 @@ const vendorItemGroupSchema = new mongoose.Schema({
     basePrice: Number,
     shipping: Number,
     tax: Number,
+    totalCustomerIgst: { type: Number, default: 0 },
+    totalCustomerCgst: { type: Number, default: 0 },
+    totalCustomerSgst: { type: Number, default: 0 },
     vendorTax: { type: Number, default: 0 },
+    totalVendorIgst: { type: Number, default: 0 },
+    totalVendorCgst: { type: Number, default: 0 },
+    totalVendorSgst: { type: Number, default: 0 },
     commissionTax: { type: Number, default: 0 },
     discount: Number,
     platformFee: { type: Number, default: 0 },
@@ -232,7 +248,13 @@ const orderSchema = new mongoose.Schema(
         },
         subtotal: { type: Number, default: 0 },
         shipping: { type: Number, default: 0 },
-        tax: { type: Number, default: 0 },
+        tax: { type: Number, default: 0 }, // Total Customer GST
+        totalCustomerIgst: { type: Number, default: 0 },
+        totalCustomerCgst: { type: Number, default: 0 },
+        totalCustomerSgst: { type: Number, default: 0 },
+        totalVendorIgst: { type: Number, default: 0 },
+        totalVendorCgst: { type: Number, default: 0 },
+        totalVendorSgst: { type: Number, default: 0 },
         discount: { type: Number, default: 0 },
         platformFee: { type: Number, default: 0 },
         total: { type: Number, default: 0 },

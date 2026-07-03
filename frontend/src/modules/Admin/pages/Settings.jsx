@@ -9,6 +9,9 @@ import OrdersCustomersSettings from './settings/OrdersCustomersSettings';
 import ProductsInventorySettings from './settings/ProductsInventorySettings';
 import ContentFeaturesSettings from './settings/ContentFeaturesSettings';
 import NotificationsSEOSettings from './settings/NotificationsSEOSettings';
+import TaxSettings from './settings/TaxSettings';
+import { FiDollarSign } from 'react-icons/fi';
+
 
 const Settings = () => {
   const { initialize } = useSettingsStore();
@@ -22,7 +25,10 @@ const Settings = () => {
     if (path.includes('/orders-customers')) return 'orders-customers';
     if (path.includes('/products-inventory')) return 'products-inventory';
     if (path.includes('/content-features')) return 'content-features';
+
     if (path.includes('/notifications-seo')) return 'notifications-seo';
+    if (path.includes('/tax-settings')) return 'tax-settings';
+
     return 'general';
   };
 

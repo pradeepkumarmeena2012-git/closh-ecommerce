@@ -87,8 +87,14 @@ const defaultSettings = {
   },
   tax: {
     defaultTaxRate: 18,
-    taxCalculationMethod: "exclusive", // 'inclusive' or 'exclusive'
+    taxCalculationMethod: "inclusive", // 'inclusive' or 'exclusive'
     priceDisplayFormat: "INR", // Currency format
+    closhBusinessState: "Rajasthan",
+    closhGstin: "",
+    gstRules: [
+      { minPrice: 0, maxPrice: 2500, rate: 5 },
+      { minPrice: 2501, maxPrice: 99999999, rate: 18 }
+    ],
   },
   content: {
     privacyPolicy: "",
@@ -183,7 +189,11 @@ export const useSettingsStore = create(
 
       // Initialize settings from API (Public version - fetches non-sensitive only)
       initializePublic: async () => {
-        set({ isLoading: true });
+        // If we already have settings in cache, do a silent refresh
+        const hasCachedSettings = !!get().settings?.general?.storeName;
+        if (!hasCachedSettings) {
+          set({ isLoading: true });
+        }
         try {
           const response = await settingsService.getAllPublicSettings();
           const backendSettings = response?.data || response || {};

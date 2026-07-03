@@ -75,7 +75,7 @@ const PaymentPage = () => {
     useEffect(() => {
         refreshAddresses();
         initializePublic().catch(() => {});
-    }, [refreshAddresses, initializePublic]);
+    }, []);
 
     useEffect(() => {
         if (!currentAddress && addresses.length > 0) {

@@ -223,7 +223,21 @@ export const placeOrder = asyncHandler(async (req, res) => {
     console.log(`User/Guest: ${idempotencyScope}`);
     console.log(`Items: ${items.length}, Type: ${orderType}, Delivery: ${deliveryType}`);
 
+
+    // Fetch GST Rules
+    const taxSettings = await Settings.findOne({ key: 'tax' });
+    
+    const gstRules = taxSettings?.value?.gstRules || [
+        { minPrice: 0, maxPrice: 2500, rate: 5 },
+        { minPrice: 2501, maxPrice: 9999999, rate: 18 }
+    ];
+    const closhBusinessState = taxSettings?.value?.closhBusinessState || 'Rajasthan';
+    const buyerState = shippingAddress?.state || '';
+    const isSameState = String(buyerState).trim().toLowerCase() === String(closhBusinessState).trim().toLowerCase();
+
     // 1. Validate items and calculate subtotal
+
+
     let subtotal = 0;
     const enrichedItems = [];
     const vendorMap = {};
@@ -231,7 +245,7 @@ export const placeOrder = asyncHandler(async (req, res) => {
     for (const item of items) {
         const productDoc = await Product.findById(item.productId).populate(
             'vendorId',
-            'commissionRate storeName shippingEnabled defaultShippingRate freeShippingThreshold shopLocation isOnline'
+            'commissionRate storeName shippingEnabled defaultShippingRate freeShippingThreshold shopLocation isOnline address'
         );
 
         if (!productDoc) {
@@ -295,6 +309,28 @@ export const placeOrder = asyncHandler(async (req, res) => {
         const itemVendorPrice = product.vendorPrice || 0;
         const itemCommissionAmount = (itemVendorPrice * item.quantity * itemCommissionRate) / 100;
         const itemMarginAmount = (itemPrice - itemVendorPrice) * item.quantity;
+        // Find matching GST rule based on itemPrice
+        const gstRule = gstRules.find(rule => itemPrice >= rule.minPrice && itemPrice <= rule.maxPrice) || { rate: 0 };
+        const gstRate = gstRule.rate || 0;
+        
+        // Calculate Inclusive GST
+        const itemBasePrice = parseFloat((itemPrice / (1 + (gstRate / 100))).toFixed(2));
+        const itemCustomerGst = parseFloat((itemPrice - itemBasePrice).toFixed(2));
+        
+        let customerIgst = 0, customerCgst = 0, customerSgst = 0;
+        let customerGstType = 'NONE';
+        
+        if (gstRate > 0) {
+            if (isSameState) {
+                customerGstType = 'CGST_SGST';
+                customerCgst = parseFloat((itemCustomerGst / 2).toFixed(2));
+                customerSgst = parseFloat((itemCustomerGst / 2).toFixed(2));
+            } else {
+                customerGstType = 'IGST';
+                customerIgst = itemCustomerGst;
+            }
+        }
+
         const itemVendorTax = parseFloat(((itemVendorPrice * item.quantity) * 0.18).toFixed(2));
         const itemCommissionTax = parseFloat((itemCommissionAmount * 0.18).toFixed(2));
 
@@ -315,6 +351,12 @@ export const placeOrder = asyncHandler(async (req, res) => {
             variant: item.variant,
             variantKey: stockKeyInMap || variantKey || undefined,
             hasSpecificVariantStock: hasSpecificVariantStock,
+            basePrice: itemBasePrice,
+            gstRate: gstRate,
+            customerGstType: customerGstType,
+            customerIgst: customerIgst * item.quantity,
+            customerCgst: customerCgst * item.quantity,
+            customerSgst: customerSgst * item.quantity,
         };
         enrichedItems.push(enriched);
 
@@ -336,6 +378,9 @@ export const placeOrder = asyncHandler(async (req, res) => {
         vendorMap[vid].items.push(enriched);
         vendorMap[vid].subtotal += itemSubtotal;
         vendorMap[vid].basePrice += (itemVendorPrice * item.quantity);
+        vendorMap[vid].totalCustomerIgst = (vendorMap[vid].totalCustomerIgst || 0) + (customerIgst * item.quantity);
+        vendorMap[vid].totalCustomerCgst = (vendorMap[vid].totalCustomerCgst || 0) + (customerCgst * item.quantity);
+        vendorMap[vid].totalCustomerSgst = (vendorMap[vid].totalCustomerSgst || 0) + (customerSgst * item.quantity);
         vendorMap[vid].shopLocation = product.vendorId.shopLocation;
     }
     console.log(`[OrderCalc] Subtotal: ₹${subtotal}, Vendors: ${Object.keys(vendorMap).length}`);
@@ -434,7 +479,10 @@ export const placeOrder = asyncHandler(async (req, res) => {
             basePrice: v.basePrice,
             shipping: Number(shippingByVendor[String(v.vendorId)] || 0),
             distance: v.distance || 0,
-            tax: 0,
+            tax: parseFloat((v.totalCustomerIgst + v.totalCustomerCgst + v.totalCustomerSgst).toFixed(2)),
+            totalCustomerIgst: parseFloat(v.totalCustomerIgst.toFixed(2)),
+            totalCustomerCgst: parseFloat(v.totalCustomerCgst.toFixed(2)),
+            totalCustomerSgst: parseFloat(v.totalCustomerSgst.toFixed(2)),
             vendorTax: vendorTaxAmount,
             commissionTax: vendorCommissionTaxAmount,
             discount: 0,
@@ -480,6 +528,10 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 shipping,
                 tax,
                 discount: couponDiscount,
+                totalCustomerIgst: vendorItems.reduce((sum, v) => sum + (v.totalCustomerIgst || 0), 0),
+                totalCustomerCgst: vendorItems.reduce((sum, v) => sum + (v.totalCustomerCgst || 0), 0),
+                totalCustomerSgst: vendorItems.reduce((sum, v) => sum + (v.totalCustomerSgst || 0), 0),
+                tax: vendorItems.reduce((sum, v) => sum + (v.tax || 0), 0),
                 platformFee,
                 total,
                 couponCode: couponCode?.toUpperCase(),

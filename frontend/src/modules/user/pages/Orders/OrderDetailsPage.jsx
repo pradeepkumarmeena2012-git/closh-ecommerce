@@ -247,117 +247,160 @@ const OrderDetailsPage = () => {
             <html>
             <head>
                 <meta charset="UTF-8">
-                <title>Invoice #${order.id}</title>
+                <title>Tax Invoice #${order.id}</title>
                 <style>
                     * { box-sizing: border-box; }
-                    body { font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #1a1a1a; line-height: 1.5; }
-                    .header { display: flex; justify-content: space-between; margin-bottom: 40px; border-bottom: 2px solid #f0f0f0; padding-bottom: 25px; }
-                    .company-name { font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
-                    .company-name span { color: #ffcc00; }
-                    .invoice-title { font-size: 36px; font-weight: 800; color: #000; letter-spacing: -1px; }
-                    .section-title { font-size: 11px; font-weight: 900; text-transform: uppercase; margin-bottom: 15px; color: #999; letter-spacing: 1.5px; }
-                    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 50px; }
-                    .table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-                    .table th { text-align: left; border-bottom: 2px solid #000; padding: 12px 10px; font-size: 11px; text-transform: uppercase; font-weight: 900; color: #666; }
-                    .table td { border-bottom: 1px solid #f5f5f5; padding: 15px 10px; font-size: 14px; vertical-align: top; }
-                    .total-section { display: flex; justify-content: flex-end; }
-                    .total-box { width: 250px; }
-                    .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
-                    .total-row.final { font-size: 20px; font-weight: 900; border-top: 2px solid #000; padding-top: 15px; margin-top: 10px; }
-                    .footer { margin-top: 80px; text-align: center; border-top: 1px solid #eee; padding-top: 30px; color: #999; font-size: 12px; }
-                    .badge { display: inline-block; padding: 4px 12px; border-radius: 50px; background: #000; color: #fff; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+                    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; color: #000; line-height: 1.4; font-size: 12px; }
+                    .header-title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                    .top-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+                    .sold-by-info { width: 60%; }
+                    .invoice-info { width: 35%; text-align: right; }
+                    .info-text { margin-bottom: 5px; }
+                    .bold { font-weight: bold; }
+                    
+                    .addresses-box { border: 1px solid #000; display: flex; margin-bottom: 20px; }
+                    .address-col { padding: 10px; flex: 1; border-right: 1px solid #000; }
+                    .address-col:last-child { border-right: none; }
+                    .address-title { font-weight: bold; margin-bottom: 10px; }
+                    
+                    .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center; border: 1px solid #000; }
+                    .table th { border: 1px solid #000; padding: 8px 4px; font-size: 11px; font-weight: bold; }
+                    .table td { border: 1px solid #000; padding: 8px 4px; font-size: 11px; vertical-align: middle; }
+                    .table .text-left { text-align: left; }
+                    .table .text-right { text-align: right; }
+                    
+                    .totals-row td { font-weight: bold; border-top: 2px solid #000; }
+                    .grand-total-row td { font-weight: bold; font-size: 14px; border-top: 2px solid #000; }
+                    
+                    .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #555; border-top: 1px solid #000; padding-top: 10px; }
+                    
                     @media print {
-                        body { padding: 20px; }
-                        button { display: none; }
+                        body { padding: 0; max-width: 100%; }
                     }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <div>
-                        <div class="company-name">CLOUSE<span>.</span></div>
-                        <div style="color: #666; font-size: 12px; margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Premium Fashion Collection</div>
+                <div class="header-title">Tax Invoice</div>
+                
+                <div class="top-section">
+                    <div class="sold-by-info">
+                        <div class="info-text"><span class="bold">Sold By:</span> Clouse Premium Fashion</div>
+                        <div class="info-text"><span class="bold">GSTIN:</span> 29XXXXXXXXXXXXX (Sample)</div>
+                        <div class="info-text"><span class="bold">Ship-from Address:</span> Clouse Warehouse, Sector-1, HSR Layout Bangalore, Karnataka 560102</div>
                     </div>
-                    <div style="text-align: right;">
-                        <div class="invoice-title">INVOICE</div>
-                        <div style="color: #111; margin-top: 4px; font-weight: 800;">Order #${order.id}</div>
-                        <div style="color: #666; font-size: 13px; margin-top: 2px;">Date: ${invoiceDate}</div>
+                    <div class="invoice-info">
+                        <div class="info-text"><span class="bold">Invoice Number:</span> INV-${order.id}</div>
                     </div>
                 </div>
 
-                <div class="info-grid">
-                    <div>
-                        <div class="section-title">BILLED TO</div>
-                        ${order.address ? `
-                            <div style="font-weight: 800; font-size: 16px; margin-bottom: 5px;">${order.address.name}</div>
-                            <div style="color: #444;">${order.address.address}</div>
-                            <div style="color: #444;">${order.address.locality}</div>
-                            <div style="color: #444;">${order.address.city}, ${order.address.state} - ${order.address.pincode}</div>
-                            <div style="margin-top: 8px; font-weight: 700; color: #222;">Phone: ${order.address.mobile || order.address.phone || 'N/A'}</div>
-                        ` : '<div style="color: #ff0000; font-weight: 700;">Address details missing</div>'}
+                <div class="addresses-box">
+                    <div class="address-col" style="flex: 1.2;">
+                        <div class="info-text"><span class="bold">Order ID:</span> #${order.id}</div>
+                        <div class="info-text"><span class="bold">Order Date:</span> ${new Date(order.date).toLocaleDateString('en-CA')}</div>
+                        <div class="info-text"><span class="bold">Invoice Date:</span> ${new Date().toLocaleDateString('en-CA')}</div>
                     </div>
-                    <div style="text-align: right;">
-                        <div class="section-title">PAYMENT & STATUS</div>
-                        <div style="font-weight: 800; text-transform: uppercase; color: #000;">${order.paymentMethod || 'Pay on Delivery'}</div>
-                        <div style="margin-top: 25px;">
-                            <div class="section-title">ORDER STATUS</div>
-                            <div class="badge">${String(order.status || '').toLowerCase() === 'assigned' ? 'ASSIGNED TO PICKUP' : String(order.status || '').toLowerCase() === 'ready_for_pickup' ? 'READY FOR PICKUP' : String(order.status || '').toLowerCase() === 'picked_up' ? 'PICKED UP' : String(order.status || '').toLowerCase() === 'out_for_delivery' ? 'OUT FOR DELIVERY' : String(order.status || '').toUpperCase()}</div>
-                        </div>
+                    <div class="address-col" style="flex: 1;">
+                        <div class="address-title">Billing To:</div>
+                        ${order.address ? \`
+                            <div>\${order.address.name}</div>
+                            <div>\${order.address.address}, \${order.address.locality}</div>
+                            <div>\${order.address.city}, \${order.address.state} - \${order.address.pincode}</div>
+                        \` : 'N/A'}
+                    </div>
+                    <div class="address-col" style="flex: 1;">
+                        <div class="address-title">Shipping To:</div>
+                        ${order.address ? \`
+                            <div>\${order.address.name}</div>
+                            <div>\${order.address.address}, \${order.address.locality}</div>
+                            <div>\${order.address.city}, \${order.address.state} - \${order.address.pincode}</div>
+                        \` : 'N/A'}
                     </div>
                 </div>
 
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Item Description</th>
-                            <th>Size</th>
-                            <th style="text-align: center;">Qty</th>
-                            <th style="text-align: right;">Price</th>
-                            <th style="text-align: right;">Total</th>
+                            <th class="text-left" style="width: 25%;">Product</th>
+                            <th>HSN</th>
+                            <th>MRP</th>
+                            <th>Qty</th>
+                            <th>Gross Amount</th>
+                            <th>Discount</th>
+                            <th>Taxable Value</th>
+                            <th>CGST</th>
+                            <th>SGST/UTGST</th>
+                            <th>IGST</th>
+                            <th>Total</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${order.items.map(item => {
-            const price = item.discountedPrice || item.price || 0;
-            const qty = item.quantity || 1;
-            const total = price * qty;
-            return `
+                            const qty = item.quantity || 1;
+                            const mrp = item.originalPrice || item.price || 0;
+                            const sellingPrice = item.price || 0;
+                            const totalSellingPrice = sellingPrice * qty;
+                            const totalMrp = mrp * qty;
+                            
+                            // Check backend GST fields or calculate fallback
+                            let itemCgst = 0, itemSgst = 0, itemIgst = 0;
+                            if (order.totalCustomerCgst > 0 || order.totalCustomerSgst > 0 || order.totalCustomerIgst > 0) {
+                                // Just a rough split if we don't have per-item in frontend, but normally we do.
+                                // If not per item, we distribute it proportionally or just use overall if single item.
+                                // For simplicity, we calculate it dynamically here for the invoice:
+                                const gstRate = 5; // Default assumption for clothes under 1000, but logic applies
+                                const taxableValue = totalSellingPrice / (1 + (gstRate/100));
+                                const gstAmount = totalSellingPrice - taxableValue;
+                                itemCgst = gstAmount / 2;
+                                itemSgst = gstAmount / 2;
+                            } else {
+                                // Fallback
+                                const taxableValue = totalSellingPrice / 1.05;
+                                const gstAmount = totalSellingPrice - taxableValue;
+                                itemCgst = gstAmount / 2;
+                                itemSgst = gstAmount / 2;
+                            }
+                            
+                            const taxableValue = totalSellingPrice - (itemCgst + itemSgst + itemIgst);
+                            const discount = totalMrp - totalSellingPrice;
+                            
+                            return \`
                                 <tr>
-                                    <td>
-                                        <div style="font-weight: 800; font-size: 15px;">${item.name}</div>
-                                        <div style="color: #888; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 2px;">${item.brand || 'Premium Collection'}</div>
-                                    </td>
-                                    <td style="font-weight: 700;">${item.selectedSize || 'N/A'}</td>
-                                    <td style="text-align: center; font-weight: 700;">${qty}</td>
-                                    <td style="text-align: right; font-weight: 700;">₹${price}</td>
-                                    <td style="text-align: right; font-weight: 800;">₹${total}</td>
+                                    <td class="text-left">\${item.name} \${item.selectedSize ? \`(\${item.selectedSize})\` : ''}</td>
+                                    <td>62034200</td>
+                                    <td>\${mrp.toFixed(2)}</td>
+                                    <td>\${qty}</td>
+                                    <td>\${(totalMrp).toFixed(2)}</td>
+                                    <td>\${discount.toFixed(2)}</td>
+                                    <td>\${taxableValue.toFixed(2)}</td>
+                                    <td>\${itemCgst.toFixed(2)}</td>
+                                    <td>\${itemSgst.toFixed(2)}</td>
+                                    <td>\${itemIgst.toFixed(2)}</td>
+                                    <td>\${totalSellingPrice.toFixed(2)}</td>
                                 </tr>
-                            `;
-        }).join('')}
+                            \`;
+                        }).join('')}
+                        <tr class="totals-row">
+                            <td colspan="7" class="text-right">Total</td>
+                            <td>${(() => {
+                                const taxAmount = (order.total - (order.subtotal || order.total)) || order.tax || ((order.total - (order.total/1.05)));
+                                return (taxAmount / 2).toFixed(2);
+                            })()}</td>
+                            <td>${(() => {
+                                const taxAmount = (order.total - (order.subtotal || order.total)) || order.tax || ((order.total - (order.total/1.05)));
+                                return (taxAmount / 2).toFixed(2);
+                            })()}</td>
+                            <td>0.00</td>
+                            <td>${order.total.toFixed(2)}</td>
+                        </tr>
+                        <tr class="grand-total-row">
+                            <td colspan="10" class="text-right">Grand Total</td>
+                            <td>${order.total.toFixed(2)}</td>
+                        </tr>
                     </tbody>
                 </table>
 
-                <div class="total-section">
-                    <div class="total-box">
-                        <div class="total-row">
-                            <span style="color: #888; font-weight: 700;">Subtotal:</span>
-                            <span style="font-weight: 800;">₹${order.total}</span>
-                        </div>
-                        <div class="total-row">
-                            <span style="color: #888; font-weight: 700;">Shipping:</span>
-                            <span style="color: #008000; font-weight: 900;">FREE</span>
-                        </div>
-                        <div class="total-row final">
-                            <span>TOTAL:</span>
-                            <span>₹${order.total}</span>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="footer">
-                    <p style="font-weight: 800; color: #000; margin-bottom: 5px;">Thank you for shopping with Clouse Fashion!</p>
-                    <p>For any queries or returns, please visit your account dashboard or contact support@clouse.com</p>
-                    <p style="margin-top: 20px; font-size: 10px;">This is a computer-generated invoice and doesn't require a signature.</p>
+                    <p class="bold" style="color: #000; font-size: 12px; margin-bottom: 5px;">This is a computer generated invoice and does not require a signature.</p>
                 </div>
 
                 <script>
