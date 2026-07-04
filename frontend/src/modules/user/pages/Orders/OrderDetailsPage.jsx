@@ -301,19 +301,19 @@ const OrderDetailsPage = () => {
                     </div>
                     <div class="address-col" style="flex: 1;">
                         <div class="address-title">Billing To:</div>
-                        ${order.address ? \`
-                            <div>\${order.address.name}</div>
-                            <div>\${order.address.address}, \${order.address.locality}</div>
-                            <div>\${order.address.city}, \${order.address.state} - \${order.address.pincode}</div>
-                        \` : 'N/A'}
+                        ${order.address ? `
+                            <div>${order.address.name}</div>
+                            <div>${order.address.address}, ${order.address.locality}</div>
+                            <div>${order.address.city}, ${order.address.state} - ${order.address.pincode}</div>
+                        ` : 'N/A'}
                     </div>
                     <div class="address-col" style="flex: 1;">
                         <div class="address-title">Shipping To:</div>
-                        ${order.address ? \`
-                            <div>\${order.address.name}</div>
-                            <div>\${order.address.address}, \${order.address.locality}</div>
-                            <div>\${order.address.city}, \${order.address.state} - \${order.address.pincode}</div>
-                        \` : 'N/A'}
+                        ${order.address ? `
+                            <div>${order.address.name}</div>
+                            <div>${order.address.address}, ${order.address.locality}</div>
+                            <div>${order.address.city}, ${order.address.state} - ${order.address.pincode}</div>
+                        ` : 'N/A'}
                     </div>
                 </div>
 
@@ -363,21 +363,21 @@ const OrderDetailsPage = () => {
                             const taxableValue = totalSellingPrice - (itemCgst + itemSgst + itemIgst);
                             const discount = totalMrp - totalSellingPrice;
                             
-                            return \`
+                            return `
                                 <tr>
-                                    <td class="text-left">\${item.name} \${item.selectedSize ? \`(\${item.selectedSize})\` : ''}</td>
+                                    <td class="text-left">${item.name} ${item.selectedSize ? `(${item.selectedSize})` : ''}</td>
                                     <td>62034200</td>
-                                    <td>\${mrp.toFixed(2)}</td>
-                                    <td>\${qty}</td>
-                                    <td>\${(totalMrp).toFixed(2)}</td>
-                                    <td>\${discount.toFixed(2)}</td>
-                                    <td>\${taxableValue.toFixed(2)}</td>
-                                    <td>\${itemCgst.toFixed(2)}</td>
-                                    <td>\${itemSgst.toFixed(2)}</td>
-                                    <td>\${itemIgst.toFixed(2)}</td>
-                                    <td>\${totalSellingPrice.toFixed(2)}</td>
+                                    <td>${mrp.toFixed(2)}</td>
+                                    <td>${qty}</td>
+                                    <td>${(totalMrp).toFixed(2)}</td>
+                                    <td>${discount.toFixed(2)}</td>
+                                    <td>${taxableValue.toFixed(2)}</td>
+                                    <td>${itemCgst.toFixed(2)}</td>
+                                    <td>${itemSgst.toFixed(2)}</td>
+                                    <td>${itemIgst.toFixed(2)}</td>
+                                    <td>${totalSellingPrice.toFixed(2)}</td>
                                 </tr>
-                            \`;
+                            `;
                         }).join('')}
                         <tr class="totals-row">
                             <td colspan="7" class="text-right">Total</td>
