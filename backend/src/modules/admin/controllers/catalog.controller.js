@@ -556,6 +556,29 @@ export const updateTaxPricingRules = asyncHandler(async (req, res) => {
     );
 });
 
+const generateUniqueCategorySlug = async (name, excludeId = null) => {
+    const baseSlug = slugify(name);
+    let slug = baseSlug;
+    let isUnique = false;
+    let counter = 1;
+
+    while (!isUnique) {
+        const query = { slug };
+        if (excludeId) {
+            query._id = { $ne: excludeId };
+        }
+        const existing = await Category.findOne(query);
+        if (!existing) {
+            isUnique = true;
+        } else {
+            slug = `${baseSlug}-${counter}`;
+            counter++;
+        }
+    }
+
+    return slug;
+};
+
 // GET /api/admin/categories
 export const getAllCategories = asyncHandler(async (req, res) => {
     const categories = await Category.find().sort({ order: 1, name: 1 });
@@ -567,7 +590,7 @@ export const createCategory = asyncHandler(async (req, res) => {
     const payload = sanitizeCategoryPayload(req.body);
     const { name, ...rest } = payload;
     await assertValidCategoryParent({ parentId: rest.parentId });
-    const slug = slugify(name);
+    const slug = await generateUniqueCategorySlug(name);
     const category = await Category.create({ name, slug, ...rest });
 
     await deleteCache('categories:all');
@@ -587,7 +610,7 @@ export const updateCategory = asyncHandler(async (req, res) => {
     });
 
     if (payload.name) {
-        payload.slug = slugify(payload.name);
+        payload.slug = await generateUniqueCategorySlug(payload.name, existingCategory._id);
     }
 
     const category = await Category.findByIdAndUpdate(req.params.id, payload, {
