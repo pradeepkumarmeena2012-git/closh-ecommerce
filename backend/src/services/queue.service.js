@@ -10,20 +10,29 @@ import { emitEvent } from './socket.service.js';
  * Handles Timeouts and Radius Expansion
  */
 
+// Dummy queue for when Redis is disabled/unavailable
+class DummyQueue {
+    constructor(name) { this.name = name; }
+    async add() { console.warn(`[Queue: ${this.name}] Redis is unavailable, ignoring job.`); }
+}
+
+const isRedisAvailable = process.env.REDIS_HOST || process.env.REDIS_URL || process.env.NODE_ENV === 'production';
+
 // 1. Order Wait Queue (Vendor Acceptance)
-const orderWaitQueue = new Queue('order-wait-queue', { connection: redisConnection });
+const orderWaitQueue = isRedisAvailable ? new Queue('order-wait-queue', { connection: redisConnection }) : new DummyQueue('order-wait-queue');
 
 // 2. Rider Search Queue (Radius Expansion)
-const riderSearchQueue = new Queue('rider-search-queue', { connection: redisConnection });
+const riderSearchQueue = isRedisAvailable ? new Queue('rider-search-queue', { connection: redisConnection }) : new DummyQueue('rider-search-queue');
 
 // 3. Rider Acceptance Timeout Queue (Auto-cancel if no rider accepts within 15 min)
-const riderAcceptQueue = new Queue('rider-accept-queue', { connection: redisConnection });
+const riderAcceptQueue = isRedisAvailable ? new Queue('rider-accept-queue', { connection: redisConnection }) : new DummyQueue('rider-accept-queue');
 
 // 4. Rider Auto Assign 120s Timeout Queue (Auto-reject if rider doesn't click Accept within 120s)
-const riderAutoAssignTimeoutQueue = new Queue('rider-auto-assign-timeout-queue', { connection: redisConnection });
+const riderAutoAssignTimeoutQueue = isRedisAvailable ? new Queue('rider-auto-assign-timeout-queue', { connection: redisConnection }) : new DummyQueue('rider-auto-assign-timeout-queue');
 
 // 5. Rider Auto Assign Retry Queue (Retry auto-assignment if no riders were found)
-const riderAutoAssignRetryQueue = new Queue('rider-auto-assign-retry-queue', { connection: redisConnection });
+const riderAutoAssignRetryQueue = isRedisAvailable ? new Queue('rider-auto-assign-retry-queue', { connection: redisConnection }) : new DummyQueue('rider-auto-assign-retry-queue');
+
 
 export const QueueService = {
 
@@ -93,205 +102,219 @@ export const QueueService = {
 /**
  * Worker Logic: Order Wait Check
  */
-new Worker('order-wait-queue', async job => {
-    const { orderId } = job.data;
-    const order = await Order.findById(orderId);
+if (isRedisAvailable) {
+    new Worker('order-wait-queue', async job => {
+        const { orderId } = job.data;
+        const order = await Order.findById(orderId);
 
-    if (!order) return;
+        if (!order) return;
 
-    if (order.status === 'pending') {
-        console.log(`[Worker] Vendor timeout reached for order ${order.orderId}. Auto-cancelling.`);
-        
-        // Atomic status check-and-update to 'cancelled'
-        const updated = await Order.findOneAndUpdate(
-            { _id: orderId, status: 'pending' },
-            { 
-                $set: { 
-                    status: 'cancelled', 
-                    cancellationReason: 'Vendor unresponsive timeout' 
-                } 
-            },
-            { new: true }
-        );
-
-        if (updated) {
-            // Notify Customer
-            emitEvent(`user_${order.userId}`, 'order_cancelled', { 
-                orderId: order.orderId, 
-                reason: 'No response from vendor within 5 minutes.'
-            });
+        if (order.status === 'pending') {
+            console.log(`[Worker] Vendor timeout reached for order ${order.orderId}. Auto-cancelling.`);
             
-            await createNotification({
-                recipientId: order.userId,
-                recipientType: 'user',
-                title: 'Order Cancelled (Timeout)',
-                message: 'No vendor accepted your order within the time limit. Refund initiated if applicable.',
-                type: 'order'
-            });
+            // Atomic status check-and-update to 'cancelled'
+            const updated = await Order.findOneAndUpdate(
+                { _id: orderId, status: 'pending' },
+                { 
+                    $set: { 
+                        status: 'cancelled', 
+                        cancellationReason: 'Vendor unresponsive timeout' 
+                    } 
+                },
+                { new: true }
+            );
+
+            if (updated) {
+                // Notify Customer
+                emitEvent(`user_${order.userId}`, 'order_cancelled', { 
+                    orderId: order.orderId, 
+                    reason: 'No response from vendor within 5 minutes.'
+                });
+                
+                await createNotification({
+                    recipientId: order.userId,
+                    recipientType: 'user',
+                    title: 'Order Cancelled (Timeout)',
+                    message: 'No vendor accepted your order within the time limit. Refund initiated if applicable.',
+                    type: 'order'
+                });
+            }
         }
-    }
-}, { connection: redisConnection });
+    }, { connection: redisConnection });
+}
 
 /**
  * Worker Logic: Rider Search Loop
  */
-new Worker('rider-search-queue', async job => {
-    const { orderId, radius, attempt } = job.data;
-    const order = await Order.findById(orderId);
+if (isRedisAvailable) {
+    new Worker('rider-search-queue', async job => {
+        const { orderId, radius, attempt } = job.data;
+        const order = await Order.findById(orderId);
 
-    if (!order || order.status !== 'searching') return;
+        if (!order || order.status !== 'searching') return;
 
-    console.log(`[Worker] Attempting rider search (Attempt ${attempt}, Radius ${radius}km) for order ${order.orderId}`);
+        console.log(`[Worker] Attempting rider search (Attempt ${attempt}, Radius ${radius}km) for order ${order.orderId}`);
 
-    const notifiedCount = await DeliveryNearbyService.broadcastToRiders(order, radius);
+        const notifiedCount = await DeliveryNearbyService.broadcastToRiders(order, radius);
 
-    // If no one was notified OR we expect a repeat, schedule next attempt with larger radius
-    if (order.status === 'searching') {
-        await QueueService.scheduleRiderSearch(orderId, radius + 5, attempt + 1);
-    }
-}, { connection: redisConnection });
+        // If no one was notified OR we expect a repeat, schedule next attempt with larger radius
+        if (order.status === 'searching') {
+            await QueueService.scheduleRiderSearch(orderId, radius + 5, attempt + 1);
+        }
+    }, { connection: redisConnection });
+}
 
 /**
  * Worker Logic: Rider Acceptance Timeout Check (15 minutes)
  * If order is still in 'searching' status (no delivery boy accepted), auto-cancel and notify vendor.
  */
-new Worker('rider-accept-queue', async job => {
-    const { orderId } = job.data;
-    const order = await Order.findById(orderId).populate('vendorItems.vendorId', '_id name storeName');
+if (isRedisAvailable) {
+    new Worker('rider-accept-queue', async job => {
+        const { orderId } = job.data;
+        const order = await Order.findById(orderId).populate('vendorItems.vendorId', '_id name storeName');
 
-    if (!order) return;
+        if (!order) return;
 
-    // Only cancel if still searching (no rider claimed it)
-    if (order.status === 'searching' || order.status === 'ready_for_pickup') {
-        console.log(`[Worker] Rider acceptance timeout (15 min) for order ${order.orderId}. Auto-cancelling.`);
+        // Only cancel if still searching (no rider claimed it)
+        if (order.status === 'searching' || order.status === 'ready_for_pickup') {
+            console.log(`[Worker] Rider acceptance timeout (15 min) for order ${order.orderId}. Auto-cancelling.`);
 
-        const updated = await Order.findOneAndUpdate(
-            { _id: orderId, status: { $in: ['searching', 'ready_for_pickup'] } },
-            {
-                $set: {
-                    status: 'cancelled',
-                    cancellationReason: 'No delivery partner available within 15 minutes'
-                }
-            },
-            { new: true }
-        );
+            const updated = await Order.findOneAndUpdate(
+                { _id: orderId, status: { $in: ['searching', 'ready_for_pickup'] } },
+                {
+                    $set: {
+                        status: 'cancelled',
+                        cancellationReason: 'No delivery partner available within 15 minutes'
+                    }
+                },
+                { new: true }
+            );
 
-        if (updated) {
-            // Notify Customer
-            emitEvent(`user_${order.userId}`, 'order_cancelled', {
-                orderId: order.orderId,
-                reason: 'No delivery partner available to accept your order within 15 minutes.'
-            });
-
-            await createNotification({
-                recipientId: order.userId,
-                recipientType: 'user',
-                title: 'Order Cancelled',
-                message: `Order #${order.orderId} has been cancelled. No delivery partner was available. Refund initiated if applicable.`,
-                type: 'order',
-                data: { orderId: order.orderId, status: 'cancelled' }
-            }).catch(err => console.error('[RiderTimeout] User notification error:', err));
-
-            // Notify each Vendor that no delivery boy was available
-            const notifiedVendors = new Set();
-            for (const vi of (order.vendorItems || [])) {
-                const vendorId = vi.vendorId?._id || vi.vendorId;
-                if (!vendorId || notifiedVendors.has(String(vendorId))) continue;
-                notifiedVendors.add(String(vendorId));
-
-                emitEvent(`vendor_${vendorId}`, 'order_cancelled_no_rider', {
+            if (updated) {
+                // Notify Customer
+                emitEvent(`user_${order.userId}`, 'order_cancelled', {
                     orderId: order.orderId,
-                    reason: 'No delivery partner available within 15 minutes.'
+                    reason: 'No delivery partner available to accept your order within 15 minutes.'
                 });
 
                 await createNotification({
-                    recipientId: vendorId,
-                    recipientType: 'vendor',
-                    title: 'Order Cancelled - No Rider',
-                    message: `Order #${order.orderId} was cancelled because no delivery partner accepted it within 15 minutes.`,
+                    recipientId: order.userId,
+                    recipientType: 'user',
+                    title: 'Order Cancelled',
+                    message: `Order #${order.orderId} has been cancelled. No delivery partner was available. Refund initiated if applicable.`,
                     type: 'order',
                     data: { orderId: order.orderId, status: 'cancelled' }
-                }).catch(err => console.error('[RiderTimeout] Vendor notification error:', err));
-            }
+                }).catch(err => console.error('[RiderTimeout] User notification error:', err));
 
-            // Notify tracking room
-            emitEvent(`order_${order.orderId}`, 'order_status_updated', {
-                orderId: order.orderId,
-                status: 'cancelled'
-            });
+                // Notify each Vendor that no delivery boy was available
+                const notifiedVendors = new Set();
+                for (const vi of (order.vendorItems || [])) {
+                    const vendorId = vi.vendorId?._id || vi.vendorId;
+                    if (!vendorId || notifiedVendors.has(String(vendorId))) continue;
+                    notifiedVendors.add(String(vendorId));
+
+                    emitEvent(`vendor_${vendorId}`, 'order_cancelled_no_rider', {
+                        orderId: order.orderId,
+                        reason: 'No delivery partner available within 15 minutes.'
+                    });
+
+                    await createNotification({
+                        recipientId: vendorId,
+                        recipientType: 'vendor',
+                        title: 'Order Cancelled - No Rider',
+                        message: `Order #${order.orderId} was cancelled because no delivery partner accepted it within 15 minutes.`,
+                        type: 'order',
+                        data: { orderId: order.orderId, status: 'cancelled' }
+                    }).catch(err => console.error('[RiderTimeout] Vendor notification error:', err));
+                }
+
+                // Notify tracking room
+                emitEvent(`order_${order.orderId}`, 'order_status_updated', {
+                    orderId: order.orderId,
+                    status: 'cancelled'
+                });
+            }
         }
-    }
-}, { connection: redisConnection });
+    }, { connection: redisConnection });
+}
 
 /**
  * Worker Logic: Rider Auto Assign 120s Timeout Check
  * If an order was auto-assigned but the rider didn't accept in 120s, Auto-Reject and search again.
  */
-new Worker('rider-auto-assign-timeout-queue', async job => {
-    const { orderId, deliveryBoyId } = job.data;
-    const order = await Order.findById(orderId);
+if (isRedisAvailable) {
+    new Worker('rider-auto-assign-timeout-queue', async job => {
+        const { orderId, deliveryBoyId } = job.data;
+        const order = await Order.findById(orderId);
 
-    if (!order) return;
+        if (!order) return;
 
-    // Check if the order is STILL assigned to this rider BUT they haven't explicitly accepted it.
-    if (order.status === 'assigned' && String(order.deliveryBoyId) === String(deliveryBoyId) && !order.riderAcceptedAt) {
-        console.log(`[Worker] ⏰ Rider ${deliveryBoyId} failed to accept order ${order.orderId} within 60s. Auto-rejecting.`);
+        // Check if the order is STILL assigned to this rider BUT they haven't explicitly accepted it.
+        if (order.status === 'assigned' && String(order.deliveryBoyId) === String(deliveryBoyId) && !order.riderAcceptedAt) {
+            console.log(`[Worker] ⏰ Rider ${deliveryBoyId} failed to accept order ${order.orderId} within 60s. Auto-rejecting.`);
 
-        // 1. Mark this rider as rejected
-        if (!order.rejectedDeliveryBoys.includes(deliveryBoyId)) {
-            order.rejectedDeliveryBoys.push(deliveryBoyId);
+            // 1. Mark this rider as rejected
+            if (!order.rejectedDeliveryBoys.includes(deliveryBoyId)) {
+                order.rejectedDeliveryBoys.push(deliveryBoyId);
+            }
+
+            // 2. Clear assignment
+            order.deliveryBoyId = undefined;
+            order.status = 'searching';
+            order.vendorPickups = []; // Will be recalculated by new assignment
+            await order.save();
+
+            // 3. Make rider available again
+            const DeliveryBoy = (await import('../models/DeliveryBoy.model.js')).default;
+            await DeliveryBoy.findByIdAndUpdate(deliveryBoyId, { status: 'available' });
+
+            // 4. Delete the DeliveryBatch if any
+            const DeliveryBatch = (await import('../models/DeliveryBatch.model.js')).default;
+            await DeliveryBatch.deleteMany({
+                customerId: order.userId,
+                deliveryBoyId: deliveryBoyId,
+                status: { $in: ['assigned', 'picked_up', 'arrived', 'try_and_buy', 'payment_pending'] }
+            });
+
+            // 5. Notify the rider that they missed it
+            emitEvent(`delivery_${deliveryBoyId}`, 'order_missed', { 
+                orderId: order.orderId,
+                id: order._id,
+                message: 'Order was removed because it was not accepted within 60 seconds.'
+            });
+
+            // 6. Trigger auto assignment for the next nearest rider
+            const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
+            autoAssignDeliveryBoy(order._id, [deliveryBoyId]).catch(err => {
+                console.error("[Worker] AutoAssign fallback trigger failed:", err);
+            });
         }
-
-        // 2. Clear assignment
-        order.deliveryBoyId = undefined;
-        order.status = 'searching';
-        order.vendorPickups = []; // Will be recalculated by new assignment
-        await order.save();
-
-        // 3. Make rider available again
-        const DeliveryBoy = (await import('../models/DeliveryBoy.model.js')).default;
-        await DeliveryBoy.findByIdAndUpdate(deliveryBoyId, { status: 'available' });
-
-        // 4. Delete the DeliveryBatch if any
-        const DeliveryBatch = (await import('../models/DeliveryBatch.model.js')).default;
-        await DeliveryBatch.deleteMany({
-            customerId: order.userId,
-            deliveryBoyId: deliveryBoyId,
-            status: { $in: ['assigned', 'picked_up', 'arrived', 'try_and_buy', 'payment_pending'] }
-        });
-
-        // 5. Notify the rider that they missed it
-        emitEvent(`delivery_${deliveryBoyId}`, 'order_missed', { 
-            orderId: order.orderId,
-            id: order._id,
-            message: 'Order was removed because it was not accepted within 60 seconds.'
-        });
-
-        // 6. Trigger auto assignment for the next nearest rider
-        const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
-        autoAssignDeliveryBoy(order._id, [deliveryBoyId]).catch(err => {
-            console.error("[Worker] AutoAssign fallback trigger failed:", err);
-        });
-    }
-}, { connection: redisConnection });
+    }, { connection: redisConnection });
+}
 
 /**
  * Worker Logic: Rider Auto Assign Retry
  * Continuously retry auto-assignment if no riders are available, until the order is accepted or global timeout occurs.
  */
-new Worker('rider-auto-assign-retry-queue', async job => {
-    const { orderId } = job.data;
-    const order = await Order.findById(orderId);
+if (isRedisAvailable) {
+    new Worker('rider-auto-assign-retry-queue', async job => {
+        const { orderId } = job.data;
+        const order = await Order.findById(orderId);
 
-    if (!order) return;
+        if (!order) return;
 
-    if (order.status === 'searching') {
-        console.log(`[Worker] 🔄 Retrying auto-assignment for order ${order.orderId}...`);
-        const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
-        autoAssignDeliveryBoy(order._id).catch(err => {
-            console.error("[Worker] AutoAssign retry trigger failed:", err);
-        });
-    }
-}, { connection: redisConnection });
+        if (order.status === 'searching') {
+            console.log(`[Worker] 🔄 Retrying auto-assignment for order ${order.orderId}...`);
+            const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
+            autoAssignDeliveryBoy(order._id).catch(err => {
+                console.error("[Worker] AutoAssign retry trigger failed:", err);
+            });
+        }
+    }, { connection: redisConnection });
+}
 
-console.log('✅ Queue Workers Initialized');
+if (isRedisAvailable) {
+    console.log('✅ Queue Workers Initialized');
+} else {
+    console.log('⚠️ Redis is unavailable in local dev. Queue Workers bypassed.');
+}

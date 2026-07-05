@@ -812,14 +812,24 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             order.deliveryFlow.phase = finalPhase;
         }
 
-        // Sync vendorItems statuses
+        // Sync vendorItems statuses — per-vendor check for rejected items
         if (order.vendorItems && order.vendorItems.length > 0) {
+            const rejectedItemsList = (order.deliveryFlow?.rejectedItems || []);
             order.vendorItems.forEach(group => {
-                if (hasRejectedItems && group.quantity === 0) {
+                const vendorGroupId = String(group.vendorId._id || group.vendorId);
+                // Check if THIS specific vendor has any rejected items
+                const thisVendorHasRejectedItems = hasRejectedItems && rejectedItemsList.some(ri => {
+                    const riVendorId = ri.vendorId ? String(ri.vendorId._id || ri.vendorId) : null;
+                    if (riVendorId) return riVendorId === vendorGroupId;
+                    // Fallback: check if the rejected item's product belongs to this vendor group
+                    return group.items.some(item => String(item.productId) === String(ri.productId));
+                });
+
+                if (thisVendorHasRejectedItems) {
                     group.status = 'returning_unselected_items';
                 } else {
-                    group.status = finalStatus;
-                    if (!hasRejectedItems) group.deliveredAt = new Date();
+                    group.status = 'delivered';
+                    group.deliveredAt = new Date();
                 }
             });
         }
@@ -1800,15 +1810,24 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
         }
     }
 
-    // Sync vendorItems statuses
+    // Sync vendorItems statuses — per-vendor check for rejected items
     if (order.vendorItems && order.vendorItems.length > 0) {
+        const rejectedItemsList = (flow?.rejectedItems || order.deliveryFlow?.rejectedItems || []);
         order.vendorItems.forEach(group => {
-            if (hasRejectedItems && group.quantity === 0) {
-                // Keep it pending or mark as returning
+            const vendorGroupId = String(group.vendorId._id || group.vendorId);
+            // Check if THIS specific vendor has any rejected items
+            const thisVendorHasRejectedItems = hasRejectedItems && rejectedItemsList.some(ri => {
+                const riVendorId = ri.vendorId ? String(ri.vendorId._id || ri.vendorId) : null;
+                if (riVendorId) return riVendorId === vendorGroupId;
+                // Fallback: check if the rejected item's product belongs to this vendor group
+                return group.items.some(item => String(item.productId) === String(ri.productId));
+            });
+
+            if (thisVendorHasRejectedItems) {
                 group.status = 'returning_unselected_items';
             } else {
-                group.status = finalStatus;
-                if (!hasRejectedItems) group.deliveredAt = new Date();
+                group.status = 'delivered';
+                group.deliveredAt = new Date();
             }
         });
     }
