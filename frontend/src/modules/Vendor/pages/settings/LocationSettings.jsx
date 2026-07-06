@@ -91,7 +91,10 @@ const LocationSettings = () => {
                     parseFloat(coordinates.longitude)
                 );
             }
-            await updateProfile({ address: { ...vendor?.address, street: shopAddress } });
+            await updateProfile({ 
+                address: { ...vendor?.address, street: shopAddress },
+                shopAddress: shopAddress 
+            });
             toast.success("Shop location updated successfully");
         } catch (error) {
             // Error handled by interceptor

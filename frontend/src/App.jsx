@@ -64,6 +64,7 @@ import CashCollection from "./modules/Admin/pages/delivery/CashCollection";
 import AssignDelivery from "./modules/Admin/pages/delivery/AssignDelivery";
 import Withdrawals from "./modules/Admin/pages/delivery/Withdrawals";
 import RiderSettlements from "./modules/Admin/pages/delivery/RiderSettlements";
+import DeliveryFeeSettings from "./modules/Admin/pages/delivery/DeliveryFeeSettings";
 // Vendors child pages
 import Vendors from "./modules/Admin/pages/Vendors";
 import ManageVendors from "./modules/Admin/pages/vendors/ManageVendors";
@@ -238,6 +239,7 @@ const renderAdminRoutes = () => (
     <Route path="delivery/assign-delivery" element={<AssignDelivery />} />
     <Route path="delivery/withdrawals" element={<Withdrawals />} />
     <Route path="delivery/rider-settlements" element={<RiderSettlements />} />
+    <Route path="delivery/fee-settings" element={<DeliveryFeeSettings />} />
     <Route path="vendors" element={<Vendors />} />
     <Route path="vendors/manage-vendors" element={<ManageVendors />} />
     <Route

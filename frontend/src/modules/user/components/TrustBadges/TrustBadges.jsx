@@ -1,11 +1,11 @@
 import React from 'react';
-import { ShieldCheck, CheckCircle, Package, RefreshCcw } from 'lucide-react';
+import { ShieldCheck, CheckCircle, Package, Clock } from 'lucide-react';
 
 const badges = [
     { id: 1, icon: <ShieldCheck size={28} strokeWidth={1.5} />, text: 'Secure Payments' },
     { id: 2, icon: <CheckCircle size={28} strokeWidth={1.5} />, text: 'Genuine Quality' },
     { id: 3, icon: <Package size={28} strokeWidth={1.5} />, text: 'Click & Collect' },
-    { id: 4, icon: <RefreshCcw size={28} strokeWidth={1.5} />, text: '7 Day Return' }
+    { id: 4, icon: <Clock size={28} strokeWidth={1.5} />, text: 'Delivery In 60 Min' }
 ];
 
 const TrustBadges = () => {

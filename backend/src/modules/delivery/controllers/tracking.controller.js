@@ -2,6 +2,7 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import Order from '../../../models/Order.model.js';
 import DeliveryBoy from '../../../models/DeliveryBoy.model.js';
 import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
+import { getDeliveryFeeConfig } from '../../../utils/deliveryFeeConfig.js';
 import { emitEvent } from '../../../services/socket.service.js';
 
 /**
@@ -71,9 +72,11 @@ export const updateLocationWithTracking = asyncHandler(async (req, res) => {
             }
 
             distanceTraveled = order.deliveryTracking.totalDistance;
-            earnings = getDeliveryEarning(distanceTraveled);
+            // Load dynamic config and pass to earning calculator
+            const feeConfig = await getDeliveryFeeConfig();
+            earnings = getDeliveryEarning(distanceTraveled, feeConfig);
             
-            // Update order earnings
+            // Update order earnings (live estimate; final locked at completion)
             order.deliveryEarnings = earnings;
             
             await order.save();

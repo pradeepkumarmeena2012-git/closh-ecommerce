@@ -585,7 +585,7 @@ const TrackOrderPage = () => {
                                                     isArrived ? 'text-amber-800' :
                                                     'text-slate-600'
                                                 }`}>
-                                                    {vp.vendorName || `Vendor ${idx + 1}`}
+                                                    {`closh${idx + 1}`}
                                                 </p>
                                                 <p className="text-[10px] text-slate-400 font-medium truncate">
                                                     {isDone ? 'Picked up ✓' :

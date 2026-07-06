@@ -124,6 +124,13 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
         // 3. Optimize pickup route sequence from rider's current location
         const riderCoords = chosenRider.currentLocation?.coordinates || firstVendorLocation;
 
+        console.log(`[AutoAssignment] 🧭 Rider "${chosenRider.name}" currentLocation:`, JSON.stringify(chosenRider.currentLocation));
+        console.log(`[AutoAssignment] 🧭 riderCoords used for sorting:`, riderCoords);
+        vendorStopsRaw.forEach((s, i) => {
+            const dist = calculateDistance(riderCoords, s.shopLocation?.coordinates || [0, 0]);
+            console.log(`[AutoAssignment] 🏪 Vendor[${i}] "${s.vendorName}" coords: ${JSON.stringify(s.shopLocation?.coordinates)}, distFromRider: ${dist} km`);
+        });
+
         const sortStopsNearestFirst = (stops, coords) => {
             if (!coords || coords.length < 2) return stops;
             return [...stops].sort((a, b) => {
@@ -134,6 +141,7 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
         };
 
         const sortedStops = sortStopsNearestFirst(vendorStopsRaw, riderCoords);
+        console.log(`[AutoAssignment] ✅ Sorted order:`, sortedStops.map((s, i) => `${i}: ${s.vendorName}`).join(' → '));
 
         // Map stops to database schema format
         const vendorPickups = sortedStops.map((stop, idx) => {
@@ -156,6 +164,7 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
         // 4. Update the Order
         order.deliveryBoyId = chosenRider._id;
         order.status = 'assigned';
+        order.assignedAt = new Date(); // Fix: Frontend countdown relies on this
         order.isMultiVendor = order.vendorItems.length > 1;
         order.vendorPickups = vendorPickups;
         order.assignedAt = new Date();

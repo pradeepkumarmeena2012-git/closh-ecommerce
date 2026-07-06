@@ -102,6 +102,7 @@ const AdminHeader = ({ onMenuClick }) => {
       'delivery-boys': 'Delivery Boys',
       'cash-collection': 'Cash Collection',
       'assign-delivery': 'Assign Delivery',
+      'fee-settings': 'Fee Settings',
       vendors: 'Vendors',
       'manage-vendors': 'Manage Vendors',
       'pending-approvals': 'Pending Approvals',

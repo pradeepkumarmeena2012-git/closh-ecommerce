@@ -357,6 +357,8 @@ export const updateProfile = asyncHandler(async (req, res) => {
         'storeDescription',
         'storeLogo',
         'address',
+        'shopAddress',
+        'shopLocation',
         'shippingEnabled',
         'freeShippingThreshold',
         'defaultShippingRate',
