@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, Polyline, DirectionsRenderer, Marker } from '@react-google-maps/api';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { GoogleMap, useJsApiLoader, Polyline, DirectionsRenderer, Marker, Circle } from '@react-google-maps/api';
 import { FiNavigation, FiActivity } from 'react-icons/fi';
 
 const containerStyle = {
@@ -91,6 +91,8 @@ const mapOptions = {
   ]
 };
 
+const LIBRARIES = ['places', 'geometry', 'drawing'];
+
 const TrackingMap = ({ 
   deliveryLocation, // { lat, lng }
   customerLocation: initialCustomerLocation, // { lat, lng }
@@ -106,7 +108,7 @@ const TrackingMap = ({
   const { isLoaded: localIsLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
-    libraries: ['places', 'geometry', 'drawing']
+    libraries: LIBRARIES
   });
 
   const isLoaded = isLoadedProp !== undefined ? isLoadedProp : localIsLoaded;
@@ -124,58 +126,16 @@ const TrackingMap = ({
   
   // Smooth Interpolation State
   const [smoothLocation, setSmoothLocation] = useState(deliveryLocation);
-  const animFrameRef = useRef();
-  const lastTargetRef = useRef(deliveryLocation);
-
   // --- Utility: Calculate Heading ---
   const calculateHeading = (from, to) => {
-    if (!window.google || !from || !to) return 0;
+    if (!window.google?.maps?.geometry?.spherical || !from || !to) return 0;
     return window.google.maps.geometry.spherical.computeHeading(
       new window.google.maps.LatLng(from.lat, from.lng),
       new window.google.maps.LatLng(to.lat, to.lng)
     );
   };
 
-  // --- Smooth Gliding Engine (Lerp) ---
-  useEffect(() => {
-    if (!deliveryLocation) return;
-    
-    // If it's a fresh update, calculate heading before moving
-    if (lastTargetRef.current && (lastTargetRef.current.lat !== deliveryLocation.lat)) {
-       setHeading(calculateHeading(lastTargetRef.current, deliveryLocation));
-    }
-    lastTargetRef.current = deliveryLocation;
-
-    if (!smoothLocation) {
-      setSmoothLocation(deliveryLocation);
-      return;
-    }
-
-    let start = Date.now();
-    const duration = 2000; // 2 sec glide for smoothness
-    const startLoc = { ...smoothLocation };
-
-    const animateGlide = () => {
-      const elapsed = Date.now() - start;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      const easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-
-      setSmoothLocation({
-        lat: startLoc.lat + (deliveryLocation.lat - startLoc.lat) * easedProgress,
-        lng: startLoc.lng + (deliveryLocation.lng - startLoc.lng) * easedProgress
-      });
-
-      if (progress < 1) {
-        animFrameRef.current = requestAnimationFrame(animateGlide);
-      }
-    };
-
-    animateGlide();
-    return () => cancelAnimationFrame(animFrameRef.current);
-  }, [deliveryLocation]);
-
-  const effectiveRider = isSimulating ? simulatedRider : smoothLocation;
+  const effectiveRider = isSimulating ? simulatedRider : deliveryLocation;
   const isPickedUp = ['picked_up', 'out_for_delivery', 'picked-up', 'out-for-delivery', 'arrived'].includes(status?.toLowerCase());
   const isReturn = type === 'return';
   const destination = isReturn
@@ -270,6 +230,12 @@ const TrackingMap = ({
 
   if (!isLoaded) return <div className="h-full w-full bg-slate-100 flex items-center justify-center animate-pulse" />;
 
+  console.log('🗺️ [TrackingMap] Rendering with:', { 
+    effectiveRider, 
+    deliveryLocation, 
+    hasWindowGoogle: !!window.google 
+  });
+
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/* ETA HUD */}
@@ -309,17 +275,8 @@ const TrackingMap = ({
         {effectiveRider && window.google && (
           <Marker 
             position={effectiveRider}
-            icon={{
-              path: 'M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z', // Sleek Navigation Arrow Path
-              fillColor: '#4f46e5',
-              fillOpacity: 1,
-              strokeWeight: 2,
-              strokeColor: '#ffffff',
-              scale: 2,
-              anchor: new window.google.maps.Point(12, 12),
-              rotation: heading
-            }}
             zIndex={2000}
+            title="You are here"
           />
         )}
 

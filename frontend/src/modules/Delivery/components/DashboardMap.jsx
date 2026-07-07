@@ -140,6 +140,26 @@ const DashboardMap = ({ currentLocation, activeOrder, isOnline, isLoaded, height
           </div>
         )}
 
+        {/* Center on Me button */}
+        {currentLocation && (
+          <button
+            onClick={() => {
+              // Force pan to current location by re-fetching GPS
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  toast.success(`Location: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+                },
+                () => toast.error('GPS unavailable'),
+                { enableHighAccuracy: true, timeout: 10000 }
+              );
+            }}
+            className="absolute top-4 right-4 z-30 w-11 h-11 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 flex items-center justify-center text-indigo-600 active:scale-90 transition-all"
+            title="My Location"
+          >
+            <FiNavigation size={18} />
+          </button>
+        )}
+
         {/* Custom Mini Info Overlay */}
         <AnimatePresence>
           {((isOnline && !hideHeader) || showDebug) && currentLocation && (

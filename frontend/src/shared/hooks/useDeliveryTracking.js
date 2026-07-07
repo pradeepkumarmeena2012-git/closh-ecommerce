@@ -24,8 +24,20 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
     return R * c;
 };
 
+// Load cached location from localStorage so the pin shows instantly on refresh
+const getCachedLocation = () => {
+    try {
+        const cached = localStorage.getItem('delivery_last_location');
+        if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed?.lat && parsed?.lng && parsed.lat !== 0 && parsed.lng !== 0) return parsed;
+        }
+    } catch { /* ignore */ }
+    return null;
+};
+
 export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
-    const [currentLocation, setCurrentLocation] = useState(null);
+    const [currentLocation, setCurrentLocation] = useState(getCachedLocation);
     const lastSentLocation = useRef(null);
     const lastSentTime = useRef(0);
     const watchId = useRef(null);
@@ -124,6 +136,8 @@ export const useDeliveryTracking = (deliveryBoyId, activeOrders = []) => {
         const handleSuccess = (position) => {
             const { latitude: lat, longitude: lng, accuracy } = position.coords;
             setCurrentLocation({ lat, lng });
+            // Cache to localStorage so pin shows instantly on page refresh
+            try { localStorage.setItem('delivery_last_location', JSON.stringify({ lat, lng })); } catch { /* ignore */ }
             handleSubmits(lat, lng, accuracy);
         };
 
