@@ -17,7 +17,9 @@ import {
   FiAlertTriangle,
   FiRefreshCw,
   FiSlash,
-  FiBarChart2
+  FiBarChart2,
+  FiRotateCcw,
+  FiDollarSign
 } from 'react-icons/fi';
 import { Layers } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -93,6 +95,10 @@ const DeliveryOrders = () => {
   const [rejectedOrders, setRejectedOrders] = useState([]);
   const [rejectedSummary, setRejectedSummary] = useState({ cancelledAssigned: 0, riderRejected: 0, total: 0 });
   const [rejectedLoading, setRejectedLoading] = useState(false);
+  // Returned orders state
+  const [returnedOrders, setReturnedOrders] = useState([]);
+  const [returnedSummary, setReturnedSummary] = useState({ total: 0, totalEarnings: 0 });
+  const [returnedLoading, setReturnedLoading] = useState(false);
   const PAGE_SIZE = 20;
 
   const getBackendStatusFilter = (value) => {
@@ -195,6 +201,19 @@ const DeliveryOrders = () => {
         })
         .catch(() => toast.error('Failed to load rejected orders'))
         .finally(() => setRejectedLoading(false));
+    }
+
+    // Fetch completed returns history
+    if (filter === 'returned') {
+      setReturnedLoading(true);
+      api.get('/delivery/returns/completed', { params: { page: currentPage, limit: PAGE_SIZE } })
+        .then(r => {
+          const payload = r.data?.data || r.data || {};
+          setReturnedOrders(payload.returns || []);
+          setReturnedSummary(payload.summary || { total: 0, totalEarnings: 0 });
+        })
+        .catch(() => toast.error('Failed to load return history'))
+        .finally(() => setReturnedLoading(false));
     }
 
     socketService.on('order_taken', (data) => {
@@ -318,19 +337,22 @@ const DeliveryOrders = () => {
           </div>
 
           <div className="relative z-10 mt-6 flex gap-2 overflow-x-auto scrollbar-hide">
-             {['available', 'multi-vendor', 'delivered', 'rejected'].filter(t => t !== 'available' || isOnline).map((tab) => (
+             {['available', 'multi-vendor', 'delivered', 'returned', 'rejected'].filter(t => t !== 'available' || isOnline).map((tab) => (
                <button
                  key={tab}
                  onClick={() => { setFilter(tab); setCurrentPage(1); }}
-                 className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-[12px] font-bold tracking-tight transition-all duration-300 border ${
+                 className={`flex items-center gap-1.5 px-5 py-2 rounded-xl text-[12px] font-bold tracking-tight transition-all duration-300 border whitespace-nowrap ${
                    filter === tab 
-                   ? (tab === 'rejected' ? 'bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-600/30' : 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/30')
+                   ? (tab === 'rejected' ? 'bg-rose-600 border-rose-400 text-white shadow-lg shadow-rose-600/30' 
+                     : tab === 'returned' ? 'bg-purple-600 border-purple-400 text-white shadow-lg shadow-purple-600/30'
+                     : 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/30')
                    : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:bg-slate-800'
                  }`}
                >
                  {tab === 'multi-vendor' && <Layers size={12} />}
                  {tab === 'rejected' && <FiSlash size={11} />}
-                 {tab === 'available' ? 'Active Duty' : tab === 'multi-vendor' ? 'Multi-Vendor' : tab === 'rejected' ? 'Rejected' : 'Delivered'}
+                 {tab === 'returned' && <FiRotateCcw size={11} />}
+                 {tab === 'available' ? 'Active Duty' : tab === 'multi-vendor' ? 'Multi-Vendor' : tab === 'rejected' ? 'Rejected' : tab === 'returned' ? 'Returned' : 'Delivered'}
                </button>
              ))}
           </div>
@@ -387,6 +409,91 @@ const DeliveryOrders = () => {
                     </div>
                   </motion.div>
                 ))
+              )
+            )}
+
+            {/* Returned Orders tab */}
+            {filter === 'returned' && (
+              returnedLoading ? (
+                Array(4).fill(0).map((_, i) => <OrderCardSkeleton key={i} />)
+              ) : (
+                <>
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm text-center">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Returns</p>
+                      <p className="text-xl font-black text-slate-800">{returnedSummary.total}</p>
+                      <p className="text-[8px] text-slate-400 font-medium mt-0.5">completed</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-purple-100 shadow-sm text-center">
+                      <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest mb-1">Total Earned</p>
+                      <p className="text-xl font-black text-purple-600">{formatPrice(returnedSummary.totalEarnings || 0)}</p>
+                      <p className="text-[8px] text-purple-300 font-medium mt-0.5">from returns</p>
+                    </div>
+                  </div>
+
+                  {returnedOrders.length === 0 ? (
+                    <div className="text-center py-16 bg-white rounded-[28px] border border-slate-100 shadow-sm">
+                      <div className="w-14 h-14 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <FiRotateCcw size={26} className="text-purple-300" />
+                      </div>
+                      <p className="text-slate-600 font-black text-base">No Returns Yet</p>
+                      <p className="text-slate-400 text-xs mt-1">Completed return pickups will appear here.</p>
+                    </div>
+                  ) : (
+                    returnedOrders.map((ret, idx) => {
+                      const orderId = ret.orderId?.orderId || ret.returnId || String(ret._id || '').slice(-6);
+                      const customerName = ret.userId?.name || ret.orderId?.shippingAddress?.name || ret.orderId?.guestInfo?.name || 'Customer';
+                      const vendorName = ret.vendorId?.storeName || (ret.vendorDropoffs?.[0]?.vendorName) || 'Vendor';
+                      const dateFormatted = ret.updatedAt ? new Date(ret.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '--';
+                      const itemCount = ret.items?.length || 0;
+                      const isMultiVendor = ret.isMultiVendor || (ret.vendorDropoffs?.length > 1);
+                      return (
+                        <motion.div
+                          key={ret._id || idx}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.04 }}
+                          className="bg-white rounded-xl p-3 shadow-sm border border-purple-100 relative overflow-hidden"
+                        >
+                          {/* Left accent bar */}
+                          <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-purple-500" />
+                          <div className="pl-2">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <span className="text-[7px] font-black text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 uppercase tracking-tighter shrink-0">#{String(orderId).slice(-6)}</span>
+                                <p className="font-bold text-slate-800 text-[12px] truncate">{customerName}</p>
+                              </div>
+                              <p className="font-bold text-[12px] text-emerald-600 ml-2 shrink-0">+ {formatPrice(ret.deliveryEarnings || 0)}</p>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[6px] font-black uppercase px-1.5 py-0.5 rounded border bg-purple-50 text-purple-600 border-purple-200">RETURN</span>
+                                {isMultiVendor && <span className="text-[6px] font-black uppercase px-1.5 py-0.5 rounded border bg-indigo-50 text-indigo-600 border-indigo-200">MULTI-VENDOR</span>}
+                                <span className="text-[6px] font-black uppercase px-1.5 py-0.5 rounded border bg-emerald-50 text-emerald-600 border-emerald-200">Completed</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-slate-400">
+                                <FiClock size={9} />
+                                <span className="text-[8px] font-medium">{dateFormatted}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1.5 pt-1.5 border-t border-slate-50">
+                              <span className="flex items-center gap-1 text-slate-400 text-[9px] font-bold">
+                                <FiPackage size={10} className="text-slate-400" /> {itemCount} item{itemCount !== 1 ? 's' : ''}
+                              </span>
+                              {ret.deliveryDistance > 0 && (
+                                <span className="flex items-center gap-1 text-slate-400 text-[9px] font-bold">
+                                  <FiNavigation size={10} className="text-sky-500" /> {ret.deliveryDistance} km
+                                </span>
+                              )}
+                              <span className="text-[9px] font-medium text-slate-400 truncate">→ {vendorName}</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
+                </>
               )
             )}
 

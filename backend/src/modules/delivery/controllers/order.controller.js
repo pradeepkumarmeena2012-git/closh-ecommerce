@@ -219,6 +219,55 @@ export const getRejectedOrders = asyncHandler(async (req, res) => {
     );
 });
 
+// GET /api/delivery/returns/completed
+// Returns all return requests completed by this rider (history + earnings)
+export const getCompletedReturns = asyncHandler(async (req, res) => {
+    const deliveryBoyId = req.user.id;
+    const { page, limit } = req.query;
+    const numericPage = Math.max(1, Number(page) || 1);
+    const numericLimit = Math.min(Math.max(1, Number(limit) || 20), 100);
+    const skip = (numericPage - 1) * numericLimit;
+
+    const [returns, total, earningsStats] = await Promise.all([
+        ReturnRequest.find({ deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId), status: 'completed' })
+            .populate('orderId', 'orderId shippingAddress guestInfo paymentMethod isMultiVendor orderType total')
+            .populate('userId', 'name')
+            .populate('vendorId', 'storeName')
+            .select('returnId status deliveryEarnings deliveryDistance items isMultiVendor vendorDropoffs reason createdAt updatedAt orderId userId vendorId')
+            .sort({ updatedAt: -1 })
+            .skip(skip)
+            .limit(numericLimit)
+            .lean(),
+        ReturnRequest.countDocuments({ deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId), status: 'completed' }),
+        ReturnRequest.aggregate([
+            { $match: { deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId), status: 'completed' } },
+            { $group: { _id: null, totalEarnings: { $sum: { $ifNull: ['$deliveryEarnings', 0] } }, count: { $sum: 1 } } }
+        ])
+    ]);
+
+    const earningsSummary = earningsStats?.[0] || { totalEarnings: 0, count: 0 };
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                returns,
+                pagination: {
+                    total,
+                    page: numericPage,
+                    limit: numericLimit,
+                    pages: Math.ceil(total / numericLimit) || 1,
+                },
+                summary: {
+                    total,
+                    totalEarnings: earningsSummary.totalEarnings,
+                }
+            },
+            'Completed returns fetched.'
+        )
+    );
+});
+
 // GET /api/delivery/orders/available
 export const getAvailableOrders = asyncHandler(async (req, res) => {
     const { page, limit } = req.query;

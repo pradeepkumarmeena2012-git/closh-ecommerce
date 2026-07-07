@@ -108,6 +108,7 @@ router.get('/reviews/order/:orderId', ...deliveryAuth, reviewController.getMyRev
 
 // Returns
 router.get('/returns/available', ...deliveryAuth, orderController.getAvailableReturns);
+router.get('/returns/completed', ...deliveryAuth, orderController.getCompletedReturns);
 router.get('/returns/:id', ...deliveryAuth, orderController.getReturnDetail);
 router.post('/returns/:id/accept', ...deliveryAuth, orderController.acceptReturnAssignment);
 router.patch('/returns/:id/status', ...deliveryAuth, orderController.updateReturnStatus);
