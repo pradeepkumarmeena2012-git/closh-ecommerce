@@ -94,9 +94,9 @@ export const sendSms = async (mobile, message) => {
         });
 
         req.on('error', (err) => reject(err));
-        req.setTimeout(10000, () => {
+        req.setTimeout(120000, () => {
             req.destroy();
-            reject(new Error('[SMS] Timeout'));
+            reject(new Error('[SMS] Timeout after 2 minutes'));
         });
     });
 };

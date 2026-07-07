@@ -10,7 +10,8 @@ import asyncHandler from '../../../utils/asyncHandler.js';
 import ApiResponse from '../../../utils/ApiResponse.js';
 import ApiError from '../../../utils/ApiError.js';
 import OrderNotificationService from '../../../services/orderNotification.service.js';
-import { calculateDistance } from '../../../utils/geo.js';
+import { calculateDistance, calculatePathDistance, getDeliveryEarning, getVendorPickupFee } from '../../../utils/geo.js';
+import { getDeliveryFeeConfig } from '../../../utils/deliveryFeeConfig.js';
 import { autoAssignDeliveryBoy } from '../../../services/autoAssignment.service.js';
 
 
@@ -96,19 +97,19 @@ export const notifyNearbyDeliveryBoys = async (order) => {
     const nearbyBoys = await findNearbyDeliveryBoys(order);
     console.log(`[Assignment] Nearby Boys matches from DB: ${nearbyBoys.length}`);
     
-    // Calculate Earning & Distance for the socket popup
+    // Calculate Earning & Distance for the socket popup (estimation only — final locked at completion)
     let estimatedDistance = order.deliveryDistance ? `${order.deliveryDistance} km` : '0 km';
     let estimatedTime = 'N/A';
     let deliveryFee = order.deliveryEarnings || 25;
 
     try {
+        const feeConfig = await getDeliveryFeeConfig();
         const dropoffCoords = order.dropoffLocation?.coordinates;
         const pickupCoords = order.pickupLocation?.coordinates;
 
         if (pickupCoords?.length === 2 && dropoffCoords?.length === 2 && (dropoffCoords[0] !== 0 || dropoffCoords[1] !== 0)) {
             console.log(`[Assignment] Calculating distance to customer at ${dropoffCoords.join(', ')}...`);
             const { getDistanceMatrix } = await import('../../../services/googleMaps.service.js');
-            const { calculateDistance, getDeliveryEarning } = await import('../../../utils/geo.js');
             
             const matrix = await getDistanceMatrix(pickupCoords, dropoffCoords);
             let distanceVal = order.deliveryDistance || 0;
@@ -125,11 +126,18 @@ export const notifyNearbyDeliveryBoys = async (order) => {
                 console.log(`[Assignment] Haversine fallback result: ${estimatedDistance}`);
             }
             
-            // Update fee if we have a fresh distance
+            // Estimate fee: distance fee + vendor routing distance fee (for multi-vendor)
             if (distanceVal > 0) {
-                deliveryFee = getDeliveryEarning(distanceVal);
+                let vendorRoutingDistance = 0;
+                if (order.isMultiVendor && order.vendorPickups?.length > 1) {
+                    const sortedPickups = [...order.vendorPickups].sort((a, b) => a.sequence - b.sequence);
+                    const vendorCoords = sortedPickups.map(p => p.shopLocation?.coordinates).filter(c => c && c.length === 2);
+                    vendorRoutingDistance = calculatePathDistance(vendorCoords);
+                }
+                
+                deliveryFee = getDeliveryEarning(distanceVal, feeConfig) + getVendorPickupFee(vendorRoutingDistance, feeConfig);
             }
-            console.log(`[Assignment] Calculated Delivery Fee: ₹${deliveryFee}`);
+            console.log(`[Assignment] Estimated Delivery Fee: ₹${deliveryFee}`);
         }
     } catch (err) {
         console.error('❌ [AssignmentDistance Error]', err.message);

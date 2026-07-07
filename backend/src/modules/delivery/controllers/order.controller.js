@@ -19,7 +19,8 @@ import { sendDeliveryOtpSms } from '../../../services/sms.service.js';
 import * as DeliveryOtpService from '../../../services/deliveryOtp.service.js';
 import redisConnection from '../../../config/redis.js';
 import { WalletService } from '../../../services/wallet.service.js';
-import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
+import { calculateDistance, calculatePathDistance, getDeliveryEarning, getVendorPickupFee, getVendorDropoffFee } from '../../../utils/geo.js';
+import { getDeliveryFeeConfig } from '../../../utils/deliveryFeeConfig.js';
 import Vendor from '../../../models/Vendor.model.js';
 import Enquiry from '../../../models/Enquiry.model.js';
 import CancellationReason from '../../../models/CancellationReason.model.js';
@@ -772,9 +773,9 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             order.isCashSettled = false;
         }
 
-        // Calculate delivery earnings based on distance between vendor and customer
+        // Calculate delivery earnings using dynamic fee config (applied at completion)
         const { getDistanceMatrix } = await import('../../../services/googleMaps.service.js');
-        const { calculateDistance, getDeliveryEarning } = await import('../../../utils/geo.js');
+        const feeConfig = await getDeliveryFeeConfig();
         const pickup = order.pickupLocation?.coordinates || [0, 0];
         const dropoff = order.dropoffLocation?.coordinates || [0, 0];
 
@@ -788,7 +789,20 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             distanceKm = calculateDistance(pickup, dropoff);
         }
 
-        const riderEarnings = getDeliveryEarning(distanceKm);
+        // For multi-vendor: calculate path distance between all vendors for the routing fee
+        let vendorRoutingDistance = 0;
+        if (order.isMultiVendor && order.vendorPickups?.length > 1) {
+            const sortedPickups = [...order.vendorPickups].sort((a, b) => a.sequence - b.sequence);
+            const vendorCoords = sortedPickups.map(p => p.shopLocation?.coordinates).filter(c => c && c.length === 2);
+            vendorRoutingDistance = calculatePathDistance(vendorCoords);
+        }
+
+        const numVendorStops = order.vendorItems?.length || 1;
+        const stopFee = getVendorPickupFee(vendorRoutingDistance, feeConfig);
+        const distanceFee = getDeliveryEarning(distanceKm, feeConfig);
+        const riderEarnings = stopFee + distanceFee;
+
+        console.log(`[OrderComplete] Distance: ${distanceKm}km | VendorRoutingDist: ${vendorRoutingDistance}km | StopFee: ₹${stopFee} | DistFee: ₹${distanceFee} | Total: ₹${riderEarnings}`);
 
         // Persist earnings and distance on the order
         order.deliveryEarnings = riderEarnings;
@@ -812,14 +826,24 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
             order.deliveryFlow.phase = finalPhase;
         }
 
-        // Sync vendorItems statuses
+        // Sync vendorItems statuses — per-vendor check for rejected items
         if (order.vendorItems && order.vendorItems.length > 0) {
+            const rejectedItemsList = (order.deliveryFlow?.rejectedItems || []);
             order.vendorItems.forEach(group => {
-                if (hasRejectedItems && group.quantity === 0) {
+                const vendorGroupId = String(group.vendorId._id || group.vendorId);
+                // Check if THIS specific vendor has any rejected items
+                const thisVendorHasRejectedItems = hasRejectedItems && rejectedItemsList.some(ri => {
+                    const riVendorId = ri.vendorId ? String(ri.vendorId._id || ri.vendorId) : null;
+                    if (riVendorId) return riVendorId === vendorGroupId;
+                    // Fallback: check if the rejected item's product belongs to this vendor group
+                    return group.items.some(item => String(item.productId) === String(ri.productId));
+                });
+
+                if (thisVendorHasRejectedItems) {
                     group.status = 'returning_unselected_items';
                 } else {
-                    group.status = finalStatus;
-                    if (!hasRejectedItems) group.deliveredAt = new Date();
+                    group.status = 'delivered';
+                    group.deliveredAt = new Date();
                 }
             });
         }
@@ -1680,8 +1704,14 @@ const createTryBuyReturn = async (order, rejectedItems, riderId) => {
         }
     }
     
-    // Earnings: ₹7 per km
-    const deliveryEarnings = Math.ceil(totalReturnDistance * 7);
+    // Calculate earnings using dynamic fee config
+    const feeConfig = await getDeliveryFeeConfig();
+    const numDropoffStops = vendorDropoffs.length;
+    const stopFee = getVendorDropoffFee(numDropoffStops, feeConfig);
+    const distanceFee = getDeliveryEarning(totalReturnDistance, feeConfig);
+    const deliveryEarnings = stopFee + distanceFee;
+
+    console.log(`[TryBuyReturn] ReturnDist: ${totalReturnDistance}km | Stops: ${numDropoffStops} | StopFee: ₹${stopFee} | DistFee: ₹${distanceFee} | Total: ₹${deliveryEarnings}`);
 
     // Create the ReturnRequest
     const returnReq = await ReturnRequest.create({
@@ -1781,6 +1811,43 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
     flow.paymentCollected = true;
     flow.paymentCollectedAt = new Date();
 
+    // Calculate delivery earnings using dynamic fee config (applied at completion)
+    const { getDistanceMatrix } = await import('../../../services/googleMaps.service.js');
+    const { calculateDistance, calculatePathDistance, getVendorPickupFee, getDeliveryEarning } = await import('../../../utils/geo.js');
+    const { getDeliveryFeeConfig } = await import('../../../utils/deliveryFeeConfig.js');
+    
+    const feeConfig = await getDeliveryFeeConfig();
+    const pickup = order.pickupLocation?.coordinates || [0, 0];
+    const dropoff = order.dropoffLocation?.coordinates || [0, 0];
+
+    let distanceKm = order.deliveryDistance || 0;
+
+    // Re-verify distance for accuracy
+    const matrix = await getDistanceMatrix(pickup, dropoff);
+    if (matrix) {
+        distanceKm = matrix.distance;
+    } else if (!distanceKm) {
+        distanceKm = calculateDistance(pickup, dropoff);
+    }
+
+    // For multi-vendor: calculate path distance between all vendors for the routing fee
+    let vendorRoutingDistance = 0;
+    if (order.isMultiVendor && order.vendorPickups?.length > 1) {
+        const sortedPickups = [...order.vendorPickups].sort((a, b) => a.sequence - b.sequence);
+        const vendorCoords = sortedPickups.map(p => p.shopLocation?.coordinates).filter(c => c && c.length === 2);
+        vendorRoutingDistance = calculatePathDistance(vendorCoords);
+    }
+
+    const stopFee = getVendorPickupFee(vendorRoutingDistance, feeConfig);
+    const distanceFee = getDeliveryEarning(distanceKm, feeConfig);
+    const riderEarnings = stopFee + distanceFee;
+
+    console.log(`[OrderComplete] Distance: ${distanceKm}km | VendorRoutingDist: ${vendorRoutingDistance}km | StopFee: ₹${stopFee} | DistFee: ₹${distanceFee} | Total: ₹${riderEarnings}`);
+
+    // Persist earnings and distance on the order
+    order.deliveryEarnings = riderEarnings;
+    order.deliveryDistance = distanceKm;
+
     // Sync legacy fields
     order.status = finalStatus;
     if (!hasRejectedItems) {
@@ -1800,15 +1867,24 @@ export const handleCompleteDelivery = asyncHandler(async (req, res) => {
         }
     }
 
-    // Sync vendorItems statuses
+    // Sync vendorItems statuses — per-vendor check for rejected items
     if (order.vendorItems && order.vendorItems.length > 0) {
+        const rejectedItemsList = (flow?.rejectedItems || order.deliveryFlow?.rejectedItems || []);
         order.vendorItems.forEach(group => {
-            if (hasRejectedItems && group.quantity === 0) {
-                // Keep it pending or mark as returning
+            const vendorGroupId = String(group.vendorId._id || group.vendorId);
+            // Check if THIS specific vendor has any rejected items
+            const thisVendorHasRejectedItems = hasRejectedItems && rejectedItemsList.some(ri => {
+                const riVendorId = ri.vendorId ? String(ri.vendorId._id || ri.vendorId) : null;
+                if (riVendorId) return riVendorId === vendorGroupId;
+                // Fallback: check if the rejected item's product belongs to this vendor group
+                return group.items.some(item => String(item.productId) === String(ri.productId));
+            });
+
+            if (thisVendorHasRejectedItems) {
                 group.status = 'returning_unselected_items';
             } else {
-                group.status = finalStatus;
-                if (!hasRejectedItems) group.deliveredAt = new Date();
+                group.status = 'delivered';
+                group.deliveredAt = new Date();
             }
         });
     }
@@ -2357,7 +2433,13 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
                 const dist2 = calculateDistance(customerCoords, vendorCoords);
                 const totalDistance = parseFloat((dist1 + dist2).toFixed(2));
 
-                const earnings = getDeliveryEarning(totalDistance);
+                // Use dynamic fee config for return earnings
+                const retFeeConfig = await getDeliveryFeeConfig();
+                const numDropoffs = returnReq.vendorDropoffs?.length || 1;
+                const stopFee = getVendorDropoffFee(numDropoffs, retFeeConfig);
+                const earnings = getDeliveryEarning(totalDistance, retFeeConfig) + stopFee;
+
+                console.log(`[ReturnComplete] Dist: ${totalDistance}km | Dropoffs: ${numDropoffs} | StopFee: ₹${stopFee} | Total: ₹${earnings}`);
 
                 returnReq.deliveryDistance = totalDistance;
                 returnReq.deliveryEarnings = earnings;

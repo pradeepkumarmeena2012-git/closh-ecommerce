@@ -42,6 +42,14 @@ export const sendOTP = async (doc, type = 'verification') => {
     const email = doc.email;
     let smsSent = false;
 
+    // Check if OTP service is actually enabled in .env
+    const isOtpEnabled = process.env.ENABLE_OTP_SERVICE === 'true';
+
+    if (!isOtpEnabled) {
+        console.log(`[OTP Simulated] ${type} | phone=+91${phone || 'N/A'} | email=${email || 'N/A'} | otp=${otp}`);
+        return otp;
+    }
+
     // ── Primary: SMS ─────────────────────────────────────────────────────────
     if (phone.length === 10) {
         try {
@@ -56,15 +64,19 @@ export const sendOTP = async (doc, type = 'verification') => {
 
     // ── Fallback: Email ───────────────────────────────────────────────────────
     if (!smsSent && email) {
-        try {
-            await sendEmail({
+        if (process.env.SMTP_USER === 'your_email@gmail.com') {
+            console.warn(`[OTP] Email fallback skipped due to placeholder SMTP_USER. otp=${otp}`);
+        } else {
+            try {
+                await sendEmail({
                 to: email,
                 subject: 'Your verification code',
                 text: `Your verification code is ${otp}. It expires in 10 minutes.`,
                 html: `<p>Your verification code is <strong>${otp}</strong>. It expires in 10 minutes.</p>`,
             });
-        } catch (emailErr) {
-            console.warn(`[OTP] Email fallback also failed for ${email}: ${emailErr.message}`);
+            } catch (emailErr) {
+                console.warn(`[OTP] Email fallback also failed for ${email}: ${emailErr.message}`);
+            }
         }
     }
 

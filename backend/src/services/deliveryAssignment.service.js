@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import { createNotification } from './notification.service.js';
 import { emitEvent, isDeliveryBoyConnected } from './socket.service.js';
+import { getDeliveryFeeConfig } from '../utils/deliveryFeeConfig.js';
+import { calculateDistance, calculatePathDistance, getDeliveryEarning, getVendorPickupFee } from '../utils/geo.js';
+import Order from '../models/Order.model.js';
 
 /**
  * Find nearby delivery boys for an order (Radius increased to 100km for wide coverage)
@@ -85,18 +88,18 @@ export const triggerDeliveryAssignment = async (order) => {
         const vendorName = vData.storeName || firstVendor.vendorName || 'Vendor';
         const vendorAddress = vData.shopAddress || (vData.address?.street ? `${vData.address.street}, ${vData.address.city}` : 'Vendor Address');
 
-        // Calculate Earning & Distance for the socket popup
+        // Calculate Earning & Distance for the socket popup (estimation only — final locked at completion)
         let estimatedDistance = order.deliveryDistance ? `${order.deliveryDistance} km` : '0 km';
         let estimatedTime = 'N/A';
         let deliveryFee = order.deliveryEarnings || 25;
 
         try {
+            const feeConfig = await getDeliveryFeeConfig();
             const dropoffCoords = order.dropoffLocation?.coordinates;
             const pickupCoords = order.pickupLocation?.coordinates;
 
             if (pickupCoords?.length === 2 && dropoffCoords?.length === 2 && (dropoffCoords[0] !== 0 || dropoffCoords[1] !== 0)) {
                 const { getDistanceMatrix } = await import('./googleMaps.service.js');
-                const { calculateDistance, getDeliveryEarning } = await import('../utils/geo.js');
                 
                 const matrix = await getDistanceMatrix(pickupCoords, dropoffCoords);
                 let distanceVal = order.deliveryDistance || 0;
@@ -112,7 +115,14 @@ export const triggerDeliveryAssignment = async (order) => {
                 }
                 
                 if (distanceVal > 0) {
-                    deliveryFee = getDeliveryEarning(distanceVal);
+                    let vendorRoutingDistance = 0;
+                    if (order.isMultiVendor && order.vendorPickups?.length > 1) {
+                        const sortedPickups = [...order.vendorPickups].sort((a, b) => a.sequence - b.sequence);
+                        const vendorCoords = sortedPickups.map(p => p.shopLocation?.coordinates).filter(c => c && c.length === 2);
+                        vendorRoutingDistance = calculatePathDistance(vendorCoords);
+                    }
+                    
+                    deliveryFee = getDeliveryEarning(distanceVal, feeConfig) + getVendorPickupFee(vendorRoutingDistance, feeConfig);
                 }
             }
         } catch (err) {

@@ -325,7 +325,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     }
 
     // Multi-vendor: when all vendors are ready, populate vendorPickups and notify riders
-    if (order.status === 'all_vendors_ready' && !order.isMultiVendor) {
+    if (order.status === 'all_vendors_ready' && (!order.vendorPickups || order.vendorPickups.length === 0)) {
         try {
             // Mark as multi-vendor and build vendorPickups stops
             const populatedOrder = await Order.findById(order._id).populate('vendorItems.vendorId', 'storeName shopAddress shopLocation phone address');
@@ -356,6 +356,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
                 isMultiVendor: true,
                 vendorPickups,
             };
+
+            // Set pickupLocation from first vendor so delivery partner search works
+            const firstVendorCoords = vendorPickups[0]?.shopLocation?.coordinates;
+            if (firstVendorCoords && (firstVendorCoords[0] !== 0 || firstVendorCoords[1] !== 0)) {
+                updatedData.pickupLocation = { type: 'Point', coordinates: firstVendorCoords };
+            }
 
             if (order.deliveryBoyId) {
                 updatedData.status = 'assigned';

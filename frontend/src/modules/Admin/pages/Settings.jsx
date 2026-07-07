@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiSettings, FiCreditCard, FiShoppingBag, FiPackage, FiFileText, FiBell } from 'react-icons/fi';
+import { FiSettings, FiCreditCard, FiShoppingBag, FiPackage, FiFileText, FiBell, FiTruck } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useSettingsStore } from '../../../shared/store/settingsStore';
 import GeneralSettings from './settings/GeneralSettings';
@@ -10,6 +10,7 @@ import ProductsInventorySettings from './settings/ProductsInventorySettings';
 import ContentFeaturesSettings from './settings/ContentFeaturesSettings';
 import NotificationsSEOSettings from './settings/NotificationsSEOSettings';
 import TaxSettings from './settings/TaxSettings';
+import DeliveryFeesSettings from './settings/DeliveryFeesSettings';
 import { FiDollarSign } from 'react-icons/fi';
 
 
@@ -25,9 +26,9 @@ const Settings = () => {
     if (path.includes('/orders-customers')) return 'orders-customers';
     if (path.includes('/products-inventory')) return 'products-inventory';
     if (path.includes('/content-features')) return 'content-features';
-
     if (path.includes('/notifications-seo')) return 'notifications-seo';
     if (path.includes('/tax-settings')) return 'tax-settings';
+    if (path.includes('/delivery-fees')) return 'delivery-fees';
 
     return 'general';
   };
@@ -51,6 +52,7 @@ const Settings = () => {
     { id: 'products-inventory', label: 'Products & Inventory', icon: FiPackage, component: ProductsInventorySettings, route: '/admin/settings/products-inventory' },
     { id: 'content-features', label: 'Content & Features', icon: FiFileText, component: ContentFeaturesSettings, route: '/admin/settings/content-features' },
     { id: 'notifications-seo', label: 'Notifications & SEO', icon: FiBell, component: NotificationsSEOSettings, route: '/admin/settings/notifications-seo' },
+    { id: 'delivery-fees', label: 'Delivery Fees', icon: FiTruck, component: DeliveryFeesSettings, route: '/admin/settings/delivery-fees' },
   ];
 
   const ActiveComponent = tabs.find((tab) => tab.id === activeTab)?.component || GeneralSettings;

@@ -1274,9 +1274,9 @@ const DeliveryOrderDetail = () => {
                   <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] mb-1">UPI Payment Gateway</p>
                   <h4 className="text-sm font-black text-slate-800 mb-6 font-mono border-b border-slate-100 pb-4">{formatPrice(calculatedTotal)}</h4>
 
-                  <div className="aspect-square bg-white border-2 border-slate-50 rounded-[1.5rem] flex items-center justify-center p-5 mb-6 shadow-xl relative group">
-                    <img src={qrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=closh@upi&pn=Closh&am=${calculatedTotal}&cu=INR`} alt="Payment QR" className="w-full h-full" />
-                    <div className="absolute inset-0 border-4 border-white rounded-[1.5rem]" />
+                  <div className="bg-white border-2 border-slate-50 rounded-[1.5rem] flex items-center justify-center p-1 mb-6 shadow-xl relative group overflow-hidden">
+                    <img src={qrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=closh@upi&pn=Closh&am=${calculatedTotal}&cu=INR`} alt="Payment QR" className="w-full h-auto max-h-[50vh] object-contain rounded-[1.2rem]" />
+                    <div className="absolute inset-0 border-4 border-white rounded-[1.5rem] pointer-events-none" />
                   </div>
 
                   <p className="text-[9px] font-bold text-slate-400 px-2 leading-tight uppercase tracking-tighter mb-8">Scan QR with any UPI app.</p>

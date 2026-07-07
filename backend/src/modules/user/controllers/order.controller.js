@@ -433,7 +433,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
         couponType: appliedCoupon?.type
     });
 
-    const maxDistanceToCustomer = Math.max(...Object.values(distanceByVendor || { default: 0 }));
+    const distanceValues = Object.values(distanceByVendor || {});
+    const maxDistanceToCustomer = distanceValues.length > 0 ? Math.max(...distanceValues) : 0;
 
     // Fetch admin settings for platform fee and shipping overrides
     const [orderSettingsDoc, shippingSettingsDoc] = await Promise.all([

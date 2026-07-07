@@ -227,12 +227,10 @@ export const getMultiVendorOrderStatus = asyncHandler(async (req, res) => {
                 const v = vendorMap[stop.vendorId?.toString()];
                 if (v) {
                     if (!stop.vendorPhone) stop.vendorPhone = v.phone || '';
-                    if (!stop.shopAddress) {
-                        stop.shopAddress = v.shopAddress 
-                            || [v.address?.street, v.address?.city, v.address?.state, v.address?.zipCode]
-                                .filter(Boolean).join(', ') 
-                            || '';
-                    }
+                    stop.shopAddress = v.shopAddress 
+                        || [v.address?.street, v.address?.city, v.address?.state, v.address?.zipCode]
+                            .filter(Boolean).join(', ') 
+                        || stop.shopAddress || '';
                 }
                 return stop;
             });

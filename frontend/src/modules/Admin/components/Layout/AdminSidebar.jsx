@@ -95,6 +95,7 @@ const getChildRoute = (parentRoute, childName, admin) => {
       "Cash Collection": `${basePrefix}/delivery/cash-collection`,
       "Payout Requests": `${basePrefix}/delivery/withdrawals?type=DeliveryBoy`,
       "Online Settlements": `${basePrefix}/delivery/rider-settlements`,
+      "Fee Settings": `${basePrefix}/delivery/fee-settings`,
     },
     [`${basePrefix}/attributes`]: {
       "Attribute Sets": `${basePrefix}/attributes/sets`,
