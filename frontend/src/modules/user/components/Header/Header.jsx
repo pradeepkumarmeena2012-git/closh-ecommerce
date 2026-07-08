@@ -578,7 +578,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                 <input
                                     type="text"
                                     placeholder='Search for "Jackets"'
-                                    className="w-full py-2.5 pl-4 pr-12 border border-black/5 rounded-2xl bg-white text-[16px] font-medium text-black outline-none placeholder:text-gray-400 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 focus:border-black/20"
+                                    className="w-full py-2 pl-4 pr-12 border border-black/5 rounded-2xl bg-white text-[14px] font-medium text-black outline-none placeholder:text-gray-400 shadow-[0_8px_30px_rgba(0,0,0,0.04)] transition-all duration-300 focus:border-black/20"
                                     value={searchQuery}
                                     onChange={(e) => handleSearchInput(e.target.value)}
                                     onKeyDown={handleSearch}

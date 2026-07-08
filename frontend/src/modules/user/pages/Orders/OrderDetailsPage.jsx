@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import api from '../../../../shared/utils/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
 import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw, CheckCircle, Truck, Store, ThumbsUp, UserCheck, CheckCircle2, Layers, Star } from 'lucide-react';
@@ -16,6 +17,7 @@ const OrderDetailsPage = () => {
     const { user } = useAuth();
     const { fetchOrderById, getOrder, resendDeliveryOtp, cancelOrder } = useOrderStore();
     const { addReview, fetchReviews } = useReviewsStore();
+    const [taxSettings, setTaxSettings] = useState(null);
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [showReturnModal, setShowReturnModal] = useState(false);

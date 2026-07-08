@@ -147,6 +147,8 @@ const getChildRoute = (parentRoute, childName, admin) => {
       "Content & Features": `${basePrefix}/settings/content-features`,
       "Notifications & SEO": `${basePrefix}/settings/notifications-seo`,
       "Cancellation Reasons": `${basePrefix}/settings/cancellation-reasons`,
+      "Tax Settings": `${basePrefix}/settings/tax-settings`,
+      "Delivery Fees": `${basePrefix}/settings/delivery-fees`,
     },
     [`${basePrefix}/policies`]: {
       "Privacy Policy": `${basePrefix}/policies/privacy-policy`,

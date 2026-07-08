@@ -1614,7 +1614,7 @@ export const verifyQrPayment = asyncHandler(async (req, res) => {
     const order = await findOrderForRider(req.params.id, req.user.id);
     const flow = ensureDeliveryFlow(order);
 
-    if (order.paymentMethod !== 'qr' || flow.paymentMethod !== 'qr') {
+    if (order.paymentMethod !== 'qr' && flow.paymentMethod !== 'qr') {
         throw new ApiError(400, "Payment method is not QR.");
     }
 

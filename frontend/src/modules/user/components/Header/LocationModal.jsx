@@ -306,15 +306,19 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
             setView('form');
         } else if (view === 'form') {
             // Final Submit
-            if (!formData.address || !formData.name || !formData.mobile || !formData.city || !formData.state || !formData.pincode) {
+            if (!formData.address || !formData.city || !formData.state || !formData.pincode) {
                 toast.error('Please fill in all required fields');
+                return;
+            }
+            if (user && (!formData.name || !formData.mobile)) {
+                toast.error('Please provide Name and Mobile Number');
                 return;
             }
             if (formData.address.trim().length < 5) {
                 toast.error('Address is too short');
                 return;
             }
-            if (formData.mobile.length !== 10) {
+            if (user && formData.mobile.length !== 10) {
                 toast.error('Invalid mobile number');
                 return;
             }
@@ -641,16 +645,18 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
 
                     {view === 'form' && (
                         <div className="p-6 space-y-5 animate-fadeInUp">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
-                                    <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[16px] " placeholder="Full Name" />
+                            {user && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                                        <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[16px] " placeholder="Full Name" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Mobile No</label>
+                                        <input type="text" value={formData.mobile} onChange={e => setFormData({ ...formData, mobile: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[16px] " placeholder="10-digit number" />
+                                    </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Mobile No</label>
-                                    <input type="text" value={formData.mobile} onChange={e => setFormData({ ...formData, mobile: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl outline-none focus:border-black font-bold text-[16px] " placeholder="10-digit number" />
-                                </div>
-                            </div>
+                            )}
 
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Address / Building / Landmark</label>

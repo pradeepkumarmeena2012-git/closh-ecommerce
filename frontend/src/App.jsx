@@ -105,6 +105,7 @@ import ProductsInventorySettings from "./modules/Admin/pages/settings/ProductsIn
 import ContentFeaturesSettings from "./modules/Admin/pages/settings/ContentFeaturesSettings";
 import NotificationsSEOSettings from "./modules/Admin/pages/settings/NotificationsSEOSettings";
 import CancellationReasons from "./modules/Admin/pages/settings/CancellationReasons";
+import TaxSettings from "./modules/Admin/pages/settings/TaxSettings";
 // Policies child pages
 import PrivacyPolicy from "./modules/Admin/pages/policies/PrivacyPolicy";
 import RefundPolicy from "./modules/Admin/pages/policies/RefundPolicy";
@@ -317,6 +318,7 @@ const renderAdminRoutes = () => (
     <Route path="settings/content-features" element={<Settings />} />
     <Route path="settings/notifications-seo" element={<Settings />} />
     <Route path="settings/cancellation-reasons" element={<CancellationReasons />} />
+    <Route path="settings/tax-settings" element={<Settings />} />
     <Route path="policies" element={<PrivacyPolicy />} />
     <Route path="policies/privacy-policy" element={<PrivacyPolicy />} />
     <Route path="policies/refund-policy" element={<RefundPolicy />} />

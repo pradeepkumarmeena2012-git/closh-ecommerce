@@ -52,6 +52,7 @@ const Settings = () => {
     { id: 'products-inventory', label: 'Products & Inventory', icon: FiPackage, component: ProductsInventorySettings, route: '/admin/settings/products-inventory' },
     { id: 'content-features', label: 'Content & Features', icon: FiFileText, component: ContentFeaturesSettings, route: '/admin/settings/content-features' },
     { id: 'notifications-seo', label: 'Notifications & SEO', icon: FiBell, component: NotificationsSEOSettings, route: '/admin/settings/notifications-seo' },
+    { id: 'tax-settings', label: 'Tax Settings', icon: FiDollarSign, component: TaxSettings, route: '/admin/settings/tax-settings' },
     { id: 'delivery-fees', label: 'Delivery Fees', icon: FiTruck, component: DeliveryFeesSettings, route: '/admin/settings/delivery-fees' },
   ];
 
