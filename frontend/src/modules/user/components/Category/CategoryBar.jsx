@@ -24,14 +24,14 @@ const CategoryBar = () => {
     }, [categories]);
 
     const rootCategories = React.useMemo(() => [
-        { _id: 'all', id: 'all', name: 'All', image: allImage },
+        { _id: 'all', id: 'all', name: 'CLOSH', image: allImage },
         ...filteredCategories
     ], [filteredCategories]);
 
     const handleCategoryClick = (cat) => {
         setActiveCategory(cat.name);
         
-        if (cat.name === 'All') {
+        if (cat.name === 'CLOSH') {
             navigate('/');
             return;
         }
@@ -71,7 +71,7 @@ const CategoryBar = () => {
                             onClick={() => handleCategoryClick(cat)}
                             className="flex flex-col items-center flex-shrink-0 group transition-all"
                         >
-                            <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full p-[2px] transition-all duration-300 ${isSelected ? 'bg-gray-200' : 'bg-transparent'}`}>
+                            <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full p-[2px] transition-all duration-300 ${isSelected ? 'bg-gray-200' : 'bg-transparent'}`}>
                                 <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center p-0.5 shadow-[0_4px_12px_rgba(0,0,0,0.08)]">
                                     <img
                                         src={cat.image || "https://via.placeholder.com/150"}
@@ -81,7 +81,7 @@ const CategoryBar = () => {
                                     />
                                 </div>
                             </div>
-                            <span className={`text-[10px] md:text-[11px] mt-1.5 font-bold transition-all ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
+                            <span className={`text-[11px] md:text-[12px] mt-1.5 font-bold transition-all ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
                                 {cat.name}
                             </span>
                         </button>
