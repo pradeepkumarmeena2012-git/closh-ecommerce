@@ -1,3 +1,4 @@
+import api from '../../../../shared/utils/api';
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
@@ -62,6 +63,7 @@ const OrderDetail = () => {
     const navigate = useNavigate();
     const { vendor } = useVendorAuthStore();
 
+    const [taxSettings, setTaxSettings] = useState(null);
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -109,6 +111,10 @@ const OrderDetail = () => {
         };
 
         fetchOrder();
+        api.get('/settings/tax')
+            .then(res => setTaxSettings(res?.data || res))
+            .catch(err => console.error("Failed to load tax settings", err));
+        
 
         // Real-time socket updates (connection managed by VendorHeader)
         if (id) {
@@ -225,165 +231,546 @@ const OrderDetail = () => {
     const [showInvoice, setShowInvoice] = useState(false);
     const [showCommissionInvoice, setShowCommissionInvoice] = useState(false);
 
-    const handlePrint = () => {
-        window.print();
+    
+    const handleViewCommissionInvoice = () => {
+        if (!order) return;
+        const invoiceWindow = window.open('', '_blank');
+        if (!invoiceWindow) {
+            toast.error('Please allow popups to view the invoice.');
+            return;
+        }
+
+        const invoiceDate = new Date(order.createdAt || order.date || Date.now()).toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const invoiceContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Commission Invoice #${order.orderId || order._id}</title>
+                <style>
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; color: #000; line-height: 1.4; font-size: 12px; }
+                    .header-title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                    .top-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+                    .sold-by-info { width: 60%; }
+                    .invoice-info { width: 35%; text-align: right; }
+                    .info-text { margin-bottom: 5px; }
+                    .bold { font-weight: bold; }
+                    
+                    .addresses-box { border: 1px solid #000; display: flex; margin-bottom: 20px; }
+                    .address-col { padding: 10px; flex: 1; border-right: 1px solid #000; }
+                    .address-col:last-child { border-right: none; }
+                    .address-title { font-weight: bold; margin-bottom: 10px; }
+                    
+                    .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center; border: 1px solid #000; }
+                    .table th { border: 1px solid #000; padding: 8px 4px; font-size: 11px; font-weight: bold; }
+                    .table td { border: 1px solid #000; padding: 8px 4px; font-size: 11px; vertical-align: middle; }
+                    .table .text-left { text-align: left; }
+                    .table .text-right { text-align: right; }
+                    
+                    .totals-row td { font-weight: bold; border-top: 2px solid #000; }
+                    .grand-total-row td { font-weight: bold; font-size: 14px; border-top: 2px solid #000; }
+                    
+                    .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #555; border-top: 1px solid #000; padding-top: 10px; }
+                    
+                    @media print {
+                        body { padding: 0; max-width: 100%; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header-title">Commission Invoice</div>
+                
+                <div class="top-section">
+                    <div class="sold-by-info">
+                        <div class="info-text"><span class="bold">Billed From (Platform):</span> CLOSH Marketplace</div>
+                        <div class="info-text"><span class="bold">Address:</span> CLOSH Headquarters, 123 Business Avenue, Mumbai, Maharashtra, 400001, India</div>
+                        <div class="info-text"><span class="bold">State:</span> ${taxSettings?.closhBusinessState || 'Maharashtra'}</div>
+                    </div>
+                    <div class="invoice-info">
+                        <div class="info-text"><span class="bold">Invoice Number:</span> COMM-${order.orderId || order._id}</div>
+                    </div>
+                </div>
+
+                <div class="addresses-box">
+                    <div class="address-col" style="flex: 1.2;">
+                        <div class="info-text"><span class="bold">Order ID:</span> #${order.orderId || order._id}</div>
+                        <div class="info-text"><span class="bold">Order Date:</span> ${new Date(order.createdAt || order.date || Date.now()).toLocaleDateString('en-CA')}</div>
+                        <div class="info-text"><span class="bold">Invoice Date:</span> ${new Date().toLocaleDateString('en-CA')}</div>
+                    </div>
+                    <div class="address-col" style="flex: 1;">
+                        <div class="address-title">Billed To (Vendor):</div>
+                        <div>${vendor?.storeName || 'Vendor'}</div>
+                        <div>${vendor?.shopAddress || 'Vendor Address'}</div>
+                        <div>GSTIN: ${vendor?.gstNumber || 'N/A'}</div>
+                    </div>
+                </div>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="text-left" style="width: 25%;">Service Description</th>
+                            <th>Commission Amount</th>
+                            <th>GST Rate</th>
+                            <th>CGST</th>
+                            <th>SGST/UTGST</th>
+                            <th>IGST</th>
+                            <th>Total Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${(() => {
+                            const commAmount = vendorItem?.commissionAmount || 0;
+                            // GST rules are for products, but user asked for dynamic GST.
+                            // If they meant GST on commission, usually it's standard 18%.
+                            // We will use the dynamic gst config logic based on commission amount, or 18% fallback if no rules.
+                            const rules = taxSettings?.gstRules || [];
+                            const applicableRule = rules.find(r => commAmount >= r.minPrice && commAmount <= r.maxPrice);
+                            const gstRate = applicableRule ? applicableRule.rate : 18;
+                            
+                            // It says "GST will be inclusive" in settings, but for commissions it's typically exclusive.
+                            // However user said "because uss pr gst rahega jaisa user k iss me hai", implying inclusive calculation.
+                            const taxableValue = commAmount / (1 + (gstRate/100));
+                            const gstAmount = commAmount - taxableValue;
+                            const itemCgst = gstAmount / 2;
+                            const itemSgst = gstAmount / 2;
+                            const itemIgst = 0;
+                            
+                            return `
+                                <tr>
+                                    <td class="text-left">Platform Services Commission (Order #${order.orderId || order._id})</td>
+                                    <td>${commAmount.toFixed(2)}</td>
+                                    <td>${gstRate}%</td>
+                                    <td>${itemCgst.toFixed(2)}</td>
+                                    <td>${itemSgst.toFixed(2)}</td>
+                                    <td>${itemIgst.toFixed(2)}</td>
+                                    <td>${commAmount.toFixed(2)}</td>
+                                </tr>
+                            `;
+                        })()}
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    <p class="bold" style="color: #000; font-size: 12px; margin-bottom: 5px;">This is a computer generated invoice and does not require a signature.</p>
+                </div>
+
+                <script>
+                    window.onload = function() { 
+                        setTimeout(function() {
+                            window.print();
+                        }, 500); 
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+
+        invoiceWindow.document.open();
+        invoiceWindow.document.write(invoiceContent);
+        invoiceWindow.document.close();
+    };
+            
+
+    const handleViewCustomerInvoice = () => {
+        if (!order) return;
+        const invoiceWindow = window.open('', '_blank');
+        if (!invoiceWindow) {
+            toast.error('Please allow popups to view the invoice.');
+            return;
+        }
+
+        const invoiceDate = new Date(order.createdAt || order.date || Date.now()).toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const addr = order.shippingAddress || order.address || {};const custName = order.customer?.name || order.userId?.name || order.guestInfo?.name || addr.name || 'Guest';
+
+        const invoiceContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Customer Tax Invoice #${order.orderId || order._id}</title>
+                <style>
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; color: #000; line-height: 1.4; font-size: 12px; }
+                    .header-title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                    .top-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+                    .sold-by-info { width: 60%; }
+                    .invoice-info { width: 35%; text-align: right; }
+                    .info-text { margin-bottom: 5px; }
+                    .bold { font-weight: bold; }
+                    
+                    .addresses-box { border: 1px solid #000; display: flex; margin-bottom: 20px; }
+                    .address-col { padding: 10px; flex: 1; border-right: 1px solid #000; }
+                    .address-col:last-child { border-right: none; }
+                    .address-title { font-weight: bold; margin-bottom: 10px; }
+                    
+                    .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center; border: 1px solid #000; }
+                    .table th { border: 1px solid #000; padding: 8px 4px; font-size: 11px; font-weight: bold; }
+                    .table td { border: 1px solid #000; padding: 8px 4px; font-size: 11px; vertical-align: middle; }
+                    .table .text-left { text-align: left; }
+                    .table .text-right { text-align: right; }
+                    
+                    .totals-row td { font-weight: bold; border-top: 2px solid #000; }
+                    .grand-total-row td { font-weight: bold; font-size: 14px; border-top: 2px solid #000; }
+                    
+                    .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #555; border-top: 1px solid #000; padding-top: 10px; }
+                    
+                    @media print {
+                        body { padding: 0; max-width: 100%; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header-title">Customer Tax Invoice</div>
+                
+                <div class="top-section">
+                    <div class="sold-by-info">
+                        <div class="info-text"><span class="bold">Sold By:</span> ${vendor?.storeName || 'Vendor'}</div>
+                        <div class="info-text"><span class="bold">GSTIN:</span> ${vendor?.gstNumber || 'N/A'}</div>
+                        <div class="info-text"><span class="bold">Ship-from Address:</span> ${vendor?.shopAddress || 'Vendor Address'}</div>
+                    </div>
+                    <div class="invoice-info">
+                        <div class="info-text"><span class="bold">Invoice Number:</span> INV-${order.orderId || order._id}</div>
+                    </div>
+                </div>
+
+                <div class="addresses-box">
+                    <div class="address-col" style="flex: 1.2;">
+                        <div class="info-text"><span class="bold">Order ID:</span> #${order.orderId || order._id}</div>
+                        <div class="info-text"><span class="bold">Order Date:</span> ${new Date(order.createdAt || order.date || Date.now()).toLocaleDateString('en-CA')}</div>
+                        <div class="info-text"><span class="bold">Invoice Date:</span> ${new Date().toLocaleDateString('en-CA')}</div>
+                    </div>
+                    <div class="address-col" style="flex: 1;">
+                        <div class="address-title">Billing To:</div>
+                        <div>${custName}</div>
+                        <div>${addr.address || addr.street || ''}, ${addr.locality || ''}</div>
+                        <div>${addr.city || ''}, ${addr.state || ''} - ${addr.zipCode || addr.pincode || ''}</div>
+                    </div>
+                    <div class="address-col" style="flex: 1;">
+                        <div class="address-title">Shipping To:</div>
+                        <div>${custName}</div>
+                        <div>${addr.address || addr.street || ''}, ${addr.locality || ''}</div>
+                        <div>${addr.city || ''}, ${addr.state || ''} - ${addr.zipCode || addr.pincode || ''}</div>
+                    </div>
+                </div>
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="text-left" style="width: 22%;">Product</th>
+                            <th>HSN</th>
+                            <th>MRP</th>
+                            <th>Qty</th>
+                            <th>Gross Amount</th>
+                            <th>Discount</th>
+                            <th>Taxable Value</th>
+                            <th>GST %</th>
+                            <th>CGST</th>
+                            <th>SGST/UTGST</th>
+                            <th>IGST</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${vendorItems.map(item => {
+                            const qty = item.quantity || 1;
+                            const mrp = item.originalPrice || item.price || 0;
+                            const sellingPrice = item.price ?? 0;
+                            const totalSellingPrice = sellingPrice * qty;
+                            const totalMrp = mrp * qty;
+                            
+                            const rules = taxSettings?.gstRules || [];
+                            const applicableRule = rules.find(r => sellingPrice >= r.minPrice && sellingPrice <= r.maxPrice);
+                            const gstRate = applicableRule ? applicableRule.rate : 5;
+                            const taxableValue = totalSellingPrice / (1 + (gstRate/100));
+                            const gstAmount = totalSellingPrice - taxableValue;
+                            const itemCgst = gstAmount / 2;
+                            const itemSgst = gstAmount / 2;
+                            const itemIgst = 0;
+                            
+                            const discount = totalMrp - totalSellingPrice;
+                            
+                            return `
+                                <tr>
+                                    <td class="text-left">${item.name} ${item.variant?.size ? '(' + item.variant.size + ')' : ''}</td>
+                                    <td>62034200</td>
+                                    <td>${mrp.toFixed(2)}</td>
+                                    <td>${qty}</td>
+                                    <td>${(totalMrp).toFixed(2)}</td>
+                                    <td>${discount.toFixed(2)}</td>
+                                    <td>${taxableValue.toFixed(2)}</td>
+                                    <td>${gstRate}% (Incl.)</td>
+                                    <td>${itemCgst.toFixed(2)}</td>
+                                    <td>${itemSgst.toFixed(2)}</td>
+                                    <td>${itemIgst.toFixed(2)}</td>
+                                    <td>${totalSellingPrice.toFixed(2)}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                        
+                        <tr class="totals-row">
+                            <td colspan="8" class="text-right">Total</td>
+                            <td>${(() => {
+                                const taxAmount = vendorItems ? vendorItems.reduce((sum, item) => {
+            const rules = taxSettings?.gstRules || [];
+            const price = item.price ?? 0;
+            const rule = rules.find(r => price >= r.minPrice && price <= r.maxPrice);
+            const rate = rule ? rule.rate : 5;
+            const taxable = (price * (item.quantity || 1)) / (1 + (rate/100));
+            return sum + ((price * (item.quantity || 1)) - taxable);
+        }, 0) : 0;
+                                return (taxAmount / 2).toFixed(2);
+                            })()}</td>
+                            <td>${(() => {
+                                const taxAmount = vendorItems ? vendorItems.reduce((sum, item) => {
+            const rules = taxSettings?.gstRules || [];
+            const price = item.price ?? 0;
+            const rule = rules.find(r => price >= r.minPrice && price <= r.maxPrice);
+            const rate = rule ? rule.rate : 5;
+            const taxable = (price * (item.quantity || 1)) / (1 + (rate/100));
+            return sum + ((price * (item.quantity || 1)) - taxable);
+        }, 0) : 0;
+                                return (taxAmount / 2).toFixed(2);
+                            })()}</td>
+                            <td>0.00</td>
+                            <td>${(vendorItems.reduce((s,i)=>s+(i.price??0)*(i.quantity||1),0)).toFixed(2)}</td>
+                        </tr>
+                        <tr class="grand-total-row">
+                            <td colspan="11" class="text-right">Grand Total (GST Inclusive)</td>
+                            <td>${(vendorItems.reduce((s,i)=>s+(i.price??0)*(i.quantity||1),0)).toFixed(2)}</td>
+                        </tr>
+    
+                    </tbody>
+                </table>
+
+                <div class="footer">
+                    <p class="bold" style="color: #000; font-size: 12px; margin-bottom: 5px;">This is a computer generated invoice and does not require a signature.</p>
+                </div>
+
+                <script>
+                    window.onload = function() { 
+                        setTimeout(function() {
+                            window.print();
+                        }, 500); 
+                    }
+                </script>
+            </body>
+            </html>
+        `;
+
+        invoiceWindow.document.open();
+        invoiceWindow.document.write(invoiceContent);
+        invoiceWindow.document.close();
     };
 
-    const InvoiceModal = () => {
-        if (!order) return null;
 
-        return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm overflow-hidden">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[1.5rem] md:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-emerald-50"
-                >
-                    {/* Fixed Header */}
-                    <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10 no-print">
-                        <div>
-                            <h3 className="text-lg md:text-xl font-black text-gray-800 tracking-tight">Order Invoice</h3>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">#{order.orderId || order._id}</p>
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handlePrint}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-[#003d29] text-white rounded-xl hover:bg-[#002a1c] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-900/10 transition-all"
-                            >
-                                <FiPrinter size={14} /> Print Invoice
-                            </button>
-                            <button
-                                onClick={() => setShowInvoice(false)}
-                                className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-colors"
-                            >
-                                <FiX size={20} />
-                            </button>
-                        </div>
+const handleViewVendorInvoice = () => {
+        if (!order) return;
+        const invoiceWindow = window.open('', '_blank');
+        if (!invoiceWindow) {
+            toast.error('Please allow popups to view the invoice.');
+            return;
+        }
+
+        const invoiceDate = new Date(order.createdAt || order.date || Date.now()).toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const addr = order.shippingAddress || order.address || {};
+        const custName = order.customer?.name || order.userId?.name || order.guestInfo?.name || addr.name || 'Guest';
+
+        const invoiceContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Tax Invoice #${order.orderId || order._id}</title>
+                <style>
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; color: #000; line-height: 1.4; font-size: 12px; }
+                    .header-title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                    .top-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+                    .sold-by-info { width: 60%; }
+                    .invoice-info { width: 35%; text-align: right; }
+                    .info-text { margin-bottom: 5px; }
+                    .bold { font-weight: bold; }
+                    
+                    .addresses-box { border: 1px solid #000; display: flex; margin-bottom: 20px; }
+                    .address-col { padding: 10px; flex: 1; border-right: 1px solid #000; }
+                    .address-col:last-child { border-right: none; }
+                    .address-title { font-weight: bold; margin-bottom: 10px; }
+                    
+                    .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center; border: 1px solid #000; }
+                    .table th { border: 1px solid #000; padding: 8px 4px; font-size: 11px; font-weight: bold; }
+                    .table td { border: 1px solid #000; padding: 8px 4px; font-size: 11px; vertical-align: middle; }
+                    .table .text-left { text-align: left; }
+                    .table .text-right { text-align: right; }
+                    
+                    .totals-row td { font-weight: bold; border-top: 2px solid #000; }
+                    .grand-total-row td { font-weight: bold; font-size: 14px; border-top: 2px solid #000; }
+                    
+                    .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #555; border-top: 1px solid #000; padding-top: 10px; }
+                    
+                    @media print {
+                        body { padding: 0; max-width: 100%; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header-title">Tax Invoice</div>
+                
+                <div class="top-section">
+                    <div class="sold-by-info">
+                        <div class="info-text"><span class="bold">Sold By:</span> ${vendor?.storeName || 'Vendor'}</div>
+                        <div class="info-text"><span class="bold">GSTIN:</span> ${vendor?.gstNumber || 'N/A'}</div>
+                        <div class="info-text"><span class="bold">Ship-from Address:</span> ${vendor?.shopAddress || 'Vendor Address'}</div>
                     </div>
+                    <div class="invoice-info">
+                        <div class="info-text"><span class="bold">Invoice Number:</span> INV-${order.orderId || order._id}</div>
+                    </div>
+                </div>
 
-                    {/* Scrollable Printable Area */}
-                    <div className="flex-1 overflow-y-auto no-scrollbar p-6 sm:p-12 bg-white text-gray-800 font-sans" id="printable-invoice">
-                        <div className="flex flex-col sm:flex-row justify-between items-start gap-8 mb-12">
-                            <div className="space-y-2 flex items-center gap-4">
-                                <img src={closhLogo} alt="CLOSH Logo" className="h-12 w-auto" />
-                                <h1 className="text-4xl font-black text-teal-600 tracking-tighter">CLOSH</h1>
-                            </div>
-                            <div className="text-sm text-gray-500 space-y-1">
-                                <p className="font-bold text-gray-800 uppercase">{vendor?.storeName || 'Vendor Official'}</p>
-                                <p>{vendor?.shopAddress || 'Vendor Store Address'}</p>
-                                {vendor?.gstNumber && <p>GSTIN: {vendor.gstNumber}</p>}
-                                <p>Phone: {vendor?.phone || 'N/A'}</p>
-                                <p className="mt-2 text-gray-600">{CLOSH_ADDRESS}</p>
-                            </div>
-                            <div className="text-right">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-1">INVOICE</h2>
-                                <p className="text-gray-500 text-sm">#{order.orderId || order._id}</p>
-                                <p className="text-gray-500 text-sm">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
-                                <div className="mt-4 flex flex-col items-end gap-2">
-                                    <Badge variant={getPaymentStatusVariant(order, currentStatus)}>
-                                        {getPaymentStatusDisplay(order, currentStatus)}
-                                    </Badge>
-                                    <span className={`px-2 py-1 ${(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'} text-[10px] font-bold rounded border uppercase`}>
-                                        {(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') ? 'Cash on Delivery' : 'Prepaid'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                <div class="addresses-box">
+                    <div class="address-col" style="flex: 1.2;">
+                        <div class="info-text"><span class="bold">Order ID:</span> #${order.orderId || order._id}</div>
+                        <div class="info-text"><span class="bold">Order Date:</span> ${new Date(order.createdAt || order.date || Date.now()).toLocaleDateString('en-CA')}</div>
+                        <div class="info-text"><span class="bold">Invoice Date:</span> ${new Date().toLocaleDateString('en-CA')}</div>
+                    </div>
+                    <div class="address-col" style="flex: 1;">
+                        <div class="address-title">Billing To:</div>
+                        <div>${custName}</div>
+                        <div>${addr.address || addr.street || ''}, ${addr.locality || ''}</div>
+                        <div>${addr.city || ''}, ${addr.state || ''} - ${addr.zipCode || addr.pincode || ''}</div>
+                    </div>
+                    <div class="address-col" style="flex: 1;">
+                        <div class="address-title">Shipping To:</div>
+                        <div>${custName}</div>
+                        <div>${addr.address || addr.street || ''}, ${addr.locality || ''}</div>
+                        <div>${addr.city || ''}, ${addr.state || ''} - ${addr.zipCode || addr.pincode || ''}</div>
+                    </div>
+                </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12 py-8 border-y border-gray-100">
-                            {/* Billed From (Vendor) */}
-                            <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
-                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed From (Vendor)</h3>
-                                <div className="space-y-1">
-                                    <p className="font-bold text-lg text-gray-900">{vendor?.storeName || 'Our Store'}</p>
-                                    <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{vendor?.shopAddress}</p>
-                                    {vendor?.gstNumber && <p className="text-sm font-semibold text-gray-700">GST: {vendor.gstNumber}</p>}
-                                    {vendor?.phone && <p className="text-sm text-gray-500">Tel: {vendor.phone}</p>}
-                                </div>
-                            </div>
-                            {/* Billed To (Customer) */}
-                            <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
-                                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed To (Customer)</h3>
-                                <div className="space-y-1">
-                                    <p className="font-bold text-lg text-gray-900">{customerName}</p>
-                                    <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
-                                        {shippingAddress?.address || shippingAddress?.street}, {shippingAddress?.city}, {shippingAddress?.state} - {shippingAddress?.zipCode}<br/>{shippingAddress?.country}
-                                    </p>
-                                    <p className="text-sm text-gray-500">Phone: {customerPhone}</p>
-                                    <p className="text-sm text-gray-500">Email: {customerEmail}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <table className="w-full mb-12">
-                            <thead>
-                                <tr className="border-b-2 border-teal-600 bg-teal-100 text-teal-800">
-                                    <th className="py-4 text-left text-xs font-black uppercase tracking-wider">Product Description</th>
-                                    <th className="py-4 text-right text-xs font-black uppercase tracking-wider">Unit Price</th>
-                                    <th className="py-4 text-center text-xs font-black uppercase tracking-wider">Qty</th>
-                                    <th className="py-4 text-right text-xs font-black uppercase tracking-wider">Total</th>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="text-left" style="width: 25%;">Product</th>
+                            <th>HSN</th>
+                            <th>MRP</th>
+                            <th>Qty</th>
+                            <th>Gross Amount</th>
+                            <th>Discount</th>
+                            <th>Taxable Value</th>
+                            <th>GST %</th>
+                            <th>CGST</th>
+                            <th>SGST/UTGST</th>
+                            <th>IGST</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${vendorItems.map(item => {
+                            const qty = item.quantity || 1;
+                            const mrp = item.originalPrice || item.price || item.vendorPrice || 0;
+                            const sellingPrice = item.vendorPrice ?? item.price ?? 0;
+                            const totalSellingPrice = sellingPrice * qty;
+                            const totalMrp = mrp * qty;
+                            
+                            const rules = taxSettings?.gstRules || [];
+                            const applicableRule = rules.find(r => sellingPrice >= r.minPrice && sellingPrice <= r.maxPrice);
+                            const gstRate = applicableRule ? applicableRule.rate : 5;
+                            const taxableValue = totalSellingPrice / (1 + (gstRate/100));
+                            const gstAmount = totalSellingPrice - taxableValue;
+                            const itemCgst = gstAmount / 2;
+                            const itemSgst = gstAmount / 2;
+                            const itemIgst = 0;
+                            
+                            const discount = totalMrp - totalSellingPrice;
+                            
+                            return `
+                                <tr>
+                                    <td class="text-left">${item.name} ${item.variant?.size ? '(' + item.variant.size + ')' : ''}</td>
+                                    <td>62034200</td>
+                                    <td>${mrp.toFixed(2)}</td>
+                                    <td>${qty}</td>
+                                    <td>${(totalMrp).toFixed(2)}</td>
+                                    <td>${discount.toFixed(2)}</td>
+                                    <td>${taxableValue.toFixed(2)}</td>
+                                    <td>${gstRate}% (Incl.)</td>
+                                    <td>${itemCgst.toFixed(2)}</td>
+                                    <td>${itemSgst.toFixed(2)}</td>
+                                    <td>${itemIgst.toFixed(2)}</td>
+                                    <td>${totalSellingPrice.toFixed(2)}</td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {vendorItems.map((item, idx) => (
-                                    <tr key={idx} className="group">
-                                        <td className="py-6">
-                                            <p className="font-bold text-gray-900">{item.name}</p>
-                                            {formatVariantLabel(item.variant) && (
-                                                <p className="text-xs text-gray-400 mt-1">{formatVariantLabel(item.variant)}</p>
-                                            )}
-                                        </td>
-                                        <td className="py-6 text-right font-medium text-gray-600">{formatPrice(item.vendorPrice ?? item.price ?? 0)}</td>
-                                        <td className="py-6 text-center font-bold text-gray-900">{item.quantity}</td>
-                                        <td className="py-6 text-right font-bold text-gray-900">{formatPrice((item.vendorPrice ?? item.price ?? 0) * item.quantity)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                            `;
+                        }).join('')}
+                        <tr class="totals-row">
+                            <td colspan="8" class="text-right">Total Base Price</td>
+                            <td>${(() => {
+                                const taxAmount = vendorItems ? vendorItems.reduce((sum, item) => {
+            const rules = taxSettings?.gstRules || [];
+            const price = item.vendorPrice ?? item.price ?? 0;
+            const rule = rules.find(r => price >= r.minPrice && price <= r.maxPrice);
+            const rate = rule ? rule.rate : 5;
+            const taxable = (price * (item.quantity || 1)) / (1 + (rate/100));
+            return sum + ((price * (item.quantity || 1)) - taxable);
+        }, 0) : 0;
+                                return (taxAmount / 2).toFixed(2);
+                            })()}</td>
+                            <td>${(() => {
+                                const taxAmount = vendorItems ? vendorItems.reduce((sum, item) => {
+            const rules = taxSettings?.gstRules || [];
+            const price = item.vendorPrice ?? item.price ?? 0;
+            const rule = rules.find(r => price >= r.minPrice && price <= r.maxPrice);
+            const rate = rule ? rule.rate : 5;
+            const taxable = (price * (item.quantity || 1)) / (1 + (rate/100));
+            return sum + ((price * (item.quantity || 1)) - taxable);
+        }, 0) : 0;
+                                return (taxAmount / 2).toFixed(2);
+                            })()}</td>
+                            <td>0.00</td>
+                            <td>${vendorSubtotal.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="11" class="text-right" style="color: #ef4444;">Less: Platform Commission</td>
+                            <td style="color: #ef4444;">-${(vendorItem?.commissionAmount || 0).toFixed(2)}</td>
+                        </tr>
+                        <tr class="grand-total-row">
+                            <td colspan="11" class="text-right" style="color: #059669;">Net Earning (GST Inclusive)</td>
+                            <td style="color: #059669;">${(vendorItem?.vendorEarnings || (vendorSubtotal - (vendorItem?.commissionAmount || 0))).toFixed(2)}</td>
+                        </tr>
+                    </tbody>
+                </table>
 
-                        <div className="flex justify-end">
-                            <div className="w-full max-w-xs space-y-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Your Base Price</span>
-                                    <span className="font-bold text-gray-900">{formatPrice(vendorSubtotal)}</span>
-                                </div>
-                                <div className="flex justify-between text-sm pt-1">
-                                    <span className="text-gray-500">Vendor GST (18%) (Included gst)</span>
-                                    <span className="font-bold text-gray-900">{formatPrice(vendorItem?.vendorTax || 0)}</span>
-                                </div>
-                                <div className="flex justify-between text-sm border-t border-dashed border-gray-200 pt-2">
-                                    <span className="text-gray-500">Platform Commission</span>
-                                    <span className="font-bold text-red-500">-{formatPrice(vendorItem?.commissionAmount || 0)}</span>
-                                </div>
-                                <div className="flex justify-between text-sm border-t border-dashed border-gray-200 pt-2">
-                                    <span className="text-gray-500">Payment Method</span>
-                                    <span className="font-bold text-gray-900 uppercase">{(order.paymentMethod === 'cod' || order.paymentMethod === 'cash') ? 'COD' : 'Prepaid'}</span>
-                                </div>
-                                <div className="pt-4 border-t-2 border-gray-900 flex justify-between items-center">
-                                    <span className="text-lg font-black text-gray-900 uppercase">Vendor Earning</span>
-                                    <span className="text-2xl font-black text-emerald-600">{formatPrice(vendorItem?.vendorEarnings || 0)}</span>
-                                </div>
-                            </div>
-                        </div>
+                <div class="footer">
+                    <p class="bold" style="color: #000; font-size: 12px; margin-bottom: 5px;">This is a computer generated invoice and does not require a signature.</p>
+                </div>
 
-                        <div className="mt-20 pt-12 border-t border-gray-100 text-center">
-                            <p className="text-xs text-gray-400 font-medium italic">Thank you for your business. This is an automated vendor invoice from CLOSH.</p>
-                        </div>
-                    </div>
+                <script>
+                    window.onload = function() { 
+                        setTimeout(function() {
+                            window.print();
+                        }, 500); 
+                    }
+                </script>
+            </body>
+            </html>
+        `;
 
-                    {/* Fixed Footer */}
-                    <div className="p-5 md:p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end no-print z-10">
-                        <button
-                            onClick={() => setShowInvoice(false)}
-                            className="px-8 py-3.5 bg-white border border-gray-200 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-[10px] uppercase tracking-widest shadow-sm"
-                        >
-                            Close Preview
-                        </button>
-                    </div>
-                </motion.div>
-            </div>
-        );
+        invoiceWindow.document.open();
+        invoiceWindow.document.write(invoiceContent);
+        invoiceWindow.document.close();
     };
 
     if (loading) {
@@ -436,109 +823,6 @@ const OrderDetail = () => {
                 }
             `}} />
 
-            <AnimatePresence>
-                {showInvoice && <InvoiceModal />}
-                {showCommissionInvoice && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm overflow-hidden">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[1.5rem] md:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-emerald-50"
-                        >
-                            <div className="p-5 md:p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10 no-print">
-                                <div>
-                                    <h3 className="text-lg md:text-xl font-black text-gray-800 tracking-tight">Commission Bill (Admin to Vendor)</h3>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">#{order.orderId || order._id}</p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handlePrint}
-                                        className="flex items-center gap-2 px-4 py-2.5 bg-[#003d29] text-white rounded-xl hover:bg-[#002a1c] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-900/10 transition-all"
-                                    >
-                                        <FiPrinter size={14} /> Print Bill
-                                    </button>
-                                    <button
-                                        onClick={() => setShowCommissionInvoice(false)}
-                                        className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-colors"
-                                    >
-                                        <FiX size={20} />
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex-1 overflow-y-auto no-scrollbar p-6 sm:p-12 bg-white text-gray-800 font-sans" id="printable-invoice">
-                                <div className="flex flex-col sm:flex-row justify-between items-start gap-8 mb-12">
-                                    <div className="space-y-2 flex items-center gap-4">
-                                        <img src={closhLogo} alt="CLOSH Logo" className="h-12 w-auto" />
-                                        <h1 className="text-4xl font-black text-teal-600 tracking-tighter">CLOSH</h1>
-                                    </div>
-                                    <div className="text-right">
-                                        <h2 className="text-2xl font-bold text-gray-900 mb-1">COMMISSION INVOICE (B2B)</h2>
-                                        <p className="text-gray-500 text-sm">#{order.orderId || order._id}</p>
-                                        <p className="text-gray-500 text-sm">Date: {new Date(order.createdAt).toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12 py-8 border-y border-gray-100">
-                                    <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
-                                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed From (Platform)</h3>
-                                        <div className="space-y-1">
-                                            <p className="font-bold text-lg text-gray-900">CLOSH Marketplace</p>
-                                            <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{CLOSH_ADDRESS}</p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-3 p-4 bg-gray-50 rounded-lg shadow-sm">
-                                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Billed To (Vendor)</h3>
-                                        <div className="space-y-1">
-                                            <p className="font-bold text-lg text-gray-900">{vendor?.storeName}</p>
-                                            <p className="text-sm text-gray-600 leading-relaxed max-w-xs">{vendor?.shopAddress}</p>
-                                            {vendor?.gstNumber && <p className="text-sm font-semibold text-gray-700">GSTIN: {vendor.gstNumber}</p>}
-                                        </div>
-                                    </div>
-                                </div>
-                                <table className="w-full mb-12">
-                                    <thead>
-                                        <tr className="border-b-2 border-teal-600 bg-teal-100 text-teal-800">
-                                            <th className="py-4 text-left text-xs font-black uppercase tracking-wider">Service Description</th>
-                                            <th className="py-4 text-right text-xs font-black uppercase tracking-wider">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        <tr className="group">
-                                            <td className="py-6">
-                                                <p className="font-bold text-gray-900">Platform Services Commission</p>
-                                                <p className="text-xs text-gray-400 mt-1">Order #{order.orderId || order._id}</p>
-                                            </td>
-                                            <td className="py-6 text-right font-bold text-gray-900">{formatPrice(vendorItem?.commissionAmount || 0)}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <div className="flex justify-end">
-                                    <div className="w-full max-w-xs space-y-3">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500">Service Base Amount</span>
-                                            <span className="font-bold text-gray-900">{formatPrice(vendorItem?.commissionAmount || 0)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm border-t border-dashed border-gray-200 pt-2">
-                                            <span className="text-gray-500">Service GST (18%)</span>
-                                            <span className="font-bold text-gray-900">{formatPrice(vendorItem?.commissionTax || 0)}</span>
-                                        </div>
-                                        <div className="pt-4 border-t-2 border-gray-900 flex justify-between items-center">
-                                            <span className="text-lg font-black text-gray-900 uppercase">Total Bill</span>
-                                            <span className="text-2xl font-black text-emerald-600">{formatPrice((vendorItem?.commissionAmount || 0) + (vendorItem?.commissionTax || 0))}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="p-5 md:p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end no-print z-10">
-                                <button onClick={() => setShowCommissionInvoice(false)} className="px-8 py-3.5 bg-white border border-gray-200 text-gray-600 font-black rounded-xl hover:bg-gray-100 transition-all text-[10px] uppercase tracking-widest shadow-sm">
-                                    Close Preview
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -573,14 +857,21 @@ const OrderDetail = () => {
 
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => setShowInvoice(true)}
+                        onClick={handleViewCustomerInvoice}
                         className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold shadow-sm"
                     >
                         <FiDownload className="text-sm" />
-                        Cust Invoice
+                        Customer Invoice
+                    </button>
+<button
+                        onClick={handleViewVendorInvoice}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold shadow-sm"
+                    >
+                        <FiDownload className="text-sm" />
+                        Vendor Invoice
                     </button>
                     <button
-                        onClick={() => setShowCommissionInvoice(true)}
+                        onClick={handleViewCommissionInvoice}
                         className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold shadow-sm"
                     >
                         <FiDownload className="text-sm" />
