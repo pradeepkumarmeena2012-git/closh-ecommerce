@@ -26,17 +26,17 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
         throw new ApiError(400, `Insufficient balance. Available: ₹${vendor.availableBalance}`);
     }
 
-    // --- 7-Day Cooldown Logic ---
-    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    // --- 1-Day Cooldown Logic ---
+    const ONE_DAY_MS = 1 * 24 * 60 * 60 * 1000;
     const lastRequest = await WithdrawalRequest.findOne({
         requesterId: vendorId,
         status: { $ne: 'rejected' }
     }).sort({ createdAt: -1 });
 
     if (lastRequest) {
-        const nextAvailableDate = new Date(lastRequest.createdAt.getTime() + SEVEN_DAYS_MS);
+        const nextAvailableDate = new Date(lastRequest.createdAt.getTime() + ONE_DAY_MS);
         if (nextAvailableDate > new Date()) {
-            throw new ApiError(400, `You can only request one withdrawal per 7 days. Next available: ${nextAvailableDate.toLocaleDateString()}`);
+            throw new ApiError(400, `You can only request one withdrawal per day. Next available: ${nextAvailableDate.toLocaleDateString()}`);
         }
     }
 
@@ -69,12 +69,9 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
 export const requestSettlement = asyncHandler(async (req, res) => {
     const vendorId = req.user.id;
     const { commissionIds } = req.body; // Array of IDs if requesting specific ones
-    const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
     const query = {
         vendorId,
-        status: 'pending',
-        createdAt: { $lt: TWENTY_FOUR_HOURS_AGO }
+        status: 'pending'
     };
 
     if (commissionIds && Array.isArray(commissionIds) && commissionIds.length > 0) {
@@ -90,7 +87,7 @@ export const requestSettlement = asyncHandler(async (req, res) => {
     });
 
     if (!readyCommissions.length) {
-        throw new ApiError(400, 'No selected commissions are ready for payout (must be > 24h old and not have active return requests).');
+        throw new ApiError(400, 'No selected commissions are ready for payout (orders must be delivered and not have active return requests).');
     }
 
     const totalAmount = readyCommissions.reduce((sum, c) => sum + (c.vendorEarnings || 0), 0);

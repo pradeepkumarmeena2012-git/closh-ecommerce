@@ -37,9 +37,10 @@ export const updateWithdrawalStatus = asyncHandler(async (req, res) => {
     }
 
     const session = await mongoose.startSession();
+    let request;
     try {
         await session.withTransaction(async () => {
-            const request = await WithdrawalRequest.findById(id).session(session);
+            request = await WithdrawalRequest.findById(id).session(session);
             if (!request) throw new ApiError(404, 'Withdrawal request not found.');
 
             if (request.status !== 'pending') {

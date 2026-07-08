@@ -73,13 +73,16 @@ export const WalletService = {
                     const adjustedEarnings = Math.round(originalEarnings * subtotalRatio);
 
                     if (adjustedEarnings > 0) {
+                        const balanceField = isTryAndBuy ? 'availableBalance' : 'pendingBalance';
+                        const commissionStatus = isTryAndBuy ? 'ready' : 'pending';
+
                         // Update Vendor balance
                         await Vendor.findByIdAndUpdate(
                             group.vendorId,
                             {
                                 $inc: {
                                     totalEarnings: adjustedEarnings,
-                                    pendingBalance: adjustedEarnings,
+                                    [balanceField]: adjustedEarnings,
                                     totalSales: Math.round((group.subtotal || 0) * subtotalRatio)
                                 }
                             },
@@ -96,7 +99,7 @@ export const WalletService = {
                             commissionRate: group.commissionRate || 0,
                             commission: Math.round((group.commissionAmount || 0) * subtotalRatio),
                             vendorEarnings: adjustedEarnings,
-                            status: 'pending'
+                            status: commissionStatus
                         }], { session });
 
                         console.log(`[Wallet] Credited ₹${adjustedEarnings} to Vendor ${group.vendorId} and created commission record.`);

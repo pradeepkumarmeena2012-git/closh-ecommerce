@@ -28,7 +28,6 @@ import PageTransition from '../../../shared/components/PageTransition';
 import { formatPrice } from '../../../shared/utils/helpers';
 import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
-import NewOrderModal from '../components/NewOrderModal';
 import socketService from '../../../shared/utils/socket';
 import OrderCardSkeleton from '../../../shared/components/Skeletons/OrderCardSkeleton';
 
@@ -87,8 +86,6 @@ const DeliveryOrders = () => {
   const isOnline = ['available', 'busy'].includes(deliveryBoy?.status);
   const [filter, setFilter] = useState(isOnline ? 'available' : 'pending');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showNewOrderModal, setShowNewOrderModal] = useState(false);
-  const [selectedNewOrder, setSelectedNewOrder] = useState(null);
   const [mvOrders, setMvOrders] = useState([]);
   const [mvLoading, setMvLoading] = useState(false);
   // Rejected orders state
@@ -136,50 +133,10 @@ const DeliveryOrders = () => {
   useEffect(() => {
     loadOrders(currentPage, filter);
     const interval = setInterval(() => loadOrders(currentPage, filter), 120000);
-
-    // Socket listeners (connection managed by DeliveryLayout)
-    const handleInboundOrder = (data, type = 'order') => {
-      const currentStatus = useDeliveryAuthStore.getState().deliveryBoy?.status;
-      const currentOrders = useDeliveryAuthStore.getState().orders || [];
-      const hasActiveTask = currentOrders.some(o => 
-        ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing'].includes(o.status?.toLowerCase()) || 
-        ['accepted', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase()) ||
-        o.rawStatus === 'processing'
-      );
-
-      if (currentStatus === 'available' && !hasActiveTask) {
-        // Show popup modal with the new task
-        if (data && (data.orderId || data.id || data.returnId)) {
-          setSelectedNewOrder({
-            id: data.id || data.orderId || data.returnId,
-            orderId: data.orderId || data.returnId || data.id,
-            total: data.total || 0,
-            deliveryFee: data.deliveryFee || 0,
-            customer: data.customerName || data.pickupName || 'User',
-            address: data.address || data.pickupAddress || 'Address in details',
-            distance: data.distance || '-',
-            estimatedTime: data.estimatedTime || '15 min',
-            type: data.type || type,
-            isReturn: (data.type === 'return' || type === 'return'),
-            isMultiVendor: !!data.isMultiVendor,
-            vendorPickups: data.vendorPickups || []
-          });
-          setShowNewOrderModal(true);
-          
-          // Play real-time notification sound
-          try {
-            const alertSound = new Audio('/sounds/buzzer.mp3');
-            alertSound.play().catch(err => console.warn('Buzzer play prevented:', err));
-          } catch (audioErr) {
-            console.error('Audio initialization failed:', audioErr);
-          }
-        }
-        if (filter === 'available') loadOrders(currentPage, filter);
-      }
+    const handleGlobalRefresh = () => {
+      loadOrders(1, filter);
     };
-
-    socketService.on('order_ready_for_pickup', (data) => handleInboundOrder(data, 'order'));
-    socketService.on('return_ready_for_pickup', (data) => handleInboundOrder(data, 'return'));
+    window.addEventListener('delivery-dashboard-refresh', handleGlobalRefresh);
 
     // Fetch multi-vendor available orders
     if (filter === 'multi-vendor' && isOnline) {
@@ -216,32 +173,9 @@ const DeliveryOrders = () => {
         .finally(() => setReturnedLoading(false));
     }
 
-    socketService.on('order_taken', (data) => {
-      // Remove the order from local state immediately if another rider took it
-      if (filter === 'available') {
-        const { orders } = useDeliveryAuthStore.getState();
-        const updated = orders.filter(o => o.id !== data.id && o.orderId !== data.orderId);
-        useDeliveryAuthStore.setState({ orders: updated });
-      }
-      setShowNewOrderModal(false); // Close modal if open
-    });
-
-    socketService.on('order_missed', (data) => {
-      toast.error('Missed order (Timeout)');
-      if (filter === 'available') {
-        const { orders } = useDeliveryAuthStore.getState();
-        const updated = orders.filter(o => o.id !== data.id && o.orderId !== data.orderId);
-        useDeliveryAuthStore.setState({ orders: updated });
-      }
-      setShowNewOrderModal(false);
-    });
-
     return () => {
       clearInterval(interval);
-      socketService.off('order_ready_for_pickup');
-      socketService.off('return_ready_for_pickup');
-      socketService.off('order_taken');
-      socketService.off('order_missed');
+      window.removeEventListener('delivery-dashboard-refresh', handleGlobalRefresh);
     };
   }, [currentPage, filter]);
 
@@ -713,17 +647,6 @@ const DeliveryOrders = () => {
             })()}
           </div>
         </div>
-
-        <NewOrderModal
-          isOpen={showNewOrderModal}
-          order={selectedNewOrder}
-          isAccepting={isUpdatingOrderStatus}
-          onClose={() => !isUpdatingOrderStatus && setShowNewOrderModal(false)}
-          onAccept={async (id) => { 
-            await handleAcceptOrder(id, selectedNewOrder?.type); 
-            setShowNewOrderModal(false); 
-          }}
-        />
       </div>
     </PageTransition>
   );

@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FiMapPin, FiNavigation, FiSave, FiCheckCircle } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { useVendorAuthStore } from "../../store/vendorAuthStore";
 import toast from "react-hot-toast";
+import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
+
+const libraries = ['places'];
 
 const LocationSettings = () => {
     const { vendor, updateLocation, updateProfile } = useVendorAuthStore();
@@ -12,6 +15,28 @@ const LocationSettings = () => {
     });
     const [shopAddress, setShopAddress] = useState("");
     const [isGettingLocation, setIsGettingLocation] = useState(false);
+    
+    const autocompleteRef = useRef(null);
+    const { isLoaded } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+        libraries
+    });
+
+    const handlePlaceChanged = () => {
+        if (autocompleteRef.current !== null) {
+            const place = autocompleteRef.current.getPlace();
+            if (place && place.geometry && place.geometry.location) {
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
+                setCoordinates({
+                    latitude: lat.toString(),
+                    longitude: lng.toString(),
+                });
+                setShopAddress(place.formatted_address || place.name);
+            }
+        }
+    };
 
     useEffect(() => {
         if (vendor?.shopLocation?.coordinates) {
@@ -122,13 +147,33 @@ const LocationSettings = () => {
                     <label className="block text-sm font-semibold text-gray-700">
                         Real Shop Address
                     </label>
-                    <textarea
-                        value={shopAddress}
-                        onChange={(e) => setShopAddress(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none min-h-[100px]"
-                        placeholder="Enter your complete shop address (e.g. Shop No. 12, Main Market, Delhi)"
-                        required
-                    />
+                    {isLoaded ? (
+                        <Autocomplete
+                            onLoad={ref => autocompleteRef.current = ref}
+                            onPlaceChanged={handlePlaceChanged}
+                            options={{ componentRestrictions: { country: 'in' } }}
+                        >
+                            <input
+                                type="text"
+                                value={shopAddress}
+                                onChange={(e) => setShopAddress(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="Search & select your shop address..."
+                                required
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') e.preventDefault();
+                                }}
+                            />
+                        </Autocomplete>
+                    ) : (
+                        <textarea
+                            value={shopAddress}
+                            onChange={(e) => setShopAddress(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none min-h-[100px]"
+                            placeholder="Enter your complete shop address (e.g. Shop No. 12, Main Market, Delhi)"
+                            required
+                        />
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

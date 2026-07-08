@@ -367,7 +367,7 @@ const Settlements = () => {
                                     <td className="px-4 py-5">
                                         <div className="font-bold text-gray-800 text-sm">#{c.orderDisplayId || c.orderId?._id?.slice(-8)}</div>
                                         <div className="text-[10px] text-gray-400 font-medium">
-                                            Delivered: {new Date(c.createdAt).toLocaleDateString()}
+                                            Ordered: {new Date(c.createdAt).toLocaleDateString()}
                                         </div>
                                     </td>
                                     <td className="px-4 py-5 text-right">

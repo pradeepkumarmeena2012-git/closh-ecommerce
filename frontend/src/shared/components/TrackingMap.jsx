@@ -197,13 +197,14 @@ const TrackingMap = ({
   // --- Animation loop for active line pulse ---
   useEffect(() => {
     let count = 0;
+    let animFrame;
     const animateLine = () => {
       count = (count + 1) % 200;
       setLineOffset(count / 10);
-      animFrameRef.current = requestAnimationFrame(animateLine);
+      animFrame = requestAnimationFrame(animateLine);
     };
     animateLine();
-    return () => cancelAnimationFrame(animFrameRef.current);
+    return () => cancelAnimationFrame(animFrame);
   }, []);
 
   const onLoad = useCallback((map) => {
@@ -272,17 +273,27 @@ const TrackingMap = ({
         onUnmount={() => setMap(null)}
         options={mapOptions}
       >
-        {effectiveRider && window.google && (
+        {effectiveRider && window.google && window.google.maps && (
           <Marker 
-            position={effectiveRider}
+            key="delivery-partner-marker"
+            position={{ lat: Number(effectiveRider.lat), lng: Number(effectiveRider.lng) }}
             zIndex={2000}
             title="You are here"
+            icon={{
+              path: 0, // 0 is equivalent to window.google.maps.SymbolPath.CIRCLE
+              scale: 9,
+              fillColor: "#4f46e5",
+              fillOpacity: 1,
+              strokeWeight: 3,
+              strokeColor: "#ffffff"
+            }}
           />
         )}
 
-        {destination && (
+        {destination && window.google && window.google.maps && (
           <Marker 
-            position={destination}
+            key="destination-marker"
+            position={{ lat: Number(destination.lat), lng: Number(destination.lng) }}
             label={{ text: isReturn ? (isPickedUp ? '📦' : '🏠') : (isPickedUp ? '🏠' : '📦'), fontSize: '22px' }}
             zIndex={1000}
           />

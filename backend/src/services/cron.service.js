@@ -18,12 +18,9 @@ export const CronService = {
         session.startTransaction();
 
         try {
-            const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-            // 1. Find all pending commissions older than 24 hours
+            // 1. Find all pending commissions
             const pendingCommissions = await Commission.find({
-                status: 'pending',
-                createdAt: { $lt: TWENTY_FOUR_HOURS_AGO }
+                status: 'pending'
             }).populate('orderId').session(session);
 
             console.log(`[Cron] Found ${pendingCommissions.length} pending commissions to evaluate.`);
@@ -51,20 +48,35 @@ export const CronService = {
                     }, { session });
                     
                     console.log(`[Cron] Commission ${commission._id} cancelled due to order status: ${orderStatus}`);
-                } else if (orderStatus === 'delivered') {
-                    // If order is delivered and 24h passed without return, move to ready
-                    commission.status = 'ready';
-                    await commission.save({ session });
-
-                    // Move funds from pending to available
-                    await Vendor.findByIdAndUpdate(commission.vendorId, {
-                        $inc: { 
-                            pendingBalance: -commission.vendorEarnings,
-                            availableBalance: commission.vendorEarnings 
+                } else if (orderStatus === 'delivered' || orderStatus === 'try_buy_completed') {
+                    let shouldSettle = false;
+                    
+                    if (order.orderType === 'try_and_buy') {
+                        // Try and Buy -> settle immediately after delivery
+                        shouldSettle = true;
+                    } else {
+                        // Check and Buy -> wait 24 hours after delivery
+                        const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                        const deliveredAt = order.deliveredAt || order.updatedAt;
+                        if (deliveredAt && new Date(deliveredAt) < TWENTY_FOUR_HOURS_AGO) {
+                            shouldSettle = true;
                         }
-                    }, { session });
+                    }
 
-                    console.log(`[Cron] Commission ${commission._id} finalized and moved to available balance.`);
+                    if (shouldSettle) {
+                        commission.status = 'ready';
+                        await commission.save({ session });
+
+                        // Move funds from pending to available
+                        await Vendor.findByIdAndUpdate(commission.vendorId, {
+                            $inc: { 
+                                pendingBalance: -commission.vendorEarnings,
+                                availableBalance: commission.vendorEarnings 
+                            }
+                        }, { session });
+
+                        console.log(`[Cron] Commission ${commission._id} finalized and moved to available balance.`);
+                    }
                 }
             }
 
@@ -78,14 +90,11 @@ export const CronService = {
         }
     },
 
-    /**
-     * Initialize all scheduled tasks
-     */
     init() {
-        // Run every hour
+        // Run every 5 minutes to process settlements almost immediately
         setInterval(() => {
             this.finalizeCommissions().catch(err => console.error('[Cron] Interval task error:', err));
-        }, 60 * 60 * 1000);
+        }, 5 * 60 * 1000);
 
         // Run once on startup after a short delay
         setTimeout(() => {

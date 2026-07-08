@@ -172,7 +172,7 @@ const NewOrderModal = ({ order, isOpen, onClose, onAccept, isAccepting, riderLoc
                             {/* Key Stats: Earnings, Time, Distance */}
                             <div className="grid grid-cols-3 gap-3 mb-8">
                                 {[
-                                    { label: 'Earnings', value: formatPrice(order.deliveryFee || 0), icon: <FiZap className={`${isReturn ? 'text-orange-500' : 'text-amber-500'}`} />, bg: isReturn ? 'bg-orange-50' : 'bg-amber-50' },
+                                    { label: 'Earnings', value: formatPrice(order.deliveryEarnings || order.deliveryFee || 0), icon: <FiZap className={`${isReturn ? 'text-orange-500' : 'text-amber-500'}`} />, bg: isReturn ? 'bg-orange-50' : 'bg-amber-50' },
                                     { label: 'Est. Time', value: order.estimatedTime || '15 min', icon: <FiClock className="text-blue-500" />, bg: 'bg-blue-50' },
                                     { label: 'Distance', value: liveDistance, icon: <FiTarget className="text-emerald-500" />, bg: 'bg-emerald-50' }
                                 ].map((stat) => (

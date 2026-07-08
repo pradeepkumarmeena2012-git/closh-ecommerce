@@ -228,6 +228,7 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
             orderType: order.orderType,
             isMultiVendor: order.isMultiVendor,
             vendorPickups: order.vendorPickups,
+            deliveryEarnings: order.deliveryEarnings || 0,
             type: 'auto_assigned_alert'
         };
 

@@ -326,11 +326,19 @@ const ReturnRequestDetail = () => {
                   {returnRequest.refundStatus}
                 </Badge>
               </div>
-              {handoverOtpDebug && (
+              {returnRequest?.deliveryOtpDebug && (
                 <div>
                   <p className="text-xs text-amber-600 mb-0.5 font-bold">Handover OTP (Debug)</p>
                   <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-xs border border-amber-200 inline-block">
-                    {handoverOtpDebug}
+                    {returnRequest.deliveryOtpDebug}
+                  </span>
+                </div>
+              )}
+              {isMultiVendor && currentVendorDropoff?.dropoffOtpDebug && (
+                <div>
+                  <p className="text-xs text-amber-600 mb-0.5 font-bold">Dropoff OTP (Debug)</p>
+                  <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-xs border border-amber-200 inline-block">
+                    {currentVendorDropoff.dropoffOtpDebug}
                   </span>
                 </div>
               )}

@@ -24,17 +24,17 @@ export const requestWithdrawal = asyncHandler(async (req, res) => {
         throw new ApiError(400, `Insufficient balance. Available: ₹${deliveryBoy.availableBalance}`);
     }
 
-    // --- 7-Day Cooldown Logic ---
-    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    // --- 1-Day Cooldown Logic ---
+    const ONE_DAY_MS = 1 * 24 * 60 * 60 * 1000;
     const lastRequest = await WithdrawalRequest.findOne({
         requesterId: deliveryBoyId,
         status: { $ne: 'rejected' } // Only consider pending/approved/completed
     }).sort({ createdAt: -1 });
 
     if (lastRequest) {
-        const nextAvailableDate = new Date(lastRequest.createdAt.getTime() + SEVEN_DAYS_MS);
+        const nextAvailableDate = new Date(lastRequest.createdAt.getTime() + ONE_DAY_MS);
         if (nextAvailableDate > new Date()) {
-            throw new ApiError(400, `You can only request one withdrawal per 7 days. Next available: ${nextAvailableDate.toLocaleDateString()}`);
+            throw new ApiError(400, `You can only request one withdrawal per day. Next available: ${nextAvailableDate.toLocaleDateString()}`);
         }
     }
 

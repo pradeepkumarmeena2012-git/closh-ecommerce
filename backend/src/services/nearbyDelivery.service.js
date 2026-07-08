@@ -43,7 +43,8 @@ export const DeliveryNearbyService = {
                 orderId: order.orderId,
                 total: order.total,
                 pickupName: order.shippingAddress.name || 'Vendor', 
-                distance: radiusKm // approx
+                distance: radiusKm, // approx
+                deliveryEarnings: order.deliveryEarnings || 0
             });
         });
 

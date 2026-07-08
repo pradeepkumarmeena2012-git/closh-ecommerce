@@ -91,7 +91,7 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
     }
 
     const hasPaginationParams = page !== undefined || limit !== undefined;
-    const selectFields = 'orderId status total deliveryEarnings deliveryDistance items.name items.image items.quantity orderType paymentMethod customer phone address shippingAddress.name guestInfo.name vendorItems.vendorId vendorItems.vendorName isMultiVendor vendorPickups createdAt updatedAt';
+    const selectFields = 'orderId status total deliveryEarnings deliveryDistance items.name items.image items.quantity orderType paymentMethod customer phone address shippingAddress guestInfo vendorItems.vendorId vendorItems.vendorName isMultiVendor vendorPickups pickupLocation dropoffLocation createdAt updatedAt';
 
     if (!hasPaginationParams) {
         const orders = await Order.find(filter)
@@ -386,7 +386,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         Order.countDocuments({
             deliveryBoyId,
             isDeleted: { $ne: true },
-            status: 'delivered',
+            status: { $in: ['delivered', 'try_buy_completed'] },
             $or: [
                 { deliveredAt: { $gte: todayStart } },
                 { deliveredAt: { $exists: false }, updatedAt: { $gte: todayStart } },
@@ -403,7 +403,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
                 $match: {
                     deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId),
                     isDeleted: { $ne: true },
-                    status: 'delivered',
+                    status: { $in: ['delivered', 'try_buy_completed'] },
                 },
             },
             {
@@ -473,7 +473,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         {
             $match: {
                 deliveryBoyId: new mongoose.Types.ObjectId(deliveryBoyId),
-                status: 'delivered',
+                status: { $in: ['delivered', 'try_buy_completed'] },
                 paymentMethod: { $in: ['cod', 'cash'] },
                 isDeleted: { $ne: true }
             }
@@ -1490,7 +1490,13 @@ export const handleTryAndBuy = asyncHandler(async (req, res) => {
     const adjustedTax = Math.round((order.tax || 0) * subtotalRatio);
     const adjustedDiscount = Math.round((order.discount || 0) * subtotalRatio);
 
-    flow.finalAmount = acceptedSubtotal + shipping + platformFee + adjustedTax - adjustedDiscount;
+    // Frontend might have added COD fee or other hidden fees into original order.total
+    // Expected original total (without hidden fees)
+    const expectedOriginalTotal = originalSubtotal + shipping + platformFee - (order.discount || 0);
+    const hiddenFees = (order.total || expectedOriginalTotal) - expectedOriginalTotal;
+
+    // finalAmount should NOT add adjustedTax because acceptedSubtotal (i.price) already includes tax!
+    flow.finalAmount = acceptedSubtotal + shipping + platformFee - adjustedDiscount + hiddenFees;
     if (flow.finalAmount < 0) flow.finalAmount = 0;
 
     // Sync to main order document so all other views (Admin, User, Vendor) see the adjusted price

@@ -26,6 +26,13 @@ const deriveTopLevelOrderStatus = (vendorItems = [], fallback = 'pending') => {
 
     if (statuses.every((s) => s === 'cancelled')) return 'cancelled';
     if (statuses.every((s) => s === 'delivered')) return 'delivered';
+    
+    const terminalStatuses = ['delivered', 'returned_to_vendor', 'returned', 'cancelled'];
+    if (statuses.every(s => terminalStatuses.includes(s))) {
+        if (statuses.includes('delivered')) return 'delivered';
+        return 'returned';
+    }
+
     if (statuses.includes('out_for_delivery')) return 'out_for_delivery';
     if (statuses.includes('picked_up')) return 'picked_up';
     // Multi-vendor: ALL vendors ready → special combined status
@@ -478,7 +485,7 @@ export const getEarnings = asyncHandler(async (req, res) => {
     const [commissionDocs, totalCommissions, settlements, totalSettlements, aggregationResult] = await Promise.all([
         Commission.find({ vendorId: req.user.id })
             .select('orderId subtotal basePrice vendorEarnings commission commissionRate status createdAt')
-            .populate('orderId', 'orderId status')
+            .populate('orderId', 'orderId status orderType deliveredAt updatedAt')
             .sort({ createdAt: -1 })
             .skip(commissionSkip)
             .limit(numericLimit)
@@ -567,10 +574,28 @@ export const getEarnings = asyncHandler(async (req, res) => {
         { $unwind: '$order' },
         { $match: { 'order.status': { $nin: ['return requested', 'returned', 'cancelled'] } } },
         {
+            $project: {
+                vendorEarnings: 1,
+                isReady: {
+                    $or: [
+                        { $and: [
+                            { $in: ["$order.status", ["delivered", "try_buy_completed"]] },
+                            { $eq: ["$order.orderType", "try_and_buy"] }
+                        ]},
+                        { $and: [
+                            { $in: ["$order.status", ["delivered", "try_buy_completed"]] },
+                            { $ne: ["$order.orderType", "try_and_buy"] },
+                            { $lt: [ { $ifNull: ["$order.deliveredAt", { $ifNull: ["$order.updatedAt", "$createdAt"] }] }, TWENTY_FOUR_HOURS_AGO ] }
+                        ]}
+                    ]
+                }
+            }
+        },
+        {
             $group: {
                 _id: null,
-                pendingAmount: { $sum: { $cond: [{ $gte: ["$createdAt", TWENTY_FOUR_HOURS_AGO] }, "$vendorEarnings", 0] } },
-                readyAmount: { $sum: { $cond: [{ $lt: ["$createdAt", TWENTY_FOUR_HOURS_AGO] }, "$vendorEarnings", 0] } },
+                readyAmount: { $sum: { $cond: ["$isReady", "$vendorEarnings", 0] } },
+                pendingAmount: { $sum: { $cond: ["$isReady", 0, "$vendorEarnings"] } }
             }
         }
     ]);
@@ -591,15 +616,27 @@ export const getEarnings = asyncHandler(async (req, res) => {
         const commission = doc;
         const orderRef = commission.orderId?._id || commission.orderId;
         const orderDisplayId = commission.orderId?.orderId || String(orderRef || '');
-        const orderStatus = String(commission.orderId?.status || '').toLowerCase();
+        const orderDoc = commission.orderId || {};
+        const orderStatus = String(orderDoc.status || '').toLowerCase();
+        const orderType = orderDoc.orderType;
         const isReturnRelated = orderStatus === 'return requested' || orderStatus === 'returned';
         
         // A commission is truly ready if the cron job has finalized it (status === 'ready')
-        // OR if it's pending but older than 24h and not returned (for immediate UI feedback)
         const isFinalized = commission.status === 'ready';
-        const isTimeReady = commission.status === 'pending' && 
-                           new Date(commission.createdAt) < TWENTY_FOUR_HOURS_AGO &&
-                           !isReturnRelated;
+        
+        let isTimeReady = false;
+        if (commission.status === 'pending' && !isReturnRelated) {
+            if (orderStatus === 'delivered' || orderStatus === 'try_buy_completed') {
+                if (orderType === 'try_and_buy') {
+                    isTimeReady = true;
+                } else {
+                    const deliveredAt = orderDoc.deliveredAt || orderDoc.updatedAt || commission.createdAt;
+                    if (new Date(deliveredAt) < TWENTY_FOUR_HOURS_AGO) {
+                        isTimeReady = true;
+                    }
+                }
+            }
+        }
         
         const isReady = isFinalized || isTimeReady;
 

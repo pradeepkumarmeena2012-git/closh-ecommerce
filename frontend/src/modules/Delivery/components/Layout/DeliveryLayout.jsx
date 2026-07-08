@@ -208,8 +208,11 @@ const DeliveryLayout = () => {
       ...(store.returns || [])
     ].filter(t => ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'accepted'].includes(t.status?.toLowerCase()));
 
-    // Allow manual assignments to bypass the "busy" blocker so they ring on the partner's device
-    if (activeTasks.length > 0 && data.type !== 'new_assignment_broadcast') {
+    // Allow manual/auto assignments to bypass the "busy" blocker so they ring on the partner's device.
+    // Also bypass if the only active task is the incoming order itself.
+    const isIncomingOrderTheOnlyActiveTask = activeTasks.length === 1 && String(activeTasks[0].id || activeTasks[0]._id) === String(id);
+    
+    if (activeTasks.length > 0 && !isIncomingOrderTheOnlyActiveTask && data.type !== 'new_assignment_broadcast' && data.type !== 'auto_assigned_alert') {
       console.log(`📦 [DELIVERY] Order ${id} skipped. Partner is BUSY with ${activeTasks.length} active tasks.`);
       return;
     }
