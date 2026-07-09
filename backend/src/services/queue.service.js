@@ -18,20 +18,28 @@ class DummyQueue {
 
 const isRedisAvailable = process.env.REDIS_HOST || process.env.REDIS_URL || process.env.NODE_ENV === 'production';
 
+const defaultQueueOptions = {
+    connection: redisConnection,
+    defaultJobOptions: {
+        removeOnComplete: { count: 50 },
+        removeOnFail: { count: 100 }
+    }
+};
+
 // 1. Order Wait Queue (Vendor Acceptance)
-const orderWaitQueue = isRedisAvailable ? new Queue('order-wait-queue', { connection: redisConnection }) : new DummyQueue('order-wait-queue');
+const orderWaitQueue = isRedisAvailable ? new Queue('order-wait-queue', defaultQueueOptions) : new DummyQueue('order-wait-queue');
 
 // 2. Rider Search Queue (Radius Expansion)
-const riderSearchQueue = isRedisAvailable ? new Queue('rider-search-queue', { connection: redisConnection }) : new DummyQueue('rider-search-queue');
+const riderSearchQueue = isRedisAvailable ? new Queue('rider-search-queue', defaultQueueOptions) : new DummyQueue('rider-search-queue');
 
 // 3. Rider Acceptance Timeout Queue (Auto-cancel if no rider accepts within 15 min)
-const riderAcceptQueue = isRedisAvailable ? new Queue('rider-accept-queue', { connection: redisConnection }) : new DummyQueue('rider-accept-queue');
+const riderAcceptQueue = isRedisAvailable ? new Queue('rider-accept-queue', defaultQueueOptions) : new DummyQueue('rider-accept-queue');
 
 // 4. Rider Auto Assign 120s Timeout Queue (Auto-reject if rider doesn't click Accept within 120s)
-const riderAutoAssignTimeoutQueue = isRedisAvailable ? new Queue('rider-auto-assign-timeout-queue', { connection: redisConnection }) : new DummyQueue('rider-auto-assign-timeout-queue');
+const riderAutoAssignTimeoutQueue = isRedisAvailable ? new Queue('rider-auto-assign-timeout-queue', defaultQueueOptions) : new DummyQueue('rider-auto-assign-timeout-queue');
 
 // 5. Rider Auto Assign Retry Queue (Retry auto-assignment if no riders were found)
-const riderAutoAssignRetryQueue = isRedisAvailable ? new Queue('rider-auto-assign-retry-queue', { connection: redisConnection }) : new DummyQueue('rider-auto-assign-retry-queue');
+const riderAutoAssignRetryQueue = isRedisAvailable ? new Queue('rider-auto-assign-retry-queue', defaultQueueOptions) : new DummyQueue('rider-auto-assign-retry-queue');
 
 
 export const QueueService = {
@@ -161,7 +169,7 @@ if (isRedisAvailable) {
         if (order.status === 'searching') {
             await QueueService.scheduleRiderSearch(orderId, radius + 5, attempt + 1);
         }
-    }, { connection: redisConnection });
+    }, { connection: redisConnection, removeOnComplete: { count: 50 }, removeOnFail: { count: 100 } });
 }
 
 /**
@@ -289,7 +297,7 @@ if (isRedisAvailable) {
                 console.error("[Worker] AutoAssign fallback trigger failed:", err);
             });
         }
-    }, { connection: redisConnection });
+    }, { connection: redisConnection, removeOnComplete: { count: 50 }, removeOnFail: { count: 100 } });
 }
 
 /**
@@ -310,7 +318,7 @@ if (isRedisAvailable) {
                 console.error("[Worker] AutoAssign retry trigger failed:", err);
             });
         }
-    }, { connection: redisConnection });
+    }, { connection: redisConnection, removeOnComplete: { count: 50 }, removeOnFail: { count: 100 } });
 }
 
 if (isRedisAvailable) {
