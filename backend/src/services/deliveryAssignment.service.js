@@ -5,11 +5,22 @@ import { emitEvent, isDeliveryBoyConnected } from './socket.service.js';
 import { getDeliveryFeeConfig } from '../utils/deliveryFeeConfig.js';
 import { calculateDistance, calculatePathDistance, getDeliveryEarning, getVendorPickupFee } from '../utils/geo.js';
 import Order from '../models/Order.model.js';
+import Settings from '../models/Settings.model.js';
 
 /**
- * Find nearby delivery boys for an order (Radius increased to 100km for wide coverage)
+ * Find nearby delivery boys for an order (Dynamic Radius based on Admin Settings)
  */
-export const findNearbyDeliveryBoys = async (order, radiusMeters = 100000) => {
+export const findNearbyDeliveryBoys = async (order) => {
+    let radiusMeters = 100000; // fallback default
+    try {
+        const settings = await Settings.findOne({ key: 'delivery_fees' }).lean();
+        if (settings?.value?.maxAssignmentRadiusKm) {
+            radiusMeters = settings.value.maxAssignmentRadiusKm * 1000;
+        }
+    } catch (err) {
+        console.error('[Radius Search] Error fetching dynamic radius:', err);
+    }
+
     const pickupLocation = order.pickupLocation;
     
     if (!pickupLocation || !pickupLocation.coordinates || (pickupLocation.coordinates[0] === 0 && pickupLocation.coordinates[1] === 0)) {

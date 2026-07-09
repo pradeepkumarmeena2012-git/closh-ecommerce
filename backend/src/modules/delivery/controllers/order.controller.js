@@ -81,6 +81,9 @@ export const getAssignedOrders = asyncHandler(async (req, res) => {
 
     if (status === 'open') {
         filter.status = { $in: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'returning_unselected_items', 'returning_unselected'] };
+    } else if (status === 'delivered') {
+        // Multi-vendor orders may end up in 'try_buy_completed' or 'returned' if some items are returned
+        filter.status = { $in: ['delivered', 'try_buy_completed', 'returned', 'returned_to_vendor'] };
     } else if (status) {
         // Support comma-separated statuses (e.g. "delivered,cancelled")
         if (typeof status === 'string' && status.includes(',')) {
@@ -2671,11 +2674,33 @@ export const dropoffReturnAtVendor = asyncHandler(async (req, res) => {
 
     if (returnReq.status === 'completed') {
         await WalletService.processOrderReturn(returnReq).catch(e => console.error(e));
-        const order = await Order.findById(returnReq.orderId);
-        if (order) {
-            order.status = 'returned';
-            await order.save();
+    }
+
+    const order = await Order.findById(returnReq.orderId);
+    if (order) {
+        // Update the specific vendor's status to 'returned'
+        if (order.vendorItems && order.vendorItems.length > 0) {
+            const currentVendorId = String(vendorId || returnReq.vendorId);
+            order.vendorItems.forEach(group => {
+                if (String(group.vendorId._id || group.vendorId) === currentVendorId) {
+                    group.status = 'returned';
+                    group.returnedAt = new Date();
+                }
+            });
         }
+
+        // Update overall order status ONLY if the entire return request is completed
+        if (returnReq.status === 'completed') {
+            if (order.subtotal > 0) {
+                order.status = 'delivered'; // They kept some items
+            } else {
+                order.status = 'returned'; // They rejected everything
+            }
+        }
+        await order.save();
+    }
+
+    if (returnReq.status === 'completed') {
         await createNotification({
             recipientId: returnReq.userId,
             recipientType: 'user',

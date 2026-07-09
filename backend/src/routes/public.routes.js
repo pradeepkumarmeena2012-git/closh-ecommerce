@@ -14,10 +14,18 @@ import { calculateVendorShippingForGroups } from '../services/vendorShipping.ser
 import { getCache, setCache } from '../utils/cache.js';
 import { optionalAuth } from '../middlewares/authenticate.js';
 import { Order } from '../models/Order.model.js';
+import Settings from '../models/Settings.model.js';
 import { validateCoupon } from '../services/coupon.service.js';
 import { handleRazorpayWebhook } from '../modules/payment/webhook.controller.js';
 
 const router = Router();
+
+// GET /api/public/config/delivery
+router.get('/config/delivery', asyncHandler(async (req, res) => {
+    const settings = await Settings.findOne({ key: 'delivery_fees' }).lean();
+    const maxCartVendorDistanceKm = settings?.value?.maxCartVendorDistanceKm || 10;
+    res.status(200).json(new ApiResponse(200, { maxCartVendorDistanceKm }, 'Delivery config fetched'));
+}));
 
 const toPublicVendor = (vendorDoc) => {
     const vendor = typeof vendorDoc?.toObject === 'function'
@@ -282,7 +290,7 @@ const listProducts = asyncHandler(async (req, res) => {
         .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount variants division')
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
-        .populate('vendorId', 'storeName isOnline')
+        .populate('vendorId', 'storeName isOnline shopLocation')
         .sort(sortMap[sort] || { createdAt: -1 })
         .skip(skip)
         .limit(Number(limit));
@@ -387,7 +395,7 @@ router.get('/popular', asyncHandler(async (req, res) => {
         approvalStatus: 'approved',
         price: { $gt: 0 }
     })
-        .populate('vendorId', 'storeName isOnline')
+        .populate('vendorId', 'storeName isOnline shopLocation')
         .sort({ reviewCount: -1, rating: -1 })
         .limit(10);
     const activeProducts = await applyActiveCampaigns(products);
@@ -405,7 +413,7 @@ router.get('/similar/:id', asyncHandler(async (req, res) => {
         _id: { $ne: product._id }, 
         categoryId: product.categoryId 
     })
-        .populate('vendorId', 'storeName isOnline')
+        .populate('vendorId', 'storeName isOnline shopLocation')
         .limit(6);
     const activeSimilar = await applyActiveCampaigns(similar);
     res.status(200).json(new ApiResponse(200, activeSimilar, 'Similar products.'));

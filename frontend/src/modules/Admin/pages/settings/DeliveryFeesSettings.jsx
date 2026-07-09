@@ -10,6 +10,8 @@ const DEFAULTS = {
   perKmFee: 10,
   perVendorStopFee: 6,
   perVendorDropoffFee: 6,
+  maxAssignmentRadiusKm: 10,
+  maxCartVendorDistanceKm: 10,
 };
 
 const FieldRow = ({ label, hint, name, value, onChange }) => (
@@ -58,8 +60,8 @@ const DeliveryFeesSettings = () => {
 
   const handleSave = async () => {
     // Basic validation
-    if (fees.baseFee < 0 || fees.freeKms < 0 || fees.perKmFee < 0 || fees.perVendorStopFee < 0 || fees.perVendorDropoffFee < 0) {
-      toast.error('All fee values must be 0 or greater');
+    if (fees.baseFee < 0 || fees.freeKms < 0 || fees.perKmFee < 0 || fees.perVendorStopFee < 0 || fees.perVendorDropoffFee < 0 || fees.maxAssignmentRadiusKm < 1 || fees.maxCartVendorDistanceKm < 1) {
+      toast.error('All fee values must be 0 or greater, and distances at least 1km');
       return;
     }
     setIsSaving(true);
@@ -99,6 +101,34 @@ const DeliveryFeesSettings = () => {
         <p className="text-sm text-gray-500 mt-1">
           Configure how delivery partners are compensated for each trip. Changes apply to all future order completions.
         </p>
+      </div>
+
+      {/* ─── DISTANCE LIMITS ─────────────────────────────────── */}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
+          <p className="text-xs font-black text-amber-700 uppercase tracking-widest">
+            🚧 Distance & Routing Limits
+          </p>
+          <p className="text-xs text-amber-500 mt-0.5">
+            Controls max boundaries for multi-vendor orders and delivery assignment
+          </p>
+        </div>
+        <div className="px-4">
+          <FieldRow
+            label="Max Delivery Assignment Radius (km)"
+            hint="System will only assign delivery boys within this radius from the vendor"
+            name="maxAssignmentRadiusKm"
+            value={fees.maxAssignmentRadiusKm}
+            onChange={handleChange}
+          />
+          <FieldRow
+            label="Max Multi-Vendor Distance (km)"
+            hint="Prevents users from adding a 2nd item to cart if its vendor is further than this distance from the 1st vendor"
+            name="maxCartVendorDistanceKm"
+            value={fees.maxCartVendorDistanceKm}
+            onChange={handleChange}
+          />
+        </div>
       </div>
 
       {/* ─── FORWARD DELIVERY ─────────────────────────────────── */}

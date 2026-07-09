@@ -5,8 +5,35 @@ import { useAuthStore } from "./authStore";
 import { setPostLoginAction, setPostLoginRedirect } from "../utils/postLoginAction";
 import { getVariantSignature } from "../utils/variant";
 
-const getCartLineKey = (id, variant = {}) =>
-  `${String(id)}::${getVariantSignature(variant)}`;
+const getCartLineKey = (id, variant) => {
+  if (!variant || typeof variant !== 'object') return String(id);
+  const vId = variant.id || variant._id || '';
+  if (vId) return `${id}-${vId}`;
+  
+  const serialized = Object.entries(variant)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}:${v}`)
+    .join('|');
+  return `${id}-${serialized}`;
+};
+
+// Haversine formula for frontend distance calculation
+const calculateDistance = (coords1, coords2) => {
+  if (!coords1 || !coords2 || !Array.isArray(coords1) || !Array.isArray(coords2)) return 0;
+  if (coords1.length < 2 || coords2.length < 2) return 0;
+  const [lon1, lat1] = coords1;
+  const [lon2, lat2] = coords2;
+  const R = 6371; // km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 const getCurrentAuthUserId = () => {
   const authState = useAuthStore.getState();
   return String(authState?.user?.id || authState?.user?._id || "").trim();
@@ -32,6 +59,19 @@ export const useCartStore = create(
     (set, get) => ({
       items: [],
       ownerUserId: null,
+      maxCartVendorDistanceKm: 10,
+      
+      fetchDeliveryConfig: async () => {
+        try {
+          const res = await fetch('http://localhost:5000/api/public/config/delivery');
+          const data = await res.json();
+          if (data?.success && data?.data?.maxCartVendorDistanceKm) {
+            set({ maxCartVendorDistanceKm: data.data.maxCartVendorDistanceKm });
+          }
+        } catch (e) {
+          console.error("Failed to fetch delivery config", e);
+        }
+      },
       addItem: (item) => {
         const authState = useAuthStore.getState();
         if (!authState?.isAuthenticated) {
@@ -83,12 +123,32 @@ export const useCartStore = create(
           return false;
         }
 
+        // Distance check for multi-vendor
+        const newVendorId = String(item.vendorId || 1);
+        const newVendorCoords = item.shopLocation?.coordinates || null;
+        
+        const existingItems = get().items;
+        if (existingItems.length > 0) {
+          const firstItem = existingItems[0];
+          const firstVendorId = String(firstItem.vendorId || 1);
+          
+          if (newVendorId !== firstVendorId && firstItem.shopLocation?.coordinates && newVendorCoords) {
+            const distance = calculateDistance(firstItem.shopLocation.coordinates, newVendorCoords);
+            const maxAllowed = get().maxCartVendorDistanceKm || 10;
+            if (distance > maxAllowed) {
+              toast.error(`This vendor is too far (${distance.toFixed(1)} km) from your other cart items. Max allowed distance is ${maxAllowed} km.`);
+              return false;
+            }
+          }
+        }
+
         // Include vendor information from product
         const itemWithVendor = {
           ...item,
           cartLineKey: lineKey,
           vendorId: item.vendorId || 1,
           vendorName: item.vendorName || "Unknown Vendor",
+          shopLocation: item.shopLocation || null,
         };
 
         set((state) => {
@@ -348,3 +408,8 @@ export const useUIStore = create((set) => ({
   triggerCartAnimation: () =>
     set((state) => ({ cartAnimationTrigger: state.cartAnimationTrigger + 1 })),
 }));
+
+// Initialize delivery config once on load
+if (typeof window !== 'undefined') {
+  useCartStore.getState().fetchDeliveryConfig();
+}
