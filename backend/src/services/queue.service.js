@@ -148,7 +148,7 @@ if (isRedisAvailable) {
                 });
             }
         }
-    }, { connection: redisConnection });
+    }, { connection: redisConnection, removeOnComplete: { count: 50 }, removeOnFail: { count: 100 } });
 }
 
 /**
@@ -243,7 +243,7 @@ if (isRedisAvailable) {
                 });
             }
         }
-    }, { connection: redisConnection });
+    }, { connection: redisConnection, removeOnComplete: { count: 50 }, removeOnFail: { count: 100 } });
 }
 
 /**
