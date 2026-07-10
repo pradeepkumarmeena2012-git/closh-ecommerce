@@ -189,7 +189,7 @@ const Withdrawals = () => {
               <>
                 <button
                   disabled={processingId === row._id}
-                  onClick={() => handleAction(row, 'approved')}
+                  onClick={() => handleAction(row, 'completed')}
                   className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-black font-bold text-xs transition-all shadow-lg shadow-slate-100 disabled:opacity-50"
                 >
                   <FiCheckCircle className="text-sm" /> Process Payout

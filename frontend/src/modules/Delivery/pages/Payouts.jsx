@@ -56,7 +56,7 @@ const Payouts = () => {
     try {
       setIsLoadingHistory(true);
       const response = await api.get('/delivery/withdrawals');
-      const history = response.data?.data || [];
+      const history = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
       setWithdrawalHistory(history);
 
       const lastNonRejectedRequest = history.find(
@@ -264,9 +264,8 @@ const Payouts = () => {
             )}
           </AnimatePresence>
 
-          {/* Filter Bar */}
           <div className="flex gap-2 p-1.5 bg-slate-100 rounded-2xl overflow-x-auto no-scrollbar border border-slate-200/50">
-            {['all', 'pending', 'completed', 'approved', 'rejected'].map((s) => (
+            {['all', 'pending', 'completed', 'rejected'].map((s) => (
               <button
                 key={s}
                 onClick={() => setFilter(s)}
