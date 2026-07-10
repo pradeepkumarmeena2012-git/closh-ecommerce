@@ -497,18 +497,25 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
 
       // If price was updated by the above logic, sync variant prices
       if (next.price !== undefined && next.price !== prev.price) {
-        if (prev.variants?.prices) {
-          const nextPrices = { ...prev.variants.prices };
-          let hasVariants = false;
-          Object.keys(nextPrices).forEach(key => {
+        const nextPrices = { ...(prev.variants?.prices || {}) };
+        let hasVariants = false;
+        
+        // Force update all existing keys
+        Object.keys(nextPrices).forEach(key => {
+          hasVariants = true;
+          nextPrices[key] = next.price === "" ? "" : Number(next.price);
+        });
+
+        // Force update all active combinations
+        if (typeof variantCombinations !== 'undefined' && Array.isArray(variantCombinations)) {
+          variantCombinations.forEach(combo => {
             hasVariants = true;
-            if (nextPrices[key] === Number(prev.price) || nextPrices[key] === prev.price || nextPrices[key] === "" || nextPrices[key] === undefined) {
-              nextPrices[key] = next.price === "" ? "" : Number(next.price);
-            }
+            nextPrices[combo.key] = next.price === "" ? "" : Number(next.price);
           });
-          if (hasVariants) {
-            next.variants = { ...prev.variants, prices: nextPrices };
-          }
+        }
+
+        if (hasVariants) {
+          next.variants = { ...(prev.variants || {}), prices: nextPrices };
         }
       }
 
@@ -1182,7 +1189,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
         ? null
         : parseFloat(formData.originalPrice),
       vendorPrice: (formData.vendorPrice === "" || formData.vendorPrice === null)
-        ? 0
+        ? parseFloat(formData.price || 0)
         : parseFloat(formData.vendorPrice),
       stockQuantity: parseInt(formData.stockQuantity || 0, 10),
       totalAllowedQuantity: (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))
@@ -1328,7 +1335,7 @@ const ProductFormModal = ({ isOpen, onClose, productId, onSuccess }) => {
           ? null
           : parseFloat(formData.originalPrice),
         vendorPrice: (formData.vendorPrice === "" || formData.vendorPrice === null)
-          ? 0
+          ? parseFloat(formData.price || 0)
           : parseFloat(formData.vendorPrice),
         stockQuantity: parseInt(formData.stockQuantity || 0, 10),
         totalAllowedQuantity: (formData.totalAllowedQuantity === "" || formData.totalAllowedQuantity === null || isNaN(parseInt(formData.totalAllowedQuantity)))

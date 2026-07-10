@@ -135,19 +135,15 @@ export const useOrderStore = create(
           };
           const idempotencyKey = buildIdempotencyKey(payload, orderData.userId);
 
-          console.log("Order Store - Placing Order with Payload:", payload);
           const response = await api.post('/user/orders', payload, {
             headers: {
               "x-idempotency-key": idempotencyKey,
             },
           });
-          console.log("Order Store - API Raw Response:", response);
           const payloadData = response?.data || response;
-          console.log("Order Store - payloadData extracted:", payloadData);
 
           // Support both flattened and wrapped response structures
           const createdOrderId = payloadData?.orderId || response?.orderId || response?.data?.orderId;
-          console.log("Order Store - createdOrderId identified:", createdOrderId);
 
           if (!createdOrderId) {
             throw new Error('Invalid order creation response from server.');
@@ -170,9 +166,13 @@ export const useOrderStore = create(
           return createdOrder;
         } catch (error) {
           const errorMessage = error.response?.data?.errors?.[0]?.message || error.response?.data?.message || error.message;
-          console.error("Order Creation Error Detail:", error.response?.data);
           set({ isLoading: false, lastError: errorMessage || 'Failed to place order.' });
-          throw new Error(errorMessage || 'Failed to place order.');
+          
+          const customError = new Error(errorMessage || 'Failed to place order.');
+          if (error.response) {
+              customError.response = error.response;
+          }
+          throw customError;
         }
       },
 

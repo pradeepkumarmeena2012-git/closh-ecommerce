@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -15,6 +15,9 @@ import {
 import toast from "react-hot-toast";
 import { registerVendor } from "../../services/adminService";
 import VendorHeader from "../../components/Vendors/VendorHeader";
+import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
+
+const libraries = ['places'];
 
 const RegisterVendor = () => {
     const navigate = useNavigate();
@@ -27,8 +30,33 @@ const RegisterVendor = () => {
         shopAddress: "",
         email: "",
         password: "",
+        latitude: "",
+        longitude: "",
     });
     const [document, setDocument] = useState(null);
+
+    const autocompleteRef = useRef(null);
+    const { isLoaded } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+        libraries
+    });
+
+    const handlePlaceChanged = () => {
+        if (autocompleteRef.current !== null) {
+            const place = autocompleteRef.current.getPlace();
+            if (place && place.geometry && place.geometry.location) {
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
+                setFormData(prev => ({
+                    ...prev,
+                    shopAddress: place.formatted_address || place.name,
+                    latitude: lat.toString(),
+                    longitude: lng.toString(),
+                }));
+            }
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -207,16 +235,37 @@ const RegisterVendor = () => {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-600">Shop Address</label>
                             <div className="relative">
-                                <FiMapPin className="absolute left-3 top-3 text-gray-400" />
-                                <textarea
-                                    name="shopAddress"
-                                    required
-                                    value={formData.shopAddress}
-                                    onChange={handleChange}
-                                    rows={3}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                                    placeholder="Enter full shop address"
-                                />
+                                <FiMapPin className="absolute left-3 top-3.5 text-gray-400 z-10" />
+                                {isLoaded ? (
+                                    <Autocomplete
+                                        onLoad={ref => autocompleteRef.current = ref}
+                                        onPlaceChanged={handlePlaceChanged}
+                                        options={{ componentRestrictions: { country: 'in' } }}
+                                    >
+                                        <input
+                                            type="text"
+                                            name="shopAddress"
+                                            required
+                                            value={formData.shopAddress}
+                                            onChange={handleChange}
+                                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                                            placeholder="Search & select full shop address"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') e.preventDefault();
+                                            }}
+                                        />
+                                    </Autocomplete>
+                                ) : (
+                                    <textarea
+                                        name="shopAddress"
+                                        required
+                                        value={formData.shopAddress}
+                                        onChange={handleChange}
+                                        rows={3}
+                                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                                        placeholder="Enter full shop address"
+                                    />
+                                )}
                             </div>
                         </div>
                         <div className="space-y-2">

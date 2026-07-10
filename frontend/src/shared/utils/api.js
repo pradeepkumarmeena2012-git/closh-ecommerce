@@ -256,7 +256,8 @@ api.interceptors.response.use(
     const isCrossScope = scope !== pathScope;
 
     // Suppress toasts for background/silent/refreshing/guest-public requests
-    const shouldSuppressToast = isSilent || isRefreshing || isCrossScope || (status === 401 && isPublicPage && !token) || status === 429;
+    const isOrderTimeRestricted = error.response?.data?.errors?.[0]?.code === 'ORDER_TIME_RESTRICTED' || error.response?.data?.code === 'ORDER_TIME_RESTRICTED';
+    const shouldSuppressToast = isSilent || isRefreshing || isCrossScope || (status === 401 && isPublicPage && !token) || status === 429 || isOrderTimeRestricted;
 
     if (!shouldSuppressToast) {
        toast.error(understandableMessage, {

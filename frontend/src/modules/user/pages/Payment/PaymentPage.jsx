@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useUserLocation } from '../../context/LocationContext';
@@ -31,8 +32,118 @@ import {
     Search,
     MapPinned,
     Tag,
-    Heart
+    Heart,
+    AlertCircle,
+    Bell
 } from 'lucide-react';
+
+const TimeRestrictedModal = ({ isOpen, onClose, data }) => {
+    const [timeLeft, setTimeLeft] = useState('');
+
+    useEffect(() => {
+        if (!isOpen || !data?.startTime) return;
+
+        const updateTimer = () => {
+            const now = new Date();
+            const [targetH, targetM] = data.startTime.split(':').map(Number);
+            
+            let targetTime = new Date();
+            targetTime.setHours(targetH, targetM, 0, 0);
+
+            if (now.getTime() > targetTime.getTime()) {
+                targetTime.setDate(targetTime.getDate() + 1);
+            }
+
+            const diffMs = targetTime.getTime() - now.getTime();
+            if (diffMs <= 0) {
+                setTimeLeft('00:00:00');
+                return;
+            }
+
+            const h = Math.floor(diffMs / (1000 * 60 * 60));
+            const m = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+            if (h > 0) {
+                setTimeLeft(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+            } else {
+                setTimeLeft(`${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+            }
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [isOpen, data]);
+
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        onClick={onClose}
+                    />
+                    
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 25 } }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        className="bg-[#f0f0f0] rounded-[24px] shadow-2xl w-full max-w-[340px] relative z-10 overflow-hidden flex flex-col items-center pt-8 pb-6 px-6"
+                    >
+                        {/* Timer Circle with Pulse Effect */}
+                        <div className="relative mb-6">
+                            <motion.div 
+                                animate={{ scale: [1, 1.1, 1] }}
+                                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                className="absolute inset-0 rounded-full bg-black/5"
+                            />
+                            <div className="w-28 h-28 rounded-full border-[3px] border-black/10 flex flex-col items-center justify-center bg-white relative z-10 shadow-sm">
+                                <span className="text-black text-3xl font-bold tracking-tight">
+                                    {timeLeft || '00:00'}
+                                </span>
+                                <span className="text-[10px] text-gray-400 font-semibold tracking-widest uppercase mt-0.5">
+                                    {timeLeft.split(':').length > 2 ? 'HOURS' : 'MINUTES'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <h3 className="text-xl font-bold text-gray-800 mb-3 text-center">
+                            Limited Access
+                        </h3>
+                        
+                        <p className="text-[13px] text-gray-500 text-center mb-8 leading-relaxed px-2 font-medium">
+                            {data?.message || "Our catalog is currently closed. We will open again soon."}
+                        </p>
+
+                        <div className="w-full space-y-3">
+                            <button
+                                onClick={() => {
+                                    toast.success("We'll notify you when we open!");
+                                    onClose();
+                                }}
+                                className="w-full py-3.5 bg-black text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors shadow-md shadow-black/20"
+                            >
+                                <Bell size={18} />
+                                <span>Notify Me</span>
+                            </button>
+                            
+                            <button
+                                onClick={onClose}
+                                className="w-full py-3.5 bg-transparent border border-gray-200 text-gray-600 rounded-xl font-bold hover:bg-gray-50 transition-colors"
+                            >
+                                Close Window
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
+    );
+};
 
 const PaymentPage = () => {
     const navigate = useNavigate();
@@ -52,6 +163,7 @@ const PaymentPage = () => {
     const [paymentMethod, setPaymentMethod] = useState('');
     const [deliveryType, setDeliveryType] = useState(location.state?.deliveryType === 'standard' ? 'check_and_buy' : (location.state?.deliveryType || 'check_and_buy'));
     const [isProcessing, setIsProcessing] = useState(false);
+    const [timeRestrictedError, setTimeRestrictedError] = useState(null);
     const [expandedOption, setExpandedOption] = useState('');
     const isNavigatingToSuccess = useRef(false);
 
@@ -330,15 +442,10 @@ const PaymentPage = () => {
                 total: finalTotal
             };
 
-            console.log("🚀 [PAYMENT_DEBUG] Sending Order Payload:", JSON.stringify(orderPayload, null, 2));
-
             const response = await createOrder(orderPayload);
-            console.log("📥 [PAYMENT_DEBUG] Received Order Response:", JSON.stringify(response, null, 2));
-
             if (response && response.id) {
                 // Check if it's prepaid but missing Razorpay ID
                 if (normalizedPaymentMethod === 'prepaid' && !response.razorpayOrderId) {
-                    console.error("❌ [PAYMENT_ERROR] Order created as PREPAID but no razorpayOrderId received from server.");
                     toast.error('Payment gateway initialization failed. Your order might be recorded as COD. Please contact support.');
                     isNavigatingToSuccess.current = true;
                     clearCart();
@@ -414,13 +521,15 @@ const PaymentPage = () => {
                 }
             }
         } catch (error) {
-            console.error("❌ PAYMENT_PAGE_ORDER_ERROR:", error);
-            console.error("Error Detail:", {
-                message: error.message,
-                stack: error.stack,
-                response: error.response?.data
-            });
-            toast.error(error?.message || 'Failed to place order. Please check your connection.');
+            if (error.response?.data?.code === 'ORDER_TIME_RESTRICTED' || error.response?.data?.errors?.[0]?.code === 'ORDER_TIME_RESTRICTED' || error.response?.data?.message?.includes('not accepting orders')) {
+                const restrictedErrorData = error.response?.data?.errors?.[0] || {};
+                setTimeRestrictedError({
+                    message: error.response?.data?.message || error.message,
+                    startTime: restrictedErrorData.startTime
+                });
+            } else {
+                toast.error(error?.message || 'Failed to place order. Please check your connection.');
+            }
         } finally {
             setIsProcessing(false);
         }
@@ -565,12 +674,12 @@ const PaymentPage = () => {
 
 
 
-                        <PaymentOption id="cod" icon={Banknote} title="Cash On Delivery" subtitle="Pay when you receive the order" offers="SAFE">
+                        <PaymentOption id="cod" icon={Banknote} title="Pay on Delivery" subtitle="Pay when you receive the order" offers="SAFE">
                             <div className="pt-4">
                                 <label className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === 'COD' ? 'border-[#e53e70] bg-pink-50/50' : 'border-gray-100'}`}>
                                     <div className="flex items-center gap-3">
                                         <Banknote size={20} className={paymentMethod === 'COD' ? "text-[#e53e70]" : "text-gray-400"} />
-                                        <span className="text-[13px] font-bold">Pay Cash on Delivery</span>
+                                        <span className="text-[13px] font-bold">Pay on Delivery</span>
                                     </div>
                                     <input
                                         type="radio"
@@ -673,6 +782,12 @@ const PaymentPage = () => {
 
             {/* Address Selection Bottom Sheet */}
             
+            {/* Time Restricted Modal */}
+            <TimeRestrictedModal 
+                isOpen={!!timeRestrictedError} 
+                onClose={() => setTimeRestrictedError(null)} 
+                data={timeRestrictedError} 
+            />
 
             <LocationModal
                 isOpen={showLocationModal}

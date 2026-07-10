@@ -164,6 +164,39 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
     const userId = req.user?._id || req.user?.id;
 
+    // 0. Check Order Time Management Settings
+    const orderSettings = await Settings.findOne({ key: 'orders' }).lean();
+    if (orderSettings && orderSettings.value?.timeManagement?.enabled) {
+        const { startTime, endTime, message } = orderSettings.value.timeManagement;
+        if (startTime && endTime) {
+            const now = new Date();
+            // Convert to IST
+            const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+            const currentHours = istTime.getHours();
+            const currentMinutes = istTime.getMinutes();
+            
+            const [startH, startM] = startTime.split(':').map(Number);
+            const [endH, endM] = endTime.split(':').map(Number);
+            
+            const currentTotal = currentHours * 60 + currentMinutes;
+            const startTotal = startH * 60 + startM;
+            const endTotal = endH * 60 + endM;
+            
+            let isAllowed = false;
+            if (startTotal <= endTotal) {
+                isAllowed = currentTotal >= startTotal && currentTotal <= endTotal;
+            } else {
+                isAllowed = currentTotal >= startTotal || currentTotal <= endTotal;
+            }
+            
+            if (!isAllowed) {
+                const customMsg = message || `We are currently not accepting orders. Please try again between ${startTime} and ${endTime}.`;
+                const error = new ApiError(403, customMsg, [{ code: 'ORDER_TIME_RESTRICTED', startTime, endTime }]);
+                throw error;
+            }
+        }
+    }
+
     // 1. Check serviceability (Service is not yet delivered/available in the zone check)
     if (shippingAddress) {
         try {

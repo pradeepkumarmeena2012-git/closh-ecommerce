@@ -34,6 +34,17 @@ const OrdersCustomersSettings = () => {
     });
   };
 
+  const handleTimeManagementChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setOrdersData(prev => ({
+      ...prev,
+      timeManagement: {
+        ...(prev.timeManagement || {}),
+        [name]: type === 'checkbox' ? checked : value
+      }
+    }));
+  };
+
   const handleCustomersChange = (e) => {
     const { name, value, type, checked } = e.target;
     setCustomersData({
@@ -183,6 +194,61 @@ const OrdersCustomersSettings = () => {
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
                   </label>
+                </div>
+
+                <div className="flex flex-col gap-4 p-3 sm:p-4 border border-gray-200 rounded-lg">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-semibold text-gray-800">Order Time Management</h4>
+                      <p className="text-xs text-gray-600">Restrict order placements to specific hours</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 sm:ml-4">
+                      <input
+                        type="checkbox"
+                        name="enabled"
+                        checked={ordersData.timeManagement?.enabled || false}
+                        onChange={handleTimeManagementChange}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                    </label>
+                  </div>
+
+                  {ordersData.timeManagement?.enabled && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Start Time</label>
+                        <input
+                          type="time"
+                          name="startTime"
+                          value={ordersData.timeManagement?.startTime || '09:00'}
+                          onChange={handleTimeManagementChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">End Time</label>
+                        <input
+                          type="time"
+                          name="endTime"
+                          value={ordersData.timeManagement?.endTime || '21:00'}
+                          onChange={handleTimeManagementChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Popup Message</label>
+                        <textarea
+                          name="message"
+                          value={ordersData.timeManagement?.message || 'We are currently not accepting orders. Please try again between 09:00 AM and 09:00 PM.'}
+                          onChange={handleTimeManagementChange}
+                          rows="2"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="Message to show when orders are closed"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
