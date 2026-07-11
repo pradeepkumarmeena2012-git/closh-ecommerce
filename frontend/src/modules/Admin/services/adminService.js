@@ -151,6 +151,9 @@ export const updateVendorStatus = (id, status, reason = '') =>
 export const updateCommissionRate = (id, commissionRate) =>
     api.patch(`/admin/vendors/${id}/commission`, { commissionRate });
 
+export const updateVendorOwnerStatus = (id, isOwner) =>
+    api.patch(`/admin/vendors/${id}/owner-status`, { isOwner });
+
 export const getVendorCommissions = (id, params = {}) =>
     api.get(`/admin/vendors/${id}/commissions`, { params });
 

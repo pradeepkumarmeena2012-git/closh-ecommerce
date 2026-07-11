@@ -22,7 +22,7 @@ import VendorHeader from "../../components/Vendors/VendorHeader";
 
 const ManageVendors = () => {
   const navigate = useNavigate();
-  const { vendors, initialize, updateVendorStatus, updateCommissionRate } =
+  const { vendors, initialize, updateVendorStatus, updateCommissionRate, updateVendorOwnerStatus } =
     useVendorStore();
   const [orders, setOrders] = useState([]);
 
@@ -194,6 +194,28 @@ const ManageVendors = () => {
       },
     },
     {
+      key: "isOwner",
+      label: "App Owner",
+      sortable: true,
+      render: (_, row) => (
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            handleOwnerToggle(row.id, !row.isOwner);
+          }}
+          className={`relative inline-flex h-5 w-9 cursor-pointer items-center rounded-full transition-colors ${
+            row.isOwner ? "bg-primary-500" : "bg-gray-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              row.isOwner ? "translate-x-4" : "translate-x-1"
+            }`}
+          />
+        </div>
+      ),
+    },
+    {
       key: "actions",
       label: "Actions",
       sortable: false,
@@ -263,6 +285,15 @@ const ManageVendors = () => {
       ),
     },
   ];
+
+  const handleOwnerToggle = async (vendorId, isOwner) => {
+    const success = await updateVendorOwnerStatus(vendorId, isOwner);
+    if (success) {
+      toast.success(isOwner ? "Vendor marked as App Owner" : "Vendor marked as regular vendor");
+    } else {
+      toast.error("Failed to update owner status");
+    }
+  };
 
   const handleApprove = async () => {
     const success = await updateVendorStatus(actionModal.vendorId, "approved");

@@ -14,13 +14,19 @@ import NewOrderModal from '../NewOrderModal';
 const VendorLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { vendor, updateOrderStatus } = useVendorAuthStore();
+  const { vendor, updateOrderStatus, fetchProfile } = useVendorAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const headerHeight = useAdminHeaderHeight();
   const audioUnlockedRef = useRef(false);
 
 
   // Audio Policy Unlock: User interaction required
+
+  useEffect(() => {
+    if (fetchProfile) {
+      fetchProfile();
+    }
+  }, [fetchProfile]);
 
   // Audio Notification State
   const [isBuzzerActive, setIsBuzzerActive] = useState(false);

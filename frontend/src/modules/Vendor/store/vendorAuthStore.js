@@ -7,6 +7,7 @@ import {
   forgotVendorPassword,
   verifyVendorResetOTP,
   resetVendorPassword,
+  getVendorProfile,
 } from "../services/vendorService";
 import { decodeJwtPayload } from "../../../shared/utils/helpers";
 
@@ -322,6 +323,24 @@ export const useVendorAuthStore = create(
           throw error;
         }
       },
+
+      fetchProfile: async () => {
+        try {
+          const response = await getVendorProfile();
+          const body = response?.data || response || {};
+          const vendorData = body.data || body;
+          
+          if (vendorData) {
+            const updatedVendor = get()._normalizeVendor(vendorData);
+            set({ vendor: updatedVendor });
+            return { success: true, vendor: updatedVendor };
+          }
+        } catch (error) {
+          console.error("Failed to fetch vendor profile:", error);
+        }
+        return { success: false };
+      },
+
       // Initialize vendor auth state from localStorage
       initialize: () => {
         const token = localStorage.getItem("vendor-token");
@@ -341,6 +360,9 @@ export const useVendorAuthStore = create(
               refreshToken: refreshToken || null,
               isAuthenticated: true,
             });
+            
+            // Fetch fresh profile in background
+            get().fetchProfile();
           }
         }
       },

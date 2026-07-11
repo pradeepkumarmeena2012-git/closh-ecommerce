@@ -288,7 +288,9 @@ const VendorSidebar = ({ isOpen, onClose }) => {
 
       {/* Navigation Menu */}
       <nav className="flex-1 overflow-y-auto p-3 scrollbar-admin lg:pb-3">
-        {vendorMenu.map((item) => renderMenuItem(item))}
+        {vendorMenu
+          .filter(item => !(vendor?.isOwner && item.title === "Settlements"))
+          .map((item) => renderMenuItem(item))}
       </nav>
     </div>
   );

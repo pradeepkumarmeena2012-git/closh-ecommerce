@@ -7,16 +7,22 @@ import {
   FiShoppingBag,
   FiDollarSign,
 } from "react-icons/fi";
+import { useVendorAuthStore } from "../../store/vendorAuthStore";
 
 const VendorBottomNav = () => {
   const location = useLocation();
+  const { vendor } = useVendorAuthStore();
 
-  const navItems = [
+  let navItems = [
     { path: "/vendor/dashboard", icon: FiHome, label: "Home" },
     { path: "/vendor/products", icon: FiPackage, label: "Products" },
     { path: "/vendor/orders", icon: FiShoppingBag, label: "Orders" },
     { path: "/vendor/settlements", icon: FiDollarSign, label: "Settlements" },
   ];
+
+  if (vendor?.isOwner) {
+    navItems = navItems.filter((item) => item.label !== "Settlements");
+  }
 
   const isActive = (path) => {
     if (path === "/vendor/dashboard") {

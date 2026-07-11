@@ -124,6 +124,17 @@ export const updateCommissionRate = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, toApiVendor(vendor), 'Commission rate updated.'));
 });
 
+// PATCH /api/admin/vendors/:id/owner-status
+export const updateVendorOwnerStatus = asyncHandler(async (req, res) => {
+    const { isOwner } = req.body;
+    if (typeof isOwner !== 'boolean') {
+        throw new ApiError(400, 'isOwner must be a boolean value.');
+    }
+    const vendor = await Vendor.findByIdAndUpdate(req.params.id, { isOwner }, { new: true });
+    if (!vendor) throw new ApiError(404, 'Vendor not found.');
+    res.status(200).json(new ApiResponse(200, toApiVendor(vendor), `Vendor owner status updated to ${isOwner}.`));
+});
+
 // GET /api/admin/vendors/:id/commissions
 export const getVendorCommissions = asyncHandler(async (req, res) => {
     const { id } = req.params;

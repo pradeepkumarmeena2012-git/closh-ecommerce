@@ -16,6 +16,7 @@ const vendorSchema = new mongoose.Schema(
             default: 'pending',
             index: true,
         },
+        isOwner: { type: Boolean, default: false },
         isOnline: { type: Boolean, default: true },
         suspensionReason: { type: String },
         commissionRate: { type: Number, default: 10, min: 0, max: 100 },

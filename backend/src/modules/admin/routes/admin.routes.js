@@ -156,6 +156,7 @@ router.patch('/vendors/:id/documents/:documentId/status', ...adminAuth, checkPer
 router.get('/vendors/:id/commissions', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), validate(vendorCommissionsQuerySchema, 'query'), vendorController.getVendorCommissions);
 router.patch('/vendors/:id/status', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), validate(vendorStatusUpdateSchema), vendorController.updateVendorStatus);
 router.patch('/vendors/:id/commission', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), validate(vendorCommissionUpdateSchema), vendorController.updateCommissionRate);
+router.patch('/vendors/:id/owner-status', ...adminAuth, checkPermission('vendors_manage'), validate(vendorIdParamSchema, 'params'), vendorController.updateVendorOwnerStatus);
 
 // ─── Vendor Settlements ────────────────────────────────────────────────────────
 router.get('/settlements/balances', ...adminAuth, checkPermission('finance_view'), settlementController.getVendorsBalances);
