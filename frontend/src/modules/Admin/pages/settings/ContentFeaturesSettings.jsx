@@ -84,7 +84,6 @@ const ContentFeaturesSettings = () => {
     updateSettings('features', featuresData);
     updateSettings('homepage', homepageData);
     updateSettings('reviews', reviewsData);
-    toast.success('Settings saved successfully');
   };
 
   const sections = [

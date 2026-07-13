@@ -81,7 +81,7 @@ const MobileLogin = () => {
         setStep('register-details');
       }
     } catch (error) {
-      toast.error(error.message || 'Verification failed. Please try again.');
+      console.error('Verification failed:', error);
     }
   };
 
@@ -92,7 +92,7 @@ const MobileLogin = () => {
       toast.success('Details saved! OTP sent to your email.');
       setStep('otp');
     } catch (error) {
-      toast.error(error.message || 'Registration failed. Please try again.');
+      console.error('Registration failed:', error);
     }
   };
 
@@ -104,7 +104,7 @@ const MobileLogin = () => {
       clearPostLoginRedirect();
       navigate(from === '/login' ? '/home' : from, { replace: true });
     } catch (error) {
-      toast.error(error.message || 'Invalid OTP. Please try again.');
+      console.error('OTP Validation failed:', error);
     }
   };
 

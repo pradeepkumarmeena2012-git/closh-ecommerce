@@ -56,7 +56,7 @@ const VendorLogin = () => {
         navigate(from, { replace: true });
       }
     } catch (error) {
-      toast.error(error.message || 'Invalid credentials');
+      console.error('Login error:', error);
     }
   };
 

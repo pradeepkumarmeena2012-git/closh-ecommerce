@@ -75,7 +75,7 @@ const AdminLogin = () => {
         navigate('/admin/dashboard', { replace: true });
       }
     } catch (error) {
-      toast.error(error.message || 'Invalid credentials');
+      console.error('Login error:', error);
     }
   };
 

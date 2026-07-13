@@ -261,6 +261,7 @@ api.interceptors.response.use(
 
     if (!shouldSuppressToast) {
        toast.error(understandableMessage, {
+         id: `api-error-${understandableMessage}`, // Prevent duplicate toasts from stacking
          duration: 4000,
          position: 'top-center'
        });

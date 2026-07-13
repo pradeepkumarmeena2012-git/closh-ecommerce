@@ -248,6 +248,11 @@ const DeliveryRegister = () => {
       return;
     }
 
+    if (name === 'ifscCode') {
+      setFormData((prev) => ({ ...prev, [name]: value.toUpperCase().replace(/[^A-Z0-9]/g, '') }));
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -741,8 +746,8 @@ const DeliveryRegister = () => {
                     <input
                       type="text"
                       name="ifscCode"
-                      value={formData.ifscCode.toUpperCase()}
-                      onChange={(e) => setFormData(prev => ({ ...prev, ifscCode: e.target.value.toUpperCase() }))}
+                      value={formData.ifscCode}
+                      onChange={handleChange}
                       placeholder="e.g. SBIN0001234"
                       maxLength={11}
                       className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900 font-mono tracking-widest uppercase"

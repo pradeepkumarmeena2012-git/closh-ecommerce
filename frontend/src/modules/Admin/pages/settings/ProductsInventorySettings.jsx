@@ -46,7 +46,6 @@ const ProductsInventorySettings = () => {
     e.preventDefault();
     updateSettings('products', productsData);
     updateSettings('tax', taxData);
-    toast.success('Settings saved successfully');
   };
 
   const sections = [

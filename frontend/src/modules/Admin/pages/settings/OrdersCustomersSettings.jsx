@@ -5,6 +5,65 @@ import { useSettingsStore } from '../../../../shared/store/settingsStore';
 import AnimatedSelect from '../../components/AnimatedSelect';
 import toast from 'react-hot-toast';
 
+const TimePicker12Hour = ({ name, value, onChange }) => {
+  const [hourStr, minStr] = (value || '09:00').split(':');
+  let h = parseInt(hourStr, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  const displayHour = h.toString().padStart(2, '0');
+  
+  const handleTimeChange = (type, val) => {
+    let newH = parseInt(displayHour, 10);
+    let newM = minStr;
+    let newAmpm = ampm;
+
+    if (type === 'hour') newH = parseInt(val, 10);
+    if (type === 'min') newM = val;
+    if (type === 'ampm') newAmpm = val;
+
+    let finalH = newH;
+    if (newAmpm === 'PM' && finalH < 12) finalH += 12;
+    if (newAmpm === 'AM' && finalH === 12) finalH = 0;
+
+    const finalValue = `${finalH.toString().padStart(2, '0')}:${newM}`;
+    onChange({ target: { name, value: finalValue } });
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <select 
+        value={displayHour} 
+        onChange={(e) => handleTimeChange('hour', e.target.value)}
+        className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-center appearance-none cursor-pointer"
+      >
+        {Array.from({length: 12}, (_, i) => {
+          const val = (i + 1).toString().padStart(2, '0');
+          return <option key={val} value={val}>{val}</option>;
+        })}
+      </select>
+      <span className="font-bold text-gray-400">:</span>
+      <select 
+        value={minStr} 
+        onChange={(e) => handleTimeChange('min', e.target.value)}
+        className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-center appearance-none cursor-pointer"
+      >
+        {Array.from({length: 60}, (_, i) => {
+          const val = i.toString().padStart(2, '0');
+          return <option key={val} value={val}>{val}</option>;
+        })}
+      </select>
+      <select 
+        value={ampm} 
+        onChange={(e) => handleTimeChange('ampm', e.target.value)}
+        className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-center bg-gray-50 font-semibold appearance-none cursor-pointer"
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+};
+
 const OrdersCustomersSettings = () => {
   const { settings, updateSettings, initialize } = useSettingsStore();
   const [ordersData, setOrdersData] = useState({});
@@ -67,7 +126,6 @@ const OrdersCustomersSettings = () => {
     e.preventDefault();
     updateSettings('orders', ordersData);
     updateSettings('customers', customersData);
-    toast.success('Settings saved successfully');
   };
 
   const sections = [
@@ -218,22 +276,18 @@ const OrdersCustomersSettings = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Start Time</label>
-                        <input
-                          type="time"
+                        <TimePicker12Hour
                           name="startTime"
                           value={ordersData.timeManagement?.startTime || '09:00'}
                           onChange={handleTimeManagementChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">End Time</label>
-                        <input
-                          type="time"
+                        <TimePicker12Hour
                           name="endTime"
                           value={ordersData.timeManagement?.endTime || '21:00'}
                           onChange={handleTimeManagementChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                         />
                       </div>
                       <div className="md:col-span-2">

@@ -261,7 +261,7 @@ export const useSettingsStore = create(
             JSON.stringify(updatedSettings)
           );
           
-          toast.success("Settings updated and synced successfully");
+          toast.success("Settings updated and synced successfully", { id: 'settings-sync-success' });
           return updatedSettings;
         } catch (error) {
           set({ isLoading: false });
