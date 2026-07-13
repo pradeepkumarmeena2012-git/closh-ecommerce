@@ -64,7 +64,7 @@ export const useCartStore = create(
       
       fetchDeliveryConfig: async () => {
         try {
-          const res = await api.get('/public/config/delivery');
+          const res = await api.get('/config/delivery');
           const data = res.data;
           if (data?.success && data?.data?.maxCartVendorDistanceKm) {
             set({ maxCartVendorDistanceKm: data.data.maxCartVendorDistanceKm });
