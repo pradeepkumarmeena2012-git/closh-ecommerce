@@ -225,7 +225,7 @@ const DeliveryRegister = () => {
       }
       return;
     }
-    if (['aadharNumber', 'phone', 'emergencyContact'].includes(name)) {
+    if (['aadharNumber', 'phone', 'emergencyContact', 'accountNumber'].includes(name)) {
       let numericValue = value.replace(/\D/g, '');
       if (name === 'phone' || name === 'emergencyContact') {
         if (numericValue.length > 10 && numericValue.startsWith('91')) {
@@ -234,6 +234,9 @@ const DeliveryRegister = () => {
           numericValue = numericValue.substring(1);
         }
         numericValue = numericValue.substring(0, 10);
+      }
+      if (name === 'accountNumber') {
+        numericValue = numericValue.substring(0, 18);
       }
       setFormData((prev) => ({ ...prev, [name]: numericValue }));
       
@@ -317,8 +320,14 @@ const DeliveryRegister = () => {
         return true;
       case 4:
         if (!formData.bankName.trim()) { toast.error('Bank name is required'); return false; }
+        if (formData.bankName.trim().length < 2 || !/^[A-Za-z\s]+$/.test(formData.bankName.trim())) { toast.error('Enter a valid bank name (letters only)'); return false; }
+        
         if (!formData.accountHolderName.trim()) { toast.error('Account holder name is required'); return false; }
+        if (formData.accountHolderName.trim().length < 2 || !/^[A-Za-z\s]+$/.test(formData.accountHolderName.trim())) { toast.error('Enter a valid account holder name (letters only)'); return false; }
+        
         if (!formData.accountNumber.trim()) { toast.error('Account number is required'); return false; }
+        if (formData.accountNumber.trim().length < 9 || formData.accountNumber.trim().length > 18) { toast.error('Account number must be between 9 and 18 digits'); return false; }
+        
         if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifscCode.trim().toUpperCase())) { toast.error('Enter a valid IFSC code (e.g. SBIN0001234)'); return false; }
         return true;
       default:
