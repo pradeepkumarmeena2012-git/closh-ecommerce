@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi';
-import { motion } from 'framer-motion';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiPhone, FiAlertCircle, FiX } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import toast from 'react-hot-toast';
 import PageTransition from '../../../shared/components/PageTransition';
@@ -18,6 +18,7 @@ const DeliveryLogin = () => {
   });
   const [step, setStep] = useState('phone'); // 'phone' or 'otp'
   const [timer, setTimer] = useState(0);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
 
   useEffect(() => {
     let interval;
@@ -54,7 +55,13 @@ const DeliveryLogin = () => {
       setTimer(60);
       toast.success('OTP sent successfully!');
     } catch (error) {
-      toast.error(error.message || 'Failed to send OTP');
+      console.error('Failed to send OTP:', error);
+      const msg = error?.response?.data?.message || error?.message || '';
+      if (msg.toLowerCase().includes('pending admin approval')) {
+        setShowApprovalModal(true);
+      } else {
+        toast.error(msg || 'Failed to send OTP');
+      }
     }
   };
 
@@ -71,7 +78,7 @@ const DeliveryLogin = () => {
       await verifyOtpAndLogin(formData.phone, formData.otp);
       toast.success('Login successful!');
     } catch (error) {
-      toast.error(error.message || 'Invalid OTP');
+      console.error('Login failed:', error);
     }
   };
 
@@ -199,6 +206,54 @@ const DeliveryLogin = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Approval Pending Modal */}
+      <AnimatePresence>
+        {showApprovalModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowApprovalModal(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center overflow-hidden"
+            >
+              {/* Decorative background element */}
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl"></div>
+              
+              <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
+                <FiAlertCircle size={32} strokeWidth={2.5} />
+              </div>
+              
+              <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Account Pending</h3>
+              
+              <p className="text-slate-500 mb-8 font-medium leading-relaxed">
+                Your delivery partner application is currently under review by our admin team. You will receive an SMS once your account is approved.
+              </p>
+              
+              <button
+                onClick={() => setShowApprovalModal(false)}
+                className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg active:scale-95"
+              >
+                Understood
+              </button>
+              
+              <button
+                onClick={() => setShowApprovalModal(false)}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <FiX size={20} />
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </PageTransition>
   );
 };

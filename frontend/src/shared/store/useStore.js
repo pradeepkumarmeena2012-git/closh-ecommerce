@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useAuthStore } from "./authStore";
 import { setPostLoginAction, setPostLoginRedirect } from "../utils/postLoginAction";
 import { getVariantSignature } from "../utils/variant";
+import api from "../utils/api";
 
 const getCartLineKey = (id, variant) => {
   if (!variant || typeof variant !== 'object') return String(id);
@@ -63,8 +64,8 @@ export const useCartStore = create(
       
       fetchDeliveryConfig: async () => {
         try {
-          const res = await fetch('http://localhost:5000/api/public/config/delivery');
-          const data = await res.json();
+          const res = await api.get('/public/config/delivery');
+          const data = res.data;
           if (data?.success && data?.data?.maxCartVendorDistanceKm) {
             set({ maxCartVendorDistanceKm: data.data.maxCartVendorDistanceKm });
           }

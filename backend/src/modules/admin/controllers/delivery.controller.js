@@ -7,6 +7,7 @@ import { asyncHandler } from '../../../utils/asyncHandler.js';
 import { cacheInvalidate } from '../../delivery/controllers/order.controller.js';
 import { sendEmail } from '../../../services/email.service.js';
 import { createNotification } from '../../../services/notification.service.js';
+import { sendSms } from '../../../services/sms.service.js';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 
@@ -319,6 +320,11 @@ export const updateDeliveryBoyApplicationStatus = asyncHandler(async (req, res) 
                 text: 'Your delivery account has been approved. You can now log in.',
                 html: '<p>Your delivery account has been <strong>approved</strong>. You can now log in.</p>',
             });
+            try {
+                await sendSms(boy.phone, "Your account is admin approved please login.");
+            } catch (smsError) {
+                console.warn(`[SMS] Failed for ${boy.phone}: ${smsError.message}`);
+            }
         } else {
             await sendEmail({
                 to: boy.email,
@@ -326,6 +332,11 @@ export const updateDeliveryBoyApplicationStatus = asyncHandler(async (req, res) 
                 text: `Your delivery account was rejected.${boy.rejectionReason ? ` Reason: ${boy.rejectionReason}` : ''}`,
                 html: `<p>Your delivery account was <strong>rejected</strong>.${boy.rejectionReason ? ` Reason: ${boy.rejectionReason}` : ''}</p>`,
             });
+            try {
+                await sendSms(boy.phone, `Your delivery account was rejected.${boy.rejectionReason ? ` Reason: ${boy.rejectionReason}` : ''}`);
+            } catch (smsError) {
+                console.warn(`[SMS] Failed for ${boy.phone}: ${smsError.message}`);
+            }
         }
     } catch (err) {
         console.warn(`[Delivery Approval Email] Failed for ${boy.email}: ${err.message}`);
@@ -610,7 +621,7 @@ export const updateKycStatus = asyncHandler(async (req, res) => {
         boy.kycRejectionReason = '';
     }
 
-    await boy.save();
+    await boy.save({ validateModifiedOnly: true });
 
     // Notify the delivery boy
     await createNotification({

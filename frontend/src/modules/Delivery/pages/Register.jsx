@@ -1,11 +1,15 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiMail, FiUser, FiPhone, FiTruck, FiCamera, FiChevronRight, FiChevronLeft, FiCheck, FiFileText, FiShield, FiUpload, FiNavigation, FiMapPin, FiCreditCard } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useDeliveryAuthStore } from '../store/deliveryStore';
 import { compressImage } from '@shared/utils/imageHelper';
+import PageTransition from '../../../shared/components/PageTransition';
+import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 import logo from '../../../assets/animations/lottie/logo-removebg.png';
+
+const libraries = ['places'];
 
 const STEPS = [
   { id: 1, title: 'Personal Info', icon: FiUser },
@@ -58,10 +62,26 @@ const DocUploadCard = ({ name, label, previews = {}, fileInputRefs, handleChange
 const DeliveryRegister = () => {
   const navigate = useNavigate();
   const { register, sendRegistrationOtp, verifyRegistrationOtp, isLoading } = useDeliveryAuthStore();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(() => {
+    return Number(sessionStorage.getItem('deliveryReg_step')) || 1;
+  });
   const fileInputRefs = useRef({});
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => {
+    const saved = sessionStorage.getItem('deliveryReg_form');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          drivingLicense: null,
+          drivingLicenseBack: null,
+          aadharCard: null,
+          aadharCardBack: null,
+        };
+      } catch (e) {}
+    }
+    return {
     name: '',
     phone: '',
     emergencyContact: '',
@@ -81,16 +101,44 @@ const DeliveryRegister = () => {
     accountNumber: '',
     ifscCode: '',
     accountHolderName: '',
+    };
   });
   
   const [phoneOtp, setPhoneOtp] = useState('');
-  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
+    return sessionStorage.getItem('deliveryReg_verified') === 'true';
+  });
   const [showOtpField, setShowOtpField] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const [previews, setPreviews] = useState({});
   const [isFetchingAddress, setIsFetchingAddress] = useState(false);
+
+  const autocompleteRef = useRef(null);
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries
+  });
+
+  const handlePlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      if (place && place.formatted_address) {
+        setFormData((prev) => ({ ...prev, address: place.formatted_address }));
+      } else if (place && place.name) {
+        setFormData((prev) => ({ ...prev, address: place.name }));
+      }
+    }
+  };
+
+  useEffect(() => {
+    sessionStorage.setItem('deliveryReg_step', currentStep);
+    const { drivingLicense, drivingLicenseBack, aadharCard, aadharCardBack, ...textData } = formData;
+    sessionStorage.setItem('deliveryReg_form', JSON.stringify(textData));
+    sessionStorage.setItem('deliveryReg_verified', isPhoneVerified);
+  }, [currentStep, formData, isPhoneVerified]);
 
   const fetchLiveAddress = () => {
     if (!navigator.geolocation) {
@@ -102,19 +150,40 @@ const DeliveryRegister = () => {
       async (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-          const data = await res.json();
-          if (data?.display_name) {
-            setFormData((prev) => ({ ...prev, address: data.display_name }));
-            toast.success('Live address fetched!');
-          } else {
-            toast.error('Could not fetch address. Please enter manually.');
+        if (isLoaded && window.google) {
+          try {
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+              if (status === 'OK' && results[0]) {
+                setFormData((prev) => ({ ...prev, address: results[0].formatted_address }));
+                toast.success('Live address fetched!');
+                setIsFetchingAddress(false);
+              } else {
+                fallbackToNominatim(lat, lng);
+              }
+            });
+          } catch (e) {
+            fallbackToNominatim(lat, lng);
           }
-        } catch {
-          toast.error('Failed to fetch address. Try again.');
-        } finally {
-          setIsFetchingAddress(false);
+        } else {
+          fallbackToNominatim(lat, lng);
+        }
+
+        async function fallbackToNominatim(latitude, longitude) {
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+            const data = await res.json();
+            if (data?.display_name) {
+              setFormData((prev) => ({ ...prev, address: data.display_name }));
+              toast.success('Live address fetched!');
+            } else {
+              toast.error('Could not fetch address. Please enter manually.');
+            }
+          } catch {
+            toast.error('Failed to fetch address. Try again.');
+          } finally {
+            setIsFetchingAddress(false);
+          }
         }
       },
       (err) => {
@@ -157,7 +226,15 @@ const DeliveryRegister = () => {
       return;
     }
     if (['aadharNumber', 'phone', 'emergencyContact'].includes(name)) {
-      const numericValue = value.replace(/\D/g, '');
+      let numericValue = value.replace(/\D/g, '');
+      if (name === 'phone' || name === 'emergencyContact') {
+        if (numericValue.length > 10 && numericValue.startsWith('91')) {
+          numericValue = numericValue.substring(2);
+        } else if (numericValue.length > 10 && numericValue.startsWith('0')) {
+          numericValue = numericValue.substring(1);
+        }
+        numericValue = numericValue.substring(0, 10);
+      }
       setFormData((prev) => ({ ...prev, [name]: numericValue }));
       
       // If phone number changes, reset verification
@@ -186,7 +263,7 @@ const DeliveryRegister = () => {
       setShowOtpField(true);
       toast.success('OTP sent successfully!');
     } catch (error) {
-      toast.error(error.message || 'Failed to send OTP');
+      console.error('Failed to send OTP:', error);
     } finally {
       setIsSendingOtp(false);
     }
@@ -204,7 +281,7 @@ const DeliveryRegister = () => {
       setShowOtpField(false);
       toast.success('Mobile number verified!');
     } catch (error) {
-      toast.error(error.message || 'Invalid OTP');
+      console.error('Invalid OTP:', error);
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -232,6 +309,10 @@ const DeliveryRegister = () => {
         return true;
       case 3:
         if (!formData.vehicleNumber.trim()) { toast.error('Vehicle number is required'); return false; }
+        if (!/^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/.test(formData.vehicleNumber.trim().replace(/[-\s]/g, '').toUpperCase())) { 
+          toast.error('Enter a valid vehicle number (e.g. MH12AB1234)'); 
+          return false; 
+        }
         if (!formData.address.trim()) { toast.error('Full address is required'); return false; }
         return true;
       case 4:
@@ -274,10 +355,13 @@ const DeliveryRegister = () => {
         ifscCode: formData.ifscCode.trim().toUpperCase(),
         accountHolderName: formData.accountHolderName.trim(),
       });
+      sessionStorage.removeItem('deliveryReg_step');
+      sessionStorage.removeItem('deliveryReg_form');
+      sessionStorage.removeItem('deliveryReg_verified');
       toast.success(result.message || 'Registration submitted successfully!');
       navigate('/delivery/login', { replace: true });
     } catch (error) {
-      toast.error(error.message || 'Registration failed');
+      console.error('Registration failed:', error);
     }
   };
 
@@ -404,7 +488,7 @@ const DeliveryRegister = () => {
                           onChange={handleChange} 
                           placeholder="Mobile number" 
                           required 
-                          maxLength={10} 
+                          maxLength={15} 
                           className={`w-full pl-12 ${isPhoneVerified ? 'pr-12' : 'pr-4'} py-3.5 bg-gray-50 border border-gray-100 rounded-2xl focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100/30 focus:outline-none text-gray-900 font-bold text-sm sm:text-base transition-all`} 
                           disabled={isPhoneVerified}
                         />
@@ -460,7 +544,7 @@ const DeliveryRegister = () => {
                     <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Emergency Contact</label>
                     <div className="relative">
                       <FiShield className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input type="tel" name="emergencyContact" value={formData.emergencyContact} onChange={handleChange} placeholder="Emergency contact number" maxLength={10} className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900" />
+                      <input type="tel" name="emergencyContact" value={formData.emergencyContact} onChange={handleChange} placeholder="Emergency contact number" maxLength={15} className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:outline-none text-gray-900" />
                     </div>
                   </div>
                   <div>
@@ -533,15 +617,35 @@ const DeliveryRegister = () => {
                   <div>
                     <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2 px-1">Address</label>
                     <div className="relative">
-                      <FiMapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                      <input
-                        type="text"
-                        name="address"
-                        value={formData.address}
-                        onChange={handleChange}
-                        placeholder="Your full address"
-                        className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:outline-none text-gray-900"
-                      />
+                      <FiMapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" size={16} />
+                      {isLoaded ? (
+                        <Autocomplete
+                          onLoad={(ref) => (autocompleteRef.current = ref)}
+                          onPlaceChanged={handlePlaceChanged}
+                          options={{ componentRestrictions: { country: 'in' } }}
+                        >
+                          <input
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleChange}
+                            placeholder="Search & select your full address..."
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') e.preventDefault();
+                            }}
+                            className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:outline-none text-gray-900"
+                          />
+                        </Autocomplete>
+                      ) : (
+                        <input
+                          type="text"
+                          name="address"
+                          value={formData.address}
+                          onChange={handleChange}
+                          placeholder="Your full address"
+                          className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:border-indigo-300 focus:outline-none text-gray-900"
+                        />
+                      )}
                     </div>
                     <button
                       type="button"

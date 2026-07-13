@@ -161,7 +161,7 @@ export const useDeliveryAuthStore = create(
       sendOtp: async (phone) => {
         set({ isLoading: true });
         try {
-          const res = await api.post('/delivery/auth/send-otp', { phone });
+          const res = await api.post('/delivery/auth/send-otp', { phone }, { silent: true });
           set({ isLoading: false }); return res.data || res;
         } catch (e) { set({ isLoading: false }); throw e; }
       },

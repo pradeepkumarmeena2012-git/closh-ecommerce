@@ -257,7 +257,7 @@ export const verifyRegistrationOTP = asyncHandler(async (req, res) => {
 export const isRegistrationPhoneVerified = (phone) => {
     const normalizedPhone = String(phone || '').trim().replace(/\D/g, '').slice(-10);
     const stored = registrationOtpStore.get(normalizedPhone);
-    return stored?.verified === true && stored.expiry > Date.now();
+    return stored?.verified === true;
 };
 
 // Helper to clear registration OTP after successful registration
