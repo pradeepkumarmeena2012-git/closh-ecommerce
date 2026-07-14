@@ -27,6 +27,7 @@ import { refundPayment } from '../../../services/razorpay.service.js';
 import { validateCoupon } from '../../../services/coupon.service.js';
 import { autoAssignDeliveryBoy } from '../../../services/autoAssignment.service.js';
 import * as DeliveryOtpService from '../../../services/deliveryOtp.service.js';
+import { QueueService } from '../../../services/queue.service.js';
 
 const getRazorpayInstance = () => {
     const key_id = process.env.RAZORPAY_KEY_ID;
@@ -653,17 +654,21 @@ export const placeOrder = asyncHandler(async (req, res) => {
         // 10. Unified Notification to all parties (CALLED OUTSIDE TRANSACTION)
         if (order && !idempotentReplay) {
             console.log("STEP 5 - Emitting Order:", order);
-            OrderNotificationService.notifyOrderUpdate(order._id, 'pending', {
-                excludeRecipientId: userId,
-                title: 'New Order Received!',
-                message: `You have a new ${orderType?.replace(/_/g, ' ') || 'order'} of Rs.${order.total}.`
-            }).catch(err => console.error('[OrderDebug] Notification failed:', err));
-
-            // Auto-assign delivery boy instantly for COD / non-prepaid orders
+            
+            // Only notify seller and assign delivery boy instantly if NOT prepaid
+            // Prepaid orders will trigger this after successful payment verification
             if (order.paymentMethod !== 'prepaid') {
+                OrderNotificationService.notifyOrderUpdate(order._id, 'pending', {
+                    excludeRecipientId: userId,
+                    title: 'New Order Received!',
+                    message: `You have a new ${orderType?.replace(/_/g, ' ') || 'order'} of Rs.${order.total}.`
+                }).catch(err => console.error('[OrderDebug] Notification failed:', err));
+
                 autoAssignDeliveryBoy(order._id).catch(err => {
                     console.error("[AutoAssign Error in placeOrder]", err);
                 });
+                QueueService.scheduleAdminEscalation(order._id);
+                QueueService.scheduleUserNoPartnerNotification(order._id);
             }
         }
     } catch (err) {
@@ -743,10 +748,18 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 
     await order.save();
 
-    // Trigger auto assignment for prepaid order after payment succeeds
+    // Trigger notification and auto assignment for prepaid order after payment succeeds
+    OrderNotificationService.notifyOrderUpdate(order._id, 'pending', {
+        excludeRecipientId: req.user?._id || req.user?.id,
+        title: 'New Order Received!',
+        message: `You have a new ${order.orderType?.replace(/_/g, ' ') || 'order'} of Rs.${order.total}.`
+    }).catch(err => console.error('[OrderDebug] Notification failed in verifyPayment:', err));
+
     autoAssignDeliveryBoy(order._id).catch(err => {
         console.error("[AutoAssign Error in verifyPayment]", err);
     });
+    QueueService.scheduleAdminEscalation(order._id);
+    QueueService.scheduleUserNoPartnerNotification(order._id);
 
     res.status(200).json(new ApiResponse(200, { orderId: order.orderId }, "Payment verified successfully."));
 });
@@ -797,18 +810,18 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
 });
 
 // PATCH /api/user/orders/:id/cancel
-export const cancelOrder = asyncHandler(async (req, res) => {
+export const cancelOrderInternal = async (orderId, userId, reason) => {
     const session = await mongoose.startSession();
     let cancelledOrder;
     try {
         await session.withTransaction(async () => {
-            const order = await Order.findOne({ orderId: req.params.id, userId: req.user.id }).session(session);
-            if (!order) throw new ApiError(404, 'Order not found.');
-            if (!['pending', 'accepted', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'ready_for_delivery', 'searching'].includes(order.status)) throw new ApiError(400, 'Order cannot be cancelled at this stage.');
+            const order = await Order.findOne({ orderId: orderId, userId: userId }).session(session);
+            if (!order) throw new Error('Order not found.');
+            if (!['pending', 'accepted', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'ready_for_delivery', 'searching'].includes(order.status)) throw new Error('Order cannot be cancelled at this stage.');
 
             order.status = 'cancelled';
             order.cancelledAt = new Date();
-            order.cancellationReason = req.body.reason || 'Cancelled by customer';
+            order.cancellationReason = reason || 'Cancelled by customer';
             if (Array.isArray(order.vendorItems)) {
                 order.vendorItems = order.vendorItems.map((vendorGroup) => ({
                     ...vendorGroup.toObject(),
@@ -895,16 +908,25 @@ export const cancelOrder = asyncHandler(async (req, res) => {
         // Unified Notification to all parties
         if (cancelledOrder) {
             await OrderNotificationService.notifyOrderUpdate(cancelledOrder._id, 'cancelled', {
-                excludeRecipientId: req.user.id,
-                title: `Order #${cancelledOrder.orderId} Cancelled`,
-                message: `Order ${cancelledOrder.orderId} has been cancelled by the customer.`
+                reason: reason || 'Cancelled by customer',
+                isSystemCancel: false
             });
         }
+        return cancelledOrder;
     } finally {
         await session.endSession();
     }
+};
 
-    res.status(200).json(new ApiResponse(200, null, 'Order cancelled successfully.'));
+export const cancelOrder = asyncHandler(async (req, res) => {
+    try {
+        const cancelledOrder = await cancelOrderInternal(req.params.id, req.user.id, req.body.reason);
+        res.status(200).json(new ApiResponse(200, cancelledOrder, 'Order cancelled successfully.'));
+    } catch (error) {
+        if (error.message === 'Order not found.') throw new ApiError(404, error.message);
+        if (error.message === 'Order cannot be cancelled at this stage.') throw new ApiError(400, error.message);
+        throw error;
+    }
 });
 
 const normalizeReturnRequest = (requestDoc) => {

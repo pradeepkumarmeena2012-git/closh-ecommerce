@@ -61,7 +61,7 @@ const DocUploadCard = ({ name, label, previews = {}, fileInputRefs, handleChange
 
 const DeliveryRegister = () => {
   const navigate = useNavigate();
-  const { register, sendRegistrationOtp, verifyRegistrationOtp, isLoading } = useDeliveryAuthStore();
+  const { register, sendRegistrationOtp, verifyRegistrationOtp, checkAvailability, isLoading } = useDeliveryAuthStore();
   const [currentStep, setCurrentStep] = useState(() => {
     return Number(sessionStorage.getItem('deliveryReg_step')) || 1;
   });
@@ -296,52 +296,60 @@ const DeliveryRegister = () => {
   };
 
   const validateStep = (step) => {
+    const showError = (msg) => { toast.error(msg, { id: 'val-error' }); return false; };
     switch (step) {
       case 1:
-        if (!formData.name.trim()) { toast.error('Full name is required'); return false; }
-        if (!formData.email.trim()) { toast.error('Email address is required'); return false; }
+        if (!formData.name.trim()) return showError('Full name is required');
+        if (!formData.email.trim()) return showError('Email address is required');
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData.email.trim())) { toast.error('Enter a valid email address'); return false; }
-        if (!formData.phone.trim()) { toast.error('Mobile number is required'); return false; }
-        if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) { toast.error('Enter a valid 10-digit mobile number'); return false; }
-        if (!isPhoneVerified) { toast.error('Please verify your mobile number first'); return false; }
-        if (formData.emergencyContact && !/^\d{10}$/.test(formData.emergencyContact.replace(/\D/g, ''))) { toast.error('Enter a valid emergency contact number'); return false; }
-        if (!formData.aadharNumber.trim()) { toast.error('Aadhaar number is required'); return false; }
-        if (formData.aadharNumber.length !== 12) { toast.error('Aadhaar number must be exactly 12 digits'); return false; }
+        if (!emailRegex.test(formData.email.trim())) return showError('Enter a valid email address');
+        if (!formData.phone.trim()) return showError('Mobile number is required');
+        if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) return showError('Enter a valid 10-digit mobile number');
+        if (!isPhoneVerified) return showError('Please verify your mobile number first');
+        if (formData.emergencyContact && !/^\d{10}$/.test(formData.emergencyContact.replace(/\D/g, ''))) return showError('Enter a valid emergency contact number');
+        if (!formData.aadharNumber.trim()) return showError('Aadhaar number is required');
+        if (formData.aadharNumber.length !== 12) return showError('Aadhaar number must be exactly 12 digits');
         return true;
       case 2:
-        if (!formData.drivingLicense) { toast.error('Driving License (Front) is required'); return false; }
-        if (!formData.drivingLicenseBack) { toast.error('Driving License (Back) is required'); return false; }
-        if (!formData.aadharCard) { toast.error('Aadhaar Card (Front) is required'); return false; }
-        if (!formData.aadharCardBack) { toast.error('Aadhaar Card (Back) is required'); return false; }
+        if (!formData.drivingLicense) return showError('Driving License (Front) is required');
+        if (!formData.drivingLicenseBack) return showError('Driving License (Back) is required');
+        if (!formData.aadharCard) return showError('Aadhaar Card (Front) is required');
+        if (!formData.aadharCardBack) return showError('Aadhaar Card (Back) is required');
         return true;
       case 3:
-        if (!formData.vehicleNumber.trim()) { toast.error('Vehicle number is required'); return false; }
-        if (!/^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/.test(formData.vehicleNumber.trim().replace(/[-\s]/g, '').toUpperCase())) { 
-          toast.error('Enter a valid vehicle number (e.g. MH12AB1234)'); 
-          return false; 
-        }
-        if (!formData.address.trim()) { toast.error('Full address is required'); return false; }
+        if (!formData.vehicleNumber.trim()) return showError('Vehicle number is required');
+        if (!/^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/.test(formData.vehicleNumber.trim().replace(/[-\s]/g, '').toUpperCase())) return showError('Enter a valid vehicle number (e.g. MH12AB1234)');
+        if (!formData.address.trim()) return showError('Full address is required');
         return true;
       case 4:
-        if (!formData.bankName.trim()) { toast.error('Bank name is required'); return false; }
-        if (formData.bankName.trim().length < 2 || !/^[A-Za-z\s]+$/.test(formData.bankName.trim())) { toast.error('Enter a valid bank name (letters only)'); return false; }
-        
-        if (!formData.accountHolderName.trim()) { toast.error('Account holder name is required'); return false; }
-        if (formData.accountHolderName.trim().length < 2 || !/^[A-Za-z\s]+$/.test(formData.accountHolderName.trim())) { toast.error('Enter a valid account holder name (letters only)'); return false; }
-        
-        if (!formData.accountNumber.trim()) { toast.error('Account number is required'); return false; }
-        if (formData.accountNumber.trim().length < 9 || formData.accountNumber.trim().length > 18) { toast.error('Account number must be between 9 and 18 digits'); return false; }
-        
-        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifscCode.trim().toUpperCase())) { toast.error('Enter a valid IFSC code (e.g. SBIN0001234)'); return false; }
+        if (!formData.bankName.trim()) return showError('Bank name is required');
+        if (formData.bankName.trim().length < 2 || !/^[A-Za-z\s]+$/.test(formData.bankName.trim())) return showError('Enter a valid bank name (letters only)');
+        if (!formData.accountHolderName.trim()) return showError('Account holder name is required');
+        if (formData.accountHolderName.trim().length < 2 || !/^[A-Za-z\s]+$/.test(formData.accountHolderName.trim())) return showError('Enter a valid account holder name (letters only)');
+        if (!formData.accountNumber.trim()) return showError('Account number is required');
+        if (formData.accountNumber.trim().length < 9 || formData.accountNumber.trim().length > 18) return showError('Account number must be between 9 and 18 digits');
+        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifscCode.trim().toUpperCase())) return showError('Enter a valid IFSC code (e.g. SBIN0001234)');
         return true;
       default:
         return true;
     }
   };
 
-  const nextStep = () => {
-    if (validateStep(currentStep)) setCurrentStep((s) => Math.min(s + 1, 4));
+  const nextStep = async () => {
+    if (validateStep(currentStep)) {
+      if (currentStep === 3) {
+        try {
+          await checkAvailability(formData.vehicleNumber.trim());
+          setCurrentStep((s) => Math.min(s + 1, 4));
+        } catch (error) {
+          // The API interceptor will show the error toast
+          console.error('Vehicle check failed:', error);
+          return;
+        }
+      } else {
+        setCurrentStep((s) => Math.min(s + 1, 4));
+      }
+    }
   };
 
   const prevStep = () => setCurrentStep((s) => Math.max(s - 1, 1));
@@ -376,6 +384,12 @@ const DeliveryRegister = () => {
       navigate('/delivery/login', { replace: true });
     } catch (error) {
       console.error('Registration failed:', error);
+      const msg = error?.response?.data?.message || error?.message || '';
+      if (msg.toLowerCase().includes('verify your mobile number via otp first')) {
+        setIsPhoneVerified(false);
+        sessionStorage.removeItem('deliveryReg_verified');
+        setCurrentStep(1);
+      }
     }
   };
 

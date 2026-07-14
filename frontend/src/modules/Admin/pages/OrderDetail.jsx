@@ -21,7 +21,7 @@ import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
 import AnimatedSelect from '../components/AnimatedSelect';
 import { formatCurrency, formatDateTime } from '../utils/adminHelpers';
-import { getOrderById, updateOrderStatus, getAllDeliveryBoys, assignDeliveryBoy } from '../services/adminService';
+import { getOrderById, updateOrderStatus, getAllDeliveryBoys, assignDeliveryBoy, getNearbyRiders } from '../services/adminService';
 import socketService from '../../../shared/utils/socket';
 
 const CountdownTimer = ({ assignedAt, onExpire }) => {
@@ -77,6 +77,8 @@ const OrderDetail = () => {
   const [selectedRiderId, setSelectedRiderId] = useState('');
   const [isAssigningRider, setIsAssigningRider] = useState(false);
   const [isReassigning, setIsReassigning] = useState(false);
+  
+  const [urgentAlert, setUrgentAlert] = useState(null);
 
   useEffect(() => {
     const fetchRiders = async () => {
@@ -146,6 +148,19 @@ const OrderDetail = () => {
 
         setOrder(normalizedOrder);
         setStatus(o.status);
+
+        // Fetch nearby riders if searching
+        if (o.status === 'searching') {
+            try {
+                const ridersRes = await getNearbyRiders(o._id || o.orderId);
+                if (ridersRes?.data?.riders) {
+                    setDeliveryBoys(ridersRes.data.riders);
+                }
+            } catch (err) {
+                console.error("Error fetching nearby riders:", err);
+            }
+        }
+
       } catch (error) {
         console.error("Fetch order detail error:", error);
         toast.error('Order not found');
@@ -172,14 +187,26 @@ const OrderDetail = () => {
           setOrder(res.data);
           setStatus(res.data.status);
           setSelectedRiderId(res.data.deliveryBoyId?._id || res.data.deliveryBoyId?.id || '');
+          setUrgentAlert(null); // Clear alert on assign
         }).catch(err => console.error(err));
       }
     };
 
+    const handleUrgentAlert = (data) => {
+      if (order && (data.orderId === order.orderId || data.orderId === order.id)) {
+        setUrgentAlert(data);
+        if (data.nearbyRiders) {
+          setDeliveryBoys(data.nearbyRiders);
+        }
+      }
+    };
+
     socketService.on('admin_order_assigned', handleAutoAssign);
+    socketService.on('admin_no_rider_alert', handleUrgentAlert);
 
     return () => {
       socketService.off('admin_order_assigned', handleAutoAssign);
+      socketService.off('admin_no_rider_alert', handleUrgentAlert);
     };
   }, [id, order]);
 
@@ -467,10 +494,22 @@ const OrderDetail = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Order Overview Card */}
+        <div className="flex-1 space-y-4">
+          
+          {/* Urgent Banner if No Rider Found */}
+          {urgentAlert && (
+            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-pulse">
+              <div className="text-3xl">🚨</div>
+              <div className="flex-1">
+                <h3 className="text-red-800 font-bold">Urgent: No Delivery Partner Found!</h3>
+                <p className="text-red-600 text-sm mt-1">This order has been searching for {urgentAlert.searchingFor}. Please assign a rider manually from the list below.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Customer & Order Info Card */}
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
             {isEditing ? (
               <div>
@@ -871,7 +910,7 @@ const OrderDetail = () => {
                     <option value="">Select Delivery Partner</option>
                     {deliveryBoys.map((boy) => (
                       <option key={boy._id} value={boy._id}>
-                        {boy.name} ({boy.phone || "No Phone"})
+                        {boy.name} ({boy.phone || "No Phone"}) {boy.distance !== undefined ? `- ${boy.distance}km away` : ''}
                       </option>
                     ))}
                   </select>

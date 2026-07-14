@@ -17,6 +17,7 @@ const MobileOrderConfirmation = () => {
   const { getOrder, fetchOrderById, lastError } = useOrderStore();
   const { user } = useAuthStore();
   const [isResolving, setIsResolving] = useState(true);
+  const [noPartnerMsg, setNoPartnerMsg] = useState('');
   const order = getOrder(orderId);
   const orderItems = Array.isArray(order?.items) ? order.items : [];
   const displayOrderId = order?.id || order?.orderId || orderId;
@@ -40,12 +41,20 @@ const MobileOrderConfirmation = () => {
         }
     };
 
+    const handleNoPartner = (data) => {
+        if (data.orderId === displayOrderId || data.orderId === orderId) {
+            setNoPartnerMsg(data.message);
+        }
+    };
+
     socketService.on('order_status_updated', handleStatusUpdate);
     socketService.on('order_accepted', handleStatusUpdate);
+    socketService.on('no_partner_yet', handleNoPartner);
 
     return () => {
       socketService.off('order_status_updated', handleStatusUpdate);
       socketService.off('order_accepted', handleStatusUpdate);
+      socketService.off('no_partner_yet', handleNoPartner);
     };
   }, [orderId, displayOrderId, user?.id, fetchOrderById]);
 
@@ -233,10 +242,35 @@ const MobileOrderConfirmation = () => {
             </div>
           </div>
         </div>
+
+        {/* No Partner Popup Modal */}
+        {noPartnerMsg && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-red-500" />
+              <div className="w-16 h-16 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                ⏳
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">We're Still Looking!</h3>
+              <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                {noPartnerMsg}
+              </p>
+              <button 
+                onClick={() => setNoPartnerMsg('')}
+                className="w-full py-3 bg-gray-100 text-gray-800 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                Got it
+              </button>
+            </motion.div>
+          </div>
+        )}
       </MobileLayout>
     </PageTransition>
   );
 };
 
 export default MobileOrderConfirmation;
-

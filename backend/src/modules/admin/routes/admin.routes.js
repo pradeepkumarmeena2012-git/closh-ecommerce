@@ -117,6 +117,7 @@ router.get('/analytics/vendor-performance', ...adminAuth, checkPermission('dashb
 router.get('/orders', ...adminAuth, checkPermission('orders_manage'), orderController.getAllOrders);
 router.get('/orders/:id', ...adminAuth, checkPermission('orders_manage'), orderController.getOrderById);
 router.patch('/orders/:id/status', ...adminAuth, checkPermission('orders_manage'), orderController.updateOrderStatus);
+router.get('/orders/:id/nearby-riders', ...adminAuth, checkPermission('orders_manage'), orderController.getNearbyRiders);
 router.patch('/orders/:id/assign-delivery', ...adminAuth, checkPermission('orders_manage'), orderController.assignDeliveryBoy);
 router.delete('/orders/:id', ...adminAuth, checkPermission('orders_manage'), orderController.deleteOrder);
 

@@ -19,6 +19,7 @@ const TrackOrderPage = () => {
     const [riderLiveLocation, setRiderLiveLocation] = useState(null);
     const [riderArrived, setRiderArrived] = useState(false);
     const [cardExpanded, setCardExpanded] = useState(false);
+    const [noPartnerMsg, setNoPartnerMsg] = useState('');
     const cooldownRef = useRef(null);
 
 
@@ -74,8 +75,16 @@ const TrackOrderPage = () => {
             console.log('🔐 OTP Sent/Updated:', data);
             loadOrder();
         };
+
+        const handleNoPartner = (data) => {
+            if (data.orderId === orderId || (order && data.orderId === order.orderId)) {
+                setNoPartnerMsg(data.message);
+            }
+        };
+
         socketService.on('delivery_otp_sent', handleOtpSent);
         socketService.on('delivery_otp_resent', handleOtpSent);
+        socketService.on('no_partner_yet', handleNoPartner);
 
         // Fallback polling (every 30 seconds)
         const interval = setInterval(loadOrder, 30000);
@@ -89,6 +98,7 @@ const TrackOrderPage = () => {
             socketService.off('rider_arrived', handleRiderArrived);
             socketService.off('delivery_otp_sent', handleOtpSent);
             socketService.off('delivery_otp_resent', handleOtpSent);
+            socketService.off('no_partner_yet', handleNoPartner);
         };
     }, [orderId]);
 
@@ -823,10 +833,34 @@ const TrackOrderPage = () => {
                     touch-action: none;
                 }
             `}} />
+
+            {/* No Partner Popup Modal */}
+            {noPartnerMsg && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <motion.div 
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-red-500" />
+                        <div className="w-16 h-16 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                            ⏳
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">We're Still Looking!</h3>
+                        <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                            {noPartnerMsg}
+                        </p>
+                        <button 
+                            onClick={() => setNoPartnerMsg('')}
+                            className="w-full py-3 bg-gray-100 text-gray-800 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                        >
+                            Got it
+                        </button>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
-
-
 };
 
 export default TrackOrderPage;

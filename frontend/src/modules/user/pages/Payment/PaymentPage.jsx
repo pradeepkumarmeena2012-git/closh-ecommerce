@@ -528,7 +528,8 @@ const PaymentPage = () => {
                     startTime: restrictedErrorData.startTime
                 });
             } else {
-                toast.error(error?.message || 'Failed to place order. Please check your connection.');
+                const errMsg = error?.message || 'Failed to place order. Please check your connection.';
+                toast.error(errMsg, { id: `api-error-${errMsg}` });
             }
         } finally {
             setIsProcessing(false);

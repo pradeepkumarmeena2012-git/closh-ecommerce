@@ -68,6 +68,9 @@ export const updateOrderStatus = (id, status) =>
 export const assignDeliveryBoy = (id, deliveryBoyId) =>
     api.patch(`/admin/orders/${id}/assign-delivery`, { deliveryBoyId });
 
+export const getNearbyRiders = (id) =>
+    api.get(`/admin/orders/${id}/nearby-riders`);
+
 export const deleteOrder = (id) =>
     api.delete(`/admin/orders/${id}`);
 

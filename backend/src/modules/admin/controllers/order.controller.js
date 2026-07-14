@@ -289,6 +289,34 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, order, 'Order status updated.'));
 });
 
+// GET /api/admin/orders/:id/nearby-riders
+export const getNearbyRiders = asyncHandler(async (req, res) => {
+    const filter = {
+        $or: [{ orderId: req.params.id }, { _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null }],
+        isDeleted: { $ne: true },
+    };
+    const order = await Order.findOne(filter).select('pickupLocation orderId');
+    if (!order) throw new ApiError(404, 'Order not found.');
+
+    const pickupCoords = order.pickupLocation?.coordinates;
+
+    const allRiders = await DeliveryBoy.find({
+        applicationStatus: 'approved',
+        isActive: true
+    }).select('name phone status currentLocation vehicleType vehicleNumber').lean();
+
+    const ridersWithDistance = allRiders.map(rider => {
+        const riderCoords = rider.currentLocation?.coordinates;
+        let distance = 9999;
+        if (pickupCoords && pickupCoords.length === 2 && riderCoords && riderCoords.length === 2) {
+            distance = calculateDistance(pickupCoords, riderCoords);
+        }
+        return { ...rider, distance: Math.round(distance * 10) / 10 };
+    }).sort((a, b) => a.distance - b.distance);
+
+    res.status(200).json(new ApiResponse(200, { riders: ridersWithDistance }, 'Nearby riders fetched.'));
+});
+
 // PATCH /api/admin/orders/:id/assign-delivery
 export const assignDeliveryBoy = asyncHandler(async (req, res) => {
     const { deliveryBoyId } = req.body;

@@ -44,6 +44,7 @@ router.post('/auth/verify-reset-otp', authLimiter, validate(verifyResetOtpSchema
 router.post('/auth/reset-password', authLimiter, validate(resetPasswordSchema), authController.resetPassword);
 router.post('/auth/send-otp', authLimiter, authController.sendOTP); // New OTP login
 router.post('/auth/verify-otp', authLimiter, authController.verifyOTPAndLogin); // New OTP login
+router.post('/auth/check-availability', authLimiter, authController.checkAvailability);
 router.post('/auth/send-registration-otp', authLimiter, authController.sendRegistrationOTP);
 router.post('/auth/verify-registration-otp', authLimiter, authController.verifyRegistrationOTP);
 router.post('/auth/login', authLimiter, validate(loginSchema), authController.login);

@@ -113,6 +113,11 @@ const ManageVendors = () => {
       key: "id",
       label: "ID",
       sortable: true,
+      render: (value) => (
+        <span className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded-md border border-gray-100" title={value}>
+          {value?.length > 15 ? `${value.substring(0, 8)}...` : value}
+        </span>
+      ),
     },
     {
       key: "storeName",

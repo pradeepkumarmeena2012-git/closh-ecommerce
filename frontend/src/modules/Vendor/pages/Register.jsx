@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiShoppingBag, FiMapPin } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone, FiShoppingBag, FiMapPin, FiNavigation } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useVendorAuthStore } from "../store/vendorAuthStore";
 import toast from 'react-hot-toast';
+import { useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 import logo from '../../../assets/animations/lottie/logo-removebg.png';
+
+const libraries = ['places'];
 
 const VendorRegister = () => {
   const navigate = useNavigate();
@@ -58,6 +61,62 @@ const VendorRegister = () => {
     }
   };
 
+  const autocompleteRef = useRef(null);
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries
+  });
+
+  const handlePlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      let street = formData.address.street;
+      let city = formData.address.city;
+      let state = formData.address.state;
+      let zipCode = formData.address.zipCode;
+      let country = formData.address.country;
+      let location = formData.shopLocation;
+
+      if (place) {
+          if (place.formatted_address) {
+            street = place.formatted_address;
+          } else if (place.name) {
+            street = place.name;
+          }
+
+          if (place.address_components) {
+              place.address_components.forEach(comp => {
+                  if (comp.types.includes('locality')) city = comp.long_name;
+                  else if (comp.types.includes('administrative_area_level_1')) state = comp.long_name;
+                  else if (comp.types.includes('postal_code')) zipCode = comp.long_name;
+                  else if (comp.types.includes('country')) country = comp.long_name;
+              });
+          }
+
+          if (place.geometry && place.geometry.location) {
+              location = {
+                  type: 'Point',
+                  coordinates: [place.geometry.location.lng(), place.geometry.location.lat()]
+              };
+          }
+      }
+
+      setFormData((prev) => ({ 
+          ...prev, 
+          address: { 
+              ...prev.address, 
+              street,
+              city: city ? city.replace(/[^a-zA-Z0-9\s]/g, '') : prev.address.city,
+              state: state || prev.address.state,
+              zipCode: zipCode ? zipCode.replace(/\D/g, '').slice(0, 6) : prev.address.zipCode,
+              country: country || prev.address.country
+          },
+          shopLocation: location || prev.shopLocation
+      }));
+    }
+  };
+
   const fetchLocation = () => {
     if (!navigator.geolocation) {
         toast.error("Geolocation is not supported by your browser");
@@ -73,38 +132,78 @@ const VendorRegister = () => {
                 coordinates: [longitude, latitude] // GeoJSON format: [lng, lat]
             };
             
-            try {
-                // Reverse geocoding with Nominatim (OpenStreetMap)
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-                const data = await res.json();
-                
-                if (data && data.address) {
-                    // Use the full display name to ensure no street details are accidentally omitted.
-                    // The user can edit the field to remove redundant city/state info.
-                    const street = data.display_name;
+            const fallbackToNominatim = async () => {
+                try {
+                    // Reverse geocoding with Nominatim (OpenStreetMap)
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+                    const data = await res.json();
+                    
+                    if (data && data.address) {
+                        // Use the full display name to ensure no street details are accidentally omitted.
+                        // The user can edit the field to remove redundant city/state info.
+                        const street = data.display_name;
 
-                    setFormData(prev => ({
-                        ...prev,
-                        shopLocation: newShopLocation,
-                        address: {
-                            ...prev.address,
-                            street: street || prev.address.street,
-                            city: (data.address.city || data.address.town || data.address.village || data.address.county || prev.address.city || '').replace(/[^a-zA-Z0-9\s]/g, ''),
-                            state: data.address.state || prev.address.state,
-                            zipCode: (data.address.postcode || prev.address.zipCode || '').replace(/\D/g, '').slice(0, 6),
-                            country: data.address.country || prev.address.country,
-                        }
-                    }));
-                    toast.success("Location and address fetched successfully!");
-                } else {
+                        setFormData(prev => ({
+                            ...prev,
+                            shopLocation: newShopLocation,
+                            address: {
+                                ...prev.address,
+                                street: street || prev.address.street,
+                                city: (data.address.city || data.address.town || data.address.village || data.address.county || prev.address.city || '').replace(/[^a-zA-Z0-9\s]/g, ''),
+                                state: data.address.state || prev.address.state,
+                                zipCode: (data.address.postcode || prev.address.zipCode || '').replace(/\D/g, '').slice(0, 6),
+                                country: data.address.country || prev.address.country,
+                            }
+                        }));
+                        toast.success("Location and address fetched successfully!");
+                    } else {
+                        setFormData(prev => ({ ...prev, shopLocation: newShopLocation }));
+                        toast.success("Location coordinates saved!");
+                    }
+                } catch (error) {
                     setFormData(prev => ({ ...prev, shopLocation: newShopLocation }));
-                    toast.success("Location coordinates saved!");
+                    toast.success("Location coordinates saved! (Address lookup failed)");
+                } finally {
+                    setIsLocating(false);
                 }
-            } catch (error) {
-                setFormData(prev => ({ ...prev, shopLocation: newShopLocation }));
-                toast.success("Location coordinates saved! (Address lookup failed)");
-            } finally {
-                setIsLocating(false);
+            };
+
+            if (isLoaded && window.google) {
+                try {
+                    const geocoder = new window.google.maps.Geocoder();
+                    geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results, status) => {
+                        if (status === 'OK' && results[0]) {
+                            let city = '', state = '', zipCode = '', country = '';
+                            results[0].address_components.forEach(comp => {
+                                if (comp.types.includes('locality')) city = comp.long_name;
+                                else if (comp.types.includes('administrative_area_level_1')) state = comp.long_name;
+                                else if (comp.types.includes('postal_code')) zipCode = comp.long_name;
+                                else if (comp.types.includes('country')) country = comp.long_name;
+                            });
+
+                            setFormData(prev => ({
+                                ...prev,
+                                shopLocation: newShopLocation,
+                                address: {
+                                    ...prev.address,
+                                    street: results[0].formatted_address,
+                                    city: city ? city.replace(/[^a-zA-Z0-9\s]/g, '') : prev.address.city,
+                                    state: state || prev.address.state,
+                                    zipCode: zipCode ? zipCode.replace(/\D/g, '').slice(0, 6) : prev.address.zipCode,
+                                    country: country || prev.address.country,
+                                }
+                            }));
+                            toast.success("Live address fetched!");
+                            setIsLocating(false);
+                        } else {
+                            fallbackToNominatim();
+                        }
+                    });
+                } catch (e) {
+                    fallbackToNominatim();
+                }
+            } else {
+                fallbackToNominatim();
             }
         },
         (error) => {
@@ -117,41 +216,34 @@ const VendorRegister = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const showError = (msg) => { toast.error(msg, { id: 'val-error' }); return; };
+
     if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.storeName) {
-      toast.error('Please fill in all required fields');
-      return;
+      return showError('Please fill in all required fields');
     }
     if (!/^[a-zA-Z0-9\s]+$/.test(formData.name)) {
-      toast.error('Vendor name must contain only alphanumeric characters and spaces');
-      return;
+      return showError('Vendor name must contain only alphanumeric characters and spaces');
     }
     if (formData.phone && (formData.phone.length < 10 || formData.phone.length > 12)) {
-      toast.error('Phone number must be between 10 and 12 digits');
-      return;
+      return showError('Phone number must be between 10 and 12 digits');
     }
     if (formData.address.city && !/^[a-zA-Z0-9\s]+$/.test(formData.address.city)) {
-      toast.error('City must contain only alphanumeric characters and spaces');
-      return;
+      return showError('City must contain only alphanumeric characters and spaces');
     }
     if (formData.address.zipCode && !/^\d{5,6}$/.test(formData.address.zipCode)) {
-      toast.error('Zip code must be a valid 5 or 6 digit number');
-      return;
+      return showError('Zip code must be a valid 5 or 6 digit number');
     }
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
+      return showError('Passwords do not match');
     }
     if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
+      return showError('Password must be at least 6 characters');
     }
     if (formData.gstNumber && formData.gstNumber.length !== 15) {
-      toast.error('GST number must be exactly 15 characters');
-      return;
+      return showError('GST number must be exactly 15 characters');
     }
     if (!documentFile) {
-      toast.error('Please upload your registration document (GST certificate etc.)');
-      return;
+      return showError('Please upload your registration document (GST certificate etc.)');
     }
     try {
       const submitData = new FormData();
@@ -174,7 +266,7 @@ const VendorRegister = () => {
       toast.success(result.message || 'Registration successful!');
       navigate('/vendor/verification', { state: { phone: formData.phone } });
     } catch (error) {
-      toast.error(error.message || 'Registration failed. Please try again.');
+      console.error('Registration failed:', error);
     }
   };
 
@@ -271,25 +363,45 @@ const VendorRegister = () => {
 
             {/* Section: Address */}
             <div className="space-y-6">
-              <div className="flex items-center justify-between border-b pb-2">
+              <div className="border-b pb-2">
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">HQ Address</h3>
-                <button 
-                  type="button" 
-                  onClick={fetchLocation}
-                  disabled={isLocating}
-                  className="text-[10px] font-black uppercase bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1 hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                >
-                  {isLocating ? <span className="animate-spin inline-block w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full" /> : <FiMapPin size={12} />}
-                  {formData.shopLocation ? 'Location Captured ✓' : 'Fetch Live Location'}
-                </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
                   <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2">Street Address</label>
                   <div className="relative">
-                    <FiMapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input type="text" name="address.street" value={formData.address.street} onChange={handleChange} placeholder="123 Business Lane" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900" />
+                    <FiMapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
+                    {isLoaded ? (
+                      <Autocomplete
+                        onLoad={(ref) => (autocompleteRef.current = ref)}
+                        onPlaceChanged={handlePlaceChanged}
+                        options={{ componentRestrictions: { country: 'in' } }}
+                      >
+                        <input
+                          type="text"
+                          name="address.street"
+                          value={formData.address.street}
+                          onChange={handleChange}
+                          placeholder="Search & select your full address..."
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.preventDefault();
+                          }}
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900"
+                        />
+                      </Autocomplete>
+                    ) : (
+                      <input type="text" name="address.street" value={formData.address.street} onChange={handleChange} placeholder="123 Business Lane" className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-gray-300 text-gray-900" />
+                    )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={fetchLocation}
+                    disabled={isLocating}
+                    className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 active:scale-95"
+                  >
+                    <FiNavigation className={isLocating ? 'animate-pulse' : ''} size={14} />
+                    {isLocating ? 'Fetching your location...' : 'Use My Current Location'}
+                  </button>
                 </div>
                 <div>
                   <label className="block text-[11px] font-black text-gray-900 uppercase tracking-widest mb-2">City</label>

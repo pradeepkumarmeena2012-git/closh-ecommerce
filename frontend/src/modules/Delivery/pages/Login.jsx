@@ -59,8 +59,16 @@ const DeliveryLogin = () => {
       const msg = error?.response?.data?.message || error?.message || '';
       if (msg.toLowerCase().includes('pending admin approval')) {
         setShowApprovalModal(true);
+      } else if (error?.response?.status === 404 || msg.toLowerCase().includes('no account found')) {
+        // The API interceptor might have already shown the "No account found..." toast.
+        // If we want exactly "user not found", we can rely on the backend message or add our own.
+        // We will just redirect them to the signup page.
+        setTimeout(() => {
+          navigate('/delivery/register');
+        }, 1500);
       } else {
-        toast.error(msg || 'Failed to send OTP');
+        // No need to show toast here if api.js already shows it, but keeping it for safety
+        // if api.js doesn't catch it. 
       }
     }
   };

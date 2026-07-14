@@ -189,6 +189,14 @@ export const useDeliveryAuthStore = create(
           return { success: true, deliveryBoy: user };
         } catch (e) { set({ isLoading: false }); throw e; }
       },
+      checkAvailability: async (vehicleNumber) => {
+        set({ isLoading: true });
+        try {
+          const res = await api.post('/delivery/auth/check-availability', { vehicleNumber });
+          set({ isLoading: false });
+          return res.data || res;
+        } catch (e) { set({ isLoading: false }); throw e; }
+      },
       sendRegistrationOtp: async (phone, email) => {
         set({ isLoading: true });
         try {

@@ -12,7 +12,9 @@ import {
 
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 import { getAllOrders } from '../services/adminService';
+import socketService from '../../../shared/utils/socket';
 
 const Orders = () => {
   const navigate = useNavigate();
@@ -34,6 +36,8 @@ const Orders = () => {
     };
     fetchOrders();
   }, []);
+
+
 
   // Calculate order statistics
   const orderStats = useMemo(() => {

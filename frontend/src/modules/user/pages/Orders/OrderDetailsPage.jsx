@@ -39,6 +39,7 @@ const OrderDetailsPage = () => {
     const [customCancelReason, setCustomCancelReason] = useState('');
     const [isCancelling, setIsCancelling] = useState(false);
     const [cancelStep, setCancelStep] = useState(1); // 1 = reason, 2 = confirm
+    const [noPartnerMsg, setNoPartnerMsg] = useState('');
 
 
 
@@ -189,6 +190,13 @@ const OrderDetailsPage = () => {
             loadLatest();
         });
 
+        const handleNoPartner = (data) => {
+            if (data.orderId === orderId || (order && data.orderId === order.orderId)) {
+                setNoPartnerMsg(data.message);
+            }
+        };
+        socketService.on('no_partner_yet', handleNoPartner);
+
         return () => {
             socketService.leaveRoom(`order_${orderId}`);
             socketService.leaveRoom(`guest_${orderId}`);
@@ -196,6 +204,7 @@ const OrderDetailsPage = () => {
             socketService.off('rider_assigned', handleUpdate);
             socketService.off('delivery_otp_sent');
             socketService.off('delivery_otp_resent');
+            socketService.off('no_partner_yet', handleNoPartner);
         };
     }, [orderId, fetchOrderById]);
 
@@ -1914,6 +1923,28 @@ const OrderDetailsPage = () => {
                                 onSubmit={handleSubmitProductReview}
                             />
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* No Partner Popup Modal */}
+            {noPartnerMsg && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center relative overflow-hidden animate-in zoom-in duration-300">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-red-500" />
+                        <div className="w-16 h-16 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                            ⏳
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">We're Still Looking!</h3>
+                        <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+                            {noPartnerMsg}
+                        </p>
+                        <button 
+                            onClick={() => setNoPartnerMsg('')}
+                            className="w-full py-3 bg-gray-100 text-gray-800 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                        >
+                            Got it
+                        </button>
                     </div>
                 </div>
             )}

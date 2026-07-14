@@ -27,6 +27,12 @@ const DeliveryLayout = () => {
 
   const handleToggleOnline = () => {
     if (isUpdatingStatus) return;
+
+    if (deliveryBoy?.applicationStatus && deliveryBoy.applicationStatus !== 'approved') {
+      toast.error(`Your application is currently ${deliveryBoy.applicationStatus}. You cannot go online until it is approved.`);
+      return;
+    }
+
     const wasOnline = isOnline;
     const newStatus = wasOnline ? 'offline' : 'available';
     

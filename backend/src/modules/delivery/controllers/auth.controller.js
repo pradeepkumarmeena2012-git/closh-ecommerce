@@ -149,6 +149,21 @@ export const register = asyncHandler(async (req, res) => {
     }
 });
 
+// POST /api/delivery/auth/check-availability
+export const checkAvailability = asyncHandler(async (req, res) => {
+    const { vehicleNumber } = req.body;
+
+    if (vehicleNumber) {
+        const normalizedVehicle = String(vehicleNumber).trim().toUpperCase();
+        const existingVehicle = await DeliveryBoy.findOne({ vehicleNumber: normalizedVehicle });
+        if (existingVehicle) {
+            throw new ApiError(409, 'This vehicle number is already registered.');
+        }
+    }
+
+    res.status(200).json(new ApiResponse(200, { available: true }, 'Available'));
+});
+
 // POST /api/delivery/auth/send-registration-otp
 export const sendRegistrationOTP = asyncHandler(async (req, res) => {
     const { phone, email } = req.body;
@@ -415,6 +430,17 @@ export const verifyOTPAndLogin = asyncHandler(async (req, res) => {
     const staticOtp = '123456';
     const isStaticAuth = testNumbers.includes(normalizedPhone) && String(otp) === staticOtp;
 
+    if (deliveryBoy.applicationStatus === 'pending') {
+        throw new ApiError(403, 'Your account is pending admin approval.');
+    }
+    if (deliveryBoy.applicationStatus === 'rejected') {
+        throw new ApiError(
+            403,
+            `Your delivery application was rejected${deliveryBoy.rejectionReason ? `: ${deliveryBoy.rejectionReason}` : '.'}`
+        );
+    }
+    if (!deliveryBoy.isActive) throw new ApiError(403, 'Account is deactivated. Contact admin.');
+
     if (!isStaticAuth) {
         if (!deliveryBoy.resetOtp || !deliveryBoy.resetOtpExpiry) {
             throw new ApiError(400, 'No OTP requested. Please request OTP first.');
@@ -511,6 +537,7 @@ export const login = asyncHandler(async (req, res) => {
             phone: deliveryBoy.phone,
             isAvailable: deliveryBoy.isAvailable,
             status: deliveryBoy.status || (deliveryBoy.isAvailable ? 'available' : 'offline'),
+            applicationStatus: deliveryBoy.applicationStatus,
         }
     }, 'Login successful.'));
 });
@@ -629,13 +656,19 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
     if (currentLocation) boy.currentLocation = currentLocation;
 
-    if (status) {
-        const normalized = status.toLowerCase();
-        boy.status = normalized;
-        boy.isAvailable = normalized !== 'offline';
-    } else if (typeof isAvailable === 'boolean') {
-        boy.isAvailable = isAvailable;
-        boy.status = isAvailable ? 'available' : 'offline';
+    if (status || typeof isAvailable === 'boolean') {
+        if (boy.applicationStatus !== 'approved') {
+            throw new ApiError(403, `Your application is currently ${boy.applicationStatus}. You cannot change your status.`);
+        }
+        
+        if (status) {
+            const normalized = status.toLowerCase();
+            boy.status = normalized;
+            boy.isAvailable = normalized !== 'offline';
+        } else if (typeof isAvailable === 'boolean') {
+            boy.isAvailable = isAvailable;
+            boy.status = isAvailable ? 'available' : 'offline';
+        }
     }
 
     await boy.save();

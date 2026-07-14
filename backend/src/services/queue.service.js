@@ -1,9 +1,11 @@
 import { Queue, Worker } from 'bullmq';
 import redisConnection from '../config/redis.js';
 import Order from '../models/Order.model.js';
+import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import { DeliveryNearbyService } from './nearbyDelivery.service.js';
 import { createNotification } from './notification.service.js';
 import { emitEvent } from './socket.service.js';
+import { calculateDistance } from '../utils/geo.js';
 
 /**
  * BullMQ Job Queue Service
@@ -32,8 +34,8 @@ const orderWaitQueue = isRedisAvailable ? new Queue('order-wait-queue', defaultQ
 // 2. Rider Search Queue (Radius Expansion)
 const riderSearchQueue = isRedisAvailable ? new Queue('rider-search-queue', defaultQueueOptions) : new DummyQueue('rider-search-queue');
 
-// 3. Rider Acceptance Timeout Queue (Auto-cancel if no rider accepts within 15 min)
-const riderAcceptQueue = isRedisAvailable ? new Queue('rider-accept-queue', defaultQueueOptions) : new DummyQueue('rider-accept-queue');
+// 3. Order Escalation Queue (10-min admin alert + 20-min user apology)
+const orderEscalationQueue = isRedisAvailable ? new Queue('order-escalation-queue', defaultQueueOptions) : new DummyQueue('order-escalation-queue');
 
 // 4. Rider Auto Assign 120s Timeout Queue (Auto-reject if rider doesn't click Accept within 120s)
 const riderAutoAssignTimeoutQueue = isRedisAvailable ? new Queue('rider-auto-assign-timeout-queue', defaultQueueOptions) : new DummyQueue('rider-auto-assign-timeout-queue');
@@ -54,13 +56,22 @@ export const QueueService = {
     },
 
     /**
-     * Start Rider Acceptance Timer (15 minutes)
-     * If no delivery boy accepts the order within 15 min, auto-cancel and notify vendor.
-     * @param {Object} orderId - Order document _id
+     * Schedule Admin Escalation (10 minutes after searching starts)
+     * If no delivery boy accepts within 10 min, escalate to admin with urgent notification + buzzer.
+     * @param {String} orderId - Order document _id
      */
-    async scheduleRiderAcceptTimeout(orderId, delayMs = 15 * 60 * 1000) {
-        await riderAcceptQueue.add('check-rider-accept', { orderId }, { delay: delayMs });
-        console.log(`[Queue] Scheduled rider acceptance timeout for ${orderId} in ${delayMs/1000}s`);
+    async scheduleAdminEscalation(orderId, delayMs = 2 * 60 * 1000) {
+        await orderEscalationQueue.add('admin-escalation', { orderId, phase: 'admin' }, { delay: delayMs });
+        console.log(`[Queue] Scheduled admin escalation for ${orderId} in ${delayMs / 1000}s`);
+    },
+
+    /**
+     * Schedule User "No Partner" Notification (20 minutes after searching starts)
+     * @param {String} orderId - Order document _id
+     */
+    async scheduleUserNoPartnerNotification(orderId, delayMs = 3 * 60 * 1000) {
+        await orderEscalationQueue.add('user-no-partner', { orderId, phase: 'user' }, { delay: delayMs });
+        console.log(`[Queue] Scheduled user no-partner notification for ${orderId} in ${delayMs / 1000}s`);
     },
 
     /**
@@ -173,75 +184,110 @@ if (isRedisAvailable) {
 }
 
 /**
- * Worker Logic: Rider Acceptance Timeout Check (15 minutes)
- * If order is still in 'searching' status (no delivery boy accepted), auto-cancel and notify vendor.
+ * Worker Logic: Order Escalation (10-min admin alert + 20-min user notification)
+ * Replaces the old 15-min auto-cancel with a structured escalation flow.
  */
 if (isRedisAvailable) {
-    new Worker('rider-accept-queue', async job => {
-        const { orderId } = job.data;
+    new Worker('order-escalation-queue', async job => {
+        const { orderId, phase } = job.data;
         const order = await Order.findById(orderId).populate('vendorItems.vendorId', '_id name storeName');
 
         if (!order) return;
 
-        // Only cancel if still searching (no rider claimed it)
-        if (order.status === 'searching' || order.status === 'ready_for_pickup') {
-            console.log(`[Worker] Rider acceptance timeout (15 min) for order ${order.orderId}. Auto-cancelling.`);
+        // Only escalate if order is still unassigned (searching or ready_for_pickup)
+        if (!['searching', 'ready_for_pickup'].includes(order.status)) {
+            console.log(`[Escalation] Order ${order.orderId} is now ${order.status}. Skipping ${phase} escalation.`);
+            return;
+        }
 
-            const updated = await Order.findOneAndUpdate(
-                { _id: orderId, status: { $in: ['searching', 'ready_for_pickup'] } },
-                {
-                    $set: {
-                        status: 'cancelled',
-                        cancellationReason: 'No delivery partner available within 15 minutes'
-                    }
-                },
-                { new: true }
-            );
+        if (phase === 'admin') {
+            // ── PHASE 2: Admin Escalation (10 minutes) ──
+            console.log(`[Escalation] ⚠️ 10-min admin escalation for order ${order.orderId}`);
 
-            if (updated) {
-                // Notify Customer
-                emitEvent(`user_${order.userId}`, 'order_cancelled', {
-                    orderId: order.orderId,
-                    reason: 'No delivery partner available to accept your order within 15 minutes.'
-                });
+            // Fetch nearby riders sorted nearest-to-farthest for admin
+            let nearbyRiders = [];
+            try {
+                const pickupCoords = order.pickupLocation?.coordinates;
+                if (pickupCoords && pickupCoords.length === 2 && (pickupCoords[0] !== 0 || pickupCoords[1] !== 0)) {
+                    const allRiders = await DeliveryBoy.find({
+                        applicationStatus: 'approved',
+                        isActive: true
+                    }).select('name phone status currentLocation vehicleType vehicleNumber').lean();
 
-                await createNotification({
-                    recipientId: order.userId,
-                    recipientType: 'user',
-                    title: 'Order Cancelled',
-                    message: `Order #${order.orderId} has been cancelled. No delivery partner was available. Refund initiated if applicable.`,
-                    type: 'order',
-                    data: { orderId: order.orderId, status: 'cancelled' }
-                }).catch(err => console.error('[RiderTimeout] User notification error:', err));
-
-                // Notify each Vendor that no delivery boy was available
-                const notifiedVendors = new Set();
-                for (const vi of (order.vendorItems || [])) {
-                    const vendorId = vi.vendorId?._id || vi.vendorId;
-                    if (!vendorId || notifiedVendors.has(String(vendorId))) continue;
-                    notifiedVendors.add(String(vendorId));
-
-                    emitEvent(`vendor_${vendorId}`, 'order_cancelled_no_rider', {
-                        orderId: order.orderId,
-                        reason: 'No delivery partner available within 15 minutes.'
-                    });
-
-                    await createNotification({
-                        recipientId: vendorId,
-                        recipientType: 'vendor',
-                        title: 'Order Cancelled - No Rider',
-                        message: `Order #${order.orderId} was cancelled because no delivery partner accepted it within 15 minutes.`,
-                        type: 'order',
-                        data: { orderId: order.orderId, status: 'cancelled' }
-                    }).catch(err => console.error('[RiderTimeout] Vendor notification error:', err));
+                    nearbyRiders = allRiders.map(rider => {
+                        const riderCoords = rider.currentLocation?.coordinates;
+                        const distance = (riderCoords && riderCoords.length === 2)
+                            ? calculateDistance(pickupCoords, riderCoords)
+                            : 9999;
+                        return { ...rider, distance: Math.round(distance * 10) / 10 };
+                    }).sort((a, b) => a.distance - b.distance).slice(0, 20);
                 }
-
-                // Notify tracking room
-                emitEvent(`order_${order.orderId}`, 'order_status_updated', {
-                    orderId: order.orderId,
-                    status: 'cancelled'
-                });
+            } catch (err) {
+                console.error('[Escalation] Error fetching nearby riders:', err.message);
             }
+
+            // Emit urgent socket event to admin with buzzer
+            emitEvent('admin', 'admin_no_rider_alert', {
+                orderId: order.orderId,
+                orderObjectId: order._id,
+                customer: order.shippingAddress?.name || 'Customer',
+                address: order.shippingAddress?.address || 'Address unavailable',
+                total: order.total,
+                searchingFor: '10 minutes',
+                nearbyRiders,
+                createdAt: order.createdAt,
+                urgent: true
+            });
+
+            // Create admin notification
+            await createNotification({
+                recipientId: 'admin',
+                recipientType: 'admin',
+                title: '🚨 Urgent: No Delivery Partner Found',
+                message: `Order #${order.orderId} has been searching for a rider for 10 minutes. Manual assignment required!`,
+                type: 'order',
+                data: { orderId: order.orderId, status: 'searching', urgent: true }
+            }).catch(err => console.error('[Escalation] Admin notification error:', err));
+
+            console.log(`[Escalation] ✅ Admin notified for order ${order.orderId} with ${nearbyRiders.length} nearby riders.`);
+        } else if (phase === 'user') {
+            // ── PHASE 3: User Auto-Cancel & Apology (20 minutes) ──
+            console.log(`[Escalation] 😔 20-min auto-cancel for order ${order.orderId}`);
+
+            const cancelMessage = 'Sorry for the inconvenience! Your order has been cancelled because no delivery partner is currently available. Please feel free to place a new order.';
+
+            try {
+                // Dynamically import to avoid circular dependency
+                const { cancelOrderInternal } = await import('../modules/user/controllers/order.controller.js');
+                await cancelOrderInternal(order.orderId, order.userId, 'Auto-cancelled due to no delivery partner available');
+                console.log(`[Escalation] Order ${order.orderId} successfully auto-cancelled.`);
+            } catch (err) {
+                console.error(`[Escalation] Error auto-cancelling order ${order.orderId}:`, err);
+            }
+
+            // Emit socket event to user
+            emitEvent(`user_${order.userId}`, 'no_partner_yet', {
+                orderId: order.orderId,
+                message: cancelMessage
+            });
+
+            // Emit to order tracking room too
+            emitEvent(`order_${order.orderId}`, 'no_partner_yet', {
+                orderId: order.orderId,
+                message: cancelMessage
+            });
+
+            // Create user notification
+            await createNotification({
+                recipientId: order.userId,
+                recipientType: 'user',
+                title: 'Order Cancelled - No Delivery Partner',
+                message: cancelMessage,
+                type: 'order',
+                data: { orderId: order.orderId, status: 'cancelled' }
+            }).catch(err => console.error('[Escalation] User notification error:', err));
+
+            console.log(`[Escalation] ✅ User notified (auto-cancelled) for order ${order.orderId}`);
         }
     }, { connection: redisConnection, removeOnComplete: { count: 50 }, removeOnFail: { count: 100 } });
 }
@@ -312,7 +358,17 @@ if (isRedisAvailable) {
         if (!order) return;
 
         if (order.status === 'searching') {
-            console.log(`[Worker] 🔄 Retrying auto-assignment for order ${order.orderId}...`);
+            // Stop retrying after 10 minutes — admin takes over at this point
+            const searchStart = order.searchStartedAt || order.createdAt;
+            const elapsedMs = Date.now() - new Date(searchStart).getTime();
+            const TEN_MINUTES = 10 * 60 * 1000;
+
+            if (elapsedMs >= TEN_MINUTES) {
+                console.log(`[Worker] ⏹️ Auto-assign retries stopped for ${order.orderId} after 10 minutes. Admin escalation active.`);
+                return; // Stop retrying — admin handles it now
+            }
+
+            console.log(`[Worker] 🔄 Retrying auto-assignment for order ${order.orderId} (${Math.round(elapsedMs/1000)}s elapsed)...`);
             const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
             autoAssignDeliveryBoy(order._id).catch(err => {
                 console.error("[Worker] AutoAssign retry trigger failed:", err);

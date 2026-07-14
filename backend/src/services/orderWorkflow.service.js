@@ -104,7 +104,8 @@ export const OrderWorkflowService = {
 
         const { QueueService } = await import('./queue.service.js');
         const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
-        await QueueService.scheduleRiderAcceptTimeout(order._id);
+        await QueueService.scheduleAdminEscalation(order._id);
+        await QueueService.scheduleUserNoPartnerNotification(order._id);
 
         await OrderNotificationService.notifyOrderUpdate(order._id, 'searching', { excludeRecipientId: vendorId });
         autoAssignDeliveryBoy(order._id).catch(err => console.error('[OrderWorkflow] Auto assignment failed:', err));
@@ -141,7 +142,8 @@ export const OrderWorkflowService = {
 
         const { QueueService } = await import('./queue.service.js');
         const { autoAssignDeliveryBoy } = await import('./autoAssignment.service.js');
-        await QueueService.scheduleRiderAcceptTimeout(order._id);
+        await QueueService.scheduleAdminEscalation(order._id);
+        await QueueService.scheduleUserNoPartnerNotification(order._id);
         
         await OrderNotificationService.notifyOrderUpdate(order._id, 'searching', { excludeRecipientId: vendorId });
         autoAssignDeliveryBoy(order._id).catch(err => console.error('[OrderWorkflow] Auto assignment failed:', err));

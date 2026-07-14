@@ -121,6 +121,8 @@ export const handleEnquiry = async (req, res) => {
                     variantKey: i.variantKey,
                     decision: 'rejected'
                 }));
+            } else {
+                // If not picked up yet, simply cancel it
                 order.status = 'cancelled';
                 order.cancellationReason = enquiry.reasonText || 'Approved via Admin Enquiry';
             }
