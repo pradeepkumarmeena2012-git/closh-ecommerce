@@ -315,9 +315,9 @@ const OrderDetail = () => {
               <div className="space-y-2">
                 <h1 className="text-4xl font-black text-primary-600 tracking-tighter">CLOSH</h1>
                 <div className="text-sm text-gray-500 space-y-1">
-                  <p className="font-bold text-gray-800">CLOSH OFFICIAL PVT LTD</p>
-                  <p>123, Fashion Hub, Sector 5, New Delhi - 110001</p>
-                  <p>GSTIN: 07AAAAA0000A1Z5</p>
+                  <p className="font-bold text-gray-800">CLOSH COMMERCE (OPC) PRIVATE LIMITED</p>
+                  <p>70, keshar vihar, Near Railway Colony, Jagatpura, Jaipur, Rajasthan 302017</p>
+                  <p>GSTIN: 08AANCC7176M1ZV</p>
                   <p>Phone: +91 98765 43210</p>
                 </div>
               </div>

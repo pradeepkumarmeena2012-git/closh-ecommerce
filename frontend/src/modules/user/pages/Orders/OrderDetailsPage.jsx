@@ -253,6 +253,63 @@ const OrderDetailsPage = () => {
             day: 'numeric'
         });
 
+        // Calculate totals from items for proper tax and mathematical alignment
+        let totalGrossAmount = 0;
+        let totalDiscountAmount = 0;
+        let totalTaxableValue = 0;
+        let totalCgst = 0;
+        let totalSgst = 0;
+        let totalIgst = 0;
+        let totalSellingPriceSum = 0;
+
+        const itemsHtml = order.items.map(item => {
+            const qty = item.quantity || 1;
+            const mrp = item.originalPrice || item.price || 0;
+            const sellingPrice = item.price || 0;
+            const totalSellingPrice = sellingPrice * qty;
+            const totalMrp = mrp * qty;
+            
+            // Calculate GST
+            let itemCgst = 0, itemSgst = 0, itemIgst = 0;
+            const gstRate = 5; // Default 5% for clothes
+            const taxableValue = totalSellingPrice / (1 + (gstRate / 100));
+            const gstAmount = totalSellingPrice - taxableValue;
+
+            if (order.totalCustomerIgst > 0) {
+                itemIgst = gstAmount;
+            } else {
+                itemCgst = gstAmount / 2;
+                itemSgst = gstAmount / 2;
+            }
+            
+            const calculatedTaxableValue = totalSellingPrice - (itemCgst + itemSgst + itemIgst);
+            const discount = totalMrp - totalSellingPrice;
+
+            totalGrossAmount += totalMrp;
+            totalDiscountAmount += discount;
+            totalTaxableValue += calculatedTaxableValue;
+            totalCgst += itemCgst;
+            totalSgst += itemSgst;
+            totalIgst += itemIgst;
+            totalSellingPriceSum += totalSellingPrice;
+
+            return `
+                <tr>
+                    <td class="text-left">${item.name} ${item.selectedSize ? `(${item.selectedSize})` : ''}</td>
+                    <td>62034200</td>
+                    <td>${mrp.toFixed(2)}</td>
+                    <td>${qty}</td>
+                    <td>${(totalMrp).toFixed(2)}</td>
+                    <td>${discount.toFixed(2)}</td>
+                    <td>${calculatedTaxableValue.toFixed(2)}</td>
+                    <td>${itemCgst.toFixed(2)}</td>
+                    <td>${itemSgst.toFixed(2)}</td>
+                    <td>${itemIgst.toFixed(2)}</td>
+                    <td>${totalSellingPrice.toFixed(2)}</td>
+                </tr>
+            `;
+        }).join('');
+
         const invoiceContent = `
             <!DOCTYPE html>
             <html>
@@ -295,9 +352,9 @@ const OrderDetailsPage = () => {
                 
                 <div class="top-section">
                     <div class="sold-by-info">
-                        <div class="info-text"><span class="bold">Sold By:</span> Clouse Premium Fashion</div>
-                        <div class="info-text"><span class="bold">GSTIN:</span> 29XXXXXXXXXXXXX (Sample)</div>
-                        <div class="info-text"><span class="bold">Ship-from Address:</span> Clouse Warehouse, Sector-1, HSR Layout Bangalore, Karnataka 560102</div>
+                        <div class="info-text"><span class="bold">Sold By:</span> CLOSH COMMERCE (OPC) PRIVATE LIMITED</div>
+                        <div class="info-text"><span class="bold">GSTIN:</span> 08AANCC7176M1ZV</div>
+                        <div class="info-text"><span class="bold">Ship-from Address:</span> 70, keshar vihar, Near Railway Colony, Jagatpura, Jaipur, Rajasthan 302017</div>
                     </div>
                     <div class="invoice-info">
                         <div class="info-text"><span class="bold">Invoice Number:</span> INV-${order.id}</div>
@@ -345,67 +402,17 @@ const OrderDetailsPage = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        ${order.items.map(item => {
-                            const qty = item.quantity || 1;
-                            const mrp = item.originalPrice || item.price || 0;
-                            const sellingPrice = item.price || 0;
-                            const totalSellingPrice = sellingPrice * qty;
-                            const totalMrp = mrp * qty;
-                            
-                            // Check backend GST fields or calculate fallback
-                            let itemCgst = 0, itemSgst = 0, itemIgst = 0;
-                            if (order.totalCustomerCgst > 0 || order.totalCustomerSgst > 0 || order.totalCustomerIgst > 0) {
-                                // Just a rough split if we don't have per-item in frontend, but normally we do.
-                                // If not per item, we distribute it proportionally or just use overall if single item.
-                                // For simplicity, we calculate it dynamically here for the invoice:
-                                const gstRate = 5; // Default assumption for clothes under 1000, but logic applies
-                                const taxableValue = totalSellingPrice / (1 + (gstRate/100));
-                                const gstAmount = totalSellingPrice - taxableValue;
-                                itemCgst = gstAmount / 2;
-                                itemSgst = gstAmount / 2;
-                            } else {
-                                // Fallback
-                                const taxableValue = totalSellingPrice / 1.05;
-                                const gstAmount = totalSellingPrice - taxableValue;
-                                itemCgst = gstAmount / 2;
-                                itemSgst = gstAmount / 2;
-                            }
-                            
-                            const taxableValue = totalSellingPrice - (itemCgst + itemSgst + itemIgst);
-                            const discount = totalMrp - totalSellingPrice;
-                            
-                            return `
-                                <tr>
-                                    <td class="text-left">${item.name} ${item.selectedSize ? `(${item.selectedSize})` : ''}</td>
-                                    <td>62034200</td>
-                                    <td>${mrp.toFixed(2)}</td>
-                                    <td>${qty}</td>
-                                    <td>${(totalMrp).toFixed(2)}</td>
-                                    <td>${discount.toFixed(2)}</td>
-                                    <td>${taxableValue.toFixed(2)}</td>
-                                    <td>${itemCgst.toFixed(2)}</td>
-                                    <td>${itemSgst.toFixed(2)}</td>
-                                    <td>${itemIgst.toFixed(2)}</td>
-                                    <td>${totalSellingPrice.toFixed(2)}</td>
-                                </tr>
-                            `;
-                        }).join('')}
+                        ${itemsHtml}
                         <tr class="totals-row">
                             <td colspan="7" class="text-right">Total</td>
-                            <td>${(() => {
-                                const taxAmount = (order.total - (order.subtotal || order.total)) || order.tax || ((order.total - (order.total/1.05)));
-                                return (taxAmount / 2).toFixed(2);
-                            })()}</td>
-                            <td>${(() => {
-                                const taxAmount = (order.total - (order.subtotal || order.total)) || order.tax || ((order.total - (order.total/1.05)));
-                                return (taxAmount / 2).toFixed(2);
-                            })()}</td>
-                            <td>0.00</td>
-                            <td>${order.total.toFixed(2)}</td>
+                            <td>${totalCgst.toFixed(2)}</td>
+                            <td>${totalSgst.toFixed(2)}</td>
+                            <td>${totalIgst.toFixed(2)}</td>
+                            <td>${totalSellingPriceSum.toFixed(2)}</td>
                         </tr>
                         <tr class="grand-total-row">
                             <td colspan="10" class="text-right">Grand Total</td>
-                            <td>${order.total.toFixed(2)}</td>
+                            <td>${totalSellingPriceSum.toFixed(2)}</td>
                         </tr>
                     </tbody>
                 </table>
