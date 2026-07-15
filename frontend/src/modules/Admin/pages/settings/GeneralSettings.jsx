@@ -377,7 +377,7 @@ const GeneralSettings = () => {
                         value={formData.customerSupportEmail || ""}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        placeholder="support@clouse.com"
+                        placeholder="support@closh.com"
                       />
                     </div>
                     <div>
@@ -409,7 +409,7 @@ const GeneralSettings = () => {
                         value={formData.vendorSupportEmail || ""}
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        placeholder="vendorsupport@clouse.com"
+                        placeholder="vendorsupport@closh.com"
                       />
                     </div>
                     <div>

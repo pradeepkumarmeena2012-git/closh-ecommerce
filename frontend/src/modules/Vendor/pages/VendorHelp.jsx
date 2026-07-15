@@ -15,7 +15,7 @@ const VendorHelp = () => {
 
     const messagesEndRef = useRef(null);
 
-    const vendorEmail = settings?.general?.vendorSupportEmail || "vendorsupport@clouse.com";
+    const vendorEmail = settings?.general?.vendorSupportEmail || "vendorsupport@closh.com";
     const vendorPhone = settings?.general?.vendorSupportPhone || "+91 (800) 123-4567";
 
     const scrollToBottom = () => {

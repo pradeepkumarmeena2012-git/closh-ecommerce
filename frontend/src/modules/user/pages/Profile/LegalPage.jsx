@@ -7,7 +7,7 @@ import { useSettingsStore } from '../../../../shared/store/settingsStore';
 // Initial/Fallback data in case nothing is in localStorage/Admin yet
 const getLegalData = (settings) => {
     const general = settings?.general || {};
-    const supportEmail = general.customerSupportEmail || "support@clouse.com";
+    const supportEmail = general.customerSupportEmail || "support@closh.com";
     const supportPhone = general.customerSupportPhone || "+91 (800) 111-2222";
     const address = general.address || "Mumbai, Maharashtra, India";
     const storeName = general.storeName || "CLOSH";
