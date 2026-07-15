@@ -990,9 +990,15 @@ const OrderDetailsPage = () => {
                             return (
                                 <div className="w-full">
                                     {isCancelled ? (
-                                        <div className="text-center py-6 bg-red-50 rounded-2xl border border-red-100/50">
+                                        <div className="text-center py-6 bg-red-50 rounded-2xl border border-red-100/50 px-4">
                                             <p className="text-red-500 text-xs font-black uppercase tracking-widest">Order Cancelled</p>
-                                            <p className="text-slate-400 text-[10px] mt-1">This order was cancelled by the customer or vendor.</p>
+                                            {order.cancellationReason && order.cancellationReason.toLowerCase().includes('no delivery partner') ? (
+                                                <p className="text-slate-500 text-[11px] font-bold mt-2 leading-relaxed">
+                                                    Sorry for the inconvenience! Your order has been cancelled because no delivery partner is currently available in your area. Please feel free to place a new order.
+                                                </p>
+                                            ) : (
+                                                <p className="text-slate-400 text-[10px] mt-1">This order was cancelled by the customer or vendor.</p>
+                                            )}
                                         </div>
                                     ) : (
                                         <div>
