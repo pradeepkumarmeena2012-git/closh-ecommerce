@@ -39,7 +39,7 @@ const footerSections = [
         title: 'Legal & Policies',
         items: [
             { name: 'Terms & Conditions', icon: null, path: '/terms' },
-            { name: 'Privacy Policy', icon: Shield, path: '/privacy' },
+            { name: 'Privacy Policy', icon: ShieldCheck, path: '/privacy' },
             { name: 'Refund Policy', icon: CreditCard, path: '/refund' },
             { name: 'Return Policy', icon: null, path: '/return' }
         ]
