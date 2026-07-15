@@ -140,23 +140,23 @@ const LegalPage = ({ fixedPageId }) => {
                 
                 const key = keyMap[effectivePageId];
                 if (key) {
-                    // Try 'content' category first
-                    const contentRes = await getPublicSetting('content', true);
-                    if (contentRes?.data && contentRes.data[key]) {
+                    // Try direct key first (from direct Settings update)
+                    const res = await getPublicSetting(key, true);
+                    if (typeof res?.data === 'string' && !res.data.includes('<h1>Terms and Conditions</h1>')) {
                         setPageContent({
                             title: legalData[effectivePageId]?.title || 'Information',
-                            content: contentRes.data[key]
+                            content: res.data.replace(/\n/g, '<br/>')
                         });
                         setIsLoading(false);
                         return;
                     }
 
-                    // Try direct key next
-                    const res = await getPublicSetting(key, true);
-                    if (res?.data && !res.data.includes('<h1>Terms and Conditions</h1>')) {
+                    // Try 'content' category next (Legacy grouped settings)
+                    const contentRes = await getPublicSetting('content', true);
+                    if (contentRes?.data && contentRes.data[key]) {
                         setPageContent({
                             title: legalData[effectivePageId]?.title || 'Information',
-                            content: res.data
+                            content: contentRes.data[key].replace(/\n/g, '<br/>')
                         });
                         setIsLoading(false);
                         return;
@@ -169,7 +169,9 @@ const LegalPage = ({ fixedPageId }) => {
                     content: '<p class="text-gray-500 font-bold uppercase text-[10px] ">Coming soon...</p>'
                 });
             } catch (err) {
-                console.error('Error fetching legal content:', err);
+                if (err?.response?.status !== 404) {
+                    console.error('Error fetching legal content:', err);
+                }
                 const legalData = getLegalData(settings);
                 setPageContent(legalData[effectivePageId] || {
                     title: 'Information',

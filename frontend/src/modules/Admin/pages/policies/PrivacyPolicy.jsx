@@ -6,17 +6,24 @@ import { getAdminSetting, updateAdminSetting } from '../../services/adminService
 
 const PrivacyPolicy = () => {
   const [content, setContent] = useState('');
+  const [deliveryContent, setDeliveryContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchPolicy = async () => {
       try {
-        const res = await getAdminSetting('privacy_policy');
+        const [res, deliveryRes] = await Promise.all([
+          getAdminSetting('privacy_policy'),
+          getAdminSetting('delivery_privacy_policy')
+        ]);
         if (res?.data) {
           setContent(res.data);
         }
+        if (deliveryRes?.data) {
+          setDeliveryContent(deliveryRes.data);
+        }
       } catch (err) {
-        console.error('Error fetching privacy policy:', err);
+        console.error('Error fetching privacy policies:', err);
       } finally {
         setIsLoading(false);
       }
@@ -26,10 +33,13 @@ const PrivacyPolicy = () => {
 
   const handleSave = async () => {
     try {
-      await updateAdminSetting('privacy_policy', content);
-      toast.success('Privacy policy saved successfully');
+      await Promise.all([
+        updateAdminSetting('privacy_policy', content),
+        updateAdminSetting('delivery_privacy_policy', deliveryContent)
+      ]);
+      toast.success('Privacy policies saved successfully');
     } catch (err) {
-      toast.error('Failed to save policy');
+      toast.error('Failed to save policies');
     }
   };
 
@@ -60,12 +70,25 @@ const PrivacyPolicy = () => {
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
         <div className="flex items-center gap-2 mb-4">
           <FiFileText className="text-primary-600" />
-          <h3 className="font-semibold text-gray-800">Privacy Policy Content</h3>
+          <h3 className="font-semibold text-gray-800">User Privacy Policy Content</h3>
         </div>
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          rows={20}
+          rows={12}
+          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
+        />
+      </div>
+
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <FiFileText className="text-primary-600" />
+          <h3 className="font-semibold text-gray-800">Delivery Partner Privacy Policy Content</h3>
+        </div>
+        <textarea
+          value={deliveryContent}
+          onChange={(e) => setDeliveryContent(e.target.value)}
+          rows={12}
           className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
         />
       </div>

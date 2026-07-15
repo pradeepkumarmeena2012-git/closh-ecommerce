@@ -10,28 +10,6 @@
   <link rel="apple-touch-icon" href="/favicon.png">
   <title>CLOSH</title>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-  <script>
-    (function() {
-      if (typeof navigator !== 'undefined' && !navigator.serviceWorker) {
-        try {
-          Object.defineProperty(navigator, 'serviceWorker', {
-            configurable: true,
-            enumerable: true,
-            value: {
-              register: function() { return Promise.reject("Mock SW"); },
-              addEventListener: function() {},
-              removeEventListener: function() {},
-              ready: new Promise(function(res) { res({}); }),
-              getRegistration: function() { return Promise.resolve(null); },
-              getRegistrations: function() { return Promise.resolve([]); }
-            }
-          });
-        } catch (e) {
-          console.error("Mock SW Error:", e);
-        }
-      }
-    })();
-  </script>
 </head>
 
 <body>

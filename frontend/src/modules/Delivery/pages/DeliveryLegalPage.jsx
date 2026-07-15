@@ -64,7 +64,7 @@ const DeliveryLegalPage = ({ fixedPageId }) => {
     const supportPhone = general.customerSupportPhone || "+91 (800) 111-2222";
 
     const keyMap = {
-        'privacy': 'privacy_policy',
+        'privacy': 'delivery_privacy_policy',
         'support': 'contact_info'
     };
 
@@ -77,21 +77,21 @@ const DeliveryLegalPage = ({ fixedPageId }) => {
                 
                 const key = keyMap[effectivePageId];
                 if (key) {
-                    const contentRes = await getPublicSetting('content', true);
-                    if (contentRes?.data && contentRes.data[key]) {
+                    const res = await getPublicSetting(key, true);
+                    if (typeof res?.data === 'string' && !res.data.includes('<h1>Terms and Conditions</h1>')) {
                         setPageContent({
                             title: legalData[effectivePageId]?.title || 'Information',
-                            content: contentRes.data[key]
+                            content: res.data.replace(/\n/g, '<br/>')
                         });
                         setIsLoading(false);
                         return;
                     }
 
-                    const res = await getPublicSetting(key, true);
-                    if (res?.data && !res.data.includes('<h1>Terms and Conditions</h1>')) {
+                    const contentRes = await getPublicSetting('content', true);
+                    if (contentRes?.data && contentRes.data[key]) {
                         setPageContent({
                             title: legalData[effectivePageId]?.title || 'Information',
-                            content: res.data
+                            content: contentRes.data[key].replace(/\n/g, '<br/>')
                         });
                         setIsLoading(false);
                         return;
