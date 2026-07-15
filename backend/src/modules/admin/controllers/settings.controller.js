@@ -19,7 +19,7 @@ export const getSetting = asyncHandler(async (req, res) => {
     const settings = await Settings.findOne({ key });
 
     if (!settings) {
-        throw new ApiError(404, `Settings for key "${key}" not found.`);
+        return res.status(200).json(new ApiResponse(200, null, `Settings for key "${key}" not found.`));
     }
 
     res.status(200).json(new ApiResponse(200, settings.value, `Settings fetched for ${key}.`));

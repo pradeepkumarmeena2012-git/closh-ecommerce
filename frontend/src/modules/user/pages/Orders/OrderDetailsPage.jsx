@@ -498,8 +498,15 @@ const OrderDetailsPage = () => {
 
             setIsSubmitting(true);
             try {
+                const allItemsToReturn = order.items.map(item => ({
+                    productId: item.productId || item._id || item.id,
+                    quantity: item.quantity || 1,
+                    reason: returnReason,
+                }));
+
                 await useOrderStore.getState().requestReturn(orderId, {
                     reason: returnReason,
+                    items: allItemsToReturn,
                 });
 
                 const updatedOrder = await fetchOrderById(orderId);
