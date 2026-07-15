@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from '../../../../shared/store/authStore';
 import { Phone, ArrowRight, ShieldCheck, ChevronLeft, Timer, X, User as UserIcon, Mail } from 'lucide-react';
 import { isValidEmail } from '../../../../shared/utils/helpers';
-import PolicyModal from '../../../../shared/components/PolicyModal';
+
 import logo from '../../../../assets/animations/lottie/logo-removebg.png';
 
 const LoginPage = () => {
@@ -15,7 +15,6 @@ const LoginPage = () => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [resendTimer, setResendTimer] = useState(0);
-    const [modalConfig, setModalConfig] = useState({ isOpen: false, type: 'terms' });
 
     const { checkPhone, loginOtp, registerOtp, verifyOTP } = useAuthStore();
     const navigate = useNavigate();
@@ -320,25 +319,19 @@ const LoginPage = () => {
 
                 <p className="mt-8 text-center text-[12px] font-medium text-gray-400 leading-relaxed">
                     By continuing, you agree to our <br />
-                    <span
-                        onClick={() => setModalConfig({ isOpen: true, type: 'terms' })}
-                        className="text-black font-semibold hover:underline cursor-pointer"
+                    <Link
+                        to="/terms"
+                        className="text-primary hover:text-primary-focus underline transition-colors duration-200"
                     >
                         Terms of Service
-                    </span> & <span
-                        onClick={() => setModalConfig({ isOpen: true, type: 'privacy' })}
+                    </Link> & <Link
+                        to="/privacy"
                         className="text-black font-semibold hover:underline cursor-pointer"
                     >
                         Privacy Policy
-                    </span>
+                    </Link>
                 </p>
             </div>
-
-            <PolicyModal
-                isOpen={modalConfig.isOpen}
-                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
-                type={modalConfig.type}
-            />
         </div>
     );
 };

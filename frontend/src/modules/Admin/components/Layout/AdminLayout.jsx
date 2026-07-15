@@ -28,22 +28,26 @@ const AdminLayout = () => {
       }
 
       // Show native browser notification
-      if ('Notification' in window) {
-        if (Notification.permission === 'granted') {
-          new Notification('🚨 Urgent: No Delivery Partner', {
-            body: `Order #${data.orderId} is stuck in searching for ${data.searchingFor}. Manual assignment required!`,
-            icon: '/favicon.ico'
-          });
-        } else if (Notification.permission !== 'denied') {
-          Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-              new Notification('🚨 Urgent: No Delivery Partner', {
-                body: `Order #${data.orderId} is stuck in searching for ${data.searchingFor}. Manual assignment required!`,
-                icon: '/favicon.ico'
-              });
-            }
-          });
+      try {
+        if ('Notification' in window) {
+          if (Notification.permission === 'granted') {
+            new Notification('🚨 Urgent: No Delivery Partner', {
+              body: `Order #${data.orderId} is stuck in searching for ${data.searchingFor}. Manual assignment required!`,
+              icon: '/favicon.ico'
+            });
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                new Notification('🚨 Urgent: No Delivery Partner', {
+                  body: `Order #${data.orderId} is stuck in searching for ${data.searchingFor}. Manual assignment required!`,
+                  icon: '/favicon.ico'
+                });
+              }
+            }).catch(e => console.log('Notification permission error:', e));
+          }
         }
+      } catch (notifyErr) {
+        console.error("Browser notification error:", notifyErr);
       }
 
       toast((t) => (

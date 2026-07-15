@@ -210,6 +210,12 @@ const DeliveryLogin = () => {
                   Register Now
                 </Link>
               </p>
+              
+              <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-center gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <Link to="/delivery/privacy" className="hover:text-[#0f172a] transition-colors">Privacy Policy</Link>
+                <span>•</span>
+                <Link to="/delivery/support" className="hover:text-[#0f172a] transition-colors">Support</Link>
+              </div>
             </div>
           </motion.div>
         </div>

@@ -54,6 +54,24 @@ const getLegalData = (settings) => {
             </div>
         `
     },
+    'return': {
+        title: 'Return & Exchange Policy',
+        content: `
+            <div class="space-y-4">
+                <p class="text-gray-600 leading-relaxed font-medium">Exchanges are accepted within 7 days of purchase. Items must be unworn, unwashed, and have original tags attached.</p>
+                <p class="text-gray-600 leading-relaxed font-medium">Please contact our support team to initiate a return or exchange request.</p>
+            </div>
+        `
+    },
+    'shipping': {
+        title: 'Shipping Policy',
+        content: `
+            <div class="space-y-4">
+                <p class="text-gray-600 leading-relaxed font-medium">Orders are processed within 1-2 business days. Delivery times vary based on location.</p>
+                <p class="text-gray-600 leading-relaxed font-medium">We offer standard and express shipping options. You will receive a tracking number once your order has shipped.</p>
+            </div>
+        `
+    },
     'contact': {
         title: 'Contact Us',
         content: `
@@ -91,18 +109,25 @@ const getLegalData = (settings) => {
     };
 };
 
-const LegalPage = () => {
+const LegalPage = ({ fixedPageId }) => {
     const { pageId } = useParams();
+    const effectivePageId = fixedPageId || pageId;
     const { settings, initializePublic } = useSettingsStore();
     const [pageContent, setPageContent] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    
+    const general = settings?.general || {};
+    const supportEmail = general.customerSupportEmail || "support@closh.in";
+    const supportPhone = general.customerSupportPhone || "+91 (800) 111-2222";
 
     const keyMap = {
         'terms': 'terms_policy',
         'privacy': 'privacy_policy',
         'refund': 'refund_policy',
         'about': 'about_us',
-        'contact': 'contact_info'
+        'contact': 'contact_info',
+        'return': 'return_policy',
+        'shipping': 'shipping_policy'
     };
 
     useEffect(() => {
@@ -113,13 +138,13 @@ const LegalPage = () => {
             try {
                 await initializePublic();
                 
-                const key = keyMap[pageId];
+                const key = keyMap[effectivePageId];
                 if (key) {
                     // Try 'content' category first
                     const contentRes = await getPublicSetting('content', true);
                     if (contentRes?.data && contentRes.data[key]) {
                         setPageContent({
-                            title: legalData[pageId]?.title || 'Information',
+                            title: legalData[effectivePageId]?.title || 'Information',
                             content: contentRes.data[key]
                         });
                         setIsLoading(false);
@@ -130,7 +155,7 @@ const LegalPage = () => {
                     const res = await getPublicSetting(key, true);
                     if (res?.data && !res.data.includes('<h1>Terms and Conditions</h1>')) {
                         setPageContent({
-                            title: legalData[pageId]?.title || 'Information',
+                            title: legalData[effectivePageId]?.title || 'Information',
                             content: res.data
                         });
                         setIsLoading(false);
@@ -139,14 +164,14 @@ const LegalPage = () => {
                 }
 
                 // Fallback to default bundled data
-                setPageContent(legalData[pageId] || {
+                setPageContent(legalData[effectivePageId] || {
                     title: 'Information',
                     content: '<p class="text-gray-500 font-bold uppercase text-[10px] ">Coming soon...</p>'
                 });
             } catch (err) {
                 console.error('Error fetching legal content:', err);
                 const legalData = getLegalData(settings);
-                setPageContent(legalData[pageId] || {
+                setPageContent(legalData[effectivePageId] || {
                     title: 'Information',
                     content: '<p class="text-gray-500 font-bold uppercase text-[10px] ">Coming soon...</p>'
                 });
@@ -156,7 +181,7 @@ const LegalPage = () => {
         };
 
         fetchContent();
-    }, [pageId]); // Removed settings?.general to avoid unnecessary re-triggers
+    }, [effectivePageId]); // Removed settings?.general to avoid unnecessary re-triggers
 
     if (isLoading && !pageContent) return <div className="p-20 text-center text-gray-400 font-bold uppercase animate-pulse">Loading...</div>;
     if (!pageContent) return null;
@@ -172,9 +197,26 @@ const LegalPage = () => {
                 </div>
 
                 <div
-                    className="legal-rich-text text-gray-700 leading-relaxed font-medium"
+                    className="legal-rich-text text-gray-700 leading-relaxed font-medium mb-12"
                     dangerouslySetInnerHTML={{ __html: pageContent.content }}
                 />
+                
+                {/* Need Help Block */}
+                <div className="mt-12 p-8 bg-blue-50/50 rounded-[24px] border border-blue-100 flex flex-col items-center text-center">
+                    <h3 className="text-xl font-black text-gray-900 mb-3">Need Help?</h3>
+                    <p className="text-sm font-medium text-gray-600 mb-6 max-w-md">
+                        Still need help? Reach out to our customer support team directly through email or phone.
+                    </p>
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <a href={`mailto:${supportEmail}`} className="px-6 py-3 bg-[#ff5722] text-white rounded-full font-bold text-sm hover:bg-[#e64a19] transition-colors shadow-lg shadow-[#ff5722]/30">
+                            {supportEmail}
+                        </a>
+                        <span className="hidden sm:block text-gray-300 font-black">/</span>
+                        <a href={`tel:${supportPhone.replace(/[^0-9+]/g, '')}`} className="px-6 py-3 bg-white text-gray-900 border border-gray-200 rounded-full font-bold text-sm hover:bg-gray-50 transition-colors shadow-sm">
+                            {supportPhone}
+                        </a>
+                    </div>
+                </div>
             </div>
         </AccountLayout>
     );

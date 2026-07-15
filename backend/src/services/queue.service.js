@@ -61,8 +61,9 @@ export const QueueService = {
      * @param {String} orderId - Order document _id
      */
     async scheduleAdminEscalation(orderId, delayMs = 2 * 60 * 1000) {
-        await orderEscalationQueue.add('admin-escalation', { orderId, phase: 'admin' }, { delay: delayMs });
-        console.log(`[Queue] Scheduled admin escalation for ${orderId} in ${delayMs / 1000}s`);
+        const jobId = `admin-escalation-${orderId}`;
+        await orderEscalationQueue.add('admin-escalation', { orderId, phase: 'admin' }, { delay: delayMs, jobId });
+        console.log(`[Queue] Scheduled admin escalation for ${orderId} in ${delayMs / 1000}s (jobId: ${jobId})`);
     },
 
     /**
@@ -70,8 +71,9 @@ export const QueueService = {
      * @param {String} orderId - Order document _id
      */
     async scheduleUserNoPartnerNotification(orderId, delayMs = 3 * 60 * 1000) {
-        await orderEscalationQueue.add('user-no-partner', { orderId, phase: 'user' }, { delay: delayMs });
-        console.log(`[Queue] Scheduled user no-partner notification for ${orderId} in ${delayMs / 1000}s`);
+        const jobId = `user-no-partner-${orderId}`;
+        await orderEscalationQueue.add('user-no-partner', { orderId, phase: 'user' }, { delay: delayMs, jobId });
+        console.log(`[Queue] Scheduled user no-partner notification for ${orderId} in ${delayMs / 1000}s (jobId: ${jobId})`);
     },
 
     /**
@@ -239,15 +241,24 @@ if (isRedisAvailable) {
                 urgent: true
             });
 
-            // Create admin notification
-            await createNotification({
-                recipientId: 'admin',
-                recipientType: 'admin',
-                title: '🚨 Urgent: No Delivery Partner Found',
-                message: `Order #${order.orderId} has been searching for a rider for 10 minutes. Manual assignment required!`,
-                type: 'order',
-                data: { orderId: order.orderId, status: 'searching', urgent: true }
-            }).catch(err => console.error('[Escalation] Admin notification error:', err));
+            // Find all admins and create notification for each
+            try {
+                const { Admin } = await import('../models/Admin.model.js');
+                const admins = await Admin.find().select('_id').lean();
+                
+                await Promise.all(admins.map(adminUser => 
+                    createNotification({
+                        recipientId: adminUser._id,
+                        recipientType: 'admin',
+                        title: '🚨 Urgent: No Delivery Partner Found',
+                        message: `Order #${order.orderId} has been searching for a rider for 10 minutes. Manual assignment required!`,
+                        type: 'order',
+                        data: { orderId: order.orderId, status: 'searching', urgent: true, click_action: `/admin/orders/${order._id}` }
+                    })
+                ));
+            } catch (err) {
+                console.error('[Escalation] Admin DB notification error:', err);
+            }
 
             console.log(`[Escalation] ✅ Admin notified for order ${order.orderId} with ${nearbyRiders.length} nearby riders.`);
         } else if (phase === 'user') {
@@ -255,6 +266,17 @@ if (isRedisAvailable) {
             console.log(`[Escalation] 😔 20-min auto-cancel for order ${order.orderId}`);
 
             const cancelMessage = 'Sorry for the inconvenience! Your order has been cancelled because no delivery partner is currently available. Please feel free to place a new order.';
+
+            // Emit socket events FIRST (before cancel) so the user sees the popup
+            // before the order_status_updated event causes a re-render
+            emitEvent(`user_${order.userId}`, 'no_partner_yet', {
+                orderId: order.orderId,
+                message: cancelMessage
+            });
+            emitEvent(`order_${order.orderId}`, 'no_partner_yet', {
+                orderId: order.orderId,
+                message: cancelMessage
+            });
 
             try {
                 // Dynamically import to avoid circular dependency
@@ -265,27 +287,8 @@ if (isRedisAvailable) {
                 console.error(`[Escalation] Error auto-cancelling order ${order.orderId}:`, err);
             }
 
-            // Emit socket event to user
-            emitEvent(`user_${order.userId}`, 'no_partner_yet', {
-                orderId: order.orderId,
-                message: cancelMessage
-            });
-
-            // Emit to order tracking room too
-            emitEvent(`order_${order.orderId}`, 'no_partner_yet', {
-                orderId: order.orderId,
-                message: cancelMessage
-            });
-
-            // Create user notification
-            await createNotification({
-                recipientId: order.userId,
-                recipientType: 'user',
-                title: 'Order Cancelled - No Delivery Partner',
-                message: cancelMessage,
-                type: 'order',
-                data: { orderId: order.orderId, status: 'cancelled' }
-            }).catch(err => console.error('[Escalation] User notification error:', err));
+            // NOTE: cancelOrderInternal already calls notifyOrderUpdate('cancelled')
+            // which creates the notification + push for all parties. No extra createNotification needed.
 
             console.log(`[Escalation] ✅ User notified (auto-cancelled) for order ${order.orderId}`);
         }

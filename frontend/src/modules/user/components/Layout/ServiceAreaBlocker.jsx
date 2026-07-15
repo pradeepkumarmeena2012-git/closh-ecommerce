@@ -10,7 +10,8 @@ const ServiceAreaBlocker = ({ children }) => {
     // Pages that should NEVER be blocked, even if out of service area
     const unblockedPaths = [
         '/profile', '/orders', '/addresses', '/login', '/register', 
-        '/terms', '/privacy', '/about', '/contact'
+        '/terms', '/privacy', '/about', '/contact', '/support', '/legal',
+        '/refund', '/return', '/shipping'
     ];
 
     const isUnblocked = unblockedPaths.some(path => location.pathname.startsWith(path));

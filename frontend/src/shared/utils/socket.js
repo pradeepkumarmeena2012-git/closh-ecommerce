@@ -131,11 +131,19 @@ class SocketService {
         }
     }
 
-    off(event) {
+    off(event, callback) {
         if (this.socket) {
-            this.socket.off(event);
+            if (callback) {
+                this.socket.off(event, callback);
+            } else {
+                this.socket.off(event);
+            }
         }
-        this._queuedListeners = this._queuedListeners.filter(l => l.event !== event);
+        if (callback) {
+            this._queuedListeners = this._queuedListeners.filter(l => !(l.event === event && l.callback === callback));
+        } else {
+            this._queuedListeners = this._queuedListeners.filter(l => l.event !== event);
+        }
     }
 
     disconnect() {

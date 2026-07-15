@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import {
-  BrowserRouter as Router,
+  HashRouter as Router,
   Routes,
   Route,
   Navigate,
@@ -163,6 +163,7 @@ const DeliveryOrders = lazy(() => import("@modules/Delivery/pages/Orders"));
 const DeliveryOrderDetail = lazy(() => import("@modules/Delivery/pages/OrderDetail"));
 const DeliveryReturnDetail = lazy(() => import("@modules/Delivery/pages/ReturnDetail"));
 const DeliveryProfile = lazy(() => import("@modules/Delivery/pages/Profile"));
+const DeliveryLegalPage = lazy(() => import("./modules/Delivery/pages/DeliveryLegalPage"));
 const DeliveryNotifications = lazy(() => import("@modules/Delivery/pages/Notifications"));
 const DeliveryLiveTracking = lazy(() => import("@modules/Delivery/pages/LiveTracking"));
 const DeliveryPayouts = lazy(() => import("@modules/Delivery/pages/Payouts"));
@@ -369,6 +370,8 @@ const AppRoutes = () => {
         <Route path="/delivery/register" element={<DeliveryRegister />} />
         <Route path="/delivery/forgot-password" element={<DeliveryForgotPassword />} />
         <Route path="/delivery/reset-password" element={<DeliveryResetPassword />} />
+        <Route path="/delivery/privacy" element={<DeliveryLegalPage fixedPageId="privacy" />} />
+        <Route path="/delivery/support" element={<DeliveryLegalPage fixedPageId="support" />} />
         <Route
           path="/delivery"
           element={
@@ -613,16 +616,7 @@ const AppRoutes = () => {
             </RouteWrapper>
           }
         />
-        <Route
-          path="/support"
-          element={
-            <RouteWrapper>
-              <ProtectedRoute>
-                <UserLayout variant="account"><UserSupportPage /></UserLayout>
-              </ProtectedRoute>
-            </RouteWrapper>
-          }
-        />
+        {/* Removed old support route which was protected and mapped to UserSupportPage, replaced by static support below */}
         <Route
           path="/legal/:pageId"
           element={
@@ -631,6 +625,15 @@ const AppRoutes = () => {
             </RouteWrapper>
           }
         />
+        <Route path="/privacy" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="privacy" /></UserLayout></RouteWrapper>} />
+        <Route path="/support" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="contact" /></UserLayout></RouteWrapper>} />
+        <Route path="/contact" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="contact" /></UserLayout></RouteWrapper>} />
+        <Route path="/shipping" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="shipping" /></UserLayout></RouteWrapper>} />
+        <Route path="/about" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="about" /></UserLayout></RouteWrapper>} />
+        <Route path="/terms" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="terms" /></UserLayout></RouteWrapper>} />
+        <Route path="/refund" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="refund" /></UserLayout></RouteWrapper>} />
+        <Route path="/return" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="return" /></UserLayout></RouteWrapper>} />
+
 
         {/* Orders */}
         <Route

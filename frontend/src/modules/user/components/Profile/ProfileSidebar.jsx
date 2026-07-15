@@ -43,13 +43,13 @@ const ProfileSidebar = () => {
         { id: 'orders', label: 'My Orders', path: '/orders', icon: <ShoppingBag size={18} /> },
         { id: 'support', label: 'Live Support', path: '/support', icon: <MessageSquare size={18} /> },
         { id: 'offers', label: 'My Offers', path: '/offers', icon: <Tag size={18} /> },
-        { id: 'contact', label: 'Contact Us', path: '/legal/contact', type: 'link' },
-        { id: 'about', label: 'About Us', path: '/legal/about', type: 'link' },
-        { id: 'terms', label: 'Terms And Conditions', path: '/legal/terms', type: 'link' },
-        { id: 'privacy', label: 'Privacy Policy', path: '/legal/privacy', type: 'link' },
-        { id: 'refund', label: 'Refund Policy', path: '/legal/refund', type: 'link' },
-        { id: 'return', label: 'Return & Exchange Policy', path: '/legal/return', type: 'link' },
-        { id: 'shipping', label: 'Shipping Policy', path: '/legal/shipping', type: 'link' },
+        { id: 'contact', label: 'Contact Us', path: '/contact', type: 'link' },
+        { id: 'about', label: 'About Us', path: '/about', type: 'link' },
+        { id: 'terms', label: 'Terms And Conditions', path: '/terms', type: 'link' },
+        { id: 'privacy', label: 'Privacy Policy', path: '/privacy', type: 'link' },
+        { id: 'refund', label: 'Refund Policy', path: '/refund', type: 'link' },
+        { id: 'return', label: 'Return & Exchange Policy', path: '/return', type: 'link' },
+        { id: 'shipping', label: 'Shipping Policy', path: '/shipping', type: 'link' },
     ];
 
     const isActive = (path) => location.pathname === path;

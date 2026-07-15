@@ -6,9 +6,9 @@ const footerSections = [
     {
         title: 'Customer Care',
         items: [
-            { name: 'Contact Us', icon: HelpCircle, path: '/legal/contact' },
+            { name: 'Contact Us', icon: HelpCircle, path: '/support' },
             { name: 'Track Order', icon: Package, path: '/orders' },
-            { name: "FAQ's", icon: HelpCircle, path: '/legal/faq' }
+            { name: "FAQ's", icon: HelpCircle, path: '/faq' }
         ]
     },
     {
@@ -31,17 +31,17 @@ const footerSections = [
     {
         title: 'The Company',
         items: [
-            { name: 'Who are we', icon: null, path: '/legal/about' },
+            { name: 'Who are we', icon: null, path: '/about' },
             { name: 'Careers', icon: Briefcase, path: '/' }
         ]
     },
     {
         title: 'Legal & Policies',
         items: [
-            { name: 'Terms & Conditions', icon: null, path: '/legal/terms' },
-            { name: 'Privacy Policy', icon: ShieldCheck, path: '/legal/privacy' },
-            { name: 'Refund Policy', icon: CreditCard, path: '/legal/refund' },
-            { name: 'Return Policy', icon: null, path: '/legal/refund' }
+            { name: 'Terms & Conditions', icon: null, path: '/terms' },
+            { name: 'Privacy Policy', icon: Shield, path: '/privacy' },
+            { name: 'Refund Policy', icon: CreditCard, path: '/refund' },
+            { name: 'Return Policy', icon: null, path: '/return' }
         ]
     }
 ];

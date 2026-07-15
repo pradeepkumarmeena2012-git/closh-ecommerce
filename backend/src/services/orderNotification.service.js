@@ -73,7 +73,13 @@ export const OrderNotificationService = {
             // 1. Customer
             if (order.userId) {
                 const msg = getMessageForRole('user', status, order.orderId, order.deliveryBoyId?.name);
-                recipients.push({ id: order.userId, type: 'user', title: 'Order Update', message: msg });
+                recipients.push({ 
+                    id: order.userId, 
+                    type: 'user', 
+                    title: 'Order Update', 
+                    message: msg,
+                    click_action: `/orders/${order.orderId}`
+                });
                 
                 // Real-time specialized events (Keep these for UI transitions, but avoid dual toasts)
                 if (status === 'assigned') emitEvent(`user_${order.userId}`, 'rider_assigned', { orderId: order.orderId, riderName: order.deliveryBoyId?.name });

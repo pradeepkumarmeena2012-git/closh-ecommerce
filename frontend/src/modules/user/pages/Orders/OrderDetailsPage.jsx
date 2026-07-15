@@ -191,8 +191,14 @@ const OrderDetailsPage = () => {
         });
 
         const handleNoPartner = (data) => {
+            console.log('🚫 no_partner_yet received:', data);
             if (data.orderId === orderId || (order && data.orderId === order.orderId)) {
                 setNoPartnerMsg(data.message);
+                toast.error(data.message || 'Order cancelled - no delivery partner available', {
+                    duration: 8000,
+                    id: `no-partner-${orderId}`
+                });
+                loadLatest();
             }
         };
         socketService.on('no_partner_yet', handleNoPartner);
@@ -1939,10 +1945,10 @@ const OrderDetailsPage = () => {
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center relative overflow-hidden animate-in zoom-in duration-300">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-red-500" />
-                        <div className="w-16 h-16 bg-orange-100 text-orange-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
-                            ⏳
+                        <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                            😔
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">We're Still Looking!</h3>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Order Cancelled</h3>
                         <p className="text-sm text-gray-600 mb-6 leading-relaxed">
                             {noPartnerMsg}
                         </p>
