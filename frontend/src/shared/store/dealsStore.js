@@ -12,7 +12,7 @@ export const useDealsStore = create((set, get) => ({
         set({ isLoading: true });
         try {
             // Fetching all active Campaigns (daily_deals, festivals, etc.)
-            const response = await api.get('/campaigns');
+            const response = await api.get(`/campaigns?_t=${Date.now()}`);
             const payload = response?.data || response;
             const campaigns = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
 
@@ -45,7 +45,7 @@ export const useDealsStore = create((set, get) => ({
     fetchDeals: async () => {
         set({ isLoading: true });
         try {
-            const response = await api.get('/campaigns');
+            const response = await api.get(`/campaigns?_t=${Date.now()}`);
             const payload = response?.data || response;
             const campaigns = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
 

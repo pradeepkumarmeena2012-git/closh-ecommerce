@@ -33,7 +33,7 @@ export const useBannerStore = create((set, get) => ({
   fetchPublicBanners: async () => {
     set({ isLoading: true });
     try {
-      const response = await api.get('/banners');
+      const response = await api.get(`/banners?_t=${Date.now()}`);
       const data = Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : []);
       const normalized = data.map(normalizeBanner);
       set({ banners: normalized, isLoading: false });
