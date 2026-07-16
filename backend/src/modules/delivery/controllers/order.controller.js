@@ -2207,8 +2207,11 @@ export const markTryBuyVendorReturned = asyncHandler(async (req, res) => {
     const allReturned = order.vendorReturnStops.every(s => s.status === 'returned');
 
     if (allReturned) {
-        order.status = 'try_buy_completed';
-        flow.phase = 'try_buy_completed';
+        const isFullyRejected = order.deliveryFlow?.rejectedItems?.length === (order.items?.length || 0) && order.items?.length > 0;
+        const newStatus = isFullyRejected ? 'returned' : 'try_buy_completed';
+        
+        order.status = newStatus;
+        flow.phase = newStatus;
         
         const { WalletService } = await import('../../../services/wallet.service.js');
         await WalletService.processOrderCompletion(order).catch(err => {
@@ -2225,10 +2228,10 @@ export const markTryBuyVendorReturned = asyncHandler(async (req, res) => {
             );
         }
 
-        await OrderNotificationService.notifyOrderUpdate(order._id, 'try_buy_completed', {
+        await OrderNotificationService.notifyOrderUpdate(order._id, newStatus, {
             excludeRecipientId: req.user.id,
             title: `Order #${order.orderId} Completed`,
-            message: `Order ${order.orderId} Try & Buy return flow is complete.`
+            message: `Order ${order.orderId} return flow is complete.`
         });
         emitEvent(`delivery_${req.user.id}`, 'earnings_updated', {
             availableBalance: updatedRider?.availableBalance,

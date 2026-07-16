@@ -235,6 +235,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     await order.save();
 
     if (nextStatus === 'cancelled') {
+        // Free the delivery boy if assigned
+        if (order.deliveryBoyId) {
+            const DeliveryBoy = mongoose.model('DeliveryBoy');
+            await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: 'available' });
+        }
+
         // Reverse vendor earnings visibility for this order.
         // Keep it idempotent by only updating commissions not already cancelled.
         await Commission.updateMany(

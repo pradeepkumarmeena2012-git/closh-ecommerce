@@ -29,18 +29,22 @@ export const WalletService = {
             // For vendor earnings, we should use the ratio of accepted subtotal vs original subtotal
             // rather than the total final amount, because shipping/platform fees are fixed.
             let subtotalRatio = 1;
+            let finalAmount = flow.finalAmount !== undefined ? flow.finalAmount : order.total;
+
             if (isTryAndBuy && flow.tryAndBuyItems) {
                 const originalSubtotal = order.subtotal || 1;
                 const acceptedSubtotal = flow.tryAndBuyItems
                     .filter(i => i.decision === 'accepted')
                     .reduce((sum, i) => sum + ((i.price || 0) * (i.quantity || 1)), 0);
                 subtotalRatio = originalSubtotal > 0 ? (acceptedSubtotal / originalSubtotal) : 1;
+            } else if (flow.rejectedItems && flow.rejectedItems.length === (order.items?.length || 0)) {
+                // If the entire order was rejected (e.g. customer refused, admin cancelled)
+                subtotalRatio = 0;
+                finalAmount = 0;
             } else if (flow.finalAmount !== undefined && order.total > 0) {
                 // Fallback for other flows that might have a finalAmount
                 subtotalRatio = flow.finalAmount / order.total;
             }
-
-            const finalAmount = flow.finalAmount !== undefined ? flow.finalAmount : order.total;
             const isCod = order.paymentMethod === 'cash' || order.paymentMethod === 'cod';
 
             // 1. Credit Delivery Boy

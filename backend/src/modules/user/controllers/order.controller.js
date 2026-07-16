@@ -17,11 +17,11 @@ import { createNotification } from '../../../services/notification.service.js';
 import { calculateVendorShippingForGroups } from '../../../services/vendorShipping.service.js';
 import { emitEvent } from '../../../services/socket.service.js';
 import Settings from '../../../models/Settings.model.js';
-import { calculateDistance, getDeliveryEarning } from '../../../utils/geo.js';
+import { calculateDistance, getDeliveryEarning, getVendorPickupFee } from '../../../utils/geo.js';
 import { validateAddressServiceability } from '../../../services/serviceArea.service.js';
 import Vendor from '../../../models/Vendor.model.js';
 import { OrderNotificationService } from '../../../services/orderNotification.service.js';
-import { geocodeAddress, getDistanceMatrix } from '../../../services/googleMaps.service.js';
+import { geocodeAddress, getDistanceMatrix, getRouteDistance } from '../../../services/googleMaps.service.js';
 import { applyActiveCampaigns } from '../../../utils/productUtils.js';
 import { refundPayment } from '../../../services/razorpay.service.js';
 import { validateCoupon } from '../../../services/coupon.service.js';
@@ -477,8 +477,36 @@ export const placeOrder = asyncHandler(async (req, res) => {
         couponType: appliedCoupon?.type
     });
 
-    const distanceValues = Object.values(distanceByVendor || {});
-    const maxDistanceToCustomer = distanceValues.length > 0 ? Math.max(...distanceValues) : 0;
+    // --- Delivery Boy Earning Calculation ---
+    // 1. Calculate nearest vendor distance using Google Maps for the base fee
+    const vendorCoordsList = Object.values(vendorMap).map(v => v.shopLocation?.coordinates).filter(c => c && c.length === 2);
+    let nearestDistanceToCustomer = 0;
+    
+    if (vendorCoordsList.length > 0) {
+        const distances = [];
+        for (const vCoord of vendorCoordsList) {
+            try {
+                const res = await getDistanceMatrix(vCoord, dropoffCoords);
+                if (res && res.distance !== undefined) {
+                    distances.push(res.distance);
+                } else {
+                    distances.push(calculateDistance(vCoord, dropoffCoords));
+                }
+            } catch(e) {
+                distances.push(calculateDistance(vCoord, dropoffCoords));
+            }
+        }
+        nearestDistanceToCustomer = Math.min(...distances);
+    }
+    
+    // 2. Calculate Multi-Vendor Extra Routing Fee
+    let vendorRoutingDistance = 0;
+    if (vendorCoordsList.length > 1) {
+        vendorRoutingDistance = await getRouteDistance(vendorCoordsList, calculateDistance);
+    }
+    
+    const calculatedDeliveryEarnings = getDeliveryEarning(nearestDistanceToCustomer) + getVendorPickupFee(vendorRoutingDistance);
+    // ----------------------------------------
 
     // Fetch admin settings for platform fee and shipping overrides
     const [orderSettingsDoc, shippingSettingsDoc] = await Promise.all([
@@ -585,8 +613,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 orderType,
                 pickupLocation: Object.values(vendorMap)[0]?.shopLocation || { type: 'Point', coordinates: [0, 0] },
                 dropoffLocation: { type: 'Point', coordinates: dropoffCoords },
-                deliveryDistance: maxDistanceToCustomer,
-                deliveryEarnings: getDeliveryEarning(maxDistanceToCustomer),
+                deliveryDistance: nearestDistanceToCustomer,
+                deliveryEarnings: calculatedDeliveryEarnings,
                 trackingNumber: generateTrackingNumber(),
                 estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // +5 days
                 idempotencyKey: idempotencyKey || undefined,

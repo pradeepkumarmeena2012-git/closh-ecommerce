@@ -670,8 +670,56 @@ const DeliveryOrderDetail = () => {
           <FiCheckCircle size={32} />
         </motion.div>
         <h1 className="text-xl font-bold text-slate-800">Job Complete</h1>
-        <p className="text-slate-500 text-[10px] mt-2 mb-8 max-w-[240px] leading-relaxed uppercase tracking-widest font-bold">Delivery recorded successfully. <br /> Records have been updated.</p>
+        <p className="text-slate-500 text-[10px] mt-2 mb-6 max-w-[240px] leading-relaxed uppercase tracking-widest font-bold">Delivery recorded successfully. <br /> Records have been updated.</p>
         
+        {/* Route Summary */}
+        {order.type !== 'return' && (
+          <div className="w-full max-w-sm mb-6 bg-slate-50 border border-slate-100 rounded-3xl p-5 text-left shadow-sm">
+             <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.15em] mb-5 flex items-center gap-2 border-b border-slate-200 pb-2">
+               <FiNavigation className="text-indigo-600" size={14} /> Mission Route Summary
+             </h3>
+             
+             <div className="relative pl-5 border-l-[3px] border-indigo-100 space-y-6">
+               {/* Vendor Stops */}
+               {order.vendorPickups && order.vendorPickups.length > 0 ? order.vendorPickups.map((vp, i) => (
+                  <div key={i} className="relative">
+                    <div className="absolute -left-[27px] top-1 w-3 h-3 rounded-full bg-indigo-500 border-[3px] border-white shadow-sm" />
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pickup {i+1}</p>
+                    <p className="text-xs font-black text-slate-800 leading-tight">{vp.vendorName}</p>
+                    <p className="text-[10px] font-bold text-slate-500 truncate mt-0.5 opacity-80">{vp.shopAddress}</p>
+                  </div>
+               )) : (
+                  <div className="relative">
+                    <div className="absolute -left-[27px] top-1 w-3 h-3 rounded-full bg-indigo-500 border-[3px] border-white shadow-sm" />
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pickup</p>
+                    <p className="text-xs font-black text-slate-800 leading-tight">{order.vendorItems?.[0]?.vendorId?.storeName || order.vendorName || 'Vendor'}</p>
+                    <p className="text-[10px] font-bold text-slate-500 truncate mt-0.5 opacity-80">{order.vendorItems?.[0]?.vendorId?.shopAddress || order.vendorAddress || 'Store Location'}</p>
+                  </div>
+               )}
+               
+               {/* Customer Drop-off */}
+               <div className="relative">
+                 <div className="absolute -left-[27px] top-1 w-3 h-3 rounded-full bg-emerald-500 border-[3px] border-white shadow-[0_0_0_2px_rgba(16,185,129,0.15)]" />
+                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Drop-off</p>
+                 <p className="text-xs font-black text-slate-800 leading-tight">{typeof order.userId === 'object' ? order.userId?.name : (order.customer || order.shippingAddress?.name || 'Customer')}</p>
+                 <p className="text-[10px] font-bold text-slate-500 truncate mt-0.5 opacity-80">{order.address || order.shippingAddress?.address || 'Customer Location'}</p>
+               </div>
+             </div>
+
+             {/* Distance & Earnings */}
+             <div className="mt-6 pt-3 flex justify-between items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+               <div className="flex flex-col">
+                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Distance</span>
+                 <span className="text-sm font-black text-slate-800 flex items-center gap-1.5"><FiMapPin className="text-slate-400" size={13} /> {order.deliveryDistance ? `${order.deliveryDistance} km` : 'Calculated automatically'}</span>
+               </div>
+               <div className="flex flex-col text-right">
+                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Trip Earnings</span>
+                 <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-xl border border-emerald-100">{formatPrice(order.deliveryEarnings || 0)}</span>
+               </div>
+             </div>
+          </div>
+        )}
+
         {/* Customer Rating Card - Only for successful deliveries, not returns */}
         {order.type !== 'return' && (
             <CustomerRatingCard 
@@ -681,7 +729,7 @@ const DeliveryOrderDetail = () => {
             />
         )}
         
-        <button onClick={() => navigate('/delivery/dashboard')} className="w-full max-w-[200px] h-12 bg-slate-900 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest mt-4">Back to Home</button>
+        <button onClick={() => navigate('/delivery/dashboard')} className="w-full max-w-sm h-14 bg-slate-900 text-white rounded-[1.25rem] text-[11px] font-black uppercase tracking-widest mt-6 shadow-xl shadow-slate-200">Back to Home</button>
       </div>
     );
   }

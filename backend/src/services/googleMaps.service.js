@@ -84,3 +84,38 @@ export const geocodeAddress = async (address) => {
         return null;
     }
 };
+
+/**
+ * Get total distance for a sequence of points (e.g. V1 -> V2 -> V3)
+ * @param {Array<Array>} coordsArray - Array of [lng, lat] coordinates
+ * @param {Function} fallbackCalculator - Fallback function if Google Maps fails (e.g. calculateDistance)
+ * @returns {Number} Total distance in km
+ */
+export const getRouteDistance = async (coordsArray, fallbackCalculator = null) => {
+    if (!coordsArray || coordsArray.length < 2) return 0;
+    
+    let totalDistance = 0;
+    for (let i = 0; i < coordsArray.length - 1; i++) {
+        const origin = coordsArray[i];
+        const dest = coordsArray[i + 1];
+        
+        let hopDist = null;
+        try {
+            const result = await getDistanceMatrix(origin, dest);
+            if (result && result.distance !== undefined) {
+                hopDist = result.distance;
+            }
+        } catch (err) {
+            console.error(`Google Maps Route Hop Error for ${i}->${i+1}:`, err.message);
+        }
+
+        if (hopDist === null && fallbackCalculator) {
+            // Fallback to Haversine straight-line distance
+            hopDist = fallbackCalculator(origin, dest);
+        }
+        
+        totalDistance += (hopDist || 0);
+    }
+    
+    return parseFloat(totalDistance.toFixed(2));
+};

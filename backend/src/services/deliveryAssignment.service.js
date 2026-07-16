@@ -109,31 +109,45 @@ export const triggerDeliveryAssignment = async (order) => {
             const dropoffCoords = order.dropoffLocation?.coordinates;
             const pickupCoords = order.pickupLocation?.coordinates;
 
-            if (pickupCoords?.length === 2 && dropoffCoords?.length === 2 && (dropoffCoords[0] !== 0 || dropoffCoords[1] !== 0)) {
-                const { getDistanceMatrix } = await import('./googleMaps.service.js');
+            if (dropoffCoords?.length === 2 && (dropoffCoords[0] !== 0 || dropoffCoords[1] !== 0)) {
+                const { getDistanceMatrix, getRouteDistance } = await import('./googleMaps.service.js');
                 
-                const matrix = await getDistanceMatrix(pickupCoords, dropoffCoords);
-                let distanceVal = order.deliveryDistance || 0;
-
-                if (matrix) {
-                    distanceVal = matrix.distance;
-                    estimatedDistance = `${matrix.distance} km`;
-                    estimatedTime = matrix.duration;
-                } else if (!order.deliveryDistance) {
-                    distanceVal = calculateDistance(pickupCoords, dropoffCoords);
-                    estimatedDistance = `${distanceVal} km (est.)`;
-                    estimatedTime = `${Math.round(distanceVal * 3)} mins`;
+                let nearestDistanceToCustomer = 0;
+                let vendorCoordsList = [];
+                
+                if (order.isMultiVendor && order.vendorPickups?.length > 0) {
+                    const sortedPickups = [...order.vendorPickups].sort((a, b) => a.sequence - b.sequence);
+                    vendorCoordsList = sortedPickups.map(p => p.shopLocation?.coordinates).filter(c => c && c.length === 2);
+                } else if (pickupCoords?.length === 2) {
+                    vendorCoordsList = [pickupCoords];
                 }
                 
-                if (distanceVal > 0) {
-                    let vendorRoutingDistance = 0;
-                    if (order.isMultiVendor && order.vendorPickups?.length > 1) {
-                        const sortedPickups = [...order.vendorPickups].sort((a, b) => a.sequence - b.sequence);
-                        const vendorCoords = sortedPickups.map(p => p.shopLocation?.coordinates).filter(c => c && c.length === 2);
-                        vendorRoutingDistance = calculatePathDistance(vendorCoords);
+                if (vendorCoordsList.length > 0) {
+                    const distances = [];
+                    for (const vCoord of vendorCoordsList) {
+                        try {
+                            const res = await getDistanceMatrix(vCoord, dropoffCoords);
+                            if (res && res.distance !== undefined) {
+                                distances.push(res.distance);
+                            } else {
+                                distances.push(calculateDistance(vCoord, dropoffCoords));
+                            }
+                        } catch(e) {
+                            distances.push(calculateDistance(vCoord, dropoffCoords));
+                        }
                     }
-                    
-                    deliveryFee = getDeliveryEarning(distanceVal, feeConfig) + getVendorPickupFee(vendorRoutingDistance, feeConfig);
+                    nearestDistanceToCustomer = Math.min(...distances);
+                    estimatedDistance = `${nearestDistanceToCustomer} km`;
+                    estimatedTime = `${Math.round(nearestDistanceToCustomer * 3)} mins`;
+                }
+                
+                let vendorRoutingDistance = 0;
+                if (vendorCoordsList.length > 1) {
+                    vendorRoutingDistance = await getRouteDistance(vendorCoordsList, calculateDistance);
+                }
+                
+                if (nearestDistanceToCustomer > 0 || vendorRoutingDistance > 0) {
+                    deliveryFee = getDeliveryEarning(nearestDistanceToCustomer, feeConfig) + getVendorPickupFee(vendorRoutingDistance, feeConfig);
                 }
             }
         } catch (err) {
