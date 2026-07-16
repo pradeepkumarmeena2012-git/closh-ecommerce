@@ -64,6 +64,9 @@ const HomePage = () => {
             <ScrollReveal>
                 <TrustBadges />
             </ScrollReveal>
+
+            {/* Spacer below last section for easier touch scrolling */}
+            <div className="w-full h-8 sm:h-12 bg-transparent" />
         </div>
     );
 };
