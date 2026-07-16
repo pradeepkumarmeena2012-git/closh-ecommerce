@@ -69,6 +69,17 @@ const PaymentShippingSettings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Validate shipping fields before saving
+    const threshold = shippingData.freeShippingThreshold;
+    const rate = shippingData.defaultShippingRate;
+    if (threshold === '' || threshold === undefined || threshold === null) {
+      toast.error('Please set a Free Shipping Threshold value', { id: 'shipping-threshold-required' });
+      return;
+    }
+    if (rate === '' || rate === undefined || rate === null) {
+      toast.error('Please set a Default Shipping Rate value', { id: 'shipping-rate-required' });
+      return;
+    }
     await updateSettings('payment', paymentData);
     await updateSettings('shipping', shippingData);
   };
@@ -235,10 +246,11 @@ const PaymentShippingSettings = () => {
                   <input
                     type="number"
                     name="freeShippingThreshold"
-                    value={shippingData.freeShippingThreshold || 100}
+                    value={shippingData.freeShippingThreshold ?? ''}
                     onChange={handleShippingChange}
                     min="0"
                     step="0.01"
+                    placeholder="e.g. 100"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">Free shipping for orders above this amount</p>
@@ -251,10 +263,11 @@ const PaymentShippingSettings = () => {
                   <input
                     type="number"
                     name="defaultShippingRate"
-                    value={shippingData.defaultShippingRate || 5}
+                    value={shippingData.defaultShippingRate ?? ''}
                     onChange={handleShippingChange}
                     min="0"
                     step="0.01"
+                    placeholder="e.g. 5"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <p className="text-xs text-gray-500 mt-1">Default shipping cost</p>

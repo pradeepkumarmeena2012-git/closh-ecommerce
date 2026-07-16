@@ -42,10 +42,11 @@ const ShippingSettings = () => {
           <input
             type="number"
             name="freeShippingThreshold"
-            value={formData.freeShippingThreshold || 100}
+            value={formData.freeShippingThreshold ?? ''}
             onChange={handleChange}
             min="0"
             step="0.01"
+            placeholder="e.g. 100"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <p className="text-xs text-gray-500 mt-1">Free shipping for orders above this amount</p>
@@ -58,10 +59,11 @@ const ShippingSettings = () => {
           <input
             type="number"
             name="defaultShippingRate"
-            value={formData.defaultShippingRate || 5}
+            value={formData.defaultShippingRate ?? ''}
             onChange={handleChange}
             min="0"
             step="0.01"
+            placeholder="e.g. 5"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <p className="text-xs text-gray-500 mt-1">Default shipping cost</p>

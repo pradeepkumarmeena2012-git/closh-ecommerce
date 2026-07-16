@@ -60,7 +60,7 @@ export const QueueService = {
      * If no delivery boy accepts within 10 min, escalate to admin with urgent notification + buzzer.
      * @param {String} orderId - Order document _id
      */
-    async scheduleAdminEscalation(orderId, delayMs = 2 * 60 * 1000) {
+    async scheduleAdminEscalation(orderId, delayMs = 10 * 60 * 1000) {
         const jobId = `admin-escalation-${orderId}`;
         await orderEscalationQueue.add('admin-escalation', { orderId, phase: 'admin' }, { delay: delayMs, jobId });
         console.log(`[Queue] Scheduled admin escalation for ${orderId} in ${delayMs / 1000}s (jobId: ${jobId})`);
@@ -70,7 +70,7 @@ export const QueueService = {
      * Schedule User "No Partner" Notification (20 minutes after searching starts)
      * @param {String} orderId - Order document _id
      */
-    async scheduleUserNoPartnerNotification(orderId, delayMs = 3 * 60 * 1000) {
+    async scheduleUserNoPartnerNotification(orderId, delayMs = 20 * 60 * 1000) {
         const jobId = `user-no-partner-${orderId}`;
         await orderEscalationQueue.add('user-no-partner', { orderId, phase: 'user' }, { delay: delayMs, jobId });
         console.log(`[Queue] Scheduled user no-partner notification for ${orderId} in ${delayMs / 1000}s (jobId: ${jobId})`);

@@ -131,16 +131,16 @@ const ProductDetailsPage = () => {
     // Calculate Dynamic Price based on Variant
     const currentPrice = useMemo(() => {
         if (!product) return 0;
-        
+
         let finalPrice = product.discountedPrice !== undefined ? product.discountedPrice : product.price;
 
         if (product.variants?.prices) {
             const signature = getVariantSignature({ size: selectedSize });
             const entries = Object.entries(product.variants.prices || {});
-            
+
             // 1. Exact match with standardized signature
             let match = entries.find(([k]) => String(k).trim() === signature);
-            
+
             // 2. Case-insensitive match 
             if (!match && signature) {
                 match = entries.find(([k]) => String(k).trim().toLowerCase() === signature.toLowerCase());
@@ -171,7 +171,9 @@ const ProductDetailsPage = () => {
         if (product.variants?.stockMap) {
             const keys = [
                 `${String(size || "").toLowerCase()}|`,
-                `${String(size || "")}|`
+                `${String(size || "")}|`,
+                `size=${String(size || "").toLowerCase()}`,
+                `size=${String(size || "")}`
             ];
             for (const k of keys) {
                 const variantStock = product.variants.stockMap[k];
@@ -224,12 +226,12 @@ const ProductDetailsPage = () => {
             return;
         }
 
-        addToCart({ 
-            ...product, 
+        addToCart({
+            ...product,
             price: currentPrice,
-            selectedSize, 
+            selectedSize,
         });
-        
+
         setShowAddedToast(true);
         setTimeout(() => setShowAddedToast(false), 3000);
     };
@@ -246,10 +248,10 @@ const ProductDetailsPage = () => {
         if (product.variants?.imageMap) {
             const signature = getVariantSignature({ size: selectedSize });
             const entries = Object.entries(product.variants.imageMap || {});
-            
+
             // 1. Exact match
             let match = entries.find(([k]) => String(k).trim() === signature);
-            
+
             // 2. Case-insensitive
             if (!match && signature) {
                 match = entries.find(([k]) => String(k).trim().toLowerCase() === signature.toLowerCase());
@@ -409,7 +411,7 @@ const ProductDetailsPage = () => {
 
 
 
-                             {/* Rating Badge - Compact on Mobile */}
+                            {/* Rating Badge - Compact on Mobile */}
                             {(product.rating > 0 || product.reviewCount > 0) && (
                                 <div className="absolute bottom-3 left-3 md:bottom-6 md:left-6 bg-white/90 backdrop-blur-md px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl flex items-center gap-1.5 md:gap-2 shadow-md md:shadow-xl border border-gray-200">
                                     <div className="flex items-center gap-1">
@@ -512,13 +514,12 @@ const ProductDetailsPage = () => {
                                             <button
                                                 key={size}
                                                 onClick={() => setSelectedSize(size)}
-                                                className={`min-w-[42px] h-11 md:min-w-[64px] md:h-14 rounded-xl md:rounded-2xl flex flex-col items-center justify-center font-bold transition-all relative ${
-                                                    selectedSize === size
+                                                className={`min-w-[42px] h-11 md:min-w-[64px] md:h-14 rounded-xl md:rounded-2xl flex flex-col items-center justify-center font-bold transition-all relative ${selectedSize === size
                                                         ? 'bg-black text-white shadow-[0_0_15px_rgba(0,0,0,0.15)] scale-105'
                                                         : isSizeOutOfStock
                                                             ? 'bg-gray-50/50 border border-dashed border-gray-200 text-gray-400'
                                                             : 'bg-gray-50 border border-gray-200 text-gray-900 hover:border-black'
-                                                }`}
+                                                    }`}
                                             >
                                                 <span className={isSizeOutOfStock ? 'line-through text-gray-400' : ''}>
                                                     {size}
@@ -568,8 +569,8 @@ const ProductDetailsPage = () => {
                                     disabled
                                     className="flex-[3] h-12 md:h-14 bg-gray-200 text-gray-400 rounded-xl md:rounded-[18px] font-bold text-[11px] md:text-[13px] flex items-center justify-center shadow-inner cursor-not-allowed uppercase"
                                 >
-                                    {isVendorOffline 
-                                        ? "Store Offline" 
+                                    {isVendorOffline
+                                        ? "Store Offline"
                                         : (selectedSize && getSizeStock(selectedSize) <= 0)
                                             ? "Sold Out"
                                             : "Currently unavailable"
@@ -679,8 +680,8 @@ const ProductDetailsPage = () => {
                         <div className="space-y-1">
                             {[
                                 {
-                                    id: 'description', 
-                                    title: 'Product Details', 
+                                    id: 'description',
+                                    title: 'Product Details',
                                     content: (
                                         <div className="space-y-4">
                                             <p className="text-[14px] text-gray-600 leading-relaxed font-medium">
@@ -699,8 +700,8 @@ const ProductDetailsPage = () => {
                                     )
                                 },
                                 {
-                                    id: 'specifications', 
-                                    title: 'Specifications', 
+                                    id: 'specifications',
+                                    title: 'Specifications',
                                     content: (
                                         <div className="grid grid-cols-2 gap-y-6 gap-x-4">
                                             <div>
@@ -737,8 +738,8 @@ const ProductDetailsPage = () => {
                                     )
                                 },
                                 {
-                                    id: 'shipping', 
-                                    title: 'Shipping & Returns', 
+                                    id: 'shipping',
+                                    title: 'Shipping & Returns',
                                     content: (
                                         <div className="space-y-4">
                                             <div className="bg-gray-50 border border-black/5 rounded-2xl p-4">
@@ -752,7 +753,7 @@ const ProductDetailsPage = () => {
                                                     Your order will be delivered within 60 minutes in served locations. Order now for the fastest premium service.
                                                 </p>
                                             </div>
-                                            
+
                                             <div className="bg-gray-50 border border-black/5 rounded-2xl p-4">
                                                 <div className="flex items-center gap-3 mb-2">
                                                     <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
@@ -772,7 +773,7 @@ const ProductDetailsPage = () => {
                                                         )}
                                                     </p>
                                                     <p>
-                                                        {product.returnable 
+                                                        {product.returnable
                                                             ? `You can return or exchange this item within 24 hours of delivery. Ensure items are unused with tags.`
                                                             : `This item is not eligible for return or exchange unless delivered in a damaged or defective state.`}
                                                     </p>
@@ -800,12 +801,12 @@ const ProductDetailsPage = () => {
                         </div>
                     </div>
                 </div>
-                
+
                 {/* Product Reviews Section */}
-                <ProductReviews 
-                    productId={id} 
-                    initialRating={product.rating} 
-                    initialReviewCount={product.reviewCount} 
+                <ProductReviews
+                    productId={id}
+                    initialRating={product.rating}
+                    initialReviewCount={product.reviewCount}
                 />
             </div>
             {/* Removed sticky bottom actions */}
@@ -900,7 +901,7 @@ const SizeChartModal = ({ isOpen, onClose, product }) => {
 
         if (isFootwear) return charts.footwear.unisex;
         if (isBottom) return isWomen ? charts.bottoms.women : charts.bottoms.men;
-        
+
         // Default to Tops
         return isWomen ? charts.tops.women : charts.tops.men;
     };

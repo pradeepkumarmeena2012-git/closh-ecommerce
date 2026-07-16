@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Heart, ShieldCheck, ChevronRight, MapPin, ChevronDown } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Heart, ShieldCheck, ChevronRight, MapPin, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import LocationModal from '../../components/Header/LocationModal';
 import { useUserLocation } from '../../context/LocationContext';
+import toast from 'react-hot-toast';
 
 const CartPage = () => {
     const { cart, removeFromCart, updateQuantity, getCartTotal } = useCart();
@@ -13,6 +14,38 @@ const CartPage = () => {
     const navigate = useNavigate();
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
+    // Helper: get variant-level stock for a cart item
+    const getItemVariantStock = (item) => {
+        const size = item.variant?.size || item.selectedSize;
+        if (size && item.variants?.stockMap) {
+            const keys = [
+                `${String(size).toLowerCase()}|`,
+                `${String(size)}|`,
+                `size=${String(size).toLowerCase()}`,
+                `size=${String(size)}`
+            ];
+            for (const k of keys) {
+                if (item.variants.stockMap[k] !== undefined) {
+                    return Number(item.variants.stockMap[k]);
+                }
+            }
+        }
+        // Fallback to item-level stockQuantity
+        return Number(item.stockQuantity ?? 1);
+    };
+
+    // Check if any item in cart is out of stock
+    const hasOutOfStockItems = useMemo(() => {
+        return cart.some(item => getItemVariantStock(item) <= 0);
+    }, [cart]);
+
+    const handleCheckout = () => {
+        if (hasOutOfStockItems) {
+            toast.error('Please remove out-of-stock items before checkout');
+            return;
+        }
+        navigate('/checkout');
+    };
 
     const totalMRP = cart.reduce((acc, item) => {
         const sellingPrice = Number(item.price || 0);
@@ -98,10 +131,19 @@ const CartPage = () => {
                 <div className="flex flex-col lg:flex-row gap-10">
                     {/* Cart Items List */}
                     <div className="flex-[1.5] space-y-4">
-                        {cart.map((item) => (
-                            <div key={item.cartLineKey || `${item.id}-${item.variant?.size || item.selectedSize || 'default'}`} className="bg-white rounded-[24px] overflow-hidden border border-gray-100 shadow-sm flex flex-row p-3 sm:p-4 relative group transition-all duration-300 hover:shadow-md hover:border-black/10">
+                        {cart.map((item) => {
+                            const itemVariantStock = getItemVariantStock(item);
+                            const isItemOutOfStock = itemVariantStock <= 0;
+                            return (
+                            <div key={item.cartLineKey || `${item.id}-${item.variant?.size || item.selectedSize || 'default'}`} className={`bg-white rounded-[24px] overflow-hidden border shadow-sm flex flex-row p-3 sm:p-4 relative group transition-all duration-300 hover:shadow-md ${isItemOutOfStock ? 'border-red-200 bg-red-50/30' : 'border-gray-100 hover:border-black/10'}`}>
+                                {/* Out of Stock Badge */}
+                                {isItemOutOfStock && (
+                                    <div className="absolute top-2 right-2 z-10 bg-red-500 text-white text-[8px] font-black uppercase px-2 py-1 rounded-lg flex items-center gap-1 animate-pulse">
+                                        <AlertTriangle size={10} /> Out of Stock
+                                    </div>
+                                )}
                                 {/* Compact Image Section */}
-                                <Link to={`/product/${item.id}`} className="w-24 sm:w-28 aspect-square rounded-2xl overflow-hidden shrink-0 bg-[#F8F8F8] border border-gray-50">
+                                <Link to={`/product/${item.id}`} className={`w-24 sm:w-28 aspect-square rounded-2xl overflow-hidden shrink-0 bg-[#F8F8F8] border border-gray-50 ${isItemOutOfStock ? 'opacity-50' : ''}`}>
                                     <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                                 </Link>
 
@@ -123,34 +165,38 @@ const CartPage = () => {
 
                                     {/* Middle Row: Selectors (Size & Qty) */}
                                     <div className="flex flex-wrap items-center gap-2 mt-2.5">
-                                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
+                                        <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
                                             <span className="text-[9px] font-bold text-gray-400 uppercase">Size</span>
                                             <span className="text-[11px] font-extrabold text-gray-900 uppercase">{item.variant?.size || item.selectedSize || 'M'}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
-                                            <span className="text-[9px] font-bold text-gray-400 uppercase">Qty</span>
-                                            <div className="flex items-center gap-2 border-l border-gray-200 ml-1 pl-2">
-                                                <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity - 1, item.variant)}
-                                                    className="text-gray-400 hover:text-black p-0.5"
-                                                >
-                                                    <Minus size={12} strokeWidth={3} />
-                                                </button>
-                                                <span className="text-[11px] font-black min-w-[12px] text-center text-gray-900">{item.quantity}</span>
-                                                <button
-                                                    onClick={() => updateQuantity(item.id, item.quantity + 1, item.variant)}
-                                                    className="text-gray-400 hover:text-black p-0.5"
-                                                >
-                                                    <Plus size={12} strokeWidth={3} />
-                                                </button>
+                                        {isItemOutOfStock ? (
+                                            <div className="bg-red-50 px-2.5 py-1 rounded-lg border border-red-200">
+                                                <span className="text-[9px] font-bold text-red-500 uppercase">Unavailable</span>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
+                                                <span className="text-[9px] font-bold text-gray-400 uppercase">Qty</span>
+                                                <div className="flex items-center gap-2 border-l border-gray-200 ml-1 pl-2">
+                                                    <button
+                                                        onClick={() => updateQuantity(item.id, item.quantity - 1, item.variant)}
+                                                        className="text-gray-400 hover:text-black p-0.5"
+                                                    >
+                                                        <Minus size={12} strokeWidth={3} />
+                                                    </button>
+                                                    <span className="text-[11px] font-black min-w-[12px] text-center text-gray-900">{item.quantity}</span>
+                                                    <button
+                                                        onClick={() => updateQuantity(item.id, item.quantity + 1, item.variant)}
+                                                        className="text-gray-400 hover:text-black p-0.5"
+                                                    >
+                                                        <Plus size={12} strokeWidth={3} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Bottom Row: Wishlist & Pricing */}
                                     <div className="mt-auto pt-3 flex items-end justify-end">
-                                        {/* Wishlist button removed */}
-
                                         <div className="text-right">
                                             <div className="flex items-center gap-2.5">
                                                 <div className="flex flex-col items-end leading-none">
@@ -161,7 +207,7 @@ const CartPage = () => {
                                                         ₹{(Number(item.price) * item.quantity).toFixed(2)}
                                                     </span>
                                                 </div>
-                                                
+
                                                 {(Number(item.originalPrice) > Number(item.price)) && (
                                                     <div className="bg-black text-white w-10 h-10 rounded-full flex flex-col items-center justify-center leading-none shrink-0 border border-black group-hover:bg-white group-hover:text-black transition-all">
                                                         <span className="text-[9px] font-black">{Math.round(((Number(item.originalPrice) - Number(item.price)) / Number(item.originalPrice)) * 100)}%</span>
@@ -173,7 +219,8 @@ const CartPage = () => {
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                        );
+                        })}
 
                         <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl flex items-center gap-4 mt-6">
                             <ShieldCheck className="text-black" size={24} />
@@ -219,9 +266,16 @@ const CartPage = () => {
                                     </div>
 
                                     {/* HIDDEN ON MOBILE: Avoids duplicate button with bottom action bar */}
+                                    {hasOutOfStockItems && (
+                                        <div className="bg-red-50 border border-red-200 p-3 rounded-xl flex items-center gap-2 mb-3">
+                                            <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                                            <p className="text-[10px] font-bold text-red-600 uppercase">Remove out-of-stock items to proceed</p>
+                                        </div>
+                                    )}
                                     <button
-                                        onClick={() => navigate('/checkout')}
-                                        className="hidden lg:flex w-full py-5 bg-black text-white text-[13px] font-bold uppercase  rounded-2xl shadow-[0_4px_20px_rgba(212,175,55,0.2)] active:scale-95 transition-all items-center justify-center gap-3 hover:bg-gray-100 hover:text-black hover:shadow-xl"
+                                        onClick={handleCheckout}
+                                        disabled={hasOutOfStockItems}
+                                        className={`hidden lg:flex w-full py-5 text-[13px] font-bold uppercase rounded-2xl active:scale-95 transition-all items-center justify-center gap-3 ${hasOutOfStockItems ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-black text-white shadow-[0_4px_20px_rgba(212,175,55,0.2)] hover:bg-gray-100 hover:text-black hover:shadow-xl'}`}
                                     >
                                         Place Order <ChevronRight size={18} />
                                     </button>
@@ -237,17 +291,18 @@ const CartPage = () => {
             </div>
 
             {/* Mobile Bottom Action Bar */}
-             {/* Mobile Bottom Action Bar - Shifted up to avoid overlap with BottomNav */}
-             <div className="lg:hidden fixed bottom-16 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 sm:px-6 py-3 z-50 flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.06)]">
+            {/* Mobile Bottom Action Bar - Shifted up to avoid overlap with BottomNav */}
+            <div className="lg:hidden fixed bottom-16 left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 px-4 sm:px-6 py-3 z-50 flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.06)]">
                 <div>
                     <p className="text-[10px] font-bold text-gray-500 uppercase ">Total to Pay</p>
                     <p className="text-xl font-bold text-gray-900 ">₹{getCartTotal().toFixed(2)}</p>
                 </div>
-                 <button
-                    onClick={() => navigate('/checkout')}
-                    className="px-8 sm:px-10 py-3.5 sm:py-4 bg-black text-white text-[11px] sm:text-[12px] font-bold uppercase  rounded-2xl active:scale-95 transition-all shadow-[0_0_20px_rgba(212,175,55,0.2)] flex items-center justify-center min-w-[140px] sm:min-w-[160px]"
+                <button
+                    onClick={handleCheckout}
+                    disabled={hasOutOfStockItems}
+                    className={`px-8 sm:px-10 py-3.5 sm:py-4 text-[11px] sm:text-[12px] font-bold uppercase rounded-2xl active:scale-95 transition-all flex items-center justify-center min-w-[140px] sm:min-w-[160px] ${hasOutOfStockItems ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-black text-white shadow-[0_0_20px_rgba(212,175,55,0.2)]'}`}
                 >
-                    Checkout <ChevronRight className="inline-block ml-2 w-4 h-4" />
+                    {hasOutOfStockItems ? 'Remove OOS Items' : 'Checkout'} <ChevronRight className="inline-block ml-2 w-4 h-4" />
                 </button>
             </div>
         </div>

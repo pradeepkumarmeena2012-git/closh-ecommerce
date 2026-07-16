@@ -66,13 +66,13 @@ const CheckoutPage = () => {
                 // Try fetching accessories category specifically
                 const response = await api.get('/products', { params: { limit: 10, category: 'Accessories' } });
                 let productsList = response.data?.products || [];
-                
+
                 // If accessories are empty, fall back to any available products
                 if (productsList.length === 0) {
                     const fallback = await api.get('/products', { params: { limit: 10 } });
                     productsList = fallback.data?.products || [];
                 }
-                
+
                 setUpsellProducts(productsList.map(p => normalizeProduct(p)));
             } catch (error) {
                 console.error("Upsell fetch failed", error);
@@ -97,7 +97,7 @@ const CheckoutPage = () => {
     const totalPrice = Number(getCartTotal());
     const totalMRP = cart.reduce((acc, item) => acc + (Number(item.originalPrice || item.price) * item.quantity), 0);
     const bagDiscount = Math.max(0, totalMRP - totalPrice);
-    
+
     const uniqueVendorIds = [...new Set(cart.map(item => {
         const vid = item.vendorId;
         return String(vid?._id || vid || '');
@@ -113,7 +113,7 @@ const CheckoutPage = () => {
 
     const shipping = totalPrice > shippingThreshold ? 0 : defaultShippingRate;
     const tax = 0; // GST removed as per user request
-    
+
     let promoDiscount = 0;
     if (appliedPromo) {
         if (appliedPromo.type === 'percentage') {
@@ -294,7 +294,7 @@ const CheckoutPage = () => {
 
 
                                 {/* Product Image with Badge */}
-                                <div 
+                                <div
                                     className="relative w-[110px] h-[140px] shrink-0 rounded-2xl overflow-hidden bg-gray-100 cursor-pointer"
                                     onClick={() => setZoomedImage(item.image)}
                                 >
@@ -321,7 +321,7 @@ const CheckoutPage = () => {
 
                                     {/* Selection Controls */}
                                     <div className="flex flex-wrap items-center gap-2 mb-3">
-                                        <div 
+                                        <div
                                             onClick={() => setShowSizeModal(item)}
                                             className="flex items-center gap-1.5 bg-[#F3F4F6] px-2 sm:px-3 py-1.5 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer shrink-0"
                                         >
@@ -365,7 +365,7 @@ const CheckoutPage = () => {
                     <div className="bg-white rounded-[24px] p-4 space-y-3 border border-gray-50 shadow-sm transition-all hover:shadow-md">
                         <div className="flex items-center justify-between">
                             <h3 className="text-[11px] font-bold uppercase  text-gray-400">Choose Service</h3>
-                            <button 
+                            <button
                                 onClick={() => setShowServiceInfo(!showServiceInfo)}
                                 className={`text-[10px] font-bold uppercase transition-all flex items-center gap-1.5 ${showServiceInfo ? 'text-[#9F1239]' : 'text-[#9F1239] hover:opacity-80'}`}
                             >
@@ -503,39 +503,39 @@ const CheckoutPage = () => {
                         </div>
 
                         <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4">
-                        <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 min-h-[180px]">
-                            {isUpsellLoading ? (
-                                [...Array(4)].map((_, i) => (
-                                    <div key={i} className="min-w-[160px] h-[220px] bg-gray-50 rounded-2xl animate-pulse" />
-                                ))
-                            ) : upsellProducts.length > 0 ? (
-                                upsellProducts.map((item) => (
-                                    <div 
-                                        key={item.id} 
-                                        onClick={() => navigate(`/product/${item.id}`)}
-                                        className="min-w-[170px] bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col group hover:shadow-md transition-shadow cursor-pointer"
-                                    >
-                                        <div className="aspect-[4/5] bg-gray-100 relative overflow-hidden">
-                                            <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                                        </div>
-                                        <div className="p-3">
-                                            <p className="text-[9px] font-bold uppercase text-gray-400 mb-0.5 truncate">{item.brand}</p>
-                                            <p className="text-[12px] font-bold text-gray-900 line-clamp-1 h-4">{item.name}</p>
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <span className="text-sm font-black text-[#9F1239]">₹{item.price}</span>
-                                                {item.originalPrice && (
-                                                    <span className="text-[10px] text-gray-400 line-through">₹{item.originalPrice}</span>
-                                                )}
+                            <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 min-h-[180px]">
+                                {isUpsellLoading ? (
+                                    [...Array(4)].map((_, i) => (
+                                        <div key={i} className="min-w-[160px] h-[220px] bg-gray-50 rounded-2xl animate-pulse" />
+                                    ))
+                                ) : upsellProducts.length > 0 ? (
+                                    upsellProducts.map((item) => (
+                                        <div
+                                            key={item.id}
+                                            onClick={() => navigate(`/product/${item.id}`)}
+                                            className="min-w-[170px] bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 flex flex-col group hover:shadow-md transition-shadow cursor-pointer"
+                                        >
+                                            <div className="aspect-[4/5] bg-gray-100 relative overflow-hidden">
+                                                <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                                            </div>
+                                            <div className="p-3">
+                                                <p className="text-[9px] font-bold uppercase text-gray-400 mb-0.5 truncate">{item.brand}</p>
+                                                <p className="text-[12px] font-bold text-gray-900 line-clamp-1 h-4">{item.name}</p>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <span className="text-sm font-black text-[#9F1239]">₹{item.price}</span>
+                                                    {item.originalPrice && (
+                                                        <span className="text-[10px] text-gray-400 line-through">₹{item.originalPrice}</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
+                                    ))
+                                ) : (
+                                    <div className="py-8 text-center w-full">
+                                        <p className="text-gray-300 text-[10px] font-bold uppercase">No matching accessories found</p>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="py-8 text-center w-full">
-                                    <p className="text-gray-300 text-[10px] font-bold uppercase">No matching accessories found</p>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -546,7 +546,7 @@ const CheckoutPage = () => {
                                 <Tag size={18} className="text-gray-900" />
                                 <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Apply Promo Code</h2>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setIsCouponsModalOpen(true)}
                                 className="text-[10px] font-bold text-[#9F1239] flex items-center gap-1 hover:gap-1.5 transition-all uppercase"
                             >
@@ -647,7 +647,7 @@ const CheckoutPage = () => {
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                                 {activeAddress ? 'Deliver to' : 'No address selected'}
                             </span>
-                            <button 
+                            <button
                                 onClick={() => setIsLocationModalOpen(true)}
                                 className="flex items-center gap-2 group cursor-pointer text-left"
                             >
@@ -694,7 +694,7 @@ const CheckoutPage = () => {
                 }}
                 cartTotal={getCartTotal()}
             />
-    
+
             <SizeSelectionModal
                 item={showSizeModal}
                 isOpen={!!showSizeModal}
@@ -708,17 +708,17 @@ const CheckoutPage = () => {
 
             {/* Image Zoom Modal */}
             {zoomedImage && (
-                <div 
+                <div
                     className="fixed inset-0 z-[30000] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out p-4 animate-fadeIn"
                     onClick={() => setZoomedImage(null)}
                 >
                     <div className="relative max-w-[90vw] max-h-[90vh]">
-                        <img 
-                            src={zoomedImage} 
-                            alt="Zoomed product" 
+                        <img
+                            src={zoomedImage}
+                            alt="Zoomed product"
                             className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl"
                         />
-                        <button 
+                        <button
                             className="absolute -top-4 -right-4 w-10 h-10 bg-white text-black rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform cursor-pointer"
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -758,7 +758,9 @@ const SizeSelectionModal = ({ item, isOpen, onClose, onSelect }) => {
         if (item.variants?.stockMap) {
             const keys = [
                 `${String(size || '').toLowerCase()}|`,
-                `${String(size || '')}|`
+                `${String(size || '')}|`,
+                `size=${String(size || '').toLowerCase()}`,
+                `size=${String(size || '')}`
             ];
             for (const k of keys) {
                 if (item.variants.stockMap[k] !== undefined) {
@@ -794,11 +796,10 @@ const SizeSelectionModal = ({ item, isOpen, onClose, onSelect }) => {
                                 <button
                                     key={size}
                                     onClick={() => onSelect(size)}
-                                    className={`h-14 rounded-2xl flex items-center justify-center font-bold text-sm transition-all ${
-                                        isCurrentSize
+                                    className={`h-14 rounded-2xl flex items-center justify-center font-bold text-sm transition-all ${isCurrentSize
                                             ? 'bg-black text-white shadow-lg scale-105'
                                             : 'bg-gray-50 border border-gray-100 text-gray-900 hover:border-black'
-                                    }`}
+                                        }`}
                                 >
                                     {size}
                                 </button>
