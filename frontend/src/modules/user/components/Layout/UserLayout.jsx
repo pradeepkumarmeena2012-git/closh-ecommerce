@@ -13,9 +13,9 @@ const UserLayout = ({ children, variant = 'default', showHeader = true, showCate
     const displayBottomNav = !['checkout', 'payment'].includes(variant || '') && !location.pathname.startsWith('/products') && !isAddressPage && !isTrackOrderPage;
 
     return (
-        <div id="user-layout-root" className="flex flex-col h-screen overflow-hidden bg-white">
+        <div id="user-layout-root" className="flex flex-col min-h-screen bg-white">
             {displayHeader && <Header variant={variant} showCategoryBar={showCategoryBar} />}
-            <div id="user-scroll-container" className="flex-1 overflow-y-auto scroll-smooth scrollbar-responsive">
+            <div id="user-scroll-container" className="flex-1 flex flex-col scroll-smooth">
                 <main className="flex-1">
                     <ServiceAreaBlocker>
                         {children}
