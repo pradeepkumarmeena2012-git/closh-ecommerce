@@ -296,8 +296,14 @@ export const placeOrder = asyncHandler(async (req, res) => {
 
         console.log(`🛒 [ITEM] ${product.name} x${item.quantity}, Price: ${product.price}, Vendor: ${product.vendorId.storeName}`);
 
-        if (product.stock === 'out_of_stock') throw new ApiError(400, `${product.name} is out of stock.`);
-        if (product.stockQuantity < item.quantity) throw new ApiError(400, `Only ${product.stockQuantity} units of ${product.name} available.`);
+        if (product.stock === 'out_of_stock') throw new ApiError(400, `"${product.name}" is currently out of stock.`);
+        if (product.stockQuantity < item.quantity) {
+            if (product.stockQuantity <= 0) {
+                throw new ApiError(400, `"${product.name}" is currently out of stock.`);
+            } else {
+                throw new ApiError(400, `Only ${product.stockQuantity} unit(s) of "${product.name}" are available.`);
+            }
+        }
 
         // Always trust server-side product pricing; never trust client-sent item.price.
         const { price: itemPrice, variantKey, hasVariantAxes } = resolveVariantSelection(product, item.variant);
@@ -326,7 +332,11 @@ export const placeOrder = asyncHandler(async (req, res) => {
         }
 
         if (hasVariantAxes && variantKey && variantStockValue < item.quantity) {
-            throw new ApiError(400, `Only ${variantStockValue || 0} units available for variant [${variantKey}] of ${product.name}. Please check stock in variants section.`);
+            if (variantStockValue <= 0) {
+                throw new ApiError(400, `"${product.name}" is currently out of stock in the selected variant.`);
+            } else {
+                throw new ApiError(400, `Only ${variantStockValue} unit(s) of "${product.name}" are available in the selected variant.`);
+            }
         }
         const itemSubtotal = itemPrice * item.quantity;
         subtotal += itemSubtotal;

@@ -66,18 +66,39 @@ const LocationSettings = () => {
                     longitude: lng.toString(),
                 });
                 
-                try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-                    const data = await response.json();
-                    if (data && data.display_name) {
-                        setShopAddress(data.display_name);
+                const fallbackToNominatim = async () => {
+                    try {
+                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+                        const data = await response.json();
+                        if (data && data.display_name) {
+                            setShopAddress(data.display_name);
+                        }
+                    } catch (err) {
+                        console.error("Failed to fetch address", err);
+                    } finally {
+                        setIsGettingLocation(false);
+                        toast.success("Current location & address fetched!");
                     }
-                } catch (err) {
-                    console.error("Failed to fetch address", err);
-                }
+                };
 
-                setIsGettingLocation(false);
-                toast.success("Current location & address fetched!");
+                if (isLoaded && window.google) {
+                    try {
+                        const geocoder = new window.google.maps.Geocoder();
+                        geocoder.geocode({ location: { lat: lat, lng: lng } }, (results, status) => {
+                            if (status === 'OK' && results[0]) {
+                                setShopAddress(results[0].formatted_address);
+                                toast.success("Live address fetched!");
+                                setIsGettingLocation(false);
+                            } else {
+                                fallbackToNominatim();
+                            }
+                        });
+                    } catch (e) {
+                        fallbackToNominatim();
+                    }
+                } else {
+                    fallbackToNominatim();
+                }
             },
             (error) => {
                 setIsGettingLocation(false);
@@ -174,6 +195,16 @@ const LocationSettings = () => {
                             required
                         />
                     )}
+                    
+                    <button
+                        type="button"
+                        onClick={handleGetCurrentLocation}
+                        disabled={isGettingLocation}
+                        className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-all disabled:opacity-50 active:scale-95"
+                    >
+                        <FiNavigation className={isGettingLocation ? 'animate-pulse' : ''} size={14} />
+                        {isGettingLocation ? 'Fetching your location...' : 'Use My Current Location'}
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -205,20 +236,10 @@ const LocationSettings = () => {
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <button
-                        type="button"
-                        onClick={handleGetCurrentLocation}
-                        disabled={isGettingLocation}
-                        className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-white border-2 border-purple-200 text-purple-700 rounded-xl hover:bg-purple-50 transition-all font-semibold"
-                    >
-                        <FiNavigation className={isGettingLocation ? "animate-pulse" : ""} />
-                        {isGettingLocation ? "Fetching..." : "Fetch GPS Coordinates & Address"}
-                    </button>
-
+                <div className="flex gap-4">
                     <button
                         type="submit"
-                        className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 hover:shadow-lg transition-all font-semibold"
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 hover:shadow-lg transition-all font-semibold"
                     >
                         <FiSave />
                         Save Location

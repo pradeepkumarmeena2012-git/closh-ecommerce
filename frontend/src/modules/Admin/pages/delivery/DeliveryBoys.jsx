@@ -192,12 +192,15 @@ const DeliveryBoys = () => {
         },
         {
             key: 'applicationStatus',
-            label: 'Account Status',
+            label: 'Status',
             render: (value, row) => (
                 <div className="flex flex-col gap-1">
                     {renderApplicationBadge(value)}
                     <Badge variant={row.isActive ? 'success' : 'error'}>
-                      {row.isActive ? 'Active' : 'Inactive'}
+                      {row.isActive ? 'Acc: Active' : 'Acc: Suspended'}
+                    </Badge>
+                    <Badge variant={row.status === 'available' ? 'info' : (row.status === 'busy' ? 'warning' : 'sale')}>
+                      Duty: {row.status === 'available' ? 'Online' : (row.status === 'busy' ? 'Busy' : 'Offline')}
                     </Badge>
                 </div>
             ),

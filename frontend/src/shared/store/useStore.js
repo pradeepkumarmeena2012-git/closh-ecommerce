@@ -48,10 +48,42 @@ const redirectToLogin = () => {
   const fromPath = `${window.location.pathname || ""}${window.location.search || ""}${window.location.hash || ""}`;
   setPostLoginRedirect(fromPath || "/home");
 
-  // SPA-friendly redirect without full page reload.
+// SPA-friendly redirect without full page reload.
   const nextState = { from: { pathname: fromPath || "/home" } };
   window.history.pushState(nextState, "", "/login");
   window.dispatchEvent(new PopStateEvent("popstate", { state: nextState }));
+};
+
+const getVariantStock = (item) => {
+  const size = item.variant?.size || item.selectedSize;
+  const color = item.variant?.color || item.selectedColor;
+  
+  if (!size && !color) {
+    return Number(item.stockQuantity ?? 1);
+  }
+
+  if (item.variants?.stockMap) {
+    const keys = [];
+    if (size && color) {
+      keys.push(`${String(color).toLowerCase()}|${String(size).toLowerCase()}`);
+      keys.push(`color=${String(color).toLowerCase()}|size=${String(size).toLowerCase()}`);
+    } else if (size) {
+      keys.push(`${String(size).toLowerCase()}|`);
+      keys.push(`${String(size)}|`);
+      keys.push(`size=${String(size).toLowerCase()}`);
+      keys.push(`size=${String(size)}`);
+    } else if (color) {
+      keys.push(`${String(color).toLowerCase()}|`);
+      keys.push(`color=${String(color).toLowerCase()}`);
+    }
+    
+    for (const k of keys) {
+      if (item.variants.stockMap[k] !== undefined) {
+        return Number(item.variants.stockMap[k]);
+      }
+    }
+  }
+  return Number(item.stockQuantity ?? 1);
 };
 
 // Cart Store
@@ -99,9 +131,9 @@ export const useCartStore = create(
           set({ items: [], ownerUserId: currentUserId });
         }
 
-        const availableStock = Number(item?.stockQuantity);
+        const availableStock = getVariantStock(item);
         if (Number.isFinite(availableStock) && availableStock <= 0) {
-          toast.error("Product is out of stock");
+          toast.error(`"${item.name}" is currently out of stock in the selected variant.`);
           return false;
         }
 
@@ -116,7 +148,7 @@ export const useCartStore = create(
 
         // If stock quantity is known on the item payload, keep local guard.
         if (Number.isFinite(availableStock) && newQuantity > availableStock) {
-          toast.error(`Only ${availableStock} items available in stock`);
+          toast.error(`Only ${availableStock} unit(s) of "${item.name}" are available in the selected variant.`);
           return false;
         }
 
@@ -217,9 +249,13 @@ export const useCartStore = create(
           const candidate = String(item.cartLineKey || getCartLineKey(item.id, item.variant));
           return candidate === getCartLineKey(id, variant);
         });
-        const availableStock = Number(targetItem?.stockQuantity);
+        const availableStock = getVariantStock(targetItem);
         if (Number.isFinite(availableStock) && quantity > availableStock) {
-          toast.error(`Only ${availableStock} items available in stock`);
+          if (availableStock <= 0) {
+            toast.error(`"${targetItem?.name || 'Product'}" is currently out of stock in the selected variant.`);
+          } else {
+            toast.error(`Only ${availableStock} unit(s) of "${targetItem?.name || 'Product'}" are available in the selected variant.`);
+          }
           quantity = availableStock;
         }
 
