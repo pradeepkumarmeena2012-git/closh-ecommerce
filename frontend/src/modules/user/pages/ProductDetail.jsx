@@ -439,9 +439,14 @@ const MobileProductDetail = () => {
       if (match) variantImage = String(match[1] || "").trim();
     }
 
-    const images = Array.isArray(product.images) && product.images.length > 0 
-      ? product.images.filter(Boolean) 
-      : product.image ? [product.image] : [];
+    let images = [];
+    if (product.image) {
+      images.push(product.image);
+    }
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      const otherImages = product.images.filter(img => img !== product.image && img);
+      images = [...images, ...otherImages];
+    }
 
     if (variantImage) {
       return [variantImage, ...images.filter((img) => img !== variantImage)];

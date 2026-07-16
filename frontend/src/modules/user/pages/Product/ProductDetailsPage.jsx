@@ -270,9 +270,17 @@ const ProductDetailsPage = () => {
             if (match) variantImage = match[1];
         }
 
-        const baseImages = Array.isArray(product.images) && product.images.length > 0
-            ? product.images
-            : [product.image || 'https://via.placeholder.com/800x1000?text=Premium+Piece'];
+        let baseImages = [];
+        if (product.image) {
+            baseImages.push(product.image);
+        }
+        if (Array.isArray(product.images) && product.images.length > 0) {
+            const otherImages = product.images.filter(img => img !== product.image && img);
+            baseImages = [...baseImages, ...otherImages];
+        }
+        if (baseImages.length === 0) {
+            baseImages = ['https://via.placeholder.com/800x1000?text=Premium+Piece'];
+        }
 
         if (variantImage) {
             return [variantImage, ...baseImages.filter(img => img !== variantImage)];
