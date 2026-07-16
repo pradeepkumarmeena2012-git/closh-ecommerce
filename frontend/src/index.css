@@ -353,7 +353,7 @@ body::-webkit-scrollbar {
 .premium-product-grid {
   display: grid !important;
   width: 100% !important;
-  grid-template-columns: repeat(2, 1fr) !important; /* Default mobile 2 columns for very small */
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important; /* Default mobile 2 columns for very small */
   column-gap: 8px !important;
   row-gap: 14px !important;
 }
@@ -361,7 +361,7 @@ body::-webkit-scrollbar {
 /* Small Mobile (320px+) - switch to 3 columns */
 @media screen and (min-width: 360px) {
   .premium-product-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     column-gap: 8px !important;
     row-gap: 14px !important;
   }
@@ -378,7 +378,7 @@ body::-webkit-scrollbar {
 /* Large Mobile / Small Tablet (480px+) */
 @media screen and (min-width: 480px) {
   .premium-product-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     column-gap: 12px !important;
   }
 }
@@ -386,7 +386,7 @@ body::-webkit-scrollbar {
 /* Tablet (768px+) */
 @media screen and (min-width: 768px) {
   .premium-product-grid {
-    grid-template-columns: repeat(4, 1fr) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     column-gap: 20px !important;
     row-gap: 32px !important;
   }
@@ -395,7 +395,7 @@ body::-webkit-scrollbar {
 /* Desktop (1024px+) */
 @media screen and (min-width: 1024px) {
   .premium-product-grid {
-    grid-template-columns: repeat(5, 1fr) !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
     column-gap: 24px !important;
   }
 }
@@ -403,7 +403,7 @@ body::-webkit-scrollbar {
 /* HD Desktop (1280px+) */
 @media screen and (min-width: 1280px) {
   .premium-product-grid {
-    grid-template-columns: repeat(6, 1fr) !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
     column-gap: 24px !important;
   }
 }
@@ -411,7 +411,7 @@ body::-webkit-scrollbar {
 /* Full HD Desktop (1536px+) */
 @media screen and (min-width: 1536px) {
   .premium-product-grid {
-    grid-template-columns: repeat(7, 1fr) !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
   }
 }
 

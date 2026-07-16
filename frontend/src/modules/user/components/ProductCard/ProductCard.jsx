@@ -21,7 +21,7 @@ const ProductCard = ({ product }) => {
                         <img
                             src={product.image}
                             alt={product.name}
-                            className={`w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110 ${product.stock === 'out_of_stock' ? 'grayscale opacity-70' : ''}`}
+                            className={`absolute inset-0 w-full h-full object-contain transition-transform duration-700 ease-out group-hover:scale-110 ${product.stock === 'out_of_stock' ? 'grayscale opacity-70' : ''}`}
                         />
 
                         {/* Top Right Actions (Wishlist) - Glassmorphism */}

@@ -27,11 +27,11 @@ const ProductCard = ({ product }) => {
       >
         {/* IMAGE AREA - Taller 3:4 ratio with matching rounded corners */}
         <div className="relative aspect-[3/4] md:aspect-[4/5] overflow-hidden rounded-xl bg-[#F8F8F8]">
-          <Link to={productLink} className="block w-full h-full">
+          <Link to={productLink} className="absolute inset-0 w-full h-full">
             <LazyImage
               src={product.image}
               alt={product.name}
-              className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${(product.stock === 'out_of_stock' || product.stockQuantity <= 0) ? 'grayscale opacity-70' : ''}`}
+              className={`absolute inset-0 w-full h-full object-contain transition-transform duration-700 group-hover:scale-110 ${(product.stock === 'out_of_stock' || product.stockQuantity <= 0) ? 'grayscale opacity-70' : ''}`}
               onError={(e) => { e.target.src = getPlaceholderImage(400, 533, "Product"); }}
             />
           </Link>
@@ -61,7 +61,7 @@ const ProductCard = ({ product }) => {
         </div>
 
         {/* INFO AREA - Compact */}
-        <div className="pt-2 pb-0.5 flex flex-col overflow-hidden">
+        <div className="pt-2 pb-0.5 flex flex-col overflow-hidden flex-1">
           <div className="flex items-center justify-between w-full gap-1">
             <span className="text-[#1A1A1A] text-[10px] md:text-[14px] font-black uppercase tracking-tight truncate flex-1 min-w-0">
               {(product.brandName && product.brandName !== 'AAPZETO' && product.brandName !== 'Appzeto') ? product.brandName : ((product.brand && product.brand !== 'AAPZETO' && product.brand !== 'Appzeto') ? product.brand : 'CLOSH')}
