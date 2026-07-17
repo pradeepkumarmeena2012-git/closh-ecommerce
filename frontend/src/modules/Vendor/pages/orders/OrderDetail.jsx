@@ -503,7 +503,7 @@ const OrderDetail = () => {
                             return `
                                 <tr>
                                     <td class="text-left">${item.name} ${item.variant?.size ? '(' + item.variant.size + ')' : ''}</td>
-                                    <td>62034200</td>
+                                    <td>${item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || 'N/A'}</td>
                                     <td>${mrp.toFixed(2)}</td>
                                     <td>${qty}</td>
                                     <td>${(totalMrp).toFixed(2)}</td>
@@ -701,7 +701,7 @@ const handleViewVendorInvoice = () => {
                             return `
                                 <tr>
                                     <td class="text-left">${item.name} ${item.variant?.size ? '(' + item.variant.size + ')' : ''}</td>
-                                    <td>62034200</td>
+                                    <td>${item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || 'N/A'}</td>
                                     <td>${mrp.toFixed(2)}</td>
                                     <td>${qty}</td>
                                     <td>${(totalMrp).toFixed(2)}</td>

@@ -302,7 +302,7 @@ const OrderDetailsPage = () => {
             return `
                 <tr>
                     <td class="text-left">${item.name} ${item.selectedSize ? `(${item.selectedSize})` : ''}</td>
-                    <td>62034200</td>
+                    <td>${item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || 'N/A'}</td>
                     <td>${mrp.toFixed(2)}</td>
                     <td>${qty}</td>
                     <td>${(totalMrp).toFixed(2)}</td>
@@ -777,14 +777,14 @@ const OrderDetailsPage = () => {
                             className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-black rounded-xl transition-colors"
                         >
                             <Printer size={16} />
-                            <span className="text-[10px] font-bold uppercase  hidden xs:inline">Tax Invoice</span>
+                            <span className="text-[10px] font-bold uppercase">Tax Invoice</span>
                         </button>
                         <button
                             onClick={handleViewInvoice}
                             className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-black rounded-xl transition-colors"
                         >
                             <Printer size={16} />
-                            <span className="text-[10px] font-bold uppercase  hidden xs:inline">Invoice</span>
+                            <span className="text-[10px] font-bold uppercase">Invoice</span>
                         </button>
                         <span className="text-[9px] md:text-[10px] font-bold bg-black text-white px-3 py-1.5 rounded-full uppercase ">
                             {order.status?.toLowerCase() === 'assigned' ? 'assigned to pickup' : order.status?.toLowerCase() === 'ready_for_pickup' ? 'ready for pickup' : order.status?.toLowerCase() === 'picked_up' ? 'picked up' : order.status?.toLowerCase() === 'out_for_delivery' ? 'out for delivery' : order.status}
