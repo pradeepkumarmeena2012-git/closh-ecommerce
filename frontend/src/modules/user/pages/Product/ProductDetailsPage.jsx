@@ -22,7 +22,7 @@ import {
     Ticket,
     LayoutGrid
 } from 'lucide-react';
-import { useProductStore } from '../../../../shared/store/productStore';
+import { useProductStore, normalizeProduct } from '../../../../shared/store/productStore';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import LocationModal from '../../components/Header/LocationModal';
@@ -31,6 +31,8 @@ import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/Modals/LoginModal';
 import { getVariantSignature } from '../../../../shared/utils/variant';
 import ProductReviews from '../../components/Product/ProductReviews';
+import ProductCard from '../../components/ProductCard/ProductCard';
+import api from '../../../../shared/utils/api';
 
 const ProductDetailsPage = () => {
     const { id } = useParams();
@@ -52,6 +54,19 @@ const ProductDetailsPage = () => {
     const [showAddedToast, setShowAddedToast] = useState(false);
     const [promoCodes, setPromoCodes] = useState([]);
     const [copiedCode, setCopiedCode] = useState(null);
+    const [similarProducts, setSimilarProducts] = useState([]);
+    const [isLoadingSimilar, setIsLoadingSimilar] = useState(false);
+    const carouselRef = useRef(null);
+
+    const handleThumbnailClick = (idx) => {
+        setActiveImg(idx);
+        if (carouselRef.current) {
+            carouselRef.current.scrollTo({
+                left: carouselRef.current.offsetWidth * idx,
+                behavior: 'smooth'
+            });
+        }
+    };
 
     const copyCode = (code) => {
         navigator.clipboard.writeText(code)
@@ -120,6 +135,25 @@ const ProductDetailsPage = () => {
                     setSelectedSize(data.variants.defaultVariant.size);
                 } else {
                     setSelectedSize(null);
+                }
+
+                // Fetch similar products
+                setIsLoadingSimilar(true);
+                try {
+                    const response = await api.get('/products', { 
+                        params: { category: data.category || data.categoryName, limit: 10 } 
+                    });
+                    const payload = response?.data || response;
+                    const productsList = Array.isArray(payload?.data?.products) 
+                        ? payload.data.products 
+                        : (Array.isArray(payload?.products) ? payload.products : []);
+                    
+                    const normalized = productsList.map(normalizeProduct).filter(p => String(p.id) !== String(data.id));
+                    setSimilarProducts(normalized);
+                } catch (err) {
+                    console.error("Failed to fetch similar products", err);
+                } finally {
+                    setIsLoadingSimilar(false);
                 }
             }
             setLoading(false);
@@ -380,25 +414,32 @@ const ProductDetailsPage = () => {
 
                     {/* Left: Image Gallery */}
                     <div className="flex-1 lg:flex-[1.2] w-full flex flex-col gap-3 md:gap-6 lg:sticky lg:top-28">
-                        {/* Thumbnails - Desktop */}
-                        <div className="hidden md:flex flex-row gap-4 w-full overflow-x-auto py-2">
-                            {productImages.map((img, idx) => (
-                                <div
-                                    key={idx}
-                                    onClick={() => setActiveImg(idx)}
-                                    className={`w-24 aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer transition-all border-2 shrink-0 ${activeImg === idx ? 'border-black shadow-lg scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                                >
-                                    <img src={img} alt="" className="w-full h-full object-cover" />
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Main Image - Compact on Mobile */}
-                        <div className="relative aspect-square md:aspect-[3/4] lg:aspect-[4/5] lg:max-h-[600px] lg:max-w-[480px] lg:mx-auto w-full rounded-xl md:rounded-[40px] overflow-hidden bg-gray-50 shadow-sm md:shadow-2xl group border border-gray-100 md:border-gray-200">
-                            <img src={productImages[activeImg]} alt={product.name} className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105" />
+                        {/* Main Image - Carousel */}
+                        <div className="relative aspect-square md:aspect-[3/4] lg:aspect-[4/5] lg:max-h-[600px] lg:max-w-[480px] lg:mx-auto w-full rounded-xl md:rounded-[40px] overflow-hidden bg-white shadow-sm md:shadow-2xl group border border-gray-100 md:border-gray-200">
+                            
+                            <div 
+                                ref={carouselRef}
+                                className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
+                                onScroll={(e) => {
+                                    const index = Math.round(e.target.scrollLeft / e.target.offsetWidth);
+                                    if(index !== activeImg) {
+                                        setActiveImg(index);
+                                    }
+                                }}
+                            >
+                                {productImages.map((img, idx) => (
+                                    <div key={idx} className="w-full h-full shrink-0 snap-center relative">
+                                        <img 
+                                            src={img} 
+                                            alt={`${product.name} - ${idx}`} 
+                                            className="w-full h-full object-contain mix-blend-multiply transition-transform duration-700 group-hover:scale-105 pointer-events-none" 
+                                        />
+                                    </div>
+                                ))}
+                            </div>
 
                             {/* Tags/Badges - Smaller on Mobile */}
-                            <div className="absolute top-3 left-3 md:top-6 md:left-6 flex flex-col gap-1.5 md:gap-2 z-20">
+                            <div className="absolute top-3 left-3 md:top-6 md:left-6 flex flex-col gap-1.5 md:gap-2 z-20 pointer-events-none">
                                 {isOutOfStock && (
                                     <div className="bg-white/90 text-[#C2185B] text-[10px] md:text-[12px] font-bold px-4 py-2 rounded-lg shadow-sm border border-gray-100 uppercase tracking-widest backdrop-blur-sm">
                                         Currently unavailable
@@ -409,19 +450,17 @@ const ProductDetailsPage = () => {
                                         Store Offline
                                     </div>
                                 )}
-                                <div className="bg-white text-gray-900 text-[8px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-md border border-gray-200">
+                                <div className="bg-white text-gray-900 text-[8px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-md border border-gray-200 w-fit">
                                     New Arrival
                                 </div>
-                                <div className="bg-black text-white text-[8px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-md">
+                                <div className="bg-black text-white text-[8px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-full shadow-md w-fit">
                                     Top Rated
                                 </div>
                             </div>
 
-
-
                             {/* Rating Badge - Compact on Mobile */}
                             {(product.rating > 0 || product.reviewCount > 0) && (
-                                <div className="absolute bottom-3 left-3 md:bottom-6 md:left-6 bg-white/90 backdrop-blur-md px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl flex items-center gap-1.5 md:gap-2 shadow-md md:shadow-xl border border-gray-200">
+                                <div className="absolute bottom-3 left-3 md:bottom-6 md:left-6 bg-white/90 backdrop-blur-md px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl flex items-center gap-1.5 md:gap-2 shadow-md md:shadow-xl border border-gray-200 pointer-events-none">
                                     <div className="flex items-center gap-1">
                                         <span className="text-[12px] md:text-[15px] font-bold text-gray-900">{product.rating || 0}</span>
                                         <Star size={11} className="fill-[#D4AF37] text-black md:w-[14px] md:h-[14px]" />
@@ -432,25 +471,16 @@ const ProductDetailsPage = () => {
                                     </span>
                                 </div>
                             )}
-                            {/* Rating Badge - Compact on Mobile */}
-                            <div className="absolute bottom-3 left-3 md:bottom-6 md:left-6 bg-white/90 backdrop-blur-md px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl md:rounded-2xl flex items-center gap-1.5 md:gap-2 shadow-md md:shadow-xl border border-gray-200">
-                                <div className="flex items-center gap-1">
-                                    <span className="text-[12px] md:text-[15px] font-bold text-gray-900">{product.rating || '0'}</span>
-                                    <Star size={11} className="fill-[#D4AF37] text-black md:w-[14px] md:h-[14px]" />
-                                </div>
-                                <div className="w-[1px] h-2.5 md:h-3 bg-gray-200" />
-                                <span className="text-[10px] md:text-[13px] font-bold text-gray-600">{product.reviewCount || '0'}</span>
-                            </div>
                         </div>
 
-                        {/* Mobile Thumbnail Strip */}
+                        {/* Thumbnails - All Devices */}
                         {productImages.length > 1 && (
-                            <div className="flex md:hidden gap-2 overflow-x-auto no-scrollbar py-1">
+                            <div className="flex flex-row gap-2 md:gap-4 w-full overflow-x-auto py-2 no-scrollbar snap-x snap-mandatory">
                                 {productImages.map((img, idx) => (
                                     <div
                                         key={idx}
-                                        onClick={() => setActiveImg(idx)}
-                                        className={`w-14 h-14 rounded-lg overflow-hidden cursor-pointer transition-all border-2 shrink-0 ${activeImg === idx ? 'border-black shadow-sm scale-105' : 'border-transparent opacity-50'}`}
+                                        onClick={() => handleThumbnailClick(idx)}
+                                        className={`snap-center w-16 md:w-24 aspect-[3/4] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer transition-all border-2 shrink-0 ${activeImg === idx ? 'border-black shadow-lg scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`}
                                     >
                                         <img src={img} alt="" className="w-full h-full object-cover" />
                                     </div>
@@ -816,6 +846,27 @@ const ProductDetailsPage = () => {
                     initialRating={product.rating}
                     initialReviewCount={product.reviewCount}
                 />
+
+                {/* Similar Products Section */}
+                {similarProducts.length > 0 && (
+                    <div className="mt-8 mb-4 border-t border-gray-100/80 pt-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-[14px] md:text-[18px] font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                                More in {product.category}
+                            </h2>
+                            <Link to={`/shop?category=${product.category}`} className="text-[10px] md:text-[12px] font-bold text-gray-500 hover:text-black uppercase transition-colors border-b border-gray-300 hover:border-black pb-0.5">
+                                View All
+                            </Link>
+                        </div>
+                        <div className="flex overflow-x-auto gap-3 md:gap-4 snap-x snap-mandatory pb-4 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+                            {similarProducts.map((simProduct) => (
+                                <div key={simProduct.id} className="w-[140px] md:w-[200px] flex-shrink-0 snap-center">
+                                    <ProductCard product={simProduct} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
             {/* Removed sticky bottom actions */}
             {/* Size Chart Modal */}

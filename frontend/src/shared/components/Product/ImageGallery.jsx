@@ -52,11 +52,11 @@ const ImageGallery = ({ images, productName = "Product", children }) => {
       <div className="w-full flex flex-col gap-6">
         {/* Main Image */}
         <div
-          className="relative w-full aspect-[4/5] md:aspect-square max-h-[50vh] md:max-h-none bg-white rounded-3xl p-4 shadow-sm border border-gray-100 overflow-hidden"
+          className="w-full h-[60vh] md:h-[600px] bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex items-center justify-center"
           data-gallery>
           <motion.div
             key={selectedIndex}
-            className="w-full h-full"
+            className="w-full h-full flex items-center justify-center"
             onClick={handleImageClick}
             onTouchStart={swipeHandlers.onTouchStart}
             onTouchMove={swipeHandlers.onTouchMove}
@@ -64,7 +64,7 @@ const ImageGallery = ({ images, productName = "Product", children }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}>
-            <LazyImage
+            <img
               src={imageArray[selectedIndex]}
               alt={`${productName} - Image ${selectedIndex + 1}`}
               className="w-full h-full object-contain mix-blend-multiply"
@@ -114,7 +114,7 @@ const ImageGallery = ({ images, productName = "Product", children }) => {
                 <LazyImage
                   src={image}
                   alt={`${productName} thumbnail ${index + 1}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain bg-gray-50/50 p-1 rounded-xl"
                   onError={(e) => {
                     e.target.src =
                       "https://via.placeholder.com/100x100?text=Thumbnail";

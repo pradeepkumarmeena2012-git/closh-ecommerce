@@ -177,7 +177,19 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                 });
                 const products = response?.data?.data?.products || response?.data?.products || response?.products || [];
 
-                // Group products by categoryId to build category suggestions
+                const suggestions = [];
+
+                // 1. Add direct Product matches (up to 5)
+                const productMatches = products.slice(0, 5).map(p => ({
+                    type: 'product',
+                    id: p._id || p.id,
+                    name: p.name,
+                    image: p.image || p.images?.[0] || 'https://via.placeholder.com/50x50',
+                    categoryName: p.categoryName || p.categoryId?.name || 'Product',
+                }));
+                suggestions.push(...productMatches);
+
+                // 2. Group by categoryId to build category suggestions
                 const categoryMap = new Map();
                 for (const p of products) {
                     const catId = p.categoryId?._id || p.categoryId?.id || p.categoryId || '';
@@ -185,16 +197,16 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                     if (!catIdStr || categoryMap.has(catIdStr)) continue;
                     const hierarchy = getCategoryHierarchy(catIdStr);
                     categoryMap.set(catIdStr, {
-                        id: p._id || p.id,
+                        type: 'category',
+                        id: catIdStr,
                         categoryId: catIdStr,
                         categoryName: hierarchy?.name || p.categoryId?.name || 'Category',
                         parentName: hierarchy?.parent || '',
                         image: p.image || p.images?.[0] || hierarchy?.image || 'https://via.placeholder.com/50x50',
-                        productName: p.name || '',
                     });
                 }
 
-                // Also include categories from the store whose name matches the search
+                // 3. Include categories from the store whose name matches the search
                 const lowerQ = value.toLowerCase();
                 for (const cat of storeCategories) {
                     if (cat.isActive === false) continue;
@@ -203,16 +215,18 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                     if (!cat.name.toLowerCase().includes(lowerQ)) continue;
                     const hierarchy = getCategoryHierarchy(catIdStr);
                     categoryMap.set(catIdStr, {
+                        type: 'category',
                         id: catIdStr,
                         categoryId: catIdStr,
                         categoryName: hierarchy?.name || cat.name,
                         parentName: hierarchy?.parent || '',
                         image: cat.image || hierarchy?.image || 'https://via.placeholder.com/50x50',
-                        productName: '',
                     });
                 }
 
-                setSearchSuggestions(Array.from(categoryMap.values()).slice(0, 10));
+                // Combine products and categories (max 10 total)
+                const categoryMatches = Array.from(categoryMap.values()).slice(0, 5);
+                setSearchSuggestions([...suggestions, ...categoryMatches].slice(0, 10));
             } catch (error) {
                 console.error("Search failed:", error);
                 setSearchSuggestions([]);
@@ -233,11 +247,15 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
     };
 
     const handleSuggestionClick = (suggestion) => {
-        const catId = suggestion.categoryId;
-        if (catId && /^[0-9a-fA-F]{24}$/.test(String(catId))) {
-            navigate(`/products?cid=${catId}`);
+        if (suggestion.type === 'product') {
+            navigate(`/product/${suggestion.id}`);
         } else {
-            navigate(`/products?search=${encodeURIComponent(suggestion.categoryName || searchQuery)}`);
+            const catId = suggestion.categoryId;
+            if (catId && /^[0-9a-fA-F]{24}$/.test(String(catId))) {
+                navigate(`/products?cid=${catId}`);
+            } else {
+                navigate(`/products?search=${encodeURIComponent(suggestion.categoryName || searchQuery)}`);
+            }
         }
         setSearchQuery('');
         setSearchSuggestions([]);
@@ -480,21 +498,21 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                             </span>
                                         </div>
                                         <div className="max-h-[400px] overflow-y-auto scrollbar-hide">
-                                            {searchSuggestions.map((item) => (
+                                            {searchSuggestions.map((item, idx) => (
                                                 <div
-                                                    key={item.categoryId}
+                                                    key={`${item.type}-${item.id}-${idx}`}
                                                     onClick={() => handleSuggestionClick(item)}
                                                     className="px-5 py-3 hover:bg-gray-50 flex items-center gap-4 cursor-pointer transition-colors border-b border-gray-50 last:border-0 group/item"
                                                 >
                                                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 border border-black/5 shadow-sm">
-                                                        <img src={item.image} alt={item.categoryName} className="w-full h-full object-cover transition-transform group-hover/item:scale-110" />
+                                                        <img src={item.image} alt={item.name || item.categoryName} className="w-full h-full object-cover transition-transform group-hover/item:scale-110" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="text-[13px] font-bold text-gray-900 truncate mb-0.5">
-                                                            {item.parentName ? `${item.parentName}` : item.categoryName}
+                                                            {item.type === 'product' ? item.name : (item.parentName ? `${item.parentName}` : item.categoryName)}
                                                         </h4>
-                                                        <p className="text-[10px] font-semibold uppercase text-black/40">
-                                                            {item.parentName ? item.categoryName : 'All Products'}
+                                                        <p className="text-[10px] font-semibold uppercase text-black/40 truncate">
+                                                            {item.type === 'product' ? `Product in ${item.categoryName}` : (item.parentName ? item.categoryName : 'Category')}
                                                         </p>
                                                     </div>
                                                     <ChevronRight size={14} className="text-gray-300 group-hover/item:text-black group-hover/item:translate-x-1 transition-all" />
@@ -602,21 +620,21 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                             </span>
                                         </div>
                                         <div className="max-h-[350px] overflow-y-auto">
-                                            {searchSuggestions.map((item) => (
+                                            {searchSuggestions.map((item, idx) => (
                                                 <div
-                                                    key={item.categoryId}
+                                                    key={`${item.type}-${item.id}-${idx}`}
                                                     onClick={() => handleSuggestionClick(item)}
                                                     className="px-4 py-3 active:bg-gray-50 flex items-center gap-4 cursor-pointer transition-colors border-b border-gray-50 last:border-0 group/mobileItem"
                                                 >
                                                     <div className="w-9 h-9 rounded-lg overflow-hidden bg-gray-100 shrink-0 border border-black/5">
-                                                        <img src={item.image} alt={item.categoryName} className="w-full h-full object-cover" />
+                                                        <img src={item.image} alt={item.name || item.categoryName} className="w-full h-full object-cover" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <h4 className="text-[13px] font-bold text-gray-900 truncate">
-                                                            {item.parentName ? `${item.parentName}` : item.categoryName}
+                                                            {item.type === 'product' ? item.name : (item.parentName ? `${item.parentName}` : item.categoryName)}
                                                         </h4>
-                                                        <p className="text-[10px] font-semibold text-black/40 uppercase mt-0.5">
-                                                            {item.parentName ? item.categoryName : 'All Products'}
+                                                        <p className="text-[10px] font-semibold text-black/40 uppercase mt-0.5 truncate">
+                                                            {item.type === 'product' ? `Product in ${item.categoryName}` : (item.parentName ? item.categoryName : 'Category')}
                                                         </p>
                                                     </div>
                                                     <ChevronRight size={14} className="text-gray-300" />
