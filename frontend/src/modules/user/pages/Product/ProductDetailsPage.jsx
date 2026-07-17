@@ -480,9 +480,9 @@ const ProductDetailsPage = () => {
                                     <div
                                         key={idx}
                                         onClick={() => handleThumbnailClick(idx)}
-                                        className={`snap-center w-16 md:w-24 aspect-[3/4] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer transition-all border-2 shrink-0 ${activeImg === idx ? 'border-black shadow-lg scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                                        className={`snap-center w-16 md:w-24 aspect-[3/4] rounded-xl md:rounded-2xl overflow-hidden cursor-pointer transition-all border-2 shrink-0 bg-white ${activeImg === idx ? 'border-black shadow-lg scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`}
                                     >
-                                        <img src={img} alt="" className="w-full h-full object-cover" />
+                                        <img src={img} alt="" className="w-full h-full object-contain mix-blend-multiply p-1" />
                                     </div>
                                 ))}
                             </div>
