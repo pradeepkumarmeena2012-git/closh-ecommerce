@@ -856,13 +856,13 @@ const handleViewVendorInvoice = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button
+                    {/* <button
                         onClick={handleViewCustomerInvoice}
                         className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold shadow-sm"
                     >
                         <FiDownload className="text-sm" />
                         Customer Invoice
-                    </button>
+                    </button> */}
 <button
                         onClick={handleViewVendorInvoice}
                         className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold shadow-sm"
