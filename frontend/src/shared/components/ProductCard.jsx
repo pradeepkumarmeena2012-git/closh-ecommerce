@@ -39,56 +39,63 @@ const ProductCard = ({ product }) => {
           {/* Wishlist Icon */}
           <button
             onClick={handleFavorite}
-            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/70 backdrop-blur-sm flex items-center justify-center text-gray-800 shadow-sm transition-all hover:bg-white hover:text-red-500 z-10"
+            className="absolute bottom-2 right-2 w-7 h-7 md:w-8 md:h-8 rounded-full bg-black/20 hover:bg-black/40 backdrop-blur-sm flex items-center justify-center text-white transition-all z-10"
           >
-            <FiHeart size={12} className={`${isFavorite ? 'fill-current text-red-500' : ''}`} />
+            <FiHeart size={14} className={`${isFavorite ? 'fill-current text-red-500 stroke-red-500' : 'stroke-white'}`} />
           </button>
 
           {/* Status Badges */}
           {product.stock === 'out_of_stock' || product.stockQuantity <= 0 ? (
-            <div className="absolute bottom-0 left-0 bg-red-600 text-white text-[9px] md:text-[11px] font-black px-3 py-0.5 rounded-tr-lg z-20 shadow-lg border-t border-r border-white/10 uppercase tracking-wider">
-                SOLD OUT
+            <div className="absolute bottom-0 left-0 bg-red-600 text-white text-[9px] md:text-[11px] font-bold px-2 py-0.5 rounded-tr-lg z-20 shadow-lg tracking-wide">
+                Sold Out
             </div>
           ) : product.vendorId?.isOnline === false ? (
-            <div className="absolute bottom-0 left-0 bg-[#52b788] text-white text-[9px] md:text-[11px] font-black px-3 py-0.5 rounded-tr-lg z-20 shadow-lg border-t border-r border-white/10 uppercase tracking-wider">
-                STORE OFFLINE
+            <div className="absolute bottom-0 left-0 bg-[#52b788] text-white text-[9px] md:text-[11px] font-bold px-2 py-0.5 rounded-tr-lg z-20 shadow-lg tracking-wide">
+                Store Offline
             </div>
           ) : (
-            <div className="absolute bottom-0 left-0 bg-[#000033] text-white text-[9px] md:text-[11px] font-black px-3 py-0.5 rounded-tr-lg z-20 shadow-lg border-t border-r border-white/10 uppercase tracking-wider">
+            <div className="absolute bottom-0 left-0 bg-black text-white text-[10px] md:text-[11px] font-semibold px-2 md:px-2.5 py-0.5 md:py-1 rounded-tr-lg z-20 tracking-wide">
                 Try & Buy
             </div>
           )}
         </div>
 
         {/* INFO AREA - Compact */}
-        <div className="pt-2 pb-0.5 flex flex-col overflow-hidden flex-1">
-          <div className="flex items-center justify-between w-full gap-1">
-            <span className="text-[#1A1A1A] text-[10px] md:text-[14px] font-black uppercase tracking-tight truncate flex-1 min-w-0">
-              {(product.brandName && product.brandName !== 'AAPZETO' && product.brandName !== 'Appzeto') ? product.brandName : ((product.brand && product.brand !== 'AAPZETO' && product.brand !== 'Appzeto') ? product.brand : 'CLOSH')}
-            </span>
-            {product.originalPrice && product.originalPrice > product.price && (
-               <div className="bg-[#D8FFBD] text-[#388E3C] text-[9px] md:text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
-                 {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
-               </div>
-            )}
-          </div>
-          <Link to={productLink} className="flex flex-col mt-0.5">
-            <h3 className="text-gray-500 text-[9px] md:text-[13px] font-medium truncate leading-tight">
+        <div className="pt-2 flex flex-col flex-1 px-0.5">
+          <span className="text-[#1A1A1A] text-[12px] md:text-[14px] font-bold tracking-tight truncate w-full">
+            {(product.brandName && product.brandName !== 'AAPZETO' && product.brandName !== 'Appzeto') ? product.brandName : ((product.brand && product.brand !== 'AAPZETO' && product.brand !== 'Appzeto') ? product.brand : 'CLOSH')}
+          </span>
+          
+          <Link to={productLink} className="flex flex-col">
+            <h3 className="text-gray-500 text-[11px] md:text-[12px] font-normal truncate leading-tight mt-0.5">
               {product.name}
             </h3>
           </Link>
-          
-          <div className="mt-auto flex flex-nowrap items-center w-full pt-1">
-             <div className="flex items-center gap-1.5 shrink-0 min-w-0 overflow-hidden">
-                <span className="text-[12px] md:text-[14px] font-black text-gray-900 whitespace-nowrap tracking-tight">
-                   {formatPrice(product.price)}
-                </span>
-                {product.originalPrice && product.originalPrice > product.price && (
-                  <span className="text-[10px] md:text-[12px] text-gray-400 line-through font-semibold whitespace-nowrap truncate">
-                    {formatPrice(product.originalPrice)}
-                  </span>
-                )}
+
+          {/* Optional Deals Badge */}
+          {product.isAsapDeal && (
+             <div className="mt-1.5 flex">
+                 <span className="bg-black text-white text-[9px] font-semibold px-2 py-0.5 rounded-sm">Asap Deal</span>
              </div>
+          )}
+          
+          <div className="mt-1 flex flex-nowrap items-center gap-1.5 w-full">
+             <span className="text-[12px] md:text-[14px] font-extrabold text-gray-900 whitespace-nowrap tracking-tight">
+                {formatPrice(product.price)}
+             </span>
+             {product.originalPrice && product.originalPrice > product.price && (
+               <>
+                 <span className="text-[10px] md:text-[12px] text-gray-400 line-through font-medium whitespace-nowrap">
+                   {formatPrice(product.originalPrice)}
+                 </span>
+                 <div className="relative ml-1 flex items-center justify-center px-1.5 py-0.5">
+                   <div className="absolute inset-0 bg-[#e8f5e9] -skew-x-12 rounded-sm"></div>
+                   <span className="relative text-[#2e7d32] text-[9px] md:text-[10px] font-bold whitespace-nowrap z-10 tracking-tight">
+                     {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% Off
+                   </span>
+                 </div>
+               </>
+            )}
           </div>
         </div>
       </motion.div>

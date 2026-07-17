@@ -493,7 +493,7 @@ const ProductDetailsPage = () => {
                     <div className="flex-1 w-full max-w-2xl">
                         <div className="mb-3 md:mb-6">
                             <div className="flex items-center justify-between mb-1">
-                                <h2 className="text-[10px] md:text-[12px] font-semibold text-gray-500 uppercase tracking-wider">{product.brand}</h2>
+                                <h2 className="text-[12px] md:text-[14px] font-black text-gray-900 uppercase tracking-widest">{product.brand}</h2>
                                 <div className="flex items-center gap-4">
                                     <button onClick={handleShare} className="p-2 hover:bg-gray-100 rounded-full transition-colors" aria-label="Share product">
                                         <Share2 size={20} className="text-gray-900" />
