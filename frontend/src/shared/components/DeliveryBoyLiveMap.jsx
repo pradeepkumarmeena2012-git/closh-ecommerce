@@ -14,6 +14,7 @@ const mapOptions = {
   streetViewControl: false,
   mapTypeControl: false,
   fullscreenControl: true,
+  gestureHandling: 'greedy',
   styles: [
     {
       featureType: 'poi',
