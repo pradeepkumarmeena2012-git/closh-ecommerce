@@ -268,13 +268,195 @@ const OrderDetail = () => {
   };
 
 
-  const handlePrint = () => {
+    const handlePrint = () => {
     const printContent = document.getElementById('printable-invoice');
     const originalContent = document.body.innerHTML;
     document.body.innerHTML = printContent.innerHTML;
     window.print();
     document.body.innerHTML = originalContent;
     window.location.reload();
+  };
+
+  const handleViewPlatformInvoice = () => {
+      if (!order) return;
+      const invoiceWindow = window.open('', '_blank');
+      if (!invoiceWindow) {
+          toast.error('Please allow popups to view the invoice.');
+          return;
+      }
+
+      const shipping = order.shipping || 0;
+      const platformFee = order.platformFee || 0;
+      const totalAmount = shipping + platformFee;
+      
+      if (totalAmount <= 0) {
+          invoiceWindow.document.write('<h3>No shipping or platform fees associated with this order.</h3>');
+          invoiceWindow.document.close();
+          return;
+      }
+
+      const taxableValue = totalAmount / 1.18;
+      const gstAmount = totalAmount - taxableValue;
+      const cgst = gstAmount / 2;
+      const sgst = gstAmount / 2;
+
+      let itemsHtml = '';
+      if (shipping > 0) {
+          const shipTaxable = shipping / 1.18;
+          const shipGst = shipping - shipTaxable;
+          itemsHtml += `
+              <tr>
+                  <td class="text-left">Shipping & Delivery Charges</td>
+                  <td>996812</td>
+                  <td>${shipping.toFixed(2)}</td>
+                  <td>1</td>
+                  <td>${shipping.toFixed(2)}</td>
+                  <td>0.00</td>
+                  <td>${shipTaxable.toFixed(2)}</td>
+                  <td>${(shipGst/2).toFixed(2)}</td>
+                  <td>${(shipGst/2).toFixed(2)}</td>
+                  <td>0.00</td>
+                  <td>${shipping.toFixed(2)}</td>
+              </tr>
+          `;
+      }
+      if (platformFee > 0) {
+          const feeTaxable = platformFee / 1.18;
+          const feeGst = platformFee - feeTaxable;
+          itemsHtml += `
+              <tr>
+                  <td class="text-left">Platform Convenience Fee</td>
+                  <td>998311</td>
+                  <td>${platformFee.toFixed(2)}</td>
+                  <td>1</td>
+                  <td>${platformFee.toFixed(2)}</td>
+                  <td>0.00</td>
+                  <td>${feeTaxable.toFixed(2)}</td>
+                  <td>${(feeGst/2).toFixed(2)}</td>
+                  <td>${(feeGst/2).toFixed(2)}</td>
+                  <td>0.00</td>
+                  <td>${platformFee.toFixed(2)}</td>
+              </tr>
+          `;
+      }
+
+      const invoiceContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="UTF-8">
+              <title>Platform Services Invoice #${order.id}</title>
+              <style>
+                  * { box-sizing: border-box; }
+                  body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; color: #000; line-height: 1.4; font-size: 12px; }
+                  .header-title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                  .top-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+                  .sold-by-info { width: 60%; }
+                  .invoice-info { width: 35%; text-align: right; }
+                  .info-text { margin-bottom: 5px; }
+                  .bold { font-weight: bold; }
+                  
+                  .addresses-box { border: 1px solid #000; display: flex; margin-bottom: 20px; }
+                  .address-col { padding: 10px; flex: 1; border-right: 1px solid #000; }
+                  .address-col:last-child { border-right: none; }
+                  .address-title { font-weight: bold; margin-bottom: 10px; }
+                  
+                  .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center; border: 1px solid #000; }
+                  .table th { border: 1px solid #000; padding: 8px 4px; font-size: 11px; font-weight: bold; }
+                  .table td { border: 1px solid #000; padding: 8px 4px; font-size: 11px; vertical-align: middle; }
+                  .table .text-left { text-align: left; }
+                  .table .text-right { text-align: right; }
+                  
+                  .totals-row td { font-weight: bold; border-top: 2px solid #000; }
+                  .grand-total-row td { font-weight: bold; font-size: 14px; border-top: 2px solid #000; }
+                  
+                  .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #555; border-top: 1px solid #000; padding-top: 10px; }
+                  
+                  @media print {
+                      body { padding: 0; max-width: 100%; }
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="header-title">Platform Services Tax Invoice</div>
+              
+              <div class="top-section">
+                  <div class="sold-by-info">
+                      <div class="info-text"><span class="bold">Billed From:</span> CLOSH COMMERCE (OPC) PRIVATE LIMITED</div>
+                      <div class="info-text"><span class="bold">GSTIN:</span> 08AANCC7176M1ZV</div>
+                      <div class="info-text"><span class="bold">Address:</span> 70, keshar vihar, Near Railway Colony, Jagatpura, Jaipur, Rajasthan 302017</div>
+                  </div>
+                  <div class="invoice-info">
+                      <div class="info-text"><span class="bold">Invoice Number:</span> TX-${order.id}</div>
+                  </div>
+              </div>
+
+              <div class="addresses-box">
+                  <div class="address-col" style="flex: 1.2;">
+                      <div class="info-text"><span class="bold">Order ID:</span> #${order.id}</div>
+                      <div class="info-text"><span class="bold">Order Date:</span> ${new Date(order.date).toLocaleDateString('en-CA')}</div>
+                      <div class="info-text"><span class="bold">Invoice Date:</span> ${new Date().toLocaleDateString('en-CA')}</div>
+                  </div>
+                  <div class="address-col" style="flex: 1;">
+                      <div class="address-title">Billed To (Customer):</div>
+                      ${order.shippingAddress || order.customer ? `
+                          <div>${order.shippingAddress?.name || order.customer?.name}</div>
+                          <div>${order.shippingAddress?.address || ''}, ${order.shippingAddress?.locality || ''}</div>
+                          <div>${order.shippingAddress?.city || ''}, ${order.shippingAddress?.state || ''} - ${order.shippingAddress?.zipCode || ''}</div>
+                      ` : 'N/A'}
+                  </div>
+              </div>
+
+              <table class="table">
+                  <thead>
+                      <tr>
+                          <th class="text-left" style="width: 25%;">Service Description</th>
+                          <th>SAC</th>
+                          <th>Amount</th>
+                          <th>Qty</th>
+                          <th>Gross Amount</th>
+                          <th>Discount</th>
+                          <th>Taxable Value</th>
+                          <th>CGST (9%)</th>
+                          <th>SGST (9%)</th>
+                          <th>IGST</th>
+                          <th>Total</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      ${itemsHtml}
+                      <tr class="totals-row">
+                          <td colspan="7" class="text-right">Total</td>
+                          <td>${cgst.toFixed(2)}</td>
+                          <td>${sgst.toFixed(2)}</td>
+                          <td>0.00</td>
+                          <td>${totalAmount.toFixed(2)}</td>
+                      </tr>
+                      <tr class="grand-total-row">
+                          <td colspan="10" class="text-right">Grand Total (GST Inclusive)</td>
+                          <td>${totalAmount.toFixed(2)}</td>
+                      </tr>
+                  </tbody>
+              </table>
+
+              <div class="footer">
+                  <p class="bold" style="color: #000; font-size: 12px; margin-bottom: 5px;">This is a computer generated invoice and does not require a signature.</p>
+              </div>
+
+              <script>
+                  window.onload = function() { 
+                      setTimeout(function() {
+                          window.print();
+                      }, 500); 
+                  }
+              </script>
+          </body>
+          </html>
+      `;
+
+      invoiceWindow.document.open();
+      invoiceWindow.document.write(invoiceContent);
+      invoiceWindow.document.close();
   };
 
   const InvoiceModal = () => {
@@ -474,6 +656,13 @@ const OrderDetail = () => {
             </>
           ) : (
             <>
+              <button
+                onClick={handleViewPlatformInvoice}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold"
+              >
+                <FiPrinter className="text-sm" />
+                Tax Invoice
+              </button>
               <button
                 onClick={() => setShowInvoice(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-bold"
