@@ -14,10 +14,8 @@ const OrdersPage = () => {
         setIsManualRefreshing(true);
         try {
             await fetchUserOrders(1, 20);
-            toast.success('Orders refreshed');
         } catch (err) {
             console.error("Failed to refresh orders:", err);
-            toast.error('Failed to refresh orders');
         } finally {
             setIsManualRefreshing(false);
         }
