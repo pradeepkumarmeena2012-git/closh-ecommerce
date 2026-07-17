@@ -99,6 +99,7 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
       .populate('deliveryBoyId', 'name phone profileImage vehicleNumber status')
       .populate('userId', 'name email phone')
       .populate('items.productId')
+      .populate('vendorItems.items.productId', 'hsnCode')
       .lean();
     if (!order) throw new ApiError(404, 'Order not found.');
 
@@ -128,6 +129,7 @@ export const getVendorOrderById = asyncHandler(async (req, res) => {
           .populate('deliveryBoyId', 'name phone profileImage vehicleNumber status')
           .populate('userId', 'name email phone')
           .populate('items.productId')
+          .populate('vendorItems.items.productId', 'hsnCode')
           .lean();
     }
 

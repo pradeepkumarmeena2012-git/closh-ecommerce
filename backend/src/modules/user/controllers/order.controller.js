@@ -827,6 +827,7 @@ export const getOrderDetail = asyncHandler(async (req, res) => {
 
     const order = await Order.findOne({ ...filter, userId: req.user.id })
         .populate('deliveryBoyId', 'currentLocation name phone')
+        .populate('items.productId', 'hsnCode')
         .select('+deliveryOtpDebug');
 
     if (!order) {
