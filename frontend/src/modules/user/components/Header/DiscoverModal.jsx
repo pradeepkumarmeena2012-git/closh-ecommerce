@@ -53,9 +53,9 @@ const DiscoverModal = ({ isOpen, onClose }) => {
 
             {/* Modal Content */}
             <div className="relative w-full h-full md:h-[600px] md:max-w-[1000px] bg-white md:rounded-[32px] overflow-hidden shadow-2xl animate-fadeInUp flex flex-col md:flex-row border-0 md:border md:border-gray-200">
-                {/* Left Side: Search & Alphabet Navigation */}
-                <div className="w-full md:w-[300px] border-b md:border-b-0 md:border-r border-gray-200 flex flex-col p-4 md:p-6 bg-white shrink-0 h-[40%] md:h-full">
-                    <div className="relative mb-4 md:mb-8">
+                {/* Left Side: Search */}
+                <div className="w-full md:w-[300px] border-b md:border-b-0 md:border-r border-gray-200 flex flex-col p-4 md:p-6 bg-white shrink-0 md:h-full">
+                    <div className="relative">
                         <input
                             type="text"
                             placeholder="Search for Brands"
@@ -65,32 +65,10 @@ const DiscoverModal = ({ isOpen, onClose }) => {
                         />
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                     </div>
-
-                    <div className="flex-1 overflow-y-auto scrollbar-hide space-y-4">
-                        {alphabets.map((char) => {
-                            const brandsForChar = getBrandsByInitial(char);
-                            if (brandsForChar.length === 0) return null;
-                            
-                            return (
-                                <div key={char} className="space-y-3">
-                                    <h3 className="text-black text-[18px] font-bold px-2">{char}</h3>
-                                    {brandsForChar.map(brand => (
-                                        <button
-                                            key={brand.id || brand.name}
-                                            onClick={() => handleBrandClick(brand.name)}
-                                            className="w-full text-left px-4 py-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-xl transition-all text-[14px] font-bold"
-                                        >
-                                            {brand.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            );
-                        })}
-                    </div>
                 </div>
 
                 {/* Right Side: Brand Grid */}
-                <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 h-[60%] md:h-full">
+                <div className="flex-1 flex flex-col overflow-hidden bg-gray-50 h-full">
                     <div className="flex justify-between items-center px-4 md:px-8 py-4 md:py-6 border-b border-gray-200">
                         <h2 className="text-gray-900 text-lg md:text-xl font-bold uppercase ">Featured Brands</h2>
                         <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors font-bold text-gray-900 md:hidden">
