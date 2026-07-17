@@ -219,7 +219,9 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
     };
 
     const triggerActualLocationFlow = () => {
-        const toastId = toast.loading("Accessing GPS...");
+        if (loadingLocation) return;
+        const toastId = 'gps-toast';
+        toast.loading("Accessing GPS...", { id: toastId });
         setLoadingLocation(true);
 
         const options = {
@@ -238,11 +240,11 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                 checkPinServiceability(latitude, longitude, addr.city);
                 
                 // Show map so user can verify and adjust if GPS is slightly inaccurate
-                toast.success("Location found. Adjust pin if needed.");
+                toast.success("Location found. Adjust pin if needed.", { id: 'gps-success' });
                 setView('map');
             } else {
                 // Fallback: show map if address couldn't be resolved
-                toast.error("Couldn't resolve address. Please adjust pin.");
+                toast.error("Couldn't resolve address. Please adjust pin.", { id: 'gps-error' });
                 setPosition({ lat: latitude, lng: longitude });
                 setView('map');
             }
@@ -251,10 +253,10 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
 
         const error = (err) => {
             console.warn(`Geolocation error (${err.code}): ${err.message}`);
-            toast.dismiss(toastId);
             
             if (err.code === 1) { // PERMISSION_DENIED
                 toast.error("Location access was blocked. Please enable it in your browser settings to continue.", { 
+                    id: toastId,
                     duration: 5000,
                     icon: '🔒' 
                 });
@@ -265,16 +267,16 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
 
             // Fallback for timeout
             if (err.code === 3) {
-                toast.loading("GPS slow, using network location...");
+                toast.loading("GPS slow, using network location...", { id: toastId });
                 navigator.geolocation.getCurrentPosition(success, (err2) => {
-                    toast.error("Could not determine location.");
+                    toast.error("Could not determine location.", { id: toastId });
                     setLoadingLocation(false);
                     setView('list');
                 }, { enableHighAccuracy: false, timeout: 5000 });
                 return;
             }
             
-            toast.error("Location unavailable. Please try again.");
+            toast.error("Location unavailable. Please try again.", { id: toastId });
             setLoadingLocation(false);
             setView('list');
         };
@@ -282,7 +284,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(success, error, options);
         } else {
-            toast.error("Geolocation is not supported by your browser.");
+            toast.error("Geolocation is not supported by your browser.", { id: toastId });
             setLoadingLocation(false);
             setView('list');
         }
@@ -512,6 +514,7 @@ const LocationModal = ({ isOpen, onClose, isMandatory = false }) => {
                                     options={{ 
                                         disableDefaultUI: true, 
                                         zoomControl: true,
+                                        gestureHandling: 'greedy',
                                         zoomControlOptions: {
                                             position: window.google?.maps?.ControlPosition?.RIGHT_CENTER || 9
                                         }

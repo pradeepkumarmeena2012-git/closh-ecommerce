@@ -616,7 +616,17 @@ const AppRoutes = () => {
             </RouteWrapper>
           }
         />
-        {/* Removed old support route which was protected and mapped to UserSupportPage, replaced by static support below */}
+        {/* Restored Live Support route */}
+        <Route
+          path="/support"
+          element={
+            <RouteWrapper>
+              <ProtectedRoute>
+                <UserLayout variant="account"><UserSupportPage /></UserLayout>
+              </ProtectedRoute>
+            </RouteWrapper>
+          }
+        />
         <Route
           path="/legal/:pageId"
           element={
@@ -626,7 +636,6 @@ const AppRoutes = () => {
           }
         />
         <Route path="/privacy" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="privacy" /></UserLayout></RouteWrapper>} />
-        <Route path="/support" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="contact" /></UserLayout></RouteWrapper>} />
         <Route path="/contact" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="contact" /></UserLayout></RouteWrapper>} />
         <Route path="/shipping" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="shipping" /></UserLayout></RouteWrapper>} />
         <Route path="/about" element={<RouteWrapper><UserLayout><UserLegalPage fixedPageId="about" /></UserLayout></RouteWrapper>} />
