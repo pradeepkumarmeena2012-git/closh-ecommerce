@@ -243,10 +243,10 @@ const listProducts = asyncHandler(async (req, res) => {
     if (minRating) filter.rating = { $gte: Number(minRating) };
     const searchQuery = String(search || q || '').trim();
     if (searchQuery) {
-        // Escape regex characters
-        const escapedSearch = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Remove existing spaces and hyphens, then join with optional space/hyphen matcher
-        const flexibleSearch = escapedSearch.replace(/[-\s]+/g, '').split('').join('[-\\s]*');
+        // Split the search query by any non-alphanumeric character (spaces, dots, hyphens, etc.)
+        const parts = searchQuery.split(/[\\s\\W]+/).filter(Boolean);
+        // Join parts with a regex that allows any amount of spaces or special characters in between
+        const flexibleSearch = parts.join('[\\\\s\\\\W]*');
         
         filter.$or = [
             { name: { $regex: flexibleSearch, $options: 'i' } },
