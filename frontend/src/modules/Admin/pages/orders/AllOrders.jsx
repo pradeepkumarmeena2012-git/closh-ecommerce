@@ -698,6 +698,31 @@ const AllOrders = () => {
       ),
     },
     {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (value) => {
+        const getStatusColor = (status) => {
+          switch (status?.toLowerCase()) {
+            case 'pending': return 'bg-yellow-50 text-yellow-700 border-yellow-100';
+            case 'processing': return 'bg-blue-50 text-blue-700 border-blue-100';
+            case 'assigned': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+            case 'shipped': return 'bg-purple-50 text-purple-700 border-purple-100';
+            case 'out_for_delivery': return 'bg-cyan-50 text-cyan-700 border-cyan-100';
+            case 'delivered': return 'bg-green-50 text-green-700 border-green-100';
+            case 'cancelled': return 'bg-red-50 text-red-700 border-red-100';
+            case 'returned': return 'bg-orange-50 text-orange-700 border-orange-100';
+            default: return 'bg-gray-50 text-gray-700 border-gray-100';
+          }
+        };
+        return (
+          <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${getStatusColor(value)}`}>
+            {value?.replace(/_/g, ' ') || 'UNKNOWN'}
+          </span>
+        );
+      },
+    },
+    {
       key: "deliveryBoy",
       label: "Delivery Partner",
       sortable: false,

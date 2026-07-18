@@ -273,7 +273,7 @@ const TrackOrderPage = () => {
     const hasRider = !!((order.deliveryBoyId || order.assignedDeliveryBoy) && order.riderAcceptedAt);
     const riderName = order.deliveryBoyId?.name || order.assignedDeliveryBoy?.name;
     const riderPhone = order.deliveryBoyId?.phone || order.assignedDeliveryBoy?.phone;
-    const isActiveDelivery = ['picked_up', 'out_for_delivery', 'assigned'].includes(status);
+    const isActiveDelivery = ['picked_up', 'out_for_delivery'].includes(status) || (status === 'assigned' && hasRider);
     const showOtp = (riderArrived || status === 'out_for_delivery' || status === 'picked_up') && order.deliveryOtpDebug;
 
     // ─────────── Helper: get dispatching status label & progress for pre-assignment view ───────────
@@ -530,8 +530,8 @@ const TrackOrderPage = () => {
                                 <h3 className="text-[14px] font-black text-slate-900 leading-tight">
                                     {isCancelled ? 'Order Cancelled' :
                                      multiVendorStillPickingUp ? `Picking Up (${pickedUpCount}/${totalVendorStops})` :
-                                     status === 'assigned' ? 'Rider Assigned' :
-                                     dispatchInfo.progress >= 3 ? 'Searching for Rider' :
+                                     (status === 'assigned' && hasRider) ? 'Rider Assigned' :
+                                     (status === 'assigned' && !hasRider) || dispatchInfo.progress >= 3 ? 'Searching for Rider' :
                                      dispatchInfo.progress >= 2 ? 'Ready for Pickup' :
                                      dispatchInfo.progress >= 1 ? 'Preparing Luxury Parcel' :
                                      'Order Received'}
@@ -714,7 +714,7 @@ const TrackOrderPage = () => {
                         <h2 className="text-sm md:text-base font-black text-slate-900">#{order.orderId || orderId}</h2>
                     </div>
                     <div className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm ${status === 'delivered' ? 'bg-emerald-500 text-white' : 'bg-indigo-600 text-white'}`}>
-                        {status === 'assigned' ? 'assigned to pickup' : status.replace(/_/g, ' ')}
+                        {(status === 'assigned' && !hasRider) ? 'searching' : status === 'assigned' ? 'assigned to pickup' : status.replace(/_/g, ' ')}
                     </div>
                 </div>
 
