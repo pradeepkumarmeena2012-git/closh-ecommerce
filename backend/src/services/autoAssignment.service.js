@@ -165,9 +165,9 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
         order.deliveryBoyId = chosenRider._id;
         order.status = 'assigned';
         order.assignedAt = new Date(); // Fix: Frontend countdown relies on this
+        order.riderAcceptedAt = null; // Clear any previous acceptance
         order.isMultiVendor = order.vendorItems.length > 1;
         order.vendorPickups = vendorPickups;
-        order.assignedAt = new Date();
         order.generateDeliveryOtp();
         await order.save();
 

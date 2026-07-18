@@ -317,6 +317,7 @@ if (isRedisAvailable) {
 
             // 2. Clear assignment
             order.deliveryBoyId = undefined;
+            order.riderAcceptedAt = null; // Ensure this is cleared
             order.status = 'searching';
             order.vendorPickups = []; // Will be recalculated by new assignment
             await order.save();

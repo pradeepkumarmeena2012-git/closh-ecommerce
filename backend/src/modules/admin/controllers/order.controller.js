@@ -350,6 +350,7 @@ export const assignDeliveryBoy = asyncHandler(async (req, res) => {
     const isReassigned = previousDeliveryBoyId && previousDeliveryBoyId !== String(deliveryBoyId);
 
     order.deliveryBoyId = deliveryBoyId;
+    order.riderAcceptedAt = new Date(); // Admin manually assigns, so treat it as accepted
     if (['ready_for_pickup', 'all_vendors_ready', 'searching', 'ready_for_delivery', 'processing'].includes(order.status)) {
         order.status = 'assigned';
     } else if (order.status === 'pending') {
