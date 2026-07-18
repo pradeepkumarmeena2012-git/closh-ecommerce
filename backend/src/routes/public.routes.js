@@ -252,6 +252,23 @@ const listProducts = asyncHandler(async (req, res) => {
             { name: { $regex: flexibleSearch, $options: 'i' } },
             { tags: { $regex: flexibleSearch, $options: 'i' } }
         ];
+
+        // Also search by Brand and Vendor (Company/Store) names
+        const matchedBrands = await Brand.find({ name: { $regex: flexibleSearch, $options: 'i' } }).select('_id').lean();
+        const matchedVendors = await Vendor.find({ 
+            $or: [
+                { storeName: { $regex: flexibleSearch, $options: 'i' } },
+                { companyName: { $regex: flexibleSearch, $options: 'i' } },
+                { name: { $regex: flexibleSearch, $options: 'i' } }
+            ] 
+        }).select('_id').lean();
+
+        if (matchedBrands.length > 0) {
+            filter.$or.push({ brandId: { $in: matchedBrands.map(b => b._id) } });
+        }
+        if (matchedVendors.length > 0) {
+            filter.$or.push({ vendorId: { $in: matchedVendors.map(v => v._id) } });
+        }
     }
 
     const sortMap = { 
