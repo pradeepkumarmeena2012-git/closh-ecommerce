@@ -16,7 +16,7 @@ import {
   FiMail,
   FiCamera,
   FiPrinter,
-  FiStore
+  FiShoppingBag
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
@@ -822,11 +822,11 @@ const OrderDetail = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-gray-800 truncate">{item.name || 'Unknown Product'}</p>
                       <p className="text-[10px] text-primary-600 font-bold uppercase tracking-wider mt-0.5 mb-1 flex items-center gap-1">
-                        <FiStore className="text-[10px]" />
-                        {item.vendorId?.storeName || item.vendorName || 
+                        <FiShoppingBag className="text-[10px]" />
+                        <span>Store: {item.vendorId?.storeName || item.vendorName || 
                          order.vendorItems?.find(vi => (vi.vendorId?._id || vi.vendorId) === (item.vendorId?._id || item.vendorId))?.vendorName || 
                          order.vendorItems?.[0]?.vendorId?.storeName || 
-                         order.vendorItems?.[0]?.vendorName || 'Closh Partner'}
+                         order.vendorItems?.[0]?.vendorName || 'Closh Partner'}</span>
                       </p>
                       <p className="text-xs text-gray-600">
                         {formatCurrency(item.price || 0)} x {item.quantity || 1}
