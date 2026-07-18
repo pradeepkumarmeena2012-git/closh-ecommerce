@@ -15,7 +15,8 @@ import {
   FiClock,
   FiMail,
   FiCamera,
-  FiPrinter
+  FiPrinter,
+  FiStore
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Badge from '../../../shared/components/Badge';
@@ -540,6 +541,7 @@ const OrderDetail = () => {
               <thead>
                 <tr className="border-b-2 border-gray-900">
                   <th className="py-4 text-left text-xs font-black text-gray-400 uppercase tracking-wider">Product Description</th>
+                  <th className="py-4 text-left text-xs font-black text-gray-400 uppercase tracking-wider">HSN</th>
                   <th className="py-4 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Price</th>
                   <th className="py-4 text-center text-xs font-black text-gray-400 uppercase tracking-wider">Qty</th>
                   <th className="py-4 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Total</th>
@@ -554,6 +556,7 @@ const OrderDetail = () => {
                         <p className="text-xs text-gray-400 mt-1">{formatVariantLabel(item.variant)}</p>
                       )}
                     </td>
+                    <td className="py-6 text-left font-medium text-gray-600">{item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || 'N/A'}</td>
                     <td className="py-6 text-right font-medium text-gray-600">{formatCurrency(item.price)}</td>
                     <td className="py-6 text-center font-bold text-gray-900">{item.quantity}</td>
                     <td className="py-6 text-right font-bold text-gray-900">{formatCurrency(item.price * item.quantity)}</td>
@@ -818,6 +821,13 @@ const OrderDetail = () => {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm text-gray-800 truncate">{item.name || 'Unknown Product'}</p>
+                      <p className="text-[10px] text-primary-600 font-bold uppercase tracking-wider mt-0.5 mb-1 flex items-center gap-1">
+                        <FiStore className="text-[10px]" />
+                        {item.vendorId?.storeName || item.vendorName || 
+                         order.vendorItems?.find(vi => (vi.vendorId?._id || vi.vendorId) === (item.vendorId?._id || item.vendorId))?.vendorName || 
+                         order.vendorItems?.[0]?.vendorId?.storeName || 
+                         order.vendorItems?.[0]?.vendorName || 'Closh Partner'}
+                      </p>
                       <p className="text-xs text-gray-600">
                         {formatCurrency(item.price || 0)} x {item.quantity || 1}
                       </p>

@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import api from '../../../../shared/utils/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import AccountLayout from '../../components/Profile/AccountLayout';
-import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw, CheckCircle, Truck, Store, ThumbsUp, UserCheck, CheckCircle2, Layers, Star } from 'lucide-react';
+import { ArrowLeft, Package, Clock, MapPin, Phone, CreditCard, ChevronRight, Printer, AlertTriangle, RefreshCcw, X, ShieldCheck, RefreshCw, CheckCircle, Truck, Store, ThumbsUp, UserCheck, CheckCircle2, Layers, Star, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrderStore } from '../../../../shared/store/orderStore';
 import { useReviewsStore } from '../../../../shared/store/reviewsStore';
@@ -67,8 +67,10 @@ const OrderDetailsPage = () => {
         'Other (Please specify)'
     ];
 
-    const CANCELLABLE_STATUSES = ['pending', 'accepted', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'ready_for_delivery', 'searching'];
+    const CANCELLABLE_STATUSES = ['pending', 'accepted', 'processing', 'ready_for_pickup', 'all_vendors_ready', 'ready_for_delivery', 'searching', 'assigned'];
+    const SUPPORT_CANCELLABLE_STATUSES = ['picked_up', 'out_for_delivery', 'arrived', 'shipped'];
     const canCancelOrder = order && CANCELLABLE_STATUSES.includes(order.status?.toLowerCase()) && order.status?.toLowerCase() !== 'cancelled';
+    const needsSupportToCancel = order && SUPPORT_CANCELLABLE_STATUSES.includes(order.status?.toLowerCase());
 
     const isOrderDelivered = order?.status?.toLowerCase() === 'delivered';
 
@@ -1002,7 +1004,7 @@ const OrderDetailsPage = () => {
                     {(() => {
                         const status = order?.status?.toLowerCase() || 'pending';
                         const isActiveDelivery = ['assigned', 'picked_up', 'out_for_delivery', 'arrived'].includes(status);
-                        const hasRider = !!(order?.deliveryBoyId || order?.assignedDeliveryBoy);
+                        const hasRider = !!((order?.deliveryBoyId || order?.assignedDeliveryBoy) && order?.riderAcceptedAt);
                         const riderName = order?.deliveryBoyId?.name || order?.assignedDeliveryBoy?.name;
                         const riderPhone = order?.deliveryBoyId?.phone || order?.assignedDeliveryBoy?.phone;
                         
@@ -1763,6 +1765,15 @@ const OrderDetailsPage = () => {
                             >
                                 <X size={14} />
                                 Cancel Order
+                            </button>
+                        )}
+                        {needsSupportToCancel && (
+                            <button
+                                onClick={() => navigate(`/support?orderId=${orderId || order?.orderId}`)}
+                                className="flex-1 py-3 bg-white text-amber-600 border-2 border-amber-200 rounded-xl font-bold text-[10px] uppercase hover:bg-amber-50 hover:border-amber-400 transition-all active:scale-95 flex items-center justify-center gap-2"
+                            >
+                                <MessageSquare size={14} />
+                                Request Cancellation
                             </button>
                         )}
                         <button

@@ -353,7 +353,13 @@ const OrderActionsDropdown = ({
                 return (
                   <button
                     key={index}
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      item.onClick();
+                    }}
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       item.onClick();
                     }}

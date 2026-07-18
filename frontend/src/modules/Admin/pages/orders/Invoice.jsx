@@ -6,7 +6,6 @@ import { formatPrice } from "../../../../shared/utils/helpers";
 import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import { getOrderById } from "../../services/adminService";
 import toast from "react-hot-toast";
-import logoImage from "../../../../../data/logos/ChatGPT Image Dec 2, 2025, 03_01_19 PM.png";
 
 const Invoice = () => {
   const navigate = useNavigate();
@@ -14,8 +13,8 @@ const Invoice = () => {
   const [order, setOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const { settings } = useSettingsStore();
-  const storeLogo = settings?.general?.storeLogo || logoImage;
-  const storeName = settings?.general?.storeName || "Appzeto E-commerce";
+  const storeLogo = settings?.general?.storeLogo || null;
+  const storeName = settings?.general?.storeName || "Clothify";
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -127,7 +126,7 @@ Items:
 ${items
         .map(
           (item) =>
-            `- ${item.name || "Item"} x${item.quantity || 1} - ${formatPrice(
+            `- ${item.name || "Item"} (HSN: ${item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || 'N/A'}) x${item.quantity || 1} - ${formatPrice(
               (item.price || 0) * (item.quantity || 1)
             )}`
         )
@@ -204,14 +203,7 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-6">
             {/* Logo */}
             <div className="flex items-center justify-start sm:justify-start">
-              <img
-                src={storeLogo}
-                alt={storeName}
-                className="h-24 sm:h-32 md:h-40 w-auto object-contain"
-                onError={(e) => {
-                  e.target.src = logoImage;
-                }}
-              />
+              <h2 className="text-3xl font-black text-gray-800 tracking-tight">{storeName}</h2>
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold text-gray-700 mb-1">Status</p>
@@ -287,6 +279,9 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
                   Item
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
+                  HSN Code
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
                   Quantity
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
@@ -300,6 +295,7 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
             <tbody className="divide-y divide-gray-200">
               {items.map((item, index) => {
                 const itemTotal = (item.price || 0) * (item.quantity || 1);
+                const hsn = item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || 'N/A';
                 return (
                   <tr key={item.id || index} className="hover:bg-white hover:text-black">
                     <td className="px-4 py-3 text-sm text-gray-800">
@@ -309,6 +305,9 @@ ${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
                           {Object.entries(item.variant).map(([k, v]) => `${k}: ${v}`).join(', ')}
                         </div>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 text-center">
+                      {hsn}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 text-center">
                       {item.quantity || 1}

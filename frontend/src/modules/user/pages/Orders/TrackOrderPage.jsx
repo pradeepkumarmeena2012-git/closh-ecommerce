@@ -140,7 +140,7 @@ const TrackOrderPage = () => {
 
     // For multi-vendor orders with 2+ stops, show vendor pickup progress in the pre-assignment view
     const multiVendorStillPickingUp = isMultiVendor && totalVendorStops > 1
-        && ASSIGNED_STATUSES.includes(status)
+        && ASSIGNED_STATUSES.includes(status) && !!((order.deliveryBoyId || order.assignedDeliveryBoy) && order.riderAcceptedAt)
         && !['picked_up', 'shipped', 'out_for_delivery', 'delivered'].includes(status);
 
     // Statuses that mean the order has been picked up and is on its way to customer (show map)
@@ -270,7 +270,7 @@ const TrackOrderPage = () => {
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
-    const hasRider = !!(order.deliveryBoyId || order.assignedDeliveryBoy);
+    const hasRider = !!((order.deliveryBoyId || order.assignedDeliveryBoy) && order.riderAcceptedAt);
     const riderName = order.deliveryBoyId?.name || order.assignedDeliveryBoy?.name;
     const riderPhone = order.deliveryBoyId?.phone || order.assignedDeliveryBoy?.phone;
     const isActiveDelivery = ['picked_up', 'out_for_delivery', 'assigned'].includes(status);
@@ -283,7 +283,7 @@ const TrackOrderPage = () => {
         const isReadyForPickup = vendorStatuses.length > 0 && vendorStatuses.every(s => ['ready_for_pickup'].includes(s));
 
         // Multi-vendor: rider assigned but still picking up from vendors
-        if (multiVendorStillPickingUp) {
+        if (multiVendorStillPickingUp && hasRider) {
             if (pickedUpCount > 0 && pickedUpCount < totalVendorStops) {
                 return { label: 'COLLECTING FROM VENDORS', progress: 4 };
             }
@@ -291,12 +291,12 @@ const TrackOrderPage = () => {
         }
 
         // Single-vendor: rider assigned, heading to vendor for pickup
-        if (status === 'assigned') {
+        if (status === 'assigned' && hasRider) {
             return { label: 'RIDER ASSIGNED — PICKING UP', progress: 4 };
         }
         
-        if (status === 'searching' || status === 'all_vendors_ready' || status === 'ready_for_delivery') {
-            return { label: 'RIDER FINDING', progress: 3 };
+        if (status === 'searching' || status === 'all_vendors_ready' || status === 'ready_for_delivery' || (status === 'assigned' && !hasRider)) {
+            return { label: 'SEARCHING RIDER', progress: 3 };
         }
         if (isReadyForPickup) {
             return { label: 'READY FOR PICKUP', progress: 2 };
@@ -330,19 +330,32 @@ const TrackOrderPage = () => {
                         <ArrowLeft size={20} />
                     </button>
                     <div className="flex-1">
-                        <h1 className="text-[17px] font-black text-slate-900 leading-tight">Finding your delivery partner...</h1>
+                        <h1 className="text-[17px] font-black text-slate-900 leading-tight">
+                            {isCancelled ? 'Order Cancelled' : 'Finding your delivery partner...'}
+                        </h1>
                     </div>
                 </div>
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide px-5 pb-28">
-                    {/* 3D Delivery Rider Image */}
+                    {/* Image / Animation */}
                     <motion.div 
                         className="flex justify-center py-6"
                         initial={{ opacity: 0, y: 30, scale: 0.8 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         transition={{ duration: 0.7, ease: "easeOut" }}
                     >
+                        {isCancelled ? (
+                            <div className="relative w-52 h-44 md:w-60 md:h-52 flex flex-col items-center justify-center">
+                                <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                                    </svg>
+                                </div>
+                            </div>
+                        ) : (
                         <div className="relative" style={{ perspective: '800px' }}>
                             {/* Soft shadow underneath */}
                             <motion.div
@@ -432,6 +445,7 @@ const TrackOrderPage = () => {
                                 />
                             </motion.div>
                         </div>
+                        )}
                     </motion.div>
 
                     {/* Status Badge */}
@@ -461,7 +475,7 @@ const TrackOrderPage = () => {
                         <h2 className="text-[22px] font-black text-slate-900 leading-tight mb-2">
                             {isCancelled ? 'Order Cancelled' :
                              multiVendorStillPickingUp ? 'Collecting your items...' :
-                             status === 'assigned' ? 'Rider is on the way to store...' :
+                             (status === 'assigned' && hasRider) ? 'Rider is on the way to store...' :
                              dispatchInfo.progress >= 3 ? 'Finding your delivery partner...' :
                              dispatchInfo.progress >= 2 ? 'Order is ready!' :
                              dispatchInfo.progress >= 1 ? 'Preparing your order...' :
@@ -470,7 +484,7 @@ const TrackOrderPage = () => {
                         <p className="text-[13px] text-slate-500 font-medium leading-relaxed px-4">
                             {isCancelled ? 'This order has been cancelled.' :
                              multiVendorStillPickingUp ? `Your rider is picking up items from ${totalVendorStops} vendor${totalVendorStops > 1 ? 's' : ''}. ${pickedUpCount} of ${totalVendorStops} collected.` :
-                             status === 'assigned' ? 'Your rider has been assigned and is heading to the store to pick up your order.' :
+                             (status === 'assigned' && hasRider) ? 'Your rider has been assigned and is heading to the store to pick up your order.' :
                              dispatchInfo.progress >= 3 ? "We're matching your order with the nearest delivery partner. High fashion is worth the wait." :
                              dispatchInfo.progress >= 2 ? "Your items are ready and waiting for a delivery partner to pick them up." :
                              dispatchInfo.progress >= 1 ? "The store is carefully preparing your items for dispatch." :

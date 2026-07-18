@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { FiMessageCircle, FiSend, FiUser, FiCheckCircle } from 'react-icons/fi';
+import { FiMessageCircle, FiSend, FiUser, FiCheckCircle, FiChevronLeft } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useSupportStore } from '../../../../shared/store/supportStore';
 
@@ -40,9 +40,8 @@ const LiveChat = ({ type = 'customer' }) => {
         return {
           id: ticket.id,
           customerName: ticket.customer?.name || 'Anonymous',
-          // Correctly reference the ID
           lastMessage: lastMessage?.message || ticket.subject || 'No messages yet',
-          unreadCount: ticket.isReadByAdmin ? 0 : 1, // Simple unread indicator
+          unreadCount: ticket.isReadByAdmin ? 0 : 1,
           status: ticket.status,
           lastActivity: ticket.lastMessageAt || ticket.updatedAt || ticket.createdAt,
         };
@@ -72,6 +71,13 @@ const LiveChat = ({ type = 'customer' }) => {
     }
   };
 
+  const handleBackToList = () => {
+    if (selectedTicket?.id) {
+      leaveTicketRoom(selectedTicket.id);
+    }
+    useSupportStore.setState({ selectedTicket: null });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -88,7 +94,7 @@ const LiveChat = ({ type = 'customer' }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className={`lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 ${selectedTicket ? 'hidden lg:block' : 'block'}`}>
           <div className="p-4 border-b border-gray-200">
             <h3 className="font-semibold text-gray-800">Active Chats</h3>
           </div>
@@ -136,11 +142,19 @@ const LiveChat = ({ type = 'customer' }) => {
         </div>
 
         {selectedTicket ? (
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
+          <div className={`lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex-col ${!selectedTicket ? 'hidden lg:flex' : 'flex'}`}>
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-800">{selectedTicket.customer?.name || 'Anonymous'}</h3>
-                <p className="text-xs text-gray-500">Ticket ID: {selectedTicket.id}</p>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleBackToList}
+                  className="lg:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700 rounded-lg transition-colors"
+                >
+                  <FiChevronLeft size={24} />
+                </button>
+                <div>
+                  <h3 className="font-semibold text-gray-800">{selectedTicket.customer?.name || 'Anonymous'}</h3>
+                  <p className="text-xs text-gray-500">Ticket ID: {selectedTicket.id}</p>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${selectedTicket.status === 'resolved' ? 'bg-green-100 text-green-700' :
