@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FiArrowLeft, FiDownload, FiPrinter } from "react-icons/fi";
 import { motion } from "framer-motion";
-import { formatPrice } from "../../../../shared/utils/helpers";
-import { useSettingsStore } from "../../../../shared/store/settingsStore";
 import { getOrderById } from "../../services/adminService";
 import toast from "react-hot-toast";
 
@@ -12,9 +10,6 @@ const Invoice = () => {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { settings } = useSettingsStore();
-  const storeLogo = settings?.general?.storeLogo || null;
-  const storeName = settings?.general?.storeName || "Clothify";
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -22,8 +17,7 @@ const Invoice = () => {
       try {
         const response = await getOrderById(id);
         const o = response.data;
-
-        // Normalize data to match UI structure
+        // Normalize data
         const normalizedOrder = {
           ...o,
           id: o.orderId || o._id,
@@ -35,7 +29,6 @@ const Invoice = () => {
           date: o.createdAt,
           finalTotal: o.total
         };
-
         setOrder(normalizedOrder);
       } catch (error) {
         toast.error("Order not found");
@@ -45,7 +38,6 @@ const Invoice = () => {
         setIsLoading(false);
       }
     };
-
     fetchOrder();
   }, [id, navigate]);
 
@@ -57,413 +49,367 @@ const Invoice = () => {
     );
   }
 
-  // Get order items - handle both array and number formats
-  const items = Array.isArray(order.items)
-    ? order.items
-    : Array.from({ length: order.items || 1 }, (_, i) => ({
-      id: i + 1,
-      name: `Item ${i + 1}`,
-      quantity: 1,
-      price: (order.total || 0) / (order.items || 1),
-    }));
+  const generateInvoiceHtml = () => {
+    if (!order) return "";
 
-  // Calculate totals
-  const subtotal = order.subtotal ?? order.total ?? 0;
-  
-  const discount = order.discount ?? 0;
-  const shipping = order.shipping ?? 0;
-  const finalTotal =
-    order.finalTotal !== undefined
-      ? order.finalTotal
-      : subtotal + shipping - discount;
+    const items = Array.isArray(order.items) ? order.items : [];
+    
+    // Calculate totals for Customer Tax Invoice
+    let totalGrossAmount = 0;
+    let totalDiscountAmount = 0;
+    let totalTaxableValue = 0;
+    let totalCgst = 0;
+    let totalSgst = 0;
+    let totalIgst = 0;
+    let totalSellingPriceSum = 0;
 
-  // Closh Bill inclusive GST logic: Calculate the Base Price excluding GST
-  // order.totalCustomerIgst, Cgst, Sgst are saved in backend
-  const cgst = order.totalCustomerCgst || 0;
-  const sgst = order.totalCustomerSgst || 0;
-  const igst = order.totalCustomerIgst || 0;
-  const totalGst = cgst + sgst + igst;
-  const baseSubtotal = subtotal - totalGst;
+    const itemsHtml = items.map(item => {
+      const qty = item.quantity || 1;
+      const mrp = item.originalPrice || item.price || 0;
+      const sellingPrice = item.price || 0;
+      const totalSellingPrice = sellingPrice * qty;
+      const totalMrp = mrp * qty;
+      
+      const gstRate = 5;
+      const taxableValue = totalSellingPrice / (1 + (gstRate / 100));
+      const gstAmount = totalSellingPrice - taxableValue;
 
-  const totalVendorTax = order.vendorItems?.reduce((sum, vi) => sum + (vi.vendorTax || 0), 0) || 0;
-  const totalCommissionTax = order.vendorItems?.reduce((sum, vi) => sum + (vi.commissionTax || 0), 0) || 0;
+      let itemCgst = 0, itemSgst = 0, itemIgst = 0;
+      if (order.totalCustomerIgst > 0) {
+          itemIgst = gstAmount;
+      } else {
+          itemCgst = gstAmount / 2;
+          itemSgst = gstAmount / 2;
+      }
+      
+      const calculatedTaxableValue = totalSellingPrice - (itemCgst + itemSgst + itemIgst);
+      const discount = totalMrp - totalSellingPrice;
 
-  // Format payment method
-  const formatPaymentMethod = (method) => {
-    if (!method) return "N/A";
-    const methodMap = {
-      card: "Credit Card",
-      cod: "Cash on Delivery",
-      wallet: "Wallet",
-      creditCard: "Credit Card",
-      cash: "Cash on Delivery",
-    };
-    return (
-      methodMap[method.toLowerCase()] ||
-      method.charAt(0).toUpperCase() + method.slice(1)
-    );
+      totalGrossAmount += totalMrp;
+      totalDiscountAmount += discount;
+      totalTaxableValue += calculatedTaxableValue;
+      totalCgst += itemCgst;
+      totalSgst += itemSgst;
+      totalIgst += itemIgst;
+      totalSellingPriceSum += totalSellingPrice;
+
+      return `
+        <tr>
+            <td class="text-left">${item.name} ${item.selectedSize ? `(${item.selectedSize})` : (item.variant && Object.keys(item.variant).length > 0 ? `(${Object.values(item.variant).join(', ')})` : '')}</td>
+            <td>${item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || 'N/A'}</td>
+            <td>${mrp.toFixed(2)}</td>
+            <td>${qty}</td>
+            <td>${totalMrp.toFixed(2)}</td>
+            <td>${discount.toFixed(2)}</td>
+            <td>${calculatedTaxableValue.toFixed(2)}</td>
+            <td>${itemCgst.toFixed(2)}</td>
+            <td>${itemSgst.toFixed(2)}</td>
+            <td>${itemIgst.toFixed(2)}</td>
+            <td>${totalSellingPrice.toFixed(2)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    // Platform Services Invoice calculations
+    const shipping = order.shipping || 0;
+    const platformFee = order.platformFee || 0;
+    const totalPlatformAmount = shipping + platformFee;
+    
+    const feeTaxable = platformFee / 1.18;
+    const feeGst = platformFee - feeTaxable;
+    const shipTaxable = shipping;
+    const shipGst = 0;
+
+    let platformItemsHtml = '';
+    if (shipping > 0) {
+      platformItemsHtml += `
+        <tr>
+            <td class="text-left">Shipping & Delivery Charges</td>
+            <td>996812</td>
+            <td>${shipping.toFixed(2)}</td>
+            <td>1</td>
+            <td>${shipping.toFixed(2)}</td>
+            <td>0.00</td>
+            <td>${shipTaxable.toFixed(2)}</td>
+            <td>${(shipGst/2).toFixed(2)}</td>
+            <td>${(shipGst/2).toFixed(2)}</td>
+            <td>0.00</td>
+            <td>${shipping.toFixed(2)}</td>
+        </tr>
+      `;
+    }
+    if (platformFee > 0) {
+      platformItemsHtml += `
+        <tr>
+            <td class="text-left">Platform Convenience Fee</td>
+            <td>998311</td>
+            <td>${platformFee.toFixed(2)}</td>
+            <td>1</td>
+            <td>${platformFee.toFixed(2)}</td>
+            <td>0.00</td>
+            <td>${feeTaxable.toFixed(2)}</td>
+            <td>${(feeGst/2).toFixed(2)}</td>
+            <td>${(feeGst/2).toFixed(2)}</td>
+            <td>0.00</td>
+            <td>${platformFee.toFixed(2)}</td>
+        </tr>
+      `;
+    }
+
+    const addr = order.shippingAddress || order.address || {};
+    const addressHtml = `
+      <div>${addr.name || order.customer?.name || ''}</div>
+      <div>${addr.address || ''} ${addr.locality ? ', ' + addr.locality : ''}</div>
+      <div>${addr.city || ''}, ${addr.state || ''} - ${addr.zipCode || addr.pincode || ''}</div>
+    `;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <meta charset="UTF-8">
+          <title>Invoice #${order.id}</title>
+          <style>
+              * { box-sizing: border-box; }
+              body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; color: #000; line-height: 1.4; font-size: 12px; }
+              .header-title { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; }
+              .top-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+              .sold-by-info { width: 60%; }
+              .invoice-info { width: 35%; text-align: right; }
+              .info-text { margin-bottom: 5px; }
+              .bold { font-weight: bold; }
+              
+              .addresses-box { border: 1px solid #000; display: flex; margin-bottom: 20px; }
+              .address-col { padding: 10px; flex: 1; border-right: 1px solid #000; }
+              .address-col:last-child { border-right: none; }
+              .address-title { font-weight: bold; margin-bottom: 10px; }
+              
+              .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center; border: 1px solid #000; }
+              .table th { border: 1px solid #000; padding: 8px 4px; font-size: 11px; font-weight: bold; }
+              .table td { border: 1px solid #000; padding: 8px 4px; font-size: 11px; vertical-align: middle; }
+              .table .text-left { text-align: left; }
+              .table .text-right { text-align: right; }
+              
+              .totals-row td { font-weight: bold; border-top: 2px solid #000; }
+              .grand-total-row td { font-weight: bold; font-size: 14px; border-top: 2px solid #000; }
+              
+              .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #555; border-top: 1px solid #000; padding-top: 10px; }
+              
+              .page-break { page-break-after: always; margin-bottom: 40px; border-bottom: 2px dashed #ccc; padding-bottom: 40px; }
+              
+              @media print {
+                  body { padding: 0; max-width: 100%; }
+                  .page-break { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+              }
+          </style>
+      </head>
+      <body>
+          <!-- CUSTOMER TAX INVOICE -->
+          <div class="header-title">Tax Invoice</div>
+          
+          <div class="top-section">
+              <div class="sold-by-info">
+                  <div class="info-text"><span class="bold">Sold By:</span> CLOSH COMMERCE (OPC) PRIVATE LIMITED</div>
+                  <div class="info-text"><span class="bold">GSTIN:</span> 08AANCC7176M1ZV</div>
+                  <div class="info-text"><span class="bold">Ship-from Address:</span> 70, keshar vihar, Near Railway Colony, Jagatpura, Jaipur, Rajasthan 302017</div>
+              </div>
+              <div class="invoice-info">
+                  <div class="info-text"><span class="bold">Invoice Number:</span> INV-${order.id}</div>
+              </div>
+          </div>
+
+          <div class="addresses-box">
+              <div class="address-col" style="flex: 1.2;">
+                  <div class="info-text"><span class="bold">Order ID:</span> #${order.id}</div>
+                  <div class="info-text"><span class="bold">Order Date:</span> ${new Date(order.date).toLocaleDateString('en-CA')}</div>
+                  <div class="info-text"><span class="bold">Invoice Date:</span> ${new Date().toLocaleDateString('en-CA')}</div>
+              </div>
+              <div class="address-col" style="flex: 1;">
+                  <div class="address-title">Billing To:</div>
+                  ${addressHtml}
+              </div>
+              <div class="address-col" style="flex: 1;">
+                  <div class="address-title">Shipping To:</div>
+                  ${addressHtml}
+              </div>
+          </div>
+
+          <table class="table">
+              <thead>
+                  <tr>
+                      <th class="text-left" style="width: 25%;">Product</th>
+                      <th>HSN</th>
+                      <th>MRP</th>
+                      <th>Qty</th>
+                      <th>Gross Amount</th>
+                      <th>Discount</th>
+                      <th>Taxable Value</th>
+                      <th>CGST</th>
+                      <th>SGST/UTGST</th>
+                      <th>IGST</th>
+                      <th>Total</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${itemsHtml}
+                  <tr class="totals-row">
+                      <td colspan="7" class="text-right">Total</td>
+                      <td>${totalCgst.toFixed(2)}</td>
+                      <td>${totalSgst.toFixed(2)}</td>
+                      <td>${totalIgst.toFixed(2)}</td>
+                      <td>${totalSellingPriceSum.toFixed(2)}</td>
+                  </tr>
+                  <tr class="grand-total-row">
+                      <td colspan="10" class="text-right">Grand Total</td>
+                      <td>${totalSellingPriceSum.toFixed(2)}</td>
+                  </tr>
+              </tbody>
+          </table>
+
+          <div class="footer">
+              <p class="bold" style="color: #000; font-size: 12px; margin-bottom: 5px;">This is a computer generated invoice and does not require a signature.</p>
+          </div>
+
+          ${totalPlatformAmount > 0 ? `
+          <div class="page-break"></div>
+
+          <!-- PLATFORM SERVICES TAX INVOICE -->
+          <div class="header-title">Platform Services Tax Invoice</div>
+          
+          <div class="top-section">
+              <div class="sold-by-info">
+                  <div class="info-text"><span class="bold">Billed From:</span> CLOSH COMMERCE (OPC) PRIVATE LIMITED</div>
+                  <div class="info-text"><span class="bold">GSTIN:</span> 08AANCC7176M1ZV</div>
+                  <div class="info-text"><span class="bold">Address:</span> 70, keshar vihar, Near Railway Colony, Jagatpura, Jaipur, Rajasthan 302017</div>
+              </div>
+              <div class="invoice-info">
+                  <div class="info-text"><span class="bold">Invoice Number:</span> TX-${order.id}</div>
+              </div>
+          </div>
+
+          <div class="addresses-box">
+              <div class="address-col" style="flex: 1.2;">
+                  <div class="info-text"><span class="bold">Order ID:</span> #${order.id}</div>
+                  <div class="info-text"><span class="bold">Order Date:</span> ${new Date(order.date).toLocaleDateString('en-CA')}</div>
+                  <div class="info-text"><span class="bold">Invoice Date:</span> ${new Date().toLocaleDateString('en-CA')}</div>
+              </div>
+              <div class="address-col" style="flex: 1;">
+                  <div class="address-title">Billed To (Customer):</div>
+                  ${addressHtml}
+              </div>
+          </div>
+
+          <table class="table">
+              <thead>
+                  <tr>
+                      <th class="text-left" style="width: 25%;">Service Description</th>
+                      <th>SAC</th>
+                      <th>Amount</th>
+                      <th>Qty</th>
+                      <th>Gross Amount</th>
+                      <th>Discount</th>
+                      <th>Taxable Value</th>
+                      <th>CGST (9%)</th>
+                      <th>SGST (9%)</th>
+                      <th>IGST</th>
+                      <th>Total</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  ${platformItemsHtml}
+                  <tr class="totals-row">
+                      <td colspan="7" class="text-right">Total</td>
+                      <td>${(feeGst/2).toFixed(2)}</td>
+                      <td>${(feeGst/2).toFixed(2)}</td>
+                      <td>0.00</td>
+                      <td>${totalPlatformAmount.toFixed(2)}</td>
+                  </tr>
+                  <tr class="grand-total-row">
+                      <td colspan="10" class="text-right">Grand Total (GST Inclusive)</td>
+                      <td>${totalPlatformAmount.toFixed(2)}</td>
+                  </tr>
+              </tbody>
+          </table>
+
+          <div class="footer">
+              <p class="bold" style="color: #000; font-size: 12px; margin-bottom: 5px;">This is a computer generated invoice and does not require a signature.</p>
+          </div>
+          ` : ''}
+
+      </body>
+      </html>
+    `;
   };
 
   const handleDownload = () => {
-    const invoiceText = `
-INVOICE
-Order #${order.id}
-Date: ${new Date(order.date).toLocaleString()}
-
-Customer Information:
-${order.customer?.name || "N/A"}
-${order.customer?.email || "N/A"}
-${order.customer?.phone || order.shippingAddress?.phone || ""}
-
-Shipping Address:
-${order.shippingAddress?.name || order.customer?.name || "N/A"}
-${order.shippingAddress?.address || "N/A"}
-${order.shippingAddress?.city || ""}, ${order.shippingAddress?.state || ""} ${order.shippingAddress?.zipCode || ""
-      }
-${order.shippingAddress?.country || ""}
-
-Items:
-${items
-        .map(
-          (item) =>
-            `- ${item.name || "Item"} (HSN: ${item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || 'N/A'}) x${item.quantity || 1} - ${formatPrice(
-              (item.price || 0) * (item.quantity || 1)
-            )}`
-        )
-        .join("\n")}
-
-Subtotal (Excl. GST): ${formatPrice(baseSubtotal)}
-${cgst > 0 ? `CGST: ${formatPrice(cgst)}\n` : ""}${sgst > 0 ? `SGST: ${formatPrice(sgst)}\n` : ""}${igst > 0 ? `IGST: ${formatPrice(igst)}\n` : ""}${discount > 0 ? `Discount: -${formatPrice(discount)}\n` : ""}${totalVendorTax > 0 ? `Vendor Tax: ${formatPrice(totalVendorTax)}\n` : ""}${totalCommissionTax > 0 ? `Commission Tax: ${formatPrice(totalCommissionTax)}\n` : ""}${shipping > 0 ? `Shipping: ${formatPrice(shipping)}\n` : ""}Total: ${formatPrice(finalTotal)}
-
-Payment Method: ${formatPaymentMethod(order.paymentMethod)}
-Status: ${order.status}
-${order.trackingNumber ? `Tracking Number: ${order.trackingNumber}` : ""}
-    `.trim();
-
-    const blob = new Blob([invoiceText], { type: "text/plain" });
+    const html = generateInvoiceHtml();
+    const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `invoice-${order.id}.txt`;
+    a.download = `invoice-${order.id}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success("Invoice downloaded successfully!");
+    toast.success("Invoice HTML downloaded successfully!");
   };
 
   const handlePrint = () => {
-    window.print();
+    const iframe = document.getElementById('invoice-iframe');
+    if (iframe) {
+      iframe.contentWindow.print();
+    }
   };
 
   return (
-    <div>
-      {/* Header - Hidden in print */}
-      <div className="no-print">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6">
-          <div className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                <FiArrowLeft className="text-lg text-gray-600" />
-              </button>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-                  Invoice
-                </h1>
-                <p className="text-xs text-gray-500">Order #{order.id}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleDownload}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-semibold">
-                <FiDownload />
-                Download
-              </button>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold">
-                <FiPrinter />
-                Print
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Invoice Content - Only this prints */}
-      <div className="invoice-content bg-white rounded-lg p-6 sm:p-8 shadow-sm border border-gray-200">
-        {/* Logo and Invoice Header */}
-        <div className="mb-8 pb-6 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6 mb-6">
-            {/* Logo */}
-            <div className="flex items-center justify-start sm:justify-start">
-              <h2 className="text-3xl font-black text-gray-800 tracking-tight">{storeName}</h2>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-700 mb-1">Status</p>
-              <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold capitalize">
-                {order.status}
-              </span>
-            </div>
-          </div>
-
-          {/* Invoice Title */}
-          <div className="mt-6">
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">INVOICE</h2>
-            <p className="text-gray-600">
-              Order #<span className="font-semibold">{order.id}</span>
-            </p>
-            <p className="text-sm text-gray-500 mt-1">
-              Date: {new Date(order.date).toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        {/* Customer & Shipping Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div>
-            <h3 className="text-sm font-bold text-gray-800 mb-3 uppercase">
-              Bill To
-            </h3>
-            <div className="text-sm text-gray-700 space-y-1">
-              <p className="font-semibold">{order.customer?.name || "N/A"}</p>
-              <p>{order.customer?.email || "N/A"}</p>
-              {order.customer?.phone && <p>{order.customer.phone}</p>}
-            </div>
-          </div>
-          {order.shippingAddress && (
+    <div className="flex flex-col h-[calc(100vh-100px)]">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6 shrink-0">
+        <div className="flex items-center justify-between bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+              <FiArrowLeft className="text-lg text-gray-600" />
+            </button>
             <div>
-              <h3 className="text-sm font-bold text-gray-800 mb-3 uppercase">
-                Ship To
-              </h3>
-              <div className="text-sm text-gray-700 space-y-1">
-                <p className="font-semibold">
-                  {order.shippingAddress.name || order.customer?.name || "N/A"}
-                </p>
-                {order.shippingAddress.address && (
-                  <p>{order.shippingAddress.address}</p>
-                )}
-                {(order.shippingAddress.city ||
-                  order.shippingAddress.state ||
-                  order.shippingAddress.zipCode) && (
-                    <p>
-                      {[
-                        order.shippingAddress.city,
-                        order.shippingAddress.state,
-                        order.shippingAddress.zipCode,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                  )}
-                {order.shippingAddress.country && (
-                  <p>{order.shippingAddress.country}</p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Items Table */}
-        <div className="mb-8">
-          <table className="w-full">
-            <thead className="bg-white border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                  Item
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
-                  HSN Code
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
-                  Quantity
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
-                  Unit Price
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {items.map((item, index) => {
-                const itemTotal = (item.price || 0) * (item.quantity || 1);
-                const hsn = item.hsnCode || item.productId?.hsnCode || item.product?.hsnCode || 'N/A';
-                return (
-                  <tr key={item.id || index} className="hover:bg-white hover:text-black">
-                    <td className="px-4 py-3 text-sm text-gray-800">
-                      {item.name || `Item ${index + 1}`}
-                      {item.variant && Object.keys(item.variant).length > 0 && (
-                        <div className="text-xs text-gray-500 mt-0.5">
-                          {Object.entries(item.variant).map(([k, v]) => `${k}: ${v}`).join(', ')}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 text-center">
-                      {hsn}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 text-center">
-                      {item.quantity || 1}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right">
-                      {item.originalPrice && item.originalPrice > item.price && (
-                        <div className="text-xs text-gray-500 line-through mb-0.5">
-                          {formatPrice(item.originalPrice)}
-                        </div>
-                      )}
-                      <div className="text-gray-700">{formatPrice(item.price || 0)}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-800 text-right">
-                      {formatPrice(itemTotal)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Totals */}
-        <div className="flex justify-end">
-          <div className="w-full sm:w-80 space-y-2">
-            <div className="flex justify-between text-sm text-gray-700">
-              <span>Subtotal (Excl. GST):</span>
-              <span className="font-semibold">{formatPrice(baseSubtotal)}</span>
-            </div>
-            {cgst > 0 && (
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>CGST:</span>
-                <span className="font-semibold">{formatPrice(cgst)}</span>
-              </div>
-            )}
-            {sgst > 0 && (
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>SGST:</span>
-                <span className="font-semibold">{formatPrice(sgst)}</span>
-              </div>
-            )}
-            {igst > 0 && (
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>IGST:</span>
-                <span className="font-semibold">{formatPrice(igst)}</span>
-              </div>
-            )}
-            {discount > 0 && (
-              <div className="flex justify-between text-sm text-green-600">
-                <span>Discount:</span>
-                <span className="font-semibold">-{formatPrice(discount)}</span>
-              </div>
-            )}
-            {totalVendorTax > 0 && (
-              <div className="flex justify-between text-sm text-gray-700">
-                <span>Vendor Tax:</span>
-                <span className="font-semibold">{formatPrice(totalVendorTax)}</span>
-              </div>
-            )}
-            {totalCommissionTax > 0 && (
-              <div className="flex justify-between text-sm text-gray-700">
-                <span>Commission Tax:</span>
-                <span className="font-semibold">{formatPrice(totalCommissionTax)}</span>
-              </div>
-            )}
-            {shipping > 0 && (
-              <div className="flex justify-between text-sm text-gray-700">
-                <span>Shipping:</span>
-                <span className="font-semibold">{formatPrice(shipping)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-lg font-bold text-gray-800 pt-3 border-t border-gray-200">
-              <span>Total:</span>
-              <span>{formatPrice(finalTotal)}</span>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
+                Invoice
+              </h1>
+              <p className="text-xs text-gray-500">Order #{order.id}</p>
             </div>
           </div>
-        </div>
-
-        {/* Payment & Tracking Info */}
-        <div className="mt-8 pt-6 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="font-semibold text-gray-800 mb-1">Payment Method:</p>
-            <p className="text-gray-600">
-              {formatPaymentMethod(order.paymentMethod)}
-            </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-semibold">
+              <FiDownload />
+              Download HTML
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold">
+              <FiPrinter />
+              Print
+            </button>
           </div>
-          {order.trackingNumber && (
-            <div>
-              <p className="font-semibold text-gray-800 mb-1">
-                Tracking Number:
-              </p>
-              <p className="text-gray-600 font-mono">{order.trackingNumber}</p>
-            </div>
-          )}
         </div>
+      </motion.div>
+
+      {/* Invoice Iframe Content */}
+      <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <iframe
+          id="invoice-iframe"
+          title="Invoice Preview"
+          srcDoc={generateInvoiceHtml()}
+          className="w-full h-full"
+          style={{ border: 'none' }}
+        />
       </div>
-
-      {/* Print Styles */}
-      <style>{`
-        @media print {
-          @page {
-            margin: 0.5in;
-            size: A4;
-          }
-          
-          body * {
-            visibility: hidden;
-          }
-          
-          .invoice-content,
-          .invoice-content * {
-            visibility: visible;
-          }
-          
-          .invoice-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0 !important;
-            padding: 1.5rem !important;
-            box-shadow: none !important;
-            border: none !important;
-            background: white !important;
-          }
-          
-          .no-print,
-          .no-print * {
-            display: none !important;
-            visibility: hidden !important;
-          }
-          
-          button {
-            display: none !important;
-          }
-          
-          .invoice-content table {
-            page-break-inside: avoid;
-          }
-          
-          .invoice-content tr {
-            page-break-inside: avoid;
-          }
-          
-          * {
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-        }
-        
-        @media screen {
-          .invoice-content {
-            margin-top: 1.5rem;
-          }
-        }
-      `}</style>
     </div>
   );
 };
