@@ -70,7 +70,9 @@ const Invoice = () => {
       const totalSellingPrice = sellingPrice * qty;
       const totalMrp = mrp * qty;
       
-      const gstRate = 5;
+      const gstRate = sellingPrice <= 2500 ? 5 : 18;
+      const cgstRate = gstRate / 2;
+      const sgstRate = gstRate / 2;
       const taxableValue = totalSellingPrice / (1 + (gstRate / 100));
       const gstAmount = totalSellingPrice - taxableValue;
 
@@ -102,9 +104,9 @@ const Invoice = () => {
             <td>${totalMrp.toFixed(2)}</td>
             <td>${discount.toFixed(2)}</td>
             <td>${calculatedTaxableValue.toFixed(2)}</td>
-            <td>${itemCgst.toFixed(2)}</td>
-            <td>${itemSgst.toFixed(2)}</td>
-            <td>${itemIgst.toFixed(2)}</td>
+            <td>${itemCgst.toFixed(2)}<br><span style="font-size:8px;color:#666;">@${cgstRate}%</span></td>
+            <td>${itemSgst.toFixed(2)}<br><span style="font-size:8px;color:#666;">@${sgstRate}%</span></td>
+            <td>${itemIgst.toFixed(2)}<br><span style="font-size:8px;color:#666;">@${itemIgst > 0 ? gstRate : 0}%</span></td>
             <td>${totalSellingPrice.toFixed(2)}</td>
         </tr>
       `;
@@ -117,8 +119,8 @@ const Invoice = () => {
     
     const feeTaxable = platformFee / 1.18;
     const feeGst = platformFee - feeTaxable;
-    const shipTaxable = shipping;
-    const shipGst = 0;
+    const shipTaxable = shipping / 1.18;
+    const shipGst = shipping - shipTaxable;
 
     let platformItemsHtml = '';
     if (shipping > 0) {

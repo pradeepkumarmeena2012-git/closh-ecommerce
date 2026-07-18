@@ -240,6 +240,7 @@ const OrderDetail = () => {
   const shipping = order.shipping ?? (order.total * 0.05);
   const tax = order.tax ?? 0;
   const discount = order.discount ?? 0;
+  const platformFee = order.platformFee ?? 0;
 
   // Get payment method display name
   const getPaymentMethodName = (method) => {
@@ -809,14 +810,20 @@ const OrderDetail = () => {
               )}
               {tax > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax</span>
-                  <span className="font-semibold">{formatCurrency(tax)}</span>
+                  <span className="text-gray-400 text-xs mt-0.5">Tax (Included)</span>
+                  <span className="font-semibold text-gray-500 text-xs mt-0.5">{formatCurrency(tax)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Shipping</span>
                 <span className="font-semibold">{formatCurrency(shipping)}</span>
               </div>
+              {platformFee > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Platform Fee</span>
+                  <span className="font-semibold">{formatCurrency(platformFee)}</span>
+                </div>
+              )}
               <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between">
                 <span className="font-bold text-gray-800">Total</span>
                 <span className="font-bold text-lg text-gray-800">{formatCurrency(order.total)}</span>
