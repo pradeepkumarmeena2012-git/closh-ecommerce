@@ -475,7 +475,7 @@ const ProductDetailsPage = () => {
 
                         {/* Thumbnails - All Devices */}
                         {productImages.length > 1 && (
-                            <div className="flex flex-row gap-2 md:gap-4 w-full overflow-x-auto py-2 no-scrollbar snap-x snap-mandatory">
+                            <div className="flex flex-row gap-2 md:gap-4 w-full overflow-x-auto py-4 px-2 no-scrollbar snap-x snap-mandatory">
                                 {productImages.map((img, idx) => (
                                     <div
                                         key={idx}
