@@ -305,7 +305,7 @@ import { compressImage } from '@shared/utils/imageHelper';
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="text-lg font-bold text-white tracking-tight truncate">{deliveryBoy?.name || 'Partner'}</h2>
-                  {deliveryBoy?.kycStatus === 'verified' && <FiCheckCircle size={14} className="text-emerald-400 shrink-0" />}
+                  {deliveryBoy?.applicationStatus === 'approved' && <FiCheckCircle size={14} className="text-emerald-400 shrink-0" />}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   <div className="flex items-center gap-1.5 text-slate-400">
@@ -406,14 +406,14 @@ import { compressImage } from '@shared/utils/imageHelper';
                 </motion.div>
               ) : (
                 <motion.div key="banking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                  <div className={`p-4 rounded-2xl border flex items-center gap-4 ${deliveryBoy?.kycStatus === 'verified' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'}`}>
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 ${deliveryBoy?.kycStatus === 'verified' ? 'bg-emerald-600' : 'bg-amber-600'}`}>
+                  <div className={`p-4 rounded-2xl border flex items-center gap-4 ${deliveryBoy?.applicationStatus === 'approved' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 ${deliveryBoy?.applicationStatus === 'approved' ? 'bg-emerald-600' : 'bg-amber-600'}`}>
                       <FiCheckCircle size={20} />
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Verification Status</p>
                       <h3 className="text-[15px] font-bold text-slate-800 tracking-tight leading-none">
-                        {deliveryBoy?.kycStatus === 'verified' ? 'System Verified' : 'Under Review'}
+                        {deliveryBoy?.applicationStatus === 'approved' ? 'System Verified' : 'Under Review'}
                       </h3>
                     </div>
                   </div>
@@ -421,7 +421,7 @@ import { compressImage } from '@shared/utils/imageHelper';
                   <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-4">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="w-0.5 h-3 bg-indigo-600 rounded-full" />
-                      <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Settlement Vault</h2>
+                      <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Settlement & Payouts</h2>
                     </div>
 
                     {/* Cash in Hand Section */}
@@ -436,6 +436,11 @@ import { compressImage } from '@shared/utils/imageHelper';
                       >
                         Settle Now
                       </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-6 mb-2">
+                      <div className="w-0.5 h-3 bg-emerald-500 rounded-full" />
+                      <h2 className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">My Bank Account (For Payouts)</h2>
                     </div>
 
                     <div className="space-y-4">

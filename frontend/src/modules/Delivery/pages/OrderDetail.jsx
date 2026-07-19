@@ -137,6 +137,9 @@ const DeliveryOrderDetail = () => {
 
   const isAvailableTask = order && !order.deliveryBoyId && (order.rawStatus === 'ready_for_pickup' || order.status === 'pending' || order.rawStatus === 'approved');
 
+  const isOrderFinished = ['delivered', 'returned', 'returned_to_vendor', 'cancelled', 'canceled', 'return_requested', 'return_approved', 'awaiting_return'].includes(order?.status?.toLowerCase());
+
+
   const hasActiveTask = (orders || []).some(o =>
     ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'processing'].includes(o.status?.toLowerCase()) ||
     ['accepted', 'picked-up', 'out-for-delivery'].includes(o.status?.toLowerCase()) ||
@@ -1244,8 +1247,9 @@ const DeliveryOrderDetail = () => {
         </div>
 
         {/* BOTTOM ACTION BUTTON */}
-        <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-100 z-50">
-          {isAvailableTask ? (
+        {!isOrderFinished && (
+          <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-100 z-50">
+            {isAvailableTask ? (
             <div className="flex gap-3">
               <button
                 onClick={handleRejectMission}
@@ -1301,8 +1305,9 @@ const DeliveryOrderDetail = () => {
               <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-0.5">UNAUTHORIZED ACCESS</p>
               <p className="text-[8px] font-bold text-rose-400 uppercase leading-none">This task is assigned to another partner.</p>
             </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* QR MODAL */}
         <AnimatePresence>

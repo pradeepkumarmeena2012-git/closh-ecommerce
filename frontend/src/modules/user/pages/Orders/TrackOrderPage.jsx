@@ -128,6 +128,7 @@ const TrackOrderPage = () => {
     const address = order.shippingAddress;
 
     const isCancelled = status === 'cancelled' || status === 'canceled';
+    const isReturned = ['returned', 'returned_to_vendor', 'returning_unselected_items', 'return_requested'].includes(status) || order.returnRequest;
     
     // ─── Multi-vendor pickup progress ───
     const isMultiVendor = !!(order.isMultiVendor || (order.vendorItems && order.vendorItems.length > 1));
@@ -148,7 +149,7 @@ const TrackOrderPage = () => {
 
     // Show map/live-tracking only AFTER order is picked up (not just 'assigned').
     // 'assigned' means rider is heading to vendor — user sees the status page, not map.
-    const isRiderAssigned = POST_PICKUP_STATUSES.includes(status);
+    const isRiderAssigned = POST_PICKUP_STATUSES.includes(status) && !isReturned;
 
     const getStepState = (stepIndex) => {
         if (isCancelled) return 'pending';
@@ -310,6 +311,9 @@ const TrackOrderPage = () => {
         if (isCancelled) {
             return { label: 'ORDER CANCELLED', progress: 0 };
         }
+        if (isReturned) {
+            return { label: 'ORDER RETURNED', progress: 0 };
+        }
         return { label: 'ORDER PLACED', progress: 0 };
     };
 
@@ -331,7 +335,7 @@ const TrackOrderPage = () => {
                     </button>
                     <div className="flex-1">
                         <h1 className="text-[17px] font-black text-slate-900 leading-tight">
-                            {isCancelled ? 'Order Cancelled' : 'Finding your delivery partner...'}
+                            {isCancelled ? 'Order Cancelled' : isReturned ? 'Order Returned' : 'Finding your delivery partner...'}
                         </h1>
                     </div>
                 </div>
@@ -352,6 +356,15 @@ const TrackOrderPage = () => {
                                         <circle cx="12" cy="12" r="10"></circle>
                                         <line x1="15" y1="9" x2="9" y2="15"></line>
                                         <line x1="9" y1="9" x2="15" y2="15"></line>
+                                    </svg>
+                                </div>
+                            </div>
+                        ) : isReturned ? (
+                            <div className="relative w-52 h-44 md:w-60 md:h-52 flex flex-col items-center justify-center">
+                                <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
+                                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
                                     </svg>
                                 </div>
                             </div>
@@ -474,6 +487,7 @@ const TrackOrderPage = () => {
                     >
                         <h2 className="text-[22px] font-black text-slate-900 leading-tight mb-2">
                             {isCancelled ? 'Order Cancelled' :
+                             isReturned ? 'Order Returned' :
                              multiVendorStillPickingUp ? 'Collecting your items...' :
                              (status === 'assigned' && hasRider) ? 'Rider is on the way to store...' :
                              dispatchInfo.progress >= 3 ? 'Finding your delivery partner...' :
@@ -483,6 +497,7 @@ const TrackOrderPage = () => {
                         </h2>
                         <p className="text-[13px] text-slate-500 font-medium leading-relaxed px-4">
                             {isCancelled ? 'This order has been cancelled.' :
+                             isReturned ? 'This order has been returned. Your refund has been processed or is being processed according to the return request.' :
                              multiVendorStillPickingUp ? `Your rider is picking up items from ${totalVendorStops} vendor${totalVendorStops > 1 ? 's' : ''}. ${pickedUpCount} of ${totalVendorStops} collected.` :
                              (status === 'assigned' && hasRider) ? 'Your rider has been assigned and is heading to the store to pick up your order.' :
                              dispatchInfo.progress >= 3 ? "We're matching your order with the nearest delivery partner. High fashion is worth the wait." :
@@ -529,6 +544,7 @@ const TrackOrderPage = () => {
                             <div className="flex-1">
                                 <h3 className="text-[14px] font-black text-slate-900 leading-tight">
                                     {isCancelled ? 'Order Cancelled' :
+                                     isReturned ? 'Order Returned' :
                                      multiVendorStillPickingUp ? `Picking Up (${pickedUpCount}/${totalVendorStops})` :
                                      (status === 'assigned' && hasRider) ? 'Rider Assigned' :
                                      (status === 'assigned' && !hasRider) || dispatchInfo.progress >= 3 ? 'Searching for Rider' :
@@ -540,7 +556,7 @@ const TrackOrderPage = () => {
                         </div>
 
                         {/* Progress Steps */}
-                        {!isCancelled && (
+                        {!isCancelled && !isReturned && (
                             <div className="flex items-center gap-0">
                                 {['Accepted', 'In Transit', 'Delivered'].map((label, idx) => {
                                     // Phase 1: Accepted/Preparing/Assigned, Phase 2: Picked Up/In Transit, Phase 3: Delivered

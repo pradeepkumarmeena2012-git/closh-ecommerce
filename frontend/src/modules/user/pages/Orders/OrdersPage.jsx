@@ -166,15 +166,17 @@ const OrdersPage = () => {
                                         >
                                             Help
                                         </button>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                navigate(`/track-order/${order.orderId || order.id}`);
-                                            }}
-                                            className="flex-[1.5] sm:flex-none px-4 sm:px-8 py-2.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-black/10"
-                                        >
-                                            Track
-                                        </button>
+                                        {!['cancelled', 'canceled', 'returned', 'returned_to_vendor', 'returning_unselected_items', 'return_requested'].includes(order.status?.toLowerCase()) && !order.returnRequest && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/track-order/${order.orderId || order.id}`);
+                                                }}
+                                                className="flex-[1.5] sm:flex-none px-4 sm:px-8 py-2.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-black/10"
+                                            >
+                                                Track
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>

@@ -254,6 +254,14 @@ const OrderDetailsPage = () => {
             return;
         }
 
+        // Calculate vendor details (defaulting to the first vendor if multiple)
+        const primaryVendor = order.vendorItems && order.vendorItems.length > 0 
+            ? (order.vendorItems[0].vendorId || {}) 
+            : {};
+        const vendorNameStr = primaryVendor.storeName || primaryVendor.shopName || order.vendorItems?.[0]?.vendorName || 'CLOSH COMMERCE (OPC) PRIVATE LIMITED';
+        const vendorGstinStr = primaryVendor.gstNumber || '08AANCC7176M1ZV';
+        const vendorAddressStr = primaryVendor.shopAddress || '70, keshar vihar, Near Railway Colony, Jagatpura, Jaipur, Rajasthan 302017';
+
         // Format the date for the invoice
         const invoiceDate = new Date(order.date).toLocaleDateString('en-IN', {
             year: 'numeric',
@@ -360,9 +368,9 @@ const OrderDetailsPage = () => {
                 
                 <div class="top-section">
                     <div class="sold-by-info">
-                        <div class="info-text"><span class="bold">Sold By:</span> CLOSH COMMERCE (OPC) PRIVATE LIMITED</div>
-                        <div class="info-text"><span class="bold">GSTIN:</span> 08AANCC7176M1ZV</div>
-                        <div class="info-text"><span class="bold">Ship-from Address:</span> 70, keshar vihar, Near Railway Colony, Jagatpura, Jaipur, Rajasthan 302017</div>
+                        <div class="info-text"><span class="bold">Sold By:</span> ${vendorNameStr}</div>
+                        <div class="info-text"><span class="bold">GSTIN:</span> ${vendorGstinStr}</div>
+                        <div class="info-text"><span class="bold">Ship-from Address:</span> ${vendorAddressStr}</div>
                     </div>
                     <div class="invoice-info">
                         <div class="info-text"><span class="bold">Invoice Number:</span> INV-${order.id}</div>
@@ -1183,6 +1191,8 @@ const OrderDetailsPage = () => {
                                 }
                             ];
 
+                            const isReturned = ['returned', 'returned_to_vendor', 'returning_unselected_items', 'return_requested'].includes(status) || order.returnRequest;
+
                             return (
                                 <div className="w-full">
                                     {isCancelled ? (
@@ -1195,6 +1205,13 @@ const OrderDetailsPage = () => {
                                             ) : (
                                                 <p className="text-slate-400 text-[10px] mt-1">This order was cancelled by the customer or vendor.</p>
                                             )}
+                                        </div>
+                                    ) : isReturned ? (
+                                        <div className="text-center py-6 bg-emerald-50 rounded-2xl border border-emerald-100/50 px-4">
+                                            <p className="text-emerald-600 text-xs font-black uppercase tracking-widest">Order Returned</p>
+                                            <p className="text-slate-500 text-[11px] font-bold mt-2 leading-relaxed">
+                                                This order has been returned. Your refund has been processed or is being processed according to the return request.
+                                            </p>
                                         </div>
                                     ) : (
                                         <div>

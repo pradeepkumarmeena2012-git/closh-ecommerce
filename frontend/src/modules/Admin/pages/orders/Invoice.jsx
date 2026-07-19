@@ -170,6 +170,14 @@ const Invoice = () => {
       <div>${addr.city || ''}, ${addr.state || ''} - ${addr.zipCode || addr.pincode || ''}</div>
     `;
 
+    // Calculate vendor details (defaulting to the first vendor if multiple)
+    const primaryVendor = order.vendorItems && order.vendorItems.length > 0 
+        ? (order.vendorItems[0].vendorId || {}) 
+        : {};
+    const vendorNameStr = primaryVendor.storeName || primaryVendor.shopName || order.vendorItems?.[0]?.vendorName || 'CLOSH COMMERCE (OPC) PRIVATE LIMITED';
+    const vendorGstinStr = primaryVendor.gstNumber || '08AANCC7176M1ZV';
+    const vendorAddressStr = primaryVendor.shopAddress || '70, keshar vihar, Near Railway Colony, Jagatpura, Jaipur, Rajasthan 302017';
+
     return `
       <!DOCTYPE html>
       <html>
@@ -216,9 +224,9 @@ const Invoice = () => {
           
           <div class="top-section">
               <div class="sold-by-info">
-                  <div class="info-text"><span class="bold">Sold By:</span> CLOSH COMMERCE (OPC) PRIVATE LIMITED</div>
-                  <div class="info-text"><span class="bold">GSTIN:</span> 08AANCC7176M1ZV</div>
-                  <div class="info-text"><span class="bold">Ship-from Address:</span> 70, keshar vihar, Near Railway Colony, Jagatpura, Jaipur, Rajasthan 302017</div>
+                  <div class="info-text"><span class="bold">Sold By:</span> ${vendorNameStr}</div>
+                  <div class="info-text"><span class="bold">GSTIN:</span> ${vendorGstinStr}</div>
+                  <div class="info-text"><span class="bold">Ship-from Address:</span> ${vendorAddressStr}</div>
               </div>
               <div class="invoice-info">
                   <div class="info-text"><span class="bold">Invoice Number:</span> INV-${order.id}</div>
