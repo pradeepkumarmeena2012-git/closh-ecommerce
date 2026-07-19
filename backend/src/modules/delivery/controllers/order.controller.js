@@ -2604,6 +2604,29 @@ export const updateReturnStatus = asyncHandler(async (req, res) => {
             await order.save();
         }
 
+        // Restore stock for returned items
+        const stockRestores = (returnReq.items || []).map(async (item) => {
+            const qty = Number(item?.quantity || 0);
+            if (!item?.productId || qty <= 0) return;
+            const product = await Product.findById(item.productId);
+            if (!product) return;
+
+            product.stockQuantity += qty;
+            
+            // Handle variant stock
+            const size = item.selectedSize || item.variant?.size || (item.variant && Object.values(item.variant)[0]);
+            if (size && product.variants?.stockMap && product.variants.stockMap.has(size)) {
+                const currentVarStock = product.variants.stockMap.get(size) || 0;
+                product.variants.stockMap.set(size, currentVarStock + qty);
+            }
+
+            if (product.stockQuantity <= 0) product.stock = 'out_of_stock';
+            else if (product.stockQuantity <= product.lowStockThreshold) product.stock = 'low_stock';
+            else product.stock = 'in_stock';
+            await product.save();
+        });
+        await Promise.all(stockRestores);
+
         // Notify user to submit UPI ID
         await createNotification({
             recipientId: returnReq.userId?._id,
