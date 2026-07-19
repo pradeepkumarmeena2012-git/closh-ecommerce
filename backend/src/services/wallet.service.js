@@ -172,6 +172,25 @@ export const WalletService = {
                 console.log(`[Wallet] Deducted ₹${amountToDeduct} from Vendor ${vendorId} (${balanceField}) for returned order ${orderId}`);
             }
 
+            // Credit Delivery Boy for the return
+            if (returnRequest.deliveryBoyId && Number(returnRequest.deliveryEarnings) > 0) {
+                const riderEarnings = Number(returnRequest.deliveryEarnings);
+                const DeliveryBoy = mongoose.model('DeliveryBoy');
+                
+                await DeliveryBoy.findByIdAndUpdate(
+                    returnRequest.deliveryBoyId,
+                    {
+                        $inc: {
+                            totalDeliveries: 1, // count as a successful trip
+                            totalEarnings: riderEarnings,
+                            availableBalance: riderEarnings,
+                        }
+                    },
+                    { session }
+                );
+                console.log(`[Wallet] Credited ₹${riderEarnings} to Rider ${returnRequest.deliveryBoyId} for Return ${returnRequest._id}`);
+            }
+
             await session.commitTransaction();
             return true;
         } catch (error) {

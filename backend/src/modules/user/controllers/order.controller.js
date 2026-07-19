@@ -916,6 +916,25 @@ export const cancelOrderInternal = async (orderId, userId, reason) => {
                 { session }
             );
 
+            // Free the delivery boy if assigned and credit them for the cancellation trip
+            if (order.deliveryBoyId) {
+                const DeliveryBoy = mongoose.model('DeliveryBoy');
+                const riderEarnings = Number(order.deliveryEarnings || 0);
+                
+                if (riderEarnings > 0) {
+                    await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { 
+                        status: 'available',
+                        $inc: {
+                            totalDeliveries: 1, // count as trip
+                            totalEarnings: riderEarnings,
+                            availableBalance: riderEarnings,
+                        }
+                    }, { session });
+                } else {
+                    await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: 'available' }, { session });
+                }
+            }
+
             // Process full refund if prepaid
             if (order.paymentMethod !== 'cod' && order.paymentMethod !== 'cash' && order.razorpayPaymentId && order.paymentStatus !== 'refunded') {
                 let refundSuccess = false;

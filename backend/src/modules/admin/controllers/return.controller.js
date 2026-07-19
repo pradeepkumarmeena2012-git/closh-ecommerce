@@ -350,6 +350,15 @@ export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
                 if (status === 'approved' && !['cancelled', 'returned'].includes(order.status)) {
                     order.status = 'returned';
                     await order.save();
+                    
+                    if (order.deliveryBoyId) {
+                        try {
+                            const { emitEvent } = await import('../../../services/socket.service.js');
+                            emitEvent(`delivery_${order.deliveryBoyId}`, 'order_status_updated', order);
+                        } catch (err) {
+                            console.error('[Admin Return Approval] Socket event error:', err);
+                        }
+                    }
                 }
 
                 if (status === 'completed') {
@@ -360,6 +369,14 @@ export const updateReturnRequestStatus = asyncHandler(async (req, res) => {
                         if (!product) return;
 
                         product.stockQuantity += qty;
+                        
+                        // Handle variant stock
+                        const size = item.selectedSize || item.variant?.size || (item.variant && Object.values(item.variant)[0]);
+                        if (size && product.variants?.stockMap && product.variants.stockMap.has(size)) {
+                            const currentVarStock = product.variants.stockMap.get(size) || 0;
+                            product.variants.stockMap.set(size, currentVarStock + qty);
+                        }
+
                         if (product.stockQuantity <= 0) product.stock = 'out_of_stock';
                         else if (product.stockQuantity <= product.lowStockThreshold) product.stock = 'low_stock';
                         else product.stock = 'in_stock';

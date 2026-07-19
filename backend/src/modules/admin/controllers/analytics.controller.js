@@ -46,12 +46,12 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
         Vendor.countDocuments({ status: 'approved' }),
         Product.countDocuments({ isActive: true }),
         Order.aggregate([
-            { $match: { ...activeOrderFilter, status: { $ne: 'cancelled' } } },
-            { $group: { _id: null, total: { $sum: '$total' } } }
+            { $match: { ...activeOrderFilter, status: { $nin: ['cancelled', 'returned', 'returned_to_vendor'] } } },
+            { $group: { _id: null, total: { $sum: { $ifNull: ['$deliveryFlow.finalAmount', '$total'] } } } }
         ]),
         Order.aggregate([
-            { $match: { ...activeOrderFilter, ...dateFilter, status: { $ne: 'cancelled' } } },
-            { $group: { _id: null, total: { $sum: '$total' } } }
+            { $match: { ...activeOrderFilter, ...dateFilter, status: { $nin: ['cancelled', 'returned', 'returned_to_vendor'] } } },
+            { $group: { _id: null, total: { $sum: { $ifNull: ['$deliveryFlow.finalAmount', '$total'] } } } }
         ]),
         Order.countDocuments({ ...activeOrderFilter, status: 'pending' }),
         ReturnRequest.countDocuments({ status: 'pending' }),
@@ -75,7 +75,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
 export const getRevenueData = asyncHandler(async (req, res) => {
     const { period = 'monthly', startDate, endDate } = req.query;
     const groupFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%Y-%U' : '%Y-%m';
-    const match = { isDeleted: { $ne: true }, status: { $ne: 'cancelled' } };
+    const match = { isDeleted: { $ne: true }, status: { $nin: ['cancelled', 'returned', 'returned_to_vendor'] } };
     if (startDate || endDate) {
         match.createdAt = {};
         if (startDate) match.createdAt.$gte = new Date(startDate);
@@ -84,7 +84,7 @@ export const getRevenueData = asyncHandler(async (req, res) => {
 
     const pipeline = [
         { $match: match },
-        { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, revenue: { $sum: '$total' }, orders: { $sum: 1 } } },
+        { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, revenue: { $sum: { $ifNull: ['$deliveryFlow.finalAmount', '$total'] } }, orders: { $sum: 1 } } },
     ];
     if (!startDate && !endDate) {
         pipeline.push({ $sort: { _id: -1 } }, { $limit: 12 });
@@ -111,7 +111,7 @@ export const getOrderStatusBreakdown = asyncHandler(async (req, res) => {
 // GET /api/admin/analytics/top-products
 export const getTopProducts = asyncHandler(async (req, res) => {
     const topProducts = await Order.aggregate([
-        { $match: { isDeleted: { $ne: true }, status: { $ne: 'cancelled' } } },
+        { $match: { isDeleted: { $ne: true }, status: { $nin: ['cancelled', 'returned', 'returned_to_vendor'] } } },
         { $unwind: '$items' },
         { $group: { _id: '$items.productId', totalSold: { $sum: '$items.quantity' }, revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } } } },
         { $sort: { totalSold: -1 } },
@@ -173,7 +173,7 @@ export const getRecentOrders = asyncHandler(async (req, res) => {
 export const getSalesData = asyncHandler(async (req, res) => {
     const { period = 'monthly', startDate, endDate } = req.query;
     const groupFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%Y-%U' : '%Y-%m';
-    const match = { isDeleted: { $ne: true }, status: { $ne: 'cancelled' } };
+    const match = { isDeleted: { $ne: true }, status: { $nin: ['cancelled', 'returned', 'returned_to_vendor'] } };
     if (startDate || endDate) {
         match.createdAt = {};
         if (startDate) match.createdAt.$gte = new Date(startDate);
@@ -182,7 +182,7 @@ export const getSalesData = asyncHandler(async (req, res) => {
 
     const pipeline = [
         { $match: match },
-        { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, sales: { $sum: '$total' }, orders: { $sum: 1 } } },
+        { $group: { _id: { $dateToString: { format: groupFormat, date: '$createdAt' } }, sales: { $sum: { $ifNull: ['$deliveryFlow.finalAmount', '$total'] } }, orders: { $sum: 1 } } },
     ];
     if (!startDate && !endDate) {
         pipeline.push({ $sort: { _id: -1 } }, { $limit: 12 });
@@ -198,7 +198,7 @@ export const getSalesData = asyncHandler(async (req, res) => {
 export const getFinancialSummary = asyncHandler(async (req, res) => {
     const { period = 'monthly', startDate, endDate } = req.query;
     const groupFormat = period === 'daily' ? '%Y-%m-%d' : period === 'weekly' ? '%Y-%U' : '%Y-%m';
-    const match = { isDeleted: { $ne: true }, status: { $ne: 'cancelled' } };
+    const match = { isDeleted: { $ne: true }, status: { $nin: ['cancelled', 'returned', 'returned_to_vendor'] } };
     if (startDate || endDate) {
         match.createdAt = {};
         if (startDate) match.createdAt.$gte = new Date(startDate);
@@ -228,7 +228,7 @@ export const getFinancialSummary = asyncHandler(async (req, res) => {
         {
             $group: {
                 _id: { $dateToString: { format: groupFormat, date: '$createdAt' } },
-                revenue: { $sum: '$total' },
+                revenue: { $sum: { $ifNull: ['$deliveryFlow.finalAmount', '$total'] } },
                 netRevenue: { 
                     $sum: { 
                         $subtract: [
@@ -281,7 +281,7 @@ export const getInventoryStats = asyncHandler(async (req, res) => {
 // GET /api/admin/analytics/earnings-summary
 export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
     const { startDate, endDate } = req.query;
-    const match = { isDeleted: { $ne: true }, status: 'delivered' };
+    const match = { isDeleted: { $ne: true }, status: { $in: ['delivered', 'try_buy_completed'] } };
 
     if (startDate || endDate) {
         match.createdAt = {};
@@ -291,7 +291,7 @@ export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
 
     // Fetch orders with population for fallback calculations
     const orders = await Order.find(match)
-        .select('total shipping vendorItems items')
+        .select('total deliveryFlow shipping vendorItems items')
         .populate('vendorItems.vendorId', 'commissionRate')
         .populate('items.productId', 'vendorPrice')
         .lean();
@@ -305,7 +305,7 @@ export const getAdminEarningsSummary = asyncHandler(async (req, res) => {
     let orderCount = orders.length;
 
     orders.forEach(order => {
-        totalRevenue += (order.total || 0);
+        totalRevenue += (order.deliveryFlow?.finalAmount != null ? order.deliveryFlow.finalAmount : (order.total || 0));
         totalDeliveryPayout += (order.shipping || 0);
         totalPlatformFees += (order.platformFee || 0);
 
@@ -348,7 +348,7 @@ export const getDetailedEarningsReport = asyncHandler(async (req, res) => {
     const numericLimit = Number(limit) || 20;
     const skip = (numericPage - 1) * numericLimit;
 
-    const filter = { isDeleted: { $ne: true }, status: 'delivered' };
+    const filter = { isDeleted: { $ne: true }, status: { $in: ['delivered', 'try_buy_completed'] } };
     if (startDate || endDate) {
         filter.createdAt = {};
         if (startDate) filter.createdAt.$gte = new Date(startDate);
@@ -357,7 +357,7 @@ export const getDetailedEarningsReport = asyncHandler(async (req, res) => {
 
     const [orders, total] = await Promise.all([
         Order.find(filter)
-            .select('orderId total shipping subtotal vendorItems items createdAt deliveryBoyId')
+            .select('orderId total deliveryFlow shipping subtotal vendorItems items createdAt deliveryBoyId')
             .populate('vendorItems.vendorId', 'commissionRate')
             .populate('items.productId', 'vendorPrice')
             .populate('deliveryBoyId', 'name')
@@ -384,11 +384,12 @@ export const getDetailedEarningsReport = asyncHandler(async (req, res) => {
         }, 0) || 0;
 
         const delivery = order.shipping || 0;
+        const rev = order.deliveryFlow?.finalAmount != null ? order.deliveryFlow.finalAmount : (order.total || 0);
 
         return {
             orderId: order.orderId,
             date: order.createdAt,
-            revenue: order.total,
+            revenue: rev,
             vendorCost: orderVendorCost,
             commission,
             margin,
