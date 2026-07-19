@@ -1059,6 +1059,23 @@ export const cancelOrder = asyncHandler(async (req, res) => {
 
     const returnReq = await ReturnRequest.create(returnReqData);
 
+    // Credit delivery boy immediately for the forward trip
+    const DeliveryBoy = mongoose.model('DeliveryBoy');
+    const riderEarnings = Number(order.deliveryEarnings || 0);
+
+    if (riderEarnings > 0) {
+        await DeliveryBoy.findByIdAndUpdate(riderId, {
+            $inc: {
+                totalDeliveries: 1, // count as forward trip
+                totalEarnings: riderEarnings,
+                availableBalance: riderEarnings
+            }
+        });
+        // Clear order's delivery earnings so they aren't double-credited if admin cancels it later
+        order.deliveryEarnings = 0;
+        await order.save();
+    }
+
     // Notify Admin
     emitEvent('admin', 'new_return_request', {
         returnId: returnReq._id,
