@@ -4,6 +4,7 @@ import { FiArrowLeft, FiDownload, FiPrinter } from "react-icons/fi";
 import { motion } from "framer-motion";
 import { getOrderById } from "../../services/adminService";
 import toast from "react-hot-toast";
+import html2pdf from "html2pdf.js";
 
 const Invoice = () => {
   const navigate = useNavigate();
@@ -348,17 +349,28 @@ const Invoice = () => {
   };
 
   const handleDownload = () => {
-    const html = generateInvoiceHtml();
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `invoice-${order.id}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success("Invoice HTML downloaded successfully!");
+    const iframe = document.getElementById('invoice-iframe');
+    if (!iframe || !iframe.contentWindow) {
+      toast.error("Invoice not ready yet");
+      return;
+    }
+    
+    const element = iframe.contentWindow.document.documentElement;
+    
+    const opt = {
+      margin:       0.3,
+      filename:     `invoice-${order.id}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    
+    html2pdf().set(opt).from(element).save().then(() => {
+        toast.success("Invoice PDF downloaded successfully!");
+    }).catch(err => {
+        console.error("PDF generation failed:", err);
+        toast.error("Failed to download PDF");
+    });
   };
 
   const handlePrint = () => {
@@ -394,7 +406,7 @@ const Invoice = () => {
               onClick={handleDownload}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-semibold">
               <FiDownload />
-              Download HTML
+              Download PDF
             </button>
             <button
               onClick={handlePrint}
