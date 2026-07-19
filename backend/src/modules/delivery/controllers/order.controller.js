@@ -1018,7 +1018,9 @@ export const cancelOrder = asyncHandler(async (req, res) => {
                         productId: i.productId,
                         name: i.name,
                         price: i.price,
-                        quantity: i.quantity
+                        quantity: i.quantity,
+                        variant: i.variant,
+                        selectedSize: i.selectedSize
                     })) : []
                 });
             }
@@ -1045,6 +1047,8 @@ export const cancelOrder = asyncHandler(async (req, res) => {
             name: i.name,
             price: i.price,
             quantity: i.quantity,
+            variant: i.variant,
+            selectedSize: i.selectedSize,
             reason: reasonText || 'Delivery Cancellation'
         })),
         reason: reasonText || 'Delivery Cancellation',

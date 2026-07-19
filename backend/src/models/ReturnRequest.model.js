@@ -16,6 +16,8 @@ const vendorDropoffSchema = new mongoose.Schema({
             image: String,
             price: Number,
             quantity: Number,
+            variant: mongoose.Schema.Types.Mixed,
+            selectedSize: String,
         }
     ],
     status: {
@@ -46,6 +48,8 @@ const returnRequestSchema = new mongoose.Schema(
                 price: Number,
                 quantity: Number,
                 reason: String,
+                variant: mongoose.Schema.Types.Mixed,
+                selectedSize: String,
             },
         ],
         reason: { type: String, required: true },

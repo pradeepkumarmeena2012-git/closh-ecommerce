@@ -1428,6 +1428,8 @@ export const createTryBuyReturnRequest = asyncHandler(async (req, res) => {
             price: foundOrderItem.price || foundOrderItem.discountedPrice || 0,
             quantity: requestedQty,
             reason: inputItem.reason || reason,
+            variant: foundOrderItem.variant,
+            selectedSize: foundOrderItem.selectedSize,
         };
 
         processedItems.push(returnItemData);

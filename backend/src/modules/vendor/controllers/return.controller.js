@@ -300,7 +300,7 @@ export const updateVendorReturnRequestStatus = asyncHandler(async (req, res) => 
                 if (status === 'completed') {
                     const stockRestores = (request.items || []).map(async (item) => {
                         const qty = Number(item?.quantity || 0);
-                        const variantKey = item?.variantKey;
+                        const variantKey = item?.selectedSize || item?.variant?.size || item?.variantKey || (item?.variant && Object.values(item.variant)[0]);
                         if (!item?.productId || qty <= 0) return;
 
                         const incUpdate = { stockQuantity: qty };
