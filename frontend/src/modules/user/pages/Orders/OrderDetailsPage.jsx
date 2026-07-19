@@ -269,6 +269,11 @@ const OrderDetailsPage = () => {
             day: 'numeric'
         });
 
+        const addr = order.shippingAddress || order.address || {};
+        const customerName = user?.name || order.user?.name || order.userId?.name || order.guestInfo?.name || '';
+        const shippingNameRaw = addr.name || '';
+        const displayShippingName = ['home', 'work', 'other'].includes(shippingNameRaw.toLowerCase()) ? customerName : (shippingNameRaw || customerName);
+
         // Calculate totals from items for proper tax and mathematical alignment
         let totalGrossAmount = 0;
         let totalDiscountAmount = 0;
@@ -386,7 +391,7 @@ const OrderDetailsPage = () => {
                     <div class="address-col" style="flex: 1;">
                         <div class="address-title">Billing To:</div>
                         ${order.address ? `
-                            <div>${order.address.name}</div>
+                            <div>${displayShippingName}</div>
                             <div>${order.address.address}, ${order.address.locality}</div>
                             <div>${order.address.city}, ${order.address.state} - ${order.address.pincode}</div>
                         ` : 'N/A'}
@@ -394,7 +399,7 @@ const OrderDetailsPage = () => {
                     <div class="address-col" style="flex: 1;">
                         <div class="address-title">Shipping To:</div>
                         ${order.address ? `
-                            <div>${order.address.name}</div>
+                            <div>${displayShippingName}</div>
                             <div>${order.address.address}, ${order.address.locality}</div>
                             <div>${order.address.city}, ${order.address.state} - ${order.address.pincode}</div>
                         ` : 'N/A'}
@@ -477,6 +482,11 @@ const OrderDetailsPage = () => {
             month: 'long',
             day: 'numeric'
         });
+
+        const addr = order.shippingAddress || order.address || {};
+        const customerName = user?.name || order.user?.name || order.userId?.name || order.guestInfo?.name || '';
+        const shippingNameRaw = addr.name || '';
+        const displayShippingName = ['home', 'work', 'other'].includes(shippingNameRaw.toLowerCase()) ? customerName : (shippingNameRaw || customerName);
 
         const feeTaxable = platformFee / 1.18;
         const feeGst = platformFee - feeTaxable;
@@ -583,7 +593,7 @@ const OrderDetailsPage = () => {
                     <div class="address-col" style="flex: 1;">
                         <div class="address-title">Billed To (Customer):</div>
                         ${order.address ? `
-                            <div>${order.address.name}</div>
+                            <div>${displayShippingName}</div>
                             <div>${order.address.address}, ${order.address.locality}</div>
                             <div>${order.address.city}, ${order.address.state} - ${order.address.pincode}</div>
                         ` : 'N/A'}
