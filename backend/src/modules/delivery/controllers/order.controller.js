@@ -1006,20 +1006,68 @@ export const cancelOrder = asyncHandler(async (req, res) => {
         throw new ApiError(409, `Order cannot be cancelled in ${order.status} state.`);
     }
 
-    // Create an Enquiry for Admin
-    const enquiry = new Enquiry({
+    // Create a ReturnRequest for Admin instead of Enquiry so it shows in Return Requests panel
+    const vendorDropoffs = [];
+    if (order.isMultiVendor && order.vendorItems) {
+        order.vendorItems.forEach(vi => {
+            if (vi.vendorId) {
+                vendorDropoffs.push({
+                    vendorId: vi.vendorId._id || vi.vendorId,
+                    status: 'pending',
+                    items: vi.items ? vi.items.map(i => ({
+                        productId: i.productId,
+                        name: i.name,
+                        price: i.price,
+                        quantity: i.quantity
+                    })) : []
+                });
+            }
+        });
+    }
+
+    let resolvedVendorId = undefined;
+    if (!order.isMultiVendor && order.vendorItems && order.vendorItems.length > 0) {
+        const vi = order.vendorItems[0];
+        if (vi && vi.vendorId) {
+            resolvedVendorId = vi.vendorId._id || vi.vendorId;
+        }
+    }
+
+    const returnReqData = {
         orderId: order._id,
+        returnId: `RET-${Date.now().toString(36).toUpperCase()}`,
+        userId: order.userId || null,
+        vendorId: resolvedVendorId,
+        isMultiVendor: order.isMultiVendor || false,
+        vendorDropoffs: vendorDropoffs,
+        items: (order.items || []).map(i => ({
+            productId: i.productId,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+            reason: reasonText || 'Delivery Cancellation'
+        })),
+        reason: reasonText || 'Delivery Cancellation',
+        status: 'pending', // Admin needs to approve
         deliveryBoyId: riderId,
-        reasonId: reasonId || undefined,
-        reasonText: reasonText || '',
-        status: 'pending'
+        originalDeliveryBoyId: riderId,
+        pickupLocation: order.dropoffLocation || { type: 'Point', coordinates: [0,0] },
+        dropoffLocation: order.pickupLocation || { type: 'Point', coordinates: [0,0] },
+        deliveryDistance: order.deliveryDistance || 0,
+        deliveryEarnings: order.deliveryEarnings || 0
+    };
+
+    const returnReq = await ReturnRequest.create(returnReqData);
+
+    // Notify Admin
+    emitEvent('admin', 'new_return_request', {
+        returnId: returnReq._id,
+        orderId: order.orderId
     });
 
-    await enquiry.save();
-
-    // Optionally update order status to indicate pending cancellation
-    // Or just emit an event to admin
-    res.status(200).json(new ApiResponse(200, enquiry, 'Cancellation request submitted to admin for approval.'));
+    // We return the ORIGINAL order to the frontend, because the frontend expects an Order object to update its state, not a ReturnRequest.
+    // The order's status remains unchanged until admin approves the return request.
+    res.status(200).json(new ApiResponse(200, order, 'Cancellation request submitted to admin for approval.'));
 });
 
 // GET /api/delivery/cancellation-reasons
@@ -1806,6 +1854,12 @@ const createTryBuyReturn = async (order, rejectedItems, riderId) => {
     emitEvent(`delivery_${riderId}`, 'try_buy_return_created', {
         returnId: returnReq._id,
         message: 'Auto-return task created for rejected items.'
+    });
+
+    // Notify Admin
+    emitEvent('admin', 'new_return_request', {
+        returnId: returnReq._id,
+        orderId: order.orderId
     });
 
     return returnReq;
