@@ -41,7 +41,6 @@ const ProductsPage = () => {
     const [selectedFits, setSelectedFits] = useState([]);
     const [selectedSizes, setSelectedSizes] = useState([]);
 
-    // Update browser URL query params whenever filters change
     useEffect(() => {
         const params = new URLSearchParams(searchParams);
         
@@ -63,6 +62,28 @@ const ProductsPage = () => {
             setSearchParams(params, { replace: true });
         }
     }, [selectedGender, selectedBrands, selectedSubCategories, selectedSort]);
+
+    // Sync headerSearchValue to URL so backend fetch triggers
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            setSearchParams(prevParams => {
+                const newParams = new URLSearchParams(prevParams);
+                if (headerSearchValue) {
+                    if (newParams.get('search') !== headerSearchValue) {
+                        newParams.set('search', headerSearchValue);
+                        return newParams;
+                    }
+                } else {
+                    if (newParams.has('search')) {
+                        newParams.delete('search');
+                        return newParams;
+                    }
+                }
+                return prevParams;
+            }, { replace: true });
+        }, 600);
+        return () => clearTimeout(timeoutId);
+    }, [headerSearchValue, setSearchParams]);
 
     // Desktop Section states
     const [openSections, setOpenSections] = useState({
