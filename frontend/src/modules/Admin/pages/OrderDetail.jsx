@@ -509,7 +509,13 @@ const OrderDetail = () => {
                 <div className="space-y-2">
                   <div>
                     <p className="text-xs text-gray-500">Name</p>
-                    <p className="font-semibold text-sm text-gray-800">{order.customer?.name || order.shippingAddress?.name || 'N/A'}</p>
+                    <p className="font-semibold text-sm text-gray-800">
+                      {(() => {
+                        const customerName = order.customer?.name || order.userId?.name || order.guestInfo?.name || 'N/A';
+                        const shippingNameRaw = order.shippingAddress?.name || '';
+                        return ['home', 'work', 'other'].includes(shippingNameRaw.toLowerCase()) ? customerName : (shippingNameRaw || customerName);
+                      })()}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Email</p>
@@ -535,7 +541,13 @@ const OrderDetail = () => {
                     Shipping Address
                   </h2>
                   <div className="space-y-1.5 text-xs">
-                    <p className="font-semibold text-gray-800">{order.shippingAddress.name || 'N/A'}</p>
+                    <p className="font-semibold text-gray-800">
+                      {(() => {
+                        const customerName = order.customer?.name || order.userId?.name || order.guestInfo?.name || 'N/A';
+                        const shippingNameRaw = order.shippingAddress?.name || '';
+                        return ['home', 'work', 'other'].includes(shippingNameRaw.toLowerCase()) ? customerName : (shippingNameRaw || customerName);
+                      })()}
+                    </p>
                     {order.shippingAddress.address && (
                       <p className="text-gray-700">{order.shippingAddress.address}</p>
                     )}

@@ -159,8 +159,12 @@ const Invoice = () => {
     }
 
     const addr = order.shippingAddress || order.address || {};
+    const customerName = order.customer?.name || order.userId?.name || order.guestInfo?.name || '';
+    const shippingNameRaw = addr.name || '';
+    const displayShippingName = ['home', 'work', 'other'].includes(shippingNameRaw.toLowerCase()) ? customerName : (shippingNameRaw || customerName);
+
     const addressHtml = `
-      <div>${addr.name || order.customer?.name || ''}</div>
+      <div>${displayShippingName}</div>
       <div>${addr.address || ''} ${addr.locality ? ', ' + addr.locality : ''}</div>
       <div>${addr.city || ''}, ${addr.state || ''} - ${addr.zipCode || addr.pincode || ''}</div>
     `;

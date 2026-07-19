@@ -279,7 +279,7 @@ const OrderDetailsPage = () => {
             
             // Calculate GST
             let itemCgst = 0, itemSgst = 0, itemIgst = 0;
-            const gstRate = 5; // Default 5% for clothes
+            const gstRate = sellingPrice <= 2500 ? 5 : 18;
             const taxableValue = totalSellingPrice / (1 + (gstRate / 100));
             const gstAmount = totalSellingPrice - taxableValue;
 

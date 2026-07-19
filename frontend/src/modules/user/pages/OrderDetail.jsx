@@ -27,6 +27,9 @@ const MobileOrderDetail = () => {
   const [isSubmittingUpi, setIsSubmittingUpi] = useState(false);
   const order = getOrder(orderId);
   const shippingAddress = order?.shippingAddress || {};
+  const customerName = order?.customer?.name || order?.userId?.name || order?.guestInfo?.name || 'Customer';
+  const shippingNameRaw = shippingAddress?.name || '';
+  const displayShippingName = ['home', 'work', 'other'].includes(shippingNameRaw.toLowerCase()) ? customerName : (shippingNameRaw || customerName);
   const orderItems = Array.isArray(order?.items) ? order.items : [];
   const vendorOptions = Array.isArray(order?.vendorItems)
     ? order.vendorItems
@@ -405,7 +408,7 @@ const MobileOrderDetail = () => {
                   Shipping Address
                 </h2>
                 <div className="text-sm text-gray-600 space-y-1">
-                  <p className="font-semibold text-gray-800">{shippingAddress.name || 'N/A'}</p>
+                  <p className="font-semibold text-gray-800">{displayShippingName || 'N/A'}</p>
                   <p>{shippingAddress.address || 'N/A'}</p>
                   <p>
                     {shippingAddress.city || 'N/A'}, {shippingAddress.state || 'N/A'}{' '}

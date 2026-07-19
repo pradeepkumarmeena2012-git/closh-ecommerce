@@ -391,7 +391,10 @@ const OrderDetail = () => {
             day: 'numeric'
         });
 
-        const addr = order.shippingAddress || order.address || {};const custName = order.customer?.name || order.userId?.name || order.guestInfo?.name || addr.name || 'Guest';
+        const addr = order.shippingAddress || order.address || {};
+        const customerName = order.customer?.name || order.userId?.name || order.guestInfo?.name || 'Guest';
+        const shippingNameRaw = addr.name || '';
+        const custName = ['home', 'work', 'other'].includes(shippingNameRaw.toLowerCase()) ? customerName : (shippingNameRaw || customerName);
 
         const invoiceContent = `
             <!DOCTYPE html>
@@ -491,7 +494,7 @@ const OrderDetail = () => {
                             
                             const rules = taxSettings?.gstRules || [];
                             const applicableRule = rules.find(r => sellingPrice >= r.minPrice && sellingPrice <= r.maxPrice);
-                            const gstRate = applicableRule ? applicableRule.rate : 5;
+                            const gstRate = applicableRule ? applicableRule.rate : (sellingPrice <= 2500 ? 5 : 18);
                             const taxableValue = totalSellingPrice / (1 + (gstRate/100));
                             const gstAmount = totalSellingPrice - taxableValue;
                             const itemCgst = gstAmount / 2;
@@ -589,7 +592,9 @@ const handleViewVendorInvoice = () => {
         });
 
         const addr = order.shippingAddress || order.address || {};
-        const custName = order.customer?.name || order.userId?.name || order.guestInfo?.name || addr.name || 'Guest';
+        const customerName = order.customer?.name || order.userId?.name || order.guestInfo?.name || 'Guest';
+        const shippingNameRaw = addr.name || '';
+        const custName = ['home', 'work', 'other'].includes(shippingNameRaw.toLowerCase()) ? customerName : (shippingNameRaw || customerName);
 
         const invoiceContent = `
             <!DOCTYPE html>
@@ -689,7 +694,7 @@ const handleViewVendorInvoice = () => {
                             
                             const rules = taxSettings?.gstRules || [];
                             const applicableRule = rules.find(r => sellingPrice >= r.minPrice && sellingPrice <= r.maxPrice);
-                            const gstRate = applicableRule ? applicableRule.rate : 5;
+                            const gstRate = applicableRule ? applicableRule.rate : (sellingPrice <= 2500 ? 5 : 18);
                             const taxableValue = totalSellingPrice / (1 + (gstRate/100));
                             const gstAmount = totalSellingPrice - taxableValue;
                             const itemCgst = gstAmount / 2;
