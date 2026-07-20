@@ -6,7 +6,7 @@ import { categoryColors, categoryGradients } from '../data/categoryConstants';
 
 
 export const CategoryProvider = ({ children }) => {
-    const [activeCategory, setActiveCategory] = useState('For You');
+    const [activeCategory, setActiveCategory] = useState('All');
     const [activeSubCategory, setActiveSubCategory] = useState('All');
 
     // Overriding the setter to reset subcategory to All when root category changes

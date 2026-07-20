@@ -95,13 +95,22 @@ const OrdersCustomersSettings = () => {
 
   const handleTimeManagementChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setOrdersData(prev => ({
-      ...prev,
-      timeManagement: {
-        ...(prev.timeManagement || {}),
-        [name]: type === 'checkbox' ? checked : value
+    setOrdersData(prev => {
+      const timeManagement = { ...(prev.timeManagement || {}) };
+      
+      if (type === 'checkbox') {
+        timeManagement[name] = checked;
+        if (checked) {
+          timeManagement.startTime = timeManagement.startTime || '09:00';
+          timeManagement.endTime = timeManagement.endTime || '21:00';
+          timeManagement.message = timeManagement.message || 'We are currently not accepting orders. Please try again between 09:00 AM and 09:00 PM.';
+        }
+      } else {
+        timeManagement[name] = value;
       }
-    }));
+      
+      return { ...prev, timeManagement };
+    });
   };
 
   const handleCustomersChange = (e) => {
@@ -124,7 +133,16 @@ const OrdersCustomersSettings = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    updateSettings('orders', ordersData);
+    
+    // Ensure time management defaults are set if enabled but missing
+    const finalOrdersData = { ...ordersData };
+    if (finalOrdersData.timeManagement?.enabled) {
+      finalOrdersData.timeManagement.startTime = finalOrdersData.timeManagement.startTime || '09:00';
+      finalOrdersData.timeManagement.endTime = finalOrdersData.timeManagement.endTime || '21:00';
+      finalOrdersData.timeManagement.message = finalOrdersData.timeManagement.message || 'We are currently not accepting orders. Please try again between 09:00 AM and 09:00 PM.';
+    }
+
+    updateSettings('orders', finalOrdersData);
     updateSettings('customers', customersData);
   };
 

@@ -217,7 +217,10 @@ const OrderDetail = () => {
         const vId = vi.vendorId?._id || vi.vendorId;
         return vId?.toString() === vendorId?.toString();
     });
-    const currentStatus = String(vendorItem?.status ?? order?.status ?? 'pending').toLowerCase();
+    let currentStatus = String(vendorItem?.status ?? order?.status ?? 'pending').toLowerCase();
+    if (['returned', 'return requested', 'cancelled', 'canceled'].includes(String(order?.status || '').toLowerCase())) {
+        currentStatus = String(order?.status || '').toLowerCase();
+    }
     const allowedStatuses = transitionMap[currentStatus] || [currentStatus];
     const visibleStatusOptions = statusOptions.filter((option) =>
         allowedStatuses.includes(option.value)
