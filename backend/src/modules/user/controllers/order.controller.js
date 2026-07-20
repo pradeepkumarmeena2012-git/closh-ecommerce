@@ -168,7 +168,12 @@ export const placeOrder = asyncHandler(async (req, res) => {
     // 0. Check Order Time Management Settings
     const orderSettings = await Settings.findOne({ key: 'orders' }).lean();
     if (orderSettings && orderSettings.value?.timeManagement?.enabled) {
-        const { startTime, endTime, message } = orderSettings.value.timeManagement;
+        let { startTime, endTime, message } = orderSettings.value.timeManagement;
+        
+        // Fallback to defaults if missing in DB due to frontend state issue
+        startTime = startTime || '09:00';
+        endTime = endTime || '21:00';
+
         if (startTime && endTime) {
             const now = new Date();
             // Convert to IST

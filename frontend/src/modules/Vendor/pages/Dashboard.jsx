@@ -315,7 +315,10 @@ const VendorDashboard = () => {
                   const vId = vi.vendorId?._id || vi.vendorId;
                   return vId?.toString() === currentVendorId;
                 });
-                const displayStatus = (vendorItem?.status || order.status || 'pending').toLowerCase();
+                let displayStatus = (vendorItem?.status || order.status || 'pending').toLowerCase();
+                if (['returned', 'return requested', 'cancelled', 'canceled'].includes((order.status || '').toLowerCase())) {
+                  displayStatus = order.status.toLowerCase();
+                }
                 if (['pending', 'accepted', 'processing'].includes(displayStatus)) {
                   return <SwipeOrderCard key={order._id ?? order.orderId} order={order} onStatusUpdate={() => loadDashboardData()} />;
                 }

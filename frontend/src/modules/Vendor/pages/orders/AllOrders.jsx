@@ -87,8 +87,11 @@ const AllOrders = () => {
           const vId = vi.vendorId?._id || vi.vendorId;
           return vId?.toString() === vendorId?.toString();
         });
-        // Fallback to order.status if vendorItem status is missing
-        const status = (vendorItem?.status || order.status || 'pending').toLowerCase();
+        const globalStatus = (order.status || '').toLowerCase();
+        let status = (vendorItem?.status || order.status || 'pending').toLowerCase();
+        if (['returned', 'return requested', 'cancelled', 'canceled'].includes(globalStatus)) {
+          status = globalStatus;
+        }
         return status === selectedStatus.toLowerCase();
       });
     }
@@ -108,6 +111,10 @@ const AllOrders = () => {
   };
 
   const getOrderStatus = (order) => {
+    const globalStatus = (order.status || '').toLowerCase();
+    if (['returned', 'return requested', 'cancelled', 'canceled'].includes(globalStatus)) {
+      return globalStatus;
+    }
     const vendorItem = order.vendorItems?.find((vi) => {
       const vId = vi.vendorId?._id || vi.vendorId;
       return vId?.toString() === vendorId?.toString();
