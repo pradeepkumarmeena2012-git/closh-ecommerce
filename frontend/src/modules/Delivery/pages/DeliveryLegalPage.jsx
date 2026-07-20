@@ -14,46 +14,55 @@ const getLegalData = (settings) => {
     const storeName = general.storeName || "CLOSH";
 
     return {
-    'privacy': {
-        title: 'Privacy Policy',
-        content: `
+        'privacy': {
+            title: 'Privacy Policy',
+            content: `
             <div class="space-y-4 text-sm">
-                <p class="text-gray-600 leading-relaxed font-medium mb-4">Your privacy is important to us. It is ${storeName}'s policy to respect your privacy regarding any information we may collect from you across our platform.</p>
+                <p class="text-gray-600 leading-relaxed font-medium mb-4">Your privacy is important to us. It is ${storeName}'s policy to respect your privacy regarding any information we may collect from you across our platform. This Privacy Policy applies to all delivery partners and contractors utilizing our network.</p>
                 
-                <h4 class="font-bold text-gray-900 mt-6 mb-2">1. Information We Collect</h4>
-                <p class="text-gray-600 leading-relaxed font-medium">When you register as a delivery partner with ${storeName}, we collect personal details including your name, contact information, vehicle details, driver's license, and government-issued ID for verification purposes. During active deliveries, we also collect real-time GPS location data to provide tracking to customers and optimize routing.</p>
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">1. Comprehensive Information Collection</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">When you register as a delivery partner with ${storeName}, we collect comprehensive personal details including your full legal name, residential address, contact information (phone number and email), vehicle registration details, driver's license, and government-issued ID (such as Aadhar or PAN) for background verification purposes. We also collect banking details to process your weekly settlements and payouts securely.</p>
                 
-                <h4 class="font-bold text-gray-900 mt-6 mb-2">2. How We Use Your Data</h4>
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">2. Real-Time Tracking and Location Data</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">To facilitate efficient order delivery, our application requires continuous access to your device's GPS and location services while you are marked as "Active" or "On Duty". This real-time location data is used to provide accurate ETAs to customers, optimize your delivery routes, and ensure your safety during transit. Location tracking automatically ceases when you go offline.</p>
+                
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">3. Detailed Data Utilization</h4>
                 <ul class="list-disc pl-5 text-gray-600 leading-relaxed font-medium space-y-2">
-                    <li>To verify your identity, background, and eligibility to perform deliveries.</li>
-                    <li>To assign, dispatch, and manage delivery orders effectively.</li>
-                    <li>To track delivery progress, ensure safety, and calculate your earnings.</li>
-                    <li>To communicate critical updates, alerts, and provide support.</li>
+                    <li><strong>Account Verification:</strong> To verify your identity, perform criminal background checks, and confirm your eligibility to perform deliveries.</li>
+                    <li><strong>Operational Efficiency:</strong> To assign, dispatch, and manage delivery orders effectively based on your proximity to pickup and drop-off locations.</li>
+                    <li><strong>Financial Processing:</strong> To calculate your earnings, track delivery milestones, process incentives, and facilitate timely payouts to your registered bank account.</li>
+                    <li><strong>Communication:</strong> To communicate critical platform updates, safety alerts, and provide ongoing support through our help center.</li>
+                    <li><strong>Performance Monitoring:</strong> To evaluate delivery metrics, customer feedback, and ensure adherence to our platform's service level agreements.</li>
                 </ul>
 
-                <h4 class="font-bold text-gray-900 mt-6 mb-2">3. Data Sharing & Security</h4>
-                <p class="text-gray-600 leading-relaxed font-medium">We do not sell your personal data. We only share necessary details (such as your first name and live location) with the customer and vendor during an active order. We implement strict security measures to protect your documents and payment information.</p>
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">4. Stringent Data Sharing & Security Protocols</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">We strictly do not sell your personal data to third parties. We only share necessary operational details (such as your first name, vehicle type, and live location) with the customer and vendor during an active order to facilitate a smooth handover. All sensitive documents (IDs, bank details) are encrypted at rest and in transit using industry-standard TLS encryption. Access to your personal data is restricted to authorized personnel only.</p>
                 
-                <h4 class="font-bold text-gray-900 mt-6 mb-2">4. Your Rights & Choices</h4>
-                <p class="text-gray-600 leading-relaxed font-medium">You have the right to access, update, or request deletion of your personal data by contacting our support team. Please note that certain data must be retained for legal, tax, or fraud-prevention purposes even after account closure.</p>
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">5. Data Retention and Deletion Rights</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">You retain the right to access, update, or request the permanent deletion of your personal data by raising a ticket with our support team. Please note that certain transactional and identity data must be retained for up to 7 years to comply with local taxation laws, financial audits, and fraud-prevention mandates, even after your account has been deactivated.</p>
             </div>
         `
-    },
-    'terms': {
-        title: 'Terms & Conditions',
-        content: `
+        },
+        'terms': {
+            title: 'Terms & Conditions',
+            content: `
             <div class="space-y-4 text-sm">
-                <p class="text-gray-600 leading-relaxed font-medium mb-4">By joining the ${storeName} Delivery Partner program, you agree to the following terms of service.</p>
-                <h4 class="font-bold text-gray-900 mt-6 mb-2">1. Independent Contractor Status</h4>
-                <p class="text-gray-600 leading-relaxed font-medium">You operate as an independent contractor, not an employee of ${storeName}. You are responsible for your own vehicle, fuel, insurance, and taxes.</p>
-                <h4 class="font-bold text-gray-900 mt-6 mb-2">2. Service Standards</h4>
-                <p class="text-gray-600 leading-relaxed font-medium">You agree to deliver items safely, promptly, and professionally. Any tampering with packages, unprofessional behavior, or fraudulent activity will result in immediate termination.</p>
+                <p class="text-gray-600 leading-relaxed font-medium mb-4">By joining the ${storeName} Delivery Partner program and accessing our delivery application, you explicitly agree to be bound by the following comprehensive terms of service.</p>
+                
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">1. Independent Contractor Classification</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">You acknowledge and agree that you operate exclusively as an independent contractor. No employment, joint venture, or agency relationship exists between you and ${storeName}. You are solely responsible for providing and maintaining your own vehicle, paying for fuel, obtaining appropriate commercial insurance, and fulfilling all local tax obligations arising from your earnings on the platform.</p>
+                
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">2. Strict Service and Conduct Standards</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">You agree to execute all accepted deliveries safely, promptly, and with the highest level of professionalism. Any tampering with sealed packages, unprofessional behavior towards vendors or customers, verbal abuse, or fraudulent activity (including GPS spoofing or falsely marking orders as delivered) will result in immediate investigation and potential permanent termination of your account without prior notice.</p>
+                
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">3. Payouts and Incentives</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">Delivery fees are calculated based on distance, time, and active demand. Payouts will be transferred to your verified bank account according to the platform's settlement cycle. Any discrepancies in earnings must be reported within 48 hours. ${storeName} reserves the right to modify incentive structures, delivery base pays, and penalty charges with prior notification via the partner app.</p>
             </div>
         `
-    },
-    'support': {
-        title: 'Contact Support',
-        content: `
+        },
+        'support': {
+            title: 'Contact Support',
+            content: `
             <div class="space-y-6">
                 <p class="text-gray-600 font-medium mb-6">Our partner support team is available to assist you with any issues related to deliveries, payouts, or your account.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -98,7 +107,7 @@ const getLegalData = (settings) => {
                 </div>
             </div>
         `
-    }
+        }
     };
 };
 
@@ -109,7 +118,7 @@ const DeliveryLegalPage = ({ fixedPageId }) => {
     const [pageContent, setPageContent] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
-    
+
     const general = settings?.general || {};
     const supportEmail = general.customerSupportEmail || "support@closh.in";
     const supportPhone = general.customerSupportPhone || "+91 (800) 111-2222";
@@ -122,14 +131,20 @@ const DeliveryLegalPage = ({ fixedPageId }) => {
     useEffect(() => {
         const fetchContent = async () => {
             const legalData = getLegalData(settings);
-            
+
             try {
                 await initializePublic();
-                
+
                 const key = keyMap[effectivePageId];
                 if (key) {
                     const res = await getPublicSetting(key, true);
-                    if (typeof res?.data === 'string' && !res.data.includes('<h1>Terms and Conditions</h1>')) {
+                    const hasValidContent = (htmlString) => {
+                        if (typeof htmlString !== 'string') return false;
+                        const stripped = htmlString.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, '').trim();
+                        return stripped.length > 10;
+                    };
+
+                    if (hasValidContent(res?.data) && !res.data.includes('<h1>Terms and Conditions</h1>')) {
                         setPageContent({
                             title: legalData[effectivePageId]?.title || 'Information',
                             content: res.data.replace(/\n/g, '<br/>')
@@ -139,7 +154,7 @@ const DeliveryLegalPage = ({ fixedPageId }) => {
                     }
 
                     const contentRes = await getPublicSetting('content', true);
-                    if (contentRes?.data && contentRes.data[key]) {
+                    if (contentRes?.data && hasValidContent(contentRes.data[key])) {
                         setPageContent({
                             title: legalData[effectivePageId]?.title || 'Information',
                             content: contentRes.data[key].replace(/\n/g, '<br/>')
@@ -173,7 +188,7 @@ const DeliveryLegalPage = ({ fixedPageId }) => {
             <div className="min-h-screen bg-gray-50">
                 {/* Header */}
                 <div className="bg-[#0f172a] text-white px-6 py-4 sticky top-0 z-50 shadow-md flex items-center gap-4">
-                    <button 
+                    <button
                         onClick={() => navigate(-1)}
                         className="p-2 hover:bg-slate-800 rounded-xl transition-colors"
                     >
@@ -204,7 +219,7 @@ const DeliveryLegalPage = ({ fixedPageId }) => {
                                 className="legal-rich-text text-gray-700 leading-relaxed font-medium mb-12"
                                 dangerouslySetInnerHTML={{ __html: pageContent.content }}
                             />
-                            
+
                             {/* Need Help Block (only show for non-support pages to avoid duplication) */}
                             {effectivePageId !== 'support' && (
                                 <div className="mt-12 p-8 bg-indigo-50 rounded-[24px] border border-indigo-100 flex flex-col items-center text-center">
