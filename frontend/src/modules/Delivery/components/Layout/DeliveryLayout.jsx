@@ -19,7 +19,7 @@ const DeliveryLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { 
-    deliveryBoy, logout, isAuthenticated, acceptOrder, 
+    deliveryBoy, logout, deleteAccount, isAuthenticated, acceptOrder, 
     acceptReturn, fetchProfileSummary, updateStatus, 
     isUpdatingStatus 
   } = useDeliveryAuthStore();
@@ -512,9 +512,14 @@ const DeliveryLayout = () => {
               </nav>
 
               <div className="p-2 border-t border-gray-200 mt-auto">
-                <button onClick={() => {
+                <button onClick={async () => {
                   if (window.confirm("Are you sure you want to delete your account? This action is permanent and cannot be undone.")) {
-                    toast.error("Please contact admin to delete your delivery partner account.");
+                    try {
+                      await deleteAccount();
+                      toast.success("Account deleted successfully.");
+                    } catch (err) {
+                      toast.error(err?.response?.data?.message || "Failed to delete account");
+                    }
                   }
                 }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors mb-2">
                   <FiTrash2 className="text-xl" />

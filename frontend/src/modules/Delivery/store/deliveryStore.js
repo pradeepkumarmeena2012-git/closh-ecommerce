@@ -258,6 +258,30 @@ export const useDeliveryAuthStore = create(
           window.location.href = '/delivery/login';
         }
       },
+      deleteAccount: async () => {
+        set({ isLoading: true });
+        try {
+          await api.delete('/delivery/auth/profile');
+          set({ isLoading: false });
+          // Reset local state manually before redirecting
+          set({
+            deliveryBoy: null,
+            token: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            orders: [],
+            returns: [],
+            isExplicitlyOffline: false
+          });
+          localStorage.removeItem('delivery-token');
+          localStorage.removeItem('delivery-refresh-token');
+          localStorage.removeItem('delivery-auth-storage');
+          window.location.href = '/delivery/login';
+        } catch (e) {
+          set({ isLoading: false });
+          throw e;
+        }
+      },
 
       // --- PROFILE ACTIONS ---
       fetchProfile: async () => {

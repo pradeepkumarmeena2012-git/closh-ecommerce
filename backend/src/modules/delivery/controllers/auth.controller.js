@@ -6,7 +6,7 @@ import Admin from '../../../models/Admin.model.js';
 import { generateTokens } from '../../../utils/generateToken.js';
 import { createNotification } from '../../../services/notification.service.js';
 import { sendEmail } from '../../../services/email.service.js';
-import { cleanupLocalFiles, uploadLocalFileToCloudinaryAndCleanup } from '../../../services/upload.service.js';
+import { cleanupLocalFiles, uploadLocalFileToCloudinaryAndCleanup, deleteFromCloudinary } from '../../../services/upload.service.js';
 import {
     clearRefreshSession,
     decodeRefreshTokenOrThrow,
@@ -674,4 +674,45 @@ export const updateProfile = asyncHandler(async (req, res) => {
     await boy.save();
     await cacheInvalidate(`dash:${boy._id}`, `profile:${boy._id}`);
     res.status(200).json(new ApiResponse(200, boy, 'Profile updated.'));
+});
+
+// Helper for extracting Cloudinary public ID
+const extractCloudinaryPublicId = (url = '') => {
+    if (!url || typeof url !== 'string') return null;
+    try {
+        const matches = url.match(/\/v\d+\/(.+)\.[a-zA-Z0-9]+$/);
+        return matches ? matches[1] : null;
+    } catch {
+        return null;
+    }
+};
+
+// DELETE /api/delivery/auth/profile
+export const deleteAccount = asyncHandler(async (req, res) => {
+    const deliveryBoy = await DeliveryBoy.findById(req.user.id).select('avatar documents');
+    if (!deliveryBoy) throw new ApiError(404, 'Delivery Partner not found.');
+
+    const filesToDelete = [];
+    if (deliveryBoy.avatar) filesToDelete.push(deliveryBoy.avatar);
+    if (deliveryBoy.documents) {
+        if (deliveryBoy.documents.drivingLicense) filesToDelete.push(deliveryBoy.documents.drivingLicense);
+        if (deliveryBoy.documents.drivingLicenseBack) filesToDelete.push(deliveryBoy.documents.drivingLicenseBack);
+        if (deliveryBoy.documents.aadharCard) filesToDelete.push(deliveryBoy.documents.aadharCard);
+        if (deliveryBoy.documents.aadharCardBack) filesToDelete.push(deliveryBoy.documents.aadharCardBack);
+    }
+
+    // Delete files from Cloudinary
+    for (const url of filesToDelete) {
+        const publicId = extractCloudinaryPublicId(url);
+        if (publicId) {
+            await deleteFromCloudinary(publicId).catch((err) => {
+                console.error(`[DeleteAccount] Cloudinary cleanup failed for ${publicId}:`, err.message);
+            });
+        }
+    }
+
+    // Delete the delivery boy record
+    await DeliveryBoy.findByIdAndDelete(deliveryBoy._id);
+
+    res.status(200).json(new ApiResponse(200, null, 'Account deleted successfully.'));
 });
