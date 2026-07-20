@@ -248,34 +248,41 @@ const listProducts = asyncHandler(async (req, res) => {
     if (flashSale === 'true') filter.flashSale = true;
     if (isNewArrival === 'true') filter.isNewArrival = true;
     if (minPrice || maxPrice) filter.price = { ...(minPrice && { $gte: Number(minPrice) }), ...(maxPrice && { $lte: Number(maxPrice) }) };
-    if (minRating) filter.rating = { $gte: Number(minRating) };
+    if (minRating) filter.rating = { $gte: Number(minRating) };    
     const searchQuery = String(search || q || '').trim();
     if (searchQuery) {
-        // Split the search query by any non-alphanumeric character (spaces, dots, hyphens, etc.)
-        const parts = searchQuery.split(/[\\s\\W]+/).filter(Boolean);
-        // Join parts with a regex that allows any amount of spaces or special characters in between
-        const flexibleSearch = parts.join('[\\\\s\\\\W]*');
-        
-        filter.$or = [
-            { name: { $regex: flexibleSearch, $options: 'i' } },
-            { tags: { $regex: flexibleSearch, $options: 'i' } }
-        ];
-
-        // Also search by Brand and Vendor (Company/Store) names
-        const matchedBrands = await Brand.find({ name: { $regex: flexibleSearch, $options: 'i' } }).select('_id').lean();
-        const matchedVendors = await Vendor.find({ 
-            $or: [
-                { storeName: { $regex: flexibleSearch, $options: 'i' } },
-                { companyName: { $regex: flexibleSearch, $options: 'i' } },
-                { name: { $regex: flexibleSearch, $options: 'i' } }
-            ] 
-        }).select('_id').lean();
-
-        if (matchedBrands.length > 0) {
-            filter.$or.push({ brandId: { $in: matchedBrands.map(b => b._id) } });
-        }
-        if (matchedVendors.length > 0) {
-            filter.$or.push({ vendorId: { $in: matchedVendors.map(v => v._id) } });
+        const words = searchQuery.split(/[\s\W]+/).filter(Boolean);
+        if (words.length > 0) {
+            const conditions = await Promise.all(words.map(async (word) => {
+                const safeWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(safeWord, 'i');
+                
+                const [matchedBrands, matchedVendors] = await Promise.all([
+                    Brand.find({ name: regex }).select('_id').lean(),
+                    Vendor.find({ 
+                        $or: [{ storeName: regex }, { companyName: regex }, { name: regex }] 
+                    }).select('_id').lean()
+                ]);
+                
+                const wordOr = [
+                    { name: regex },
+                    { tags: regex },
+                    { description: regex }
+                ];
+                
+                if (matchedBrands.length > 0) {
+                    wordOr.push({ brandId: { $in: matchedBrands.map(b => b._id) } });
+                }
+                if (matchedVendors.length > 0) {
+                    wordOr.push({ vendorId: { $in: matchedVendors.map(v => v._id) } });
+                }
+                
+                return { $or: wordOr };
+            }));
+            
+            if (conditions.length > 0) {
+                filter.$and = filter.$and ? [...filter.$and, ...conditions] : conditions;
+            }
         }
     }
 
@@ -402,7 +409,41 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
         price: { $gt: 0 }
     };
     const searchQuery = String(search || q || '').trim();
-    if (searchQuery) filter.$text = { $search: searchQuery };
+    if (searchQuery) {
+        const words = searchQuery.split(/[\s\W]+/).filter(Boolean);
+        if (words.length > 0) {
+            const conditions = await Promise.all(words.map(async (word) => {
+                const safeWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(safeWord, 'i');
+                
+                const [matchedBrands, matchedVendors] = await Promise.all([
+                    Brand.find({ name: regex }).select('_id').lean(),
+                    Vendor.find({ 
+                        $or: [{ storeName: regex }, { companyName: regex }, { name: regex }] 
+                    }).select('_id').lean()
+                ]);
+                
+                const wordOr = [
+                    { name: regex },
+                    { tags: regex },
+                    { description: regex }
+                ];
+                
+                if (matchedBrands.length > 0) {
+                    wordOr.push({ brandId: { $in: matchedBrands.map(b => b._id) } });
+                }
+                if (matchedVendors.length > 0) {
+                    wordOr.push({ vendorId: { $in: matchedVendors.map(v => v._id) } });
+                }
+                
+                return { $or: wordOr };
+            }));
+            
+            if (conditions.length > 0) {
+                filter.$and = filter.$and ? [...filter.$and, ...conditions] : conditions;
+            }
+        }
+    }
     if (minPrice || maxPrice) {
         filter.price = {
             ...(minPrice ? { $gte: Number(minPrice) } : {}),
