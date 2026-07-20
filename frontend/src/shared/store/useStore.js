@@ -1,437 +1,165 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import toast from "react-hot-toast";
 import { useAuthStore } from "./authStore";
 import { setPostLoginAction, setPostLoginRedirect } from "../utils/postLoginAction";
-import { getVariantSignature } from "../utils/variant";
 import api from "../utils/api";
 
-const getCartLineKey = (id, variant) => {
-  if (!variant || typeof variant !== 'object') return String(id);
-  const vId = variant.id || variant._id || '';
-  if (vId) return `${id}-${vId}`;
-  
-  const serialized = Object.entries(variant)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}:${v}`)
-    .join('|');
-  return `${id}-${serialized}`;
-};
 
-// Haversine formula for frontend distance calculation
-const calculateDistance = (coords1, coords2) => {
-  if (!coords1 || !coords2 || !Array.isArray(coords1) || !Array.isArray(coords2)) return 0;
-  if (coords1.length < 2 || coords2.length < 2) return 0;
-  const [lon1, lat1] = coords1;
-  const [lon2, lat2] = coords2;
-  const R = 6371; // km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
+// Cart Store — API-backed (MongoDB via backend)
+export const useCartStore = create((set, get) => ({
+  items: [],
+  isLoading: false,
+  maxCartVendorDistanceKm: 10,
 
-const getCurrentAuthUserId = () => {
-  const authState = useAuthStore.getState();
-  return String(authState?.user?.id || authState?.user?._id || "").trim();
-};
-
-const redirectToLogin = () => {
-  if (typeof window === "undefined") return;
-  const currentPath = window.location.pathname || "/home";
-  if (currentPath === "/login") return;
-
-  const fromPath = `${window.location.pathname || ""}${window.location.search || ""}${window.location.hash || ""}`;
-  setPostLoginRedirect(fromPath || "/home");
-
-// SPA-friendly redirect without full page reload.
-  const nextState = { from: { pathname: fromPath || "/home" } };
-  window.history.pushState(nextState, "", "/login");
-  window.dispatchEvent(new PopStateEvent("popstate", { state: nextState }));
-};
-
-const getVariantStock = (item) => {
-  const size = item.variant?.size || item.selectedSize;
-  const color = item.variant?.color || item.selectedColor;
-  
-  if (!size && !color) {
-    return Number(item.stockQuantity ?? 1);
-  }
-
-  if (item.variants?.stockMap) {
-    const keys = [];
-    if (size && color) {
-      keys.push(`${String(color).toLowerCase()}|${String(size).toLowerCase()}`);
-      keys.push(`color=${String(color).toLowerCase()}|size=${String(size).toLowerCase()}`);
-    } else if (size) {
-      keys.push(`${String(size).toLowerCase()}|`);
-      keys.push(`${String(size)}|`);
-      keys.push(`size=${String(size).toLowerCase()}`);
-      keys.push(`size=${String(size)}`);
-    } else if (color) {
-      keys.push(`${String(color).toLowerCase()}|`);
-      keys.push(`color=${String(color).toLowerCase()}`);
-    }
-    
-    for (const k of keys) {
-      if (item.variants.stockMap[k] !== undefined) {
-        return Number(item.variants.stockMap[k]);
+  fetchDeliveryConfig: async () => {
+    try {
+      const res = await api.get('/config/delivery');
+      if (res?.success && res?.data?.maxCartVendorDistanceKm) {
+        set({ maxCartVendorDistanceKm: res.data.maxCartVendorDistanceKm });
       }
+    } catch (e) {
+      console.error('Failed to fetch delivery config', e);
     }
-  }
-  return Number(item.stockQuantity ?? 1);
-};
+  },
 
-// Cart Store
-export const useCartStore = create(
-  persist(
-    (set, get) => ({
-      items: [],
-      ownerUserId: null,
-      maxCartVendorDistanceKm: 10,
-      
-      fetchDeliveryConfig: async () => {
-        try {
-          const res = await api.get('/config/delivery');
-          const data = res.data;
-          if (data?.success && data?.data?.maxCartVendorDistanceKm) {
-            set({ maxCartVendorDistanceKm: data.data.maxCartVendorDistanceKm });
-          }
-        } catch (e) {
-          console.error("Failed to fetch delivery config", e);
-        }
-      },
-      addItem: (item) => {
-        const authState = useAuthStore.getState();
-        if (!authState?.isAuthenticated) {
-          setPostLoginAction({
-            type: "cart:add",
-            payload: {
-              ...item,
-              quantity: Number(item?.quantity) > 0 ? Number(item.quantity) : 1,
-            },
-          });
-          toast.error("Please login to add products to cart");
-          redirectToLogin();
-          return false;
-        }
-        const currentUserId = getCurrentAuthUserId();
-        if (!currentUserId) {
-          toast.error("Please login to add products to cart");
-          redirectToLogin();
-          return false;
-        }
+  fetchCart: async () => {
+    const authState = useAuthStore.getState();
+    if (!authState?.isAuthenticated) return;
+    try {
+      set({ isLoading: true });
+      const res = await api.get('/user/cart');
+      if (res?.success) {
+        set({ items: res.data?.items || [], isLoading: false });
+      }
+    } catch (e) {
+      set({ isLoading: false });
+      console.error('Failed to fetch cart', e);
+    }
+  },
 
-        const ownerUserId = String(get().ownerUserId || "").trim();
-        if (ownerUserId && ownerUserId !== currentUserId) {
-          set({ items: [], ownerUserId: currentUserId });
-        }
+  addItem: async (item) => {
+    const authState = useAuthStore.getState();
+    if (!authState?.isAuthenticated) {
+      setPostLoginAction({
+        type: 'cart:add',
+        payload: { ...item, quantity: Number(item?.quantity) > 0 ? Number(item.quantity) : 1 },
+      });
+      toast.error('Please login to add products to cart');
+      // SPA-friendly redirect to login
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        const fromPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        setPostLoginRedirect(fromPath || '/home');
+        const nextState = { from: { pathname: fromPath || '/home' } };
+        window.history.pushState(nextState, '', '/login');
+        window.dispatchEvent(new PopStateEvent('popstate', { state: nextState }));
+      }
+      return false;
+    }
 
-        const availableStock = getVariantStock(item);
-        if (Number.isFinite(availableStock) && availableStock <= 0) {
-          toast.error(`"${item.name}" is currently out of stock in the selected variant.`);
-          return false;
-        }
+    try {
+      const payload = {
+        productId: item.id || item._id,
+        quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+        variant: {
+          size: item.variant?.size || item.selectedSize || '',
+          color: item.variant?.color || item.selectedColor || '',
+        },
+      };
 
-        const lineKey = getCartLineKey(item.id, item.variant);
-        const existingItem = get().items.find(
-          (i) => String(i.cartLineKey || getCartLineKey(i.id, i.variant)) === lineKey
-        );
-        const quantityToAdd = item.quantity || 1;
-        const newQuantity = existingItem
-          ? existingItem.quantity + quantityToAdd
-          : quantityToAdd;
-
-        // If stock quantity is known on the item payload, keep local guard.
-        if (Number.isFinite(availableStock) && newQuantity > availableStock) {
-          toast.error(`Only ${availableStock} unit(s) of "${item.name}" are available in the selected variant.`);
-          return false;
-        }
-
-        if (newQuantity <= 0) {
-          return false;
-        }
-
-        // Distance check for multi-vendor
-        const newVendorId = String(item.vendorId || 1);
-        const newVendorCoords = item.shopLocation?.coordinates || null;
-        
-        const existingItems = get().items;
-        if (existingItems.length > 0) {
-          const firstItem = existingItems[0];
-          const firstVendorId = String(firstItem.vendorId || 1);
-          
-          if (newVendorId !== firstVendorId && firstItem.shopLocation?.coordinates && newVendorCoords) {
-            const distance = calculateDistance(firstItem.shopLocation.coordinates, newVendorCoords);
-            const maxAllowed = get().maxCartVendorDistanceKm || 10;
-            if (distance > maxAllowed) {
-              toast.error(`This vendor is too far (${distance.toFixed(1)} km) from your other cart items. Max allowed distance is ${maxAllowed} km.`);
-              return false;
-            }
-          }
-        }
-
-        // Include vendor information from product
-        const itemWithVendor = {
-          ...item,
-          cartLineKey: lineKey,
-          vendorId: item.vendorId || 1,
-          vendorName: item.vendorName || "Unknown Vendor",
-          shopLocation: item.shopLocation || null,
-        };
-
-        set((state) => {
-          if (existingItem) {
-            return {
-              items: state.items.map((i) =>
-                String(i.id) === String(item.id)
-                  && String(i.cartLineKey || getCartLineKey(i.id, i.variant)) === lineKey
-                  ? {
-                    ...i,
-                    ...itemWithVendor,
-                    quantity:
-                      Number.isFinite(availableStock)
-                        ? Math.min(newQuantity, availableStock)
-                        : newQuantity,
-                  }
-                  : i
-              ),
-              ownerUserId: currentUserId,
-            };
-          }
-          return {
-            items: [
-              ...state.items,
-              {
-                ...itemWithVendor,
-                quantity:
-                  Number.isFinite(availableStock)
-                    ? Math.min(quantityToAdd, availableStock)
-                    : quantityToAdd,
-              },
-            ],
-            ownerUserId: currentUserId,
-          };
-        });
-
-        if (Number.isFinite(availableStock) && newQuantity >= availableStock * 0.8) {
-          toast(`Only ${availableStock} left in stock!`, { icon: "⚠️" });
-        }
-
+      const res = await api.post('/user/cart', payload);
+      if (res?.success) {
+        set({ items: res.data?.items || [] });
         // Trigger cart animation
         const { triggerCartAnimation } = useUIStore.getState();
         triggerCartAnimation();
         return true;
-      },
-      removeItem: (id, variant = null) =>
-        set((state) => ({
-          items: state.items.filter((item) => {
-            if (String(item.id) !== String(id)) return true;
-            if (!variant) return false; // backwards-compatible: remove all variants for this product
-            const candidate = String(item.cartLineKey || getCartLineKey(item.id, item.variant));
-            return candidate !== getCartLineKey(id, variant);
-          }),
-          ownerUserId: state.ownerUserId,
-        })),
-      updateQuantity: (id, quantity, variant = null) => {
-        if (quantity <= 0) {
-          get().removeItem(id, variant);
-          return;
-        }
-
-        const targetItem = get().items.find((item) => {
-          if (String(item.id) !== String(id)) return false;
-          if (!variant) return true;
-          const candidate = String(item.cartLineKey || getCartLineKey(item.id, item.variant));
-          return candidate === getCartLineKey(id, variant);
-        });
-        const availableStock = getVariantStock(targetItem);
-        if (Number.isFinite(availableStock) && quantity > availableStock) {
-          if (availableStock <= 0) {
-            toast.error(`"${targetItem?.name || 'Product'}" is currently out of stock in the selected variant.`);
-          } else {
-            toast.error(`Only ${availableStock} unit(s) of "${targetItem?.name || 'Product'}" are available in the selected variant.`);
-          }
-          quantity = availableStock;
-        }
-
-        set((state) => ({
-          items: state.items.map((item) =>
-            (() => {
-              if (String(item.id) !== String(id)) return item;
-              if (!variant) return { ...item, quantity };
-              const candidate = String(item.cartLineKey || getCartLineKey(item.id, item.variant));
-              return candidate === getCartLineKey(id, variant)
-                ? { ...item, quantity }
-                : item;
-            })()
-          ),
-          ownerUserId: state.ownerUserId,
-        }));
-      },
-      updateItemVariant: (cartLineKey, newVariant) => {
-        const state = get();
-        const existingItem = state.items.find((i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) === cartLineKey);
-        if (!existingItem) return;
-
-        const newLineKey = getCartLineKey(existingItem.id, newVariant);
-
-        // Resolve price for the new variant from item's product variants metadata
-        let resolvedPrice = existingItem.price;
-        if (existingItem.variants?.prices) {
-          const sig = getVariantSignature(newVariant);
-          const entries = Object.entries(existingItem.variants.prices || {});
-          let match = entries.find(([k]) => String(k).trim() === sig);
-          if (!match && sig) match = entries.find(([k]) => String(k).trim().toLowerCase() === sig.toLowerCase());
-          if (!match && newVariant.size) {
-            const s = String(newVariant.size).trim().toLowerCase();
-            match = entries.find(([k]) => String(k).trim().toLowerCase() === s);
-          }
-          if (match) {
-            const parsed = Number(match[1]);
-            if (Number.isFinite(parsed) && parsed >= 0) resolvedPrice = parsed;
-          }
-        }
-
-        // Resolve stock for the new variant from item's product variants metadata
-        let resolvedStock = existingItem.stockQuantity;
-        if (existingItem.variants?.stockMap && newVariant.size) {
-          const sizeKeys = [
-            `${String(newVariant.size).toLowerCase()}|`,
-            `${String(newVariant.size)}|`
-          ];
-          for (const k of sizeKeys) {
-            if (existingItem.variants.stockMap[k] !== undefined) {
-              resolvedStock = Number(existingItem.variants.stockMap[k]);
-              break;
-            }
-          }
-        }
-        
-        // Check if an item with the new variant already exists
-        const duplicateItem = state.items.find(
-          (i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) === newLineKey && (i.cartLineKey || getCartLineKey(i.id, i.variant)) !== cartLineKey
-        );
-
-        if (duplicateItem) {
-          // Merge with duplicate and remove the old one
-          const newQuantity = duplicateItem.quantity + existingItem.quantity;
-          const cappedQuantity = Number.isFinite(resolvedStock) ? Math.min(newQuantity, resolvedStock) : newQuantity;
-          set((state) => ({
-            items: state.items
-              .filter((i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) !== cartLineKey)
-              .map((i) => (i.cartLineKey || getCartLineKey(i.id, i.variant)) === newLineKey ? { ...i, quantity: cappedQuantity, price: resolvedPrice, stockQuantity: resolvedStock } : i),
-            ownerUserId: state.ownerUserId,
-          }));
-        } else {
-          // Update current item with new variant
-          const cappedQuantity = Number.isFinite(resolvedStock) ? Math.min(existingItem.quantity, resolvedStock) : existingItem.quantity;
-          set((state) => ({
-            items: state.items.map((i) =>
-              (i.cartLineKey || getCartLineKey(i.id, i.variant)) === cartLineKey
-                ? { 
-                    ...i, 
-                    variant: newVariant, 
-                    cartLineKey: newLineKey,
-                    selectedSize: newVariant.size, // sync with convenience field
-                    price: resolvedPrice,
-                    stockQuantity: resolvedStock,
-                    quantity: cappedQuantity > 0 ? cappedQuantity : 1,
-                  }
-                : i
-            ),
-            ownerUserId: state.ownerUserId,
-          }));
-        }
-      },
-      clearCart: () => set({ items: [], ownerUserId: getCurrentAuthUserId() || null }),
-      getTotal: () => {
-        const authState = useAuthStore.getState();
-        if (!authState?.isAuthenticated) {
-          return 0;
-        }
-        const currentUserId = getCurrentAuthUserId();
-        const ownerUserId = String(get().ownerUserId || "").trim();
-        if (ownerUserId && currentUserId && ownerUserId !== currentUserId) {
-          return 0;
-        }
-        const state = get();
-        return state.items.reduce(
-          (total, item) => total + item.price * item.quantity,
-          0
-        );
-      },
-      getItemCount: () => {
-        const authState = useAuthStore.getState();
-        if (!authState?.isAuthenticated) return 0;
-
-        const currentUserId = getCurrentAuthUserId();
-        const state = get();
-
-        // Return 0 if data belongs to another user
-        if (state.ownerUserId && currentUserId && state.ownerUserId !== currentUserId) {
-          return 0;
-        }
-
-        return state.items.reduce((count, item) => count + item.quantity, 0);
-      },
-      // Group items by vendor
-      getItemsByVendor: () => {
-        const authState = useAuthStore.getState();
-        if (!authState?.isAuthenticated) {
-          return [];
-        }
-        const currentUserId = getCurrentAuthUserId();
-        const ownerUserId = String(get().ownerUserId || "").trim();
-        if (ownerUserId && currentUserId && ownerUserId !== currentUserId) {
-          return [];
-        }
-        const state = get();
-        const vendorGroups = {};
-
-        state.items.forEach((item) => {
-          const vendorId = String(item.vendorId || 1);
-          const vendorName = item.vendorName || "Unknown Vendor";
-
-          if (!vendorGroups[vendorId]) {
-            vendorGroups[vendorId] = {
-              vendorId,
-              vendorName,
-              items: [],
-              subtotal: 0,
-            };
-          }
-
-          const itemSubtotal = item.price * item.quantity;
-          vendorGroups[vendorId].items.push(item);
-          vendorGroups[vendorId].subtotal += itemSubtotal;
-        });
-
-        return Object.values(vendorGroups);
-      },
-    }),
-    {
-      name: "cart-storage",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        items: state.items,
-        ownerUserId: state.ownerUserId,
-      }),
-      onRehydrateStorage: () => (state) => {
-        if (!state) return;
-        const currentUserId = getCurrentAuthUserId();
-        if (state.ownerUserId && currentUserId && state.ownerUserId !== currentUserId) {
-          state.items = [];
-          state.ownerUserId = currentUserId;
-        }
-      },
+      }
+      return false;
+    } catch (e) {
+      const msg = e?.response?.data?.message || 'Failed to add to cart';
+      toast.error(msg);
+      return false;
     }
-  )
-);
+  },
+
+  removeItem: async (cartItemId) => {
+    try {
+      const res = await api.delete(`/user/cart/${cartItemId}`);
+      if (res?.success) {
+        set({ items: res.data?.items || [] });
+      }
+    } catch (e) {
+      toast.error('Failed to remove item from cart');
+    }
+  },
+
+  updateQuantity: async (cartItemId, quantity) => {
+    if (quantity <= 0) {
+      get().removeItem(cartItemId);
+      return;
+    }
+    try {
+      const res = await api.put(`/user/cart/${cartItemId}`, { quantity });
+      if (res?.success) {
+        set({ items: res.data?.items || [] });
+      }
+    } catch (e) {
+      toast.error('Failed to update quantity');
+    }
+  },
+
+  updateItemVariant: async (cartItemId, newVariant) => {
+    try {
+      const res = await api.put(`/user/cart/${cartItemId}`, { variant: newVariant });
+      if (res?.success) {
+        set({ items: res.data?.items || [] });
+      }
+    } catch (e) {
+      toast.error('Failed to update variant');
+    }
+  },
+
+  clearCart: async () => {
+    try {
+      await api.delete('/user/cart/clear');
+      set({ items: [] });
+    } catch (e) {
+      // Silently clear local state even if API fails (e.g. after order placed)
+      set({ items: [] });
+    }
+  },
+
+  getTotal: () => {
+    const state = get();
+    return state.items.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
+  },
+
+  getItemCount: () => {
+    const authState = useAuthStore.getState();
+    if (!authState?.isAuthenticated) return 0;
+    return get().items.reduce((count, item) => count + item.quantity, 0);
+  },
+
+  getItemsByVendor: () => {
+    const authState = useAuthStore.getState();
+    if (!authState?.isAuthenticated) return [];
+    const state = get();
+    const vendorGroups = {};
+
+    state.items.forEach((item) => {
+      const vendorId = String(item.vendorId?._id || item.vendorId || 1);
+      const vendorName = item.vendorId?.storeName || item.vendorName || 'Unknown Vendor';
+
+      if (!vendorGroups[vendorId]) {
+        vendorGroups[vendorId] = { vendorId, vendorName, items: [], subtotal: 0 };
+      }
+      vendorGroups[vendorId].items.push(item);
+      vendorGroups[vendorId].subtotal += (item.price || 0) * item.quantity;
+    });
+
+    return Object.values(vendorGroups);
+  },
+}));
 
 // UI Store (for modals, loading states, etc.)
 export const useUIStore = create((set) => ({

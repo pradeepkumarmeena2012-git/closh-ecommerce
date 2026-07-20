@@ -11,7 +11,7 @@ const MobileCartBar = () => {
   const cartAnimationTrigger = useUIStore(
     (state) => state.cartAnimationTrigger
   );
-  const itemCount = useCartStore((state) => state.getItemCount());
+  const itemCount = (items || []).reduce((count, item) => count + (item.quantity || 1), 0);
   const total = getTotal();
   const [pulseAnimation, setPulseAnimation] = useState(false);
 

@@ -285,7 +285,7 @@ const CheckoutPage = () => {
                                         </div>
                                     </button>
                                     <button
-                                        onClick={() => removeFromCart(item.id)}
+                                        onClick={() => removeFromCart(item.cartItemId || item.id)}
                                         className="p-1.5 bg-white rounded-full text-gray-400 hover:text-[#EF4444]"
                                     >
                                         <X size={16} />
@@ -331,14 +331,14 @@ const CheckoutPage = () => {
                                         </div>
                                         <div className="flex items-center gap-2 bg-[#F3F4F6] px-2 py-1.5 rounded-xl shrink-0">
                                             <button
-                                                onClick={() => updateQuantity(item.id, item.quantity - 1, item.variant)}
+                                                onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity - 1)}
                                                 className="w-5 h-5 flex items-center justify-center hover:bg-white hover:text-black rounded-md transition-colors"
                                             >
                                                 <span className="text-xs font-bold">-</span>
                                             </button>
                                             <span className="text-[11px] font-bold text-black min-w-[12px] text-center">{item.quantity}</span>
                                             <button
-                                                onClick={() => updateQuantity(item.id, item.quantity + 1, item.variant)}
+                                                onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity + 1)}
                                                 className="w-5 h-5 flex items-center justify-center hover:bg-white hover:text-black rounded-md transition-colors"
                                             >
                                                 <span className="text-xs font-bold">+</span>

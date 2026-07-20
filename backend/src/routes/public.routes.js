@@ -116,7 +116,8 @@ const listProducts = asyncHandler(async (req, res) => {
         subCategory,
         subcategory,
         division,
-        categoryId
+        categoryId,
+        ids
     } = req.query;
 
     // --- CACHE START ---
@@ -141,6 +142,13 @@ const listProducts = asyncHandler(async (req, res) => {
         price: { $gt: 0 },
         vendorId: { $in: approvedVendorIds }
     };
+
+    if (ids) {
+        const idArray = ids.split(',').filter(id => /^[0-9a-fA-F]{24}$/.test(id.trim()));
+        if (idArray.length > 0) {
+            filter._id = { $in: idArray };
+        }
+    }
 
     if (division && division !== 'All') {
         // Map common aliases to match Product model enum: ['Men', 'Women', 'Boys', 'Girls', 'Unisex']

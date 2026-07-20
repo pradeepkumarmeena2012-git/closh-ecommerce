@@ -358,7 +358,7 @@ const ProductDetailsPage = () => {
                         <button onClick={handleShare} className="p-1 hover:bg-gray-100 rounded-full transition-colors" aria-label="Share product">
                             <Share2 size={20} className="text-gray-900" />
                         </button>
-                        <Link to="/cart" className="relative p-1">
+                        <Link to={user ? "/cart" : "/login"} className="relative p-1">
                             <ShoppingCart size={20} className="text-gray-900" />
                             {cartCount > 0 && (
                                 <span className="absolute -top-1 -right-1 bg-black text-white text-[8px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#111111]">

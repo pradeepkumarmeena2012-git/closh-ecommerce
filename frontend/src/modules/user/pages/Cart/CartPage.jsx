@@ -78,7 +78,7 @@ const CartPage = () => {
 
     const handleMoveToWishlist = (item) => {
         addToWishlist(item);
-        removeFromCart(item.id);
+        removeFromCart(item.cartItemId || item.id);
     };
 
     return (
@@ -157,7 +157,7 @@ const CartPage = () => {
                                         </div>
                                         <button
                                             className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
-                                            onClick={() => removeFromCart(item.id, item.variant)}
+                                            onClick={() => removeFromCart(item.cartItemId || item.id)}
                                         >
                                             <Trash2 size={18} />
                                         </button>
@@ -179,14 +179,14 @@ const CartPage = () => {
                                                     <span className="text-[9px] font-bold text-gray-400 uppercase">Qty</span>
                                                     <div className="flex items-center gap-2 border-l border-gray-200 ml-1 pl-2">
                                                         <button
-                                                            onClick={() => updateQuantity(item.id, item.quantity - 1, item.variant)}
+                                                            onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity - 1)}
                                                             className="text-gray-400 hover:text-black p-0.5"
                                                         >
                                                             <Minus size={12} strokeWidth={3} />
                                                         </button>
                                                         <span className="text-[11px] font-black min-w-[12px] text-center text-gray-900">{item.quantity}</span>
                                                         <button
-                                                            onClick={() => updateQuantity(item.id, item.quantity + 1, item.variant)}
+                                                            onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity + 1)}
                                                             className="text-gray-400 hover:text-black p-0.5"
                                                         >
                                                             <Plus size={12} strokeWidth={3} />

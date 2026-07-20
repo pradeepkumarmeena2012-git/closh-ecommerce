@@ -84,14 +84,8 @@ export const useAuthStore = create(
           localStorage.setItem('token', accessToken);
           localStorage.setItem('refresh-token', refreshToken);
 
-          // Update other stores with new user context
-          const userId = String(user.id || user._id);
-          import('./useStore').then(m => {
-            const store = m.useCartStore.getState();
-            if (store.ownerUserId !== userId) {
-              m.useCartStore.setState({ items: [], ownerUserId: userId });
-            }
-          });
+          // Load user-specific data from backend
+          import('./useStore').then(m => m.useCartStore.getState().fetchCart());
           import('./wishlistStore').then(m => m.useWishlistStore.getState().fetchWishlist());
           import('./addressStore').then(m => m.useAddressStore.getState().fetchAddresses());
 
@@ -176,14 +170,8 @@ export const useAuthStore = create(
           localStorage.setItem('token', accessToken);
           localStorage.setItem('refresh-token', refreshToken);
 
-          // Update other stores with new user context
-          const userId = String(user.id || user._id);
-          import('./useStore').then(m => {
-            const store = m.useCartStore.getState();
-            if (store.ownerUserId !== userId) {
-              m.useCartStore.setState({ items: [], ownerUserId: userId });
-            }
-          });
+          // Load user-specific data from backend
+          import('./useStore').then(m => m.useCartStore.getState().fetchCart());
           import('./wishlistStore').then(m => m.useWishlistStore.getState().fetchWishlist());
           import('./addressStore').then(m => m.useAddressStore.getState().fetchAddresses());
 
@@ -257,14 +245,13 @@ export const useAuthStore = create(
           isLoading: false,
         });
 
-        // Wipe all user-specific data from other stores
-        import('./useStore').then(m => m.useCartStore.getState().clearCart());
+        // Wipe user-specific data (cart is now in MongoDB — not cleared on logout)
+        import('./useStore').then(m => m.useCartStore.getState().items && m.useCartStore.setState({ items: [] }));
         import('./wishlistStore').then(m => m.useWishlistStore.getState().resetWishlist());
         import('./addressStore').then(m => m.useAddressStore.getState().resetAddresses());
 
         localStorage.removeItem('token');
         localStorage.removeItem('refresh-token');
-        localStorage.removeItem('cart-storage');
         localStorage.removeItem('wishlist-storage');
         localStorage.removeItem('address-storage');
       },

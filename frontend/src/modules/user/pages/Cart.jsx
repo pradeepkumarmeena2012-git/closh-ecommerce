@@ -3,11 +3,19 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Heart, ShieldCheck, ChevronRight } from 'lucide-react';
 import { useCartStore } from '../../../shared/store/useStore';
 import { useWishlistStore } from '../../../shared/store/wishlistStore';
+import { useAuthStore } from '../../../shared/store/authStore';
 
 const CartPage = () => {
     const { items: cart, removeItem, updateQuantity, getTotal } = useCartStore();
     const { addItem: addToWishlist } = useWishlistStore();
+    const { isAuthenticated } = useAuthStore();
     const navigate = useNavigate();
+
+    React.useEffect(() => {
+        if (!isAuthenticated) {
+            navigate('/login', { replace: true });
+        }
+    }, [isAuthenticated, navigate]);
 
     const cartTotal = getTotal();
 
@@ -24,6 +32,10 @@ const CartPage = () => {
         addToWishlist(item);
         removeItem(item.id, item.variant);
     };
+
+    if (!isAuthenticated) {
+        return null; // Return null to avoid flashing the empty cart UI before useEffect redirects
+    }
 
     if (cart.length === 0) {
         return (

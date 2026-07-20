@@ -425,7 +425,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                         )}
                                     </Link>
                                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-black/5">
-                                        <Link to="/cart" onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[1px]">
+                                        <Link to={user ? "/cart" : "/login"} onClick={(e) => e.stopPropagation()} className="relative p-1.5 group/icon mt-[1px]">
                                             <ShoppingCart size={17} className="text-gray-600 group-hover/icon:text-black transition-colors" />
                                             {cartCount > 0 && (
                                                 <span className="absolute -top-1 -right-1 bg-[#FFC107] text-black text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center border border-black shadow-sm">
@@ -563,7 +563,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                         </span>
                                     )}
                                 </Link>
-                                <Link to="/cart" className="relative flex items-center gap-2 text-[14px] font-semibold text-black/80 hover:text-black transition-colors">
+                                <Link to={user ? "/cart" : "/login"} className="relative flex items-center gap-2 text-[14px] font-semibold text-black/80 hover:text-black transition-colors">
                                     <ShoppingCart size={20} className="text-black/60" />
                                     Cart
                                     {cartCount > 0 && (
@@ -706,7 +706,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                                     </span>
                                 )}
                             </Link>
-                            <Link to="/cart" className="relative transition-colors group text-black/70 hover:text-black">
+                            <Link to={user ? "/cart" : "/login"} className="relative transition-colors group text-black/70 hover:text-black">
                                 <ShoppingCart size={24} className="group-hover:scale-110 transition-transform" />
                                 {cartCount > 0 && (
                                     <span className="absolute -top-2.5 -right-2.5 bg-black border-2 border-white text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
@@ -853,7 +853,7 @@ const Header = ({ variant = 'default', showCategoryBar = true }) => {
                             Reserved in Cart
                         </p>
                         <h4 className="text-[13px] font-bold truncate max-w-[180px] mb-1 ">{lastAddedItem.name}</h4>
-                        <Link to="/cart" className="text-[10px] font-bold uppercase  text-gray-500 hover:text-gray-900 transition-colors border-b border-transparent hover:border-[#FAFAFA]">Checkout Now</Link>
+                        <Link to={user ? "/cart" : "/login"} className="text-[10px] font-bold uppercase  text-gray-500 hover:text-gray-900 transition-colors border-b border-transparent hover:border-[#FAFAFA]">Checkout Now</Link>
                     </div>
                     <button className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-90 absolute top-2 right-2 flex items-center justify-center">
                         <X size={14} className="text-gray-400 hover:text-white" />

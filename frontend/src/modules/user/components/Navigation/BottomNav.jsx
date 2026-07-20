@@ -7,7 +7,8 @@ import { useAuthStore } from "../../../../shared/store/authStore";
 
 const MobileBottomNav = () => {
   const location = useLocation();
-  const wishlistCount = useWishlistStore((state) => state.getItemCount());
+  const wishlistItems = useWishlistStore((state) => state.items || []);
+  const wishlistCount = wishlistItems.length;
   const { isAuthenticated } = useAuthStore();
 
   const navItems = [

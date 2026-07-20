@@ -71,6 +71,15 @@ const DesktopHeader = () => {
         );
     };
 
+    const handleCartClick = (e) => {
+        if (!isAuthenticated) {
+            e?.preventDefault();
+            navigate('/login');
+        } else {
+            toggleCart();
+        }
+    };
+
     return (
         <>
         <header className="hidden md:block sticky top-0 z-[999] bg-white border-b border-gray-100 shadow-sm">
@@ -123,7 +132,7 @@ const DesktopHeader = () => {
                     <NavItem to="/categories" icon={FiGrid} label="Categories" />
                     <NavItem to="/discover" icon={FiCompass} label="Discover" />
                     <NavItem to="/wishlist" icon={FiHeart} label="Wishlist" badgeCount={wishlistCount} />
-                    <NavItem onClick={toggleCart} icon={FiShoppingBag} label="Cart" badgeCount={itemCount} />
+                    <NavItem onClick={handleCartClick} icon={FiShoppingBag} label="Cart" badgeCount={itemCount} />
 
                     {/* User Menu */}
                     <div ref={userMenuRef} className="relative">

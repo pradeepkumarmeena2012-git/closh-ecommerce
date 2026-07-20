@@ -446,7 +446,7 @@ const ProductsPage = () => {
                                     </span>
                                 )}
                             </Link>
-                            <Link to="/cart" className="relative transition-colors group p-2 hover:bg-gray-50 rounded-full">
+                            <Link to={user ? "/cart" : "/login"} className="relative transition-colors group p-2 hover:bg-gray-50 rounded-full">
                                 <ShoppingCart size={16} className="text-gray-900 group-hover:text-black transition-colors" />
                                 {getCartCount() > 0 && (
                                     <span className="absolute top-1 right-1 bg-black text-white text-[7px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center border border-white">

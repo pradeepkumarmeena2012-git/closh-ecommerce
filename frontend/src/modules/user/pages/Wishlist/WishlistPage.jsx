@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShoppingBag, X, Heart, Search, MapPin, ChevronDown, ArrowLeft } from 'lucide-react';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import LocationModal from '../../components/Header/LocationModal';
 import { useUserLocation } from '../../context/LocationContext';
 
@@ -11,6 +12,7 @@ const WishlistPage = () => {
     const { getCartCount } = useCart();
     const cartCount = getCartCount();
     const { activeAddress } = useUserLocation();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
@@ -29,7 +31,7 @@ const WishlistPage = () => {
                     </div>
 
                     <button
-                        onClick={() => navigate('/cart')}
+                        onClick={() => navigate(user ? '/cart' : '/login')}
                         className="relative p-2 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 shadow-sm transition-transform active:scale-90"
                     >
                         <ShoppingBag size={18} className="text-gray-800" />

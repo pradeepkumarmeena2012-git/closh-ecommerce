@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as authController from '../controllers/auth.controller.js';
 import * as addressController from '../controllers/address.controller.js';
 import * as wishlistController from '../controllers/wishlist.controller.js';
+import * as cartController from '../controllers/cart.controller.js';
 import * as reviewController from '../controllers/review.controller.js';
 import * as orderController from '../controllers/order.controller.js';
 import * as notificationController from '../controllers/notification.controller.js';
@@ -66,6 +67,13 @@ router.patch('/addresses/:id/default', ...customerAuth, addressController.setDef
 router.get('/wishlist', ...customerAuth, wishlistController.getWishlist);
 router.post('/wishlist', ...customerAuth, wishlistController.addToWishlist);
 router.delete('/wishlist/:productId', ...customerAuth, wishlistController.removeFromWishlist);
+
+// Cart routes (protected)
+router.get('/cart', ...customerAuth, cartController.getCart);
+router.post('/cart', ...customerAuth, cartController.addToCart);
+router.put('/cart/:itemId', ...customerAuth, cartController.updateCartItem);
+router.delete('/cart/clear', ...customerAuth, cartController.clearCart);
+router.delete('/cart/:itemId', ...customerAuth, cartController.removeCartItem);
 
 // Review routes
 router.get('/reviews/product/:productId', reviewController.getProductReviews);

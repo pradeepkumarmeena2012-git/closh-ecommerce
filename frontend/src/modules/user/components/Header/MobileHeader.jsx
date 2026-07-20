@@ -37,7 +37,8 @@ const MobileHeader = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const itemCount = useCartStore((state) => state.getItemCount());
+  const cartItems = useCartStore((state) => state.items || []);
+  const itemCount = cartItems.reduce((count, item) => count + (item.quantity || 1), 0);
   const toggleCart = useUIStore((state) => state.toggleCart);
   const cartAnimationTrigger = useUIStore(
     (state) => state.cartAnimationTrigger
@@ -200,6 +201,15 @@ const MobileHeader = () => {
     </motion.div>
   ) : null;
 
+  const handleCartClick = (e) => {
+    if (!isAuthenticated) {
+      e?.preventDefault();
+      navigate('/login');
+    } else {
+      toggleCart();
+    }
+  };
+
   const headerContent = (
     <motion.header
       key="mobile-header"
@@ -238,7 +248,7 @@ const MobileHeader = () => {
            </div>
           <div className="flex items-center gap-3">
               <button 
-                onClick={toggleCart} 
+                onClick={handleCartClick} 
                 className="w-9 h-9 flex items-center justify-center relative bg-gray-50 rounded-full"
                 ref={cartRef}
               >
