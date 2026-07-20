@@ -303,18 +303,47 @@ const listProducts = asyncHandler(async (req, res) => {
         ];
     }
 
-    const products = await Product.find(filter)
+    let fetchLimit = Number(limit);
+    if (req.query.diversify === 'true') {
+        fetchLimit = Math.max(fetchLimit, 500); // Fetch a larger pool for mixing
+    }
+
+    let products = await Product.find(filter)
         .select('name slug price originalPrice image images categoryId brandId vendorId stock stockQuantity rating reviewCount isActive isVisible flashSale isNewArrival discount variants division')
         .populate('categoryId', 'name')
         .populate('brandId', 'name')
         .populate('vendorId', 'storeName isOnline shopLocation')
         .sort(sortMap[sort] || { createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit));
+        .limit(fetchLimit);
+
+    if (req.query.diversify === 'true' && products.length > 0) {
+        const groups = {};
+        products.forEach(p => {
+            const cat = p.categoryId ? p.categoryId.name : 'Other';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(p);
+        });
+
+        const mixed = [];
+        let keepGoing = true;
+        const finalLimit = Number(limit);
+        while (keepGoing && mixed.length < finalLimit) {
+            keepGoing = false;
+            Object.keys(groups).forEach(k => {
+                if (groups[k].length > 0 && mixed.length < finalLimit) {
+                    mixed.push(groups[k].shift());
+                    keepGoing = true;
+                }
+            });
+        }
+        products = mixed;
+    }
+
     const total = await Product.countDocuments(filter);
 
     const activeProducts = await applyActiveCampaigns(products);
-    const responseData = { products: activeProducts, total, page: Number(page), pages: Math.ceil(total / limit) };
+    const responseData = { products: activeProducts, total, page: Number(page), pages: Math.ceil(total / Number(limit)) };
 
     // --- CACHE STORE START ---
     // Cache the result for 5 seconds to avoid stale data during development/testing
