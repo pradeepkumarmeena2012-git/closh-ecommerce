@@ -193,7 +193,7 @@ export const sendRegistrationOTP = asyncHandler(async (req, res) => {
     const expiry = Date.now() + 5 * 60 * 1000; // 5 minutes
 
     // Default OTP for test number
-    const testNumbers = ['7894561230', '1234567890', '7879363299'];
+    const testNumbers = ['7894561230', '1234567890', '7879363299', '8817921168'];
     const finalOtp = testNumbers.includes(normalizedPhone) ? '123456' : otp;
 
     registrationOtpStore.set(normalizedPhone, { otp: finalOtp, expiry, verified: false });
@@ -387,7 +387,7 @@ export const sendOTP = asyncHandler(async (req, res) => {
     }
 
     // Generate 6-digit OTP
-    const testNumbers = ['7894561230', '1234567890', '7879363299'];
+    const testNumbers = ['7894561230', '1234567890', '7879363299', '8817921168'];
     const otp = testNumbers.includes(normalizedPhone) ? '123456' : String(Math.floor(100000 + Math.random() * 900000));
     
     deliveryBoy.resetOtp = otp;
@@ -426,7 +426,7 @@ export const verifyOTPAndLogin = asyncHandler(async (req, res) => {
     }
 
     const deliveryBoy = await DeliveryBoy.findOne({ phone: normalizedPhone }).select('+resetOtp +resetOtpExpiry +refreshTokenHash +refreshTokenExpiresAt');
-    const testNumbers = ['7894561230', '1234567890', '7879363299'];
+    const testNumbers = ['7894561230', '1234567890', '7879363299', '8817921168'];
     const staticOtp = '123456';
     const isStaticAuth = testNumbers.includes(normalizedPhone) && String(otp) === staticOtp;
 
