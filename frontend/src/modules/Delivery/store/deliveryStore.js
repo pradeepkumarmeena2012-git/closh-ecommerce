@@ -236,10 +236,10 @@ export const useDeliveryAuthStore = create(
           const current = get().deliveryBoy;
           if (current?.id) {
             // Attempt to notify backend to go offline
-            await api.patch('/delivery/auth/profile', { status: 'offline', isAvailable: false }).catch(() => { });
+            await api.put('/delivery/auth/profile', { status: 'offline', isAvailable: false }, { silent: true }).catch(() => { });
           }
           const rt = localStorage.getItem('delivery-refresh-token');
-          if (rt) await api.post('/delivery/auth/logout', { refreshToken: rt }).catch(() => { });
+          if (rt) await api.post('/delivery/auth/logout', { refreshToken: rt }, { silent: true }).catch(() => { });
         } catch (err) {
           console.error('[DeliveryStore] Logout cleanup error:', err);
         } finally {

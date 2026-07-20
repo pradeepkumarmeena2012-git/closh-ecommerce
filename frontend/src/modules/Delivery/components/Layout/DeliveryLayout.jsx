@@ -1,7 +1,7 @@
  import { useState, useRef, useEffect, useCallback } from "react";
 import logo from "../../../../assets/animations/lottie/logo-removebg.png";
 import { Outlet, useNavigate, useLocation, Link } from "react-router-dom";
-import { FiLogOut, FiTruck, FiPackage, FiHome, FiUser, FiMenu, FiBell, FiAlertCircle } from "react-icons/fi";
+import { FiLogOut, FiTruck, FiPackage, FiHome, FiUser, FiMenu, FiBell, FiAlertCircle, FiTrash2 } from "react-icons/fi";
 import { useDeliveryAuthStore } from "../../store/deliveryStore";
 import { useDeliveryEngineStore } from "../../store/deliveryEngineStore";
 import { useDeliveryNotificationStore } from "../../store/deliveryNotificationStore";
@@ -512,7 +512,15 @@ const DeliveryLayout = () => {
               </nav>
 
               <div className="p-2 border-t border-gray-200 mt-auto">
-                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors">
+                <button onClick={() => {
+                  if (window.confirm("Are you sure you want to delete your account? This action is permanent and cannot be undone.")) {
+                    toast.error("Please contact admin to delete your delivery partner account.");
+                  }
+                }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-colors mb-2">
+                  <FiTrash2 className="text-xl" />
+                  <span className="font-medium">Delete Account</span>
+                </button>
+                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 transition-colors">
                   <FiLogOut className="text-xl" />
                   <span className="font-medium">Logout</span>
                 </button>
