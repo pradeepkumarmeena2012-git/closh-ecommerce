@@ -331,7 +331,11 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 variantStockValue = Number(rawVariantStock);
                 hasSpecificVariantStock = true;
             } else {
-                variantStockValue = Number(product.stockQuantity || 0);
+                if (stockKeys.length > 0) {
+                    variantStockValue = 0;
+                } else {
+                    variantStockValue = Number(product.stockQuantity || 0);
+                }
                 hasSpecificVariantStock = false;
             }
         }
