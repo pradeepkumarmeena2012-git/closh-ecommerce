@@ -17,9 +17,37 @@ const getLegalData = (settings) => {
     'privacy': {
         title: 'Privacy Policy',
         content: `
-            <div class="space-y-4">
-                <p class="text-gray-600 leading-relaxed font-medium">Your privacy is important to us. It is ${storeName}'s policy to respect your privacy regarding any information we may collect from you across our website, and other sites we own and operate.</p>
-                <p class="text-gray-600 leading-relaxed font-medium">We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent.</p>
+            <div class="space-y-4 text-sm">
+                <p class="text-gray-600 leading-relaxed font-medium mb-4">Your privacy is important to us. It is ${storeName}'s policy to respect your privacy regarding any information we may collect from you across our platform.</p>
+                
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">1. Information We Collect</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">When you register as a delivery partner with ${storeName}, we collect personal details including your name, contact information, vehicle details, driver's license, and government-issued ID for verification purposes. During active deliveries, we also collect real-time GPS location data to provide tracking to customers and optimize routing.</p>
+                
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">2. How We Use Your Data</h4>
+                <ul class="list-disc pl-5 text-gray-600 leading-relaxed font-medium space-y-2">
+                    <li>To verify your identity, background, and eligibility to perform deliveries.</li>
+                    <li>To assign, dispatch, and manage delivery orders effectively.</li>
+                    <li>To track delivery progress, ensure safety, and calculate your earnings.</li>
+                    <li>To communicate critical updates, alerts, and provide support.</li>
+                </ul>
+
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">3. Data Sharing & Security</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">We do not sell your personal data. We only share necessary details (such as your first name and live location) with the customer and vendor during an active order. We implement strict security measures to protect your documents and payment information.</p>
+                
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">4. Your Rights & Choices</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">You have the right to access, update, or request deletion of your personal data by contacting our support team. Please note that certain data must be retained for legal, tax, or fraud-prevention purposes even after account closure.</p>
+            </div>
+        `
+    },
+    'terms': {
+        title: 'Terms & Conditions',
+        content: `
+            <div class="space-y-4 text-sm">
+                <p class="text-gray-600 leading-relaxed font-medium mb-4">By joining the ${storeName} Delivery Partner program, you agree to the following terms of service.</p>
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">1. Independent Contractor Status</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">You operate as an independent contractor, not an employee of ${storeName}. You are responsible for your own vehicle, fuel, insurance, and taxes.</p>
+                <h4 class="font-bold text-gray-900 mt-6 mb-2">2. Service Standards</h4>
+                <p class="text-gray-600 leading-relaxed font-medium">You agree to deliver items safely, promptly, and professionally. Any tampering with packages, unprofessional behavior, or fraudulent activity will result in immediate termination.</p>
             </div>
         `
     },
@@ -27,6 +55,7 @@ const getLegalData = (settings) => {
         title: 'Contact Support',
         content: `
             <div class="space-y-6">
+                <p class="text-gray-600 font-medium mb-6">Our partner support team is available to assist you with any issues related to deliveries, payouts, or your account.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <a href="mailto:${supportEmail}" class="p-6 bg-white rounded-[24px] border border-gray-100 hover:border-black transition-all group no-underline block shadow-sm hover:shadow-xl">
                         <div class="flex items-center justify-between mb-3">
@@ -40,10 +69,32 @@ const getLegalData = (settings) => {
                         </div>
                         <p class="font-black text-black text-[15px] tracking-tight group-hover:translate-x-1 transition-transform">${supportPhone}</p>
                     </a>
+                    <a href="https://wa.me/${supportPhone.replace(/[^0-9+]/g, '')}?text=Hi%20Partner%20Support" target="_blank" class="p-6 bg-green-50 rounded-[24px] border border-green-100 hover:border-green-500 transition-all group no-underline block shadow-sm hover:shadow-xl md:col-span-2">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="block font-black text-[10px] uppercase text-green-600 tracking-widest">WhatsApp Support</span>
+                        </div>
+                        <p class="font-black text-green-900 text-[15px] tracking-tight group-hover:translate-x-1 transition-transform">Chat with us instantly</p>
+                    </a>
                 </div>
-                <div class="p-8 bg-black text-white rounded-[32px] shadow-2xl relative overflow-hidden group">
-                    <h3 class="font-black text-[14px] uppercase tracking-[0.2em] mb-3 text-[#ffcc00]">Headquarters</h3>
-                    <p class="text-[13px] font-bold opacity-80 leading-relaxed max-w-xs">${address.replace(/\n/g, '<br/>')}</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div class="p-8 bg-gray-50 rounded-[24px] border border-gray-100">
+                        <h3 class="font-black text-[12px] uppercase tracking-[0.1em] mb-3 text-gray-400">Working Hours</h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center text-sm font-medium">
+                                <span class="text-gray-500">Mon - Sat</span>
+                                <span class="text-gray-900">09:00 AM - 08:00 PM</span>
+                            </div>
+                            <div class="flex justify-between items-center text-sm font-medium">
+                                <span class="text-gray-500">Sunday</span>
+                                <span class="text-gray-900">10:00 AM - 04:00 PM</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-8 bg-black text-white rounded-[24px] shadow-2xl relative overflow-hidden group">
+                        <h3 class="font-black text-[12px] uppercase tracking-[0.1em] mb-3 text-[#ffcc00]">Headquarters</h3>
+                        <p class="text-[13px] font-bold opacity-80 leading-relaxed max-w-xs">${address.replace(/\n/g, '<br/>')}</p>
+                    </div>
                 </div>
             </div>
         `

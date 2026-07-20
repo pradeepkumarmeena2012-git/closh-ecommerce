@@ -202,7 +202,19 @@ const ProductDetailsPage = () => {
 
     const getSizeStock = (size) => {
         if (!product) return 0;
-        if (product.variants?.stockMap) {
+        if (product.variants?.stockMap && Object.keys(product.variants.stockMap).length > 0) {
+            const signature = getVariantSignature({ size });
+            const entries = Object.entries(product.variants.stockMap || {});
+            
+            let match = entries.find(([k]) => String(k).trim() === signature);
+            if (!match && signature) {
+                match = entries.find(([k]) => String(k).trim().toLowerCase() === signature.toLowerCase());
+            }
+            
+            if (match) {
+                return Number(match[1]);
+            }
+
             const keys = [
                 `${String(size || "").toLowerCase()}|`,
                 `${String(size || "")}|`,
@@ -213,6 +225,8 @@ const ProductDetailsPage = () => {
                 const variantStock = product.variants.stockMap[k];
                 if (variantStock !== undefined) return Number(variantStock);
             }
+            // Fix: If a size is not in stockMap, it has 0 stock. Do not fall back to total stock.
+            return 0;
         }
         return Number(product.stockQuantity || 0);
     };
