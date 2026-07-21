@@ -180,7 +180,7 @@ const MobileOffers = () => {
   }, [offersWithDiscount, filters]);
 
   const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } =
-    useInfiniteScroll(filteredProducts, 10, 10);
+    useInfiniteScroll(filteredProducts, 24, 24);
 
   const filterButtonRef = useRef(null);
 

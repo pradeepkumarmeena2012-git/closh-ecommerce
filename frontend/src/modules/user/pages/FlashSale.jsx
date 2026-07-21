@@ -133,8 +133,8 @@ const MobileFlashSale = () => {
 
   const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } = useInfiniteScroll(
     filteredProducts,
-    10,
-    10
+    24,
+    24
   );
 
   const filterButtonRef = useRef(null);
