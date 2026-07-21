@@ -37,11 +37,18 @@ export const checkServiceAvailability = async ({ pincode, coordinates, city }) =
     // Method 1: Check by Pincode (Most accurate)
     if (pincode) {
         const pincodeData = await PincodeServiceability.findOne({ 
-            pincode: pincode.trim(), 
-            isServiceable: true 
+            pincode: pincode.trim()
         }).populate('serviceAreaId');
         
-        if (pincodeData && pincodeData.serviceAreaId?.isActive) {
+        if (pincodeData) {
+            if (!pincodeData.isServiceable || !pincodeData.serviceAreaId?.isActive) {
+                return {
+                    isServiceable: false,
+                    message: `Service is currently not available for this area.`,
+                    method: 'pincode'
+                };
+            }
+            
             const deliverySettings = pincodeData.getDeliverySettings();
             
             return {
@@ -201,6 +208,12 @@ export const validateAddressServiceability = async (address) => {
     
     if (!result.isServiceable) {
         throw new ApiError(400, result.message || 'Service not available in your area');
+    }
+
+    // Strict validation for orders: If we provided a pincode but it fell back to generic city match,
+    // it means the specific pincode is NOT configured for delivery.
+    if (result.method === 'city' && pincode) {
+        throw new ApiError(400, `Sorry, we do not deliver to pincode ${pincode} in ${city} yet.`);
     }
     
     return result;
