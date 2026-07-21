@@ -122,7 +122,7 @@ const RegisterPage = () => {
                                 maxLength="10"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                className="w-full pl-20 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-400"
+                                className="w-full pl-[60px] pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-black outline-none font-medium text-gray-900 transition-all placeholder:text-gray-400"
                                 placeholder="00000 00000"
                                 required
                             />

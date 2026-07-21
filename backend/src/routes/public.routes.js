@@ -353,6 +353,9 @@ const listProducts = asyncHandler(async (req, res) => {
             });
         }
         products = mixed;
+    } else if (products.length > 0 && (!sort || sort === 'newest')) {
+        // Randomize the order for all other categories (excluding CLOSH/diversify which is limit based)
+        products = products.sort(() => Math.random() - 0.5);
     }
 
     const total = await Product.countDocuments(filter);

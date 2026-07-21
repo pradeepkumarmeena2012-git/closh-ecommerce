@@ -145,6 +145,7 @@ const ProductsPage = () => {
         const searchFromUrlForFetch = searchParams.get('search') || searchParams.get('q') || undefined;
 
         fetchPublicProducts({
+            limit: 100,
             ...(hasCid ? { categoryId: cidFromUrl } : {}),
             division: divisionToFetch,
             category: categoryToFetch,

@@ -202,7 +202,7 @@ const LoginPage = () => {
                                             setMobileNumber(e.target.value.replace(/\D/g, ''));
                                             if (error) setError('');
                                         }}
-                                        className={`w-full pl-20 pr-4 py-4 bg-white border-2 rounded-2xl focus:bg-white outline-none font-medium text-gray-900 transition-all placeholder:text-gray-400 ${error ? 'border-red-500 bg-red-50/10' : 'border-gray-100 focus:border-black'}`}
+                                        className={`w-full pl-[60px] pr-4 py-4 bg-white border-2 rounded-2xl focus:bg-white outline-none font-medium text-gray-900 transition-all placeholder:text-gray-400 ${error ? 'border-red-500 bg-red-50/10' : 'border-gray-100 focus:border-black'}`}
                                         placeholder="00000 00000"
                                     />
                                 </div>

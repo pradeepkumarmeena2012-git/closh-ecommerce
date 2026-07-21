@@ -43,7 +43,7 @@ const ShopPage = () => {
             if (navigator.vibrate) navigator.vibrate(40);
 
             // Re-fetch simulated
-            fetchPublicProducts({ category: activeCategory, sort: 'newest' }).finally(() => {
+            fetchPublicProducts({ category: activeCategory, limit: 100, sort: 'newest' }).finally(() => {
                 setTimeout(() => {
                     setIsRefreshing(false);
                     setPullDistance(0);
@@ -141,7 +141,7 @@ const ShopPage = () => {
         // Fetch products based on Level 1 (Root) or Level 2 (SubCategory)
         const categoryToFetch = isFilterMode ? activeSubCategory : activeCategory;
         if (categoryToFetch && categoryToFetch !== 'For You') {
-            fetchPublicProducts({ category: categoryToFetch, sort: 'newest' });
+            fetchPublicProducts({ category: categoryToFetch, limit: 100, sort: 'newest' });
         }
 
     }, [activeCategory, activeSubCategory, fetchPublicProducts, setActiveCategory, isFilterMode]);
