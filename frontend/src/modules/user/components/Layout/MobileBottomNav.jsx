@@ -4,12 +4,14 @@ import { motion } from "framer-motion";
 import { FiHome, FiGrid, FiCompass, FiHeart, FiUser } from "react-icons/fi";
 import { useWishlistStore } from "../../../../shared/store/wishlistStore";
 import { useAuthStore } from "../../../../shared/store/authStore";
+import { useCategory } from "../../context/CategoryContext";
 
 const MobileBottomNav = () => {
   const location = useLocation();
   const wishlistItems = useWishlistStore((state) => state.items || []);
   const wishlistCount = wishlistItems.length;
   const { isAuthenticated } = useAuthStore();
+  const { setActiveCategory } = useCategory();
 
   const navItems = [
     { path: "/home", icon: FiHome, label: "Home" },
@@ -87,6 +89,11 @@ const MobileBottomNav = () => {
             <Link
               key={item.path}
               to={item.path}
+              onClick={() => {
+                if (item.path === '/home' || item.path === '/') {
+                  setActiveCategory('All');
+                }
+              }}
               className="flex flex-col items-center justify-center flex-1 h-full relative"
             >
               {content}

@@ -18,7 +18,7 @@ const ScrollReveal = ({ children, className = "" }) => {
                     observer.unobserve(entry.target);
                 }
             });
-        }, { threshold: 0.1 });
+        }, { threshold: 0, rootMargin: '50px' });
 
         const currentRef = domRef.current;
         if (currentRef) observer.observe(currentRef);

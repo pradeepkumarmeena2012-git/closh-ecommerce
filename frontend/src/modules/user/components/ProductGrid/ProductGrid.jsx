@@ -22,7 +22,7 @@ const ProductGrid = () => {
 
     const displayProducts = products.length > 0 ? products : [];
 
-    const dynamicTitle = activeCategory === 'For You' ? 'New Drops' : (activeCategory === 'All' || activeCategory === 'CLOSH') ? 'All Products' : `${activeCategory} Collection`;
+    const dynamicTitle = activeCategory === 'For You' ? 'New Drops' : (activeCategory === 'All' || activeCategory === 'CLOSH') ? 'New Arrivals' : `${activeCategory} Collection`;
     const themeColor = getCategoryColor(activeCategory) || '#111111';
 
     const getGridBadgeTheme = (categoryName) => {
