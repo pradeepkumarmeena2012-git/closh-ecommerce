@@ -161,31 +161,35 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     }
 
     if (nextStatus === 'processing') {
-        order.vendorItems = (order.vendorItems || []).map((vi) => {
+        (order.vendorItems || []).forEach((vi) => {
             const current = String(vi?.status || 'pending');
-            if (current === 'cancelled' || current === 'delivered') return vi;
-            return { ...vi.toObject(), status: 'processing' };
+            if (current !== 'cancelled' && current !== 'delivered') {
+                vi.status = 'processing';
+            }
         });
     }
     if (nextStatus === 'shipped') {
-        order.vendorItems = (order.vendorItems || []).map((vi) => {
+        (order.vendorItems || []).forEach((vi) => {
             const current = String(vi?.status || 'pending');
-            if (current === 'cancelled' || current === 'delivered') return vi;
-            return { ...vi.toObject(), status: 'shipped' };
+            if (current !== 'cancelled' && current !== 'delivered') {
+                vi.status = 'shipped';
+            }
         });
     }
     if (nextStatus === 'delivered') {
-        order.vendorItems = (order.vendorItems || []).map((vi) => {
+        (order.vendorItems || []).forEach((vi) => {
             const current = String(vi?.status || 'pending');
-            if (current === 'cancelled') return vi;
-            return { ...vi.toObject(), status: 'delivered' };
+            if (current !== 'cancelled') {
+                vi.status = 'delivered';
+            }
         });
     }
     if (nextStatus === 'cancelled') {
-        order.vendorItems = (order.vendorItems || []).map((vi) => {
+        (order.vendorItems || []).forEach((vi) => {
             const current = String(vi?.status || 'pending');
-            if (current === 'delivered') return vi;
-            return { ...vi.toObject(), status: 'cancelled' };
+            if (current !== 'delivered') {
+                vi.status = 'cancelled';
+            }
         });
     }
 
@@ -235,12 +239,12 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     await order.save();
 
     if (nextStatus === 'cancelled') {
-        // Free the delivery boy if assigned and credit them for the cancellation trip
+        // Free the delivery boy if assigned and credit them for the cancellation trip if they accepted it
         if (order.deliveryBoyId) {
             const DeliveryBoy = mongoose.model('DeliveryBoy');
             const riderEarnings = Number(order.deliveryEarnings || 0);
             
-            if (riderEarnings > 0) {
+            if (riderEarnings > 0 && order.riderAcceptedAt) {
                 await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { 
                     status: 'available',
                     $inc: {
@@ -252,6 +256,19 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
             } else {
                 await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: 'available' });
             }
+
+            // Cancel any associated DeliveryBatch to remove it from the rider's active screen
+            await DeliveryBatch.updateMany(
+                { customerId: order.userId, deliveryBoyId: order.deliveryBoyId, status: { $in: ['assigned', 'picked_up', 'arrived', 'try_and_buy', 'payment_pending'] } },
+                { $set: { status: 'cancelled' } }
+            );
+
+            // Tell the rider explicitly that this request/order was removed
+            emitEvent(`delivery_${order.deliveryBoyId}`, 'order_cancelled', {
+                orderId: order.orderId,
+                id: order._id,
+                message: 'Order was cancelled by admin.'
+            });
         }
 
         // Reverse vendor earnings visibility for this order.

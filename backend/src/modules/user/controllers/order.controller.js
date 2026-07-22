@@ -871,10 +871,11 @@ export const cancelOrderInternal = async (orderId, userId, reason) => {
             order.cancelledAt = new Date();
             order.cancellationReason = reason || 'Cancelled by customer';
             if (Array.isArray(order.vendorItems)) {
-                order.vendorItems = order.vendorItems.map((vendorGroup) => ({
-                    ...vendorGroup.toObject(),
-                    status: 'cancelled',
-                }));
+                order.vendorItems.forEach((vendorGroup) => {
+                    if (vendorGroup.status !== 'delivered') {
+                        vendorGroup.status = 'cancelled';
+                    }
+                });
             }
             await order.save({ session });
 
@@ -930,7 +931,7 @@ export const cancelOrderInternal = async (orderId, userId, reason) => {
                 const DeliveryBoy = mongoose.model('DeliveryBoy');
                 const riderEarnings = Number(order.deliveryEarnings || 0);
                 
-                if (riderEarnings > 0) {
+                if (riderEarnings > 0 && order.riderAcceptedAt) {
                     await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { 
                         status: 'available',
                         $inc: {
@@ -942,6 +943,22 @@ export const cancelOrderInternal = async (orderId, userId, reason) => {
                 } else {
                     await DeliveryBoy.findByIdAndUpdate(order.deliveryBoyId, { status: 'available' }, { session });
                 }
+
+                // Cancel any associated DeliveryBatch
+                const DeliveryBatch = mongoose.model('DeliveryBatch');
+                await DeliveryBatch.updateMany(
+                    { customerId: order.userId, deliveryBoyId: order.deliveryBoyId, status: { $in: ['assigned', 'picked_up', 'arrived', 'try_and_buy', 'payment_pending'] } },
+                    { $set: { status: 'cancelled' } },
+                    { session }
+                );
+
+                // Tell the rider explicitly that this request/order was removed
+                const { emitEvent } = await import('../../../services/socket.service.js');
+                emitEvent(`delivery_${order.deliveryBoyId}`, 'order_cancelled', {
+                    orderId: order.orderId,
+                    id: order._id,
+                    message: 'Order was cancelled.'
+                });
             }
 
             // Process full refund if prepaid
