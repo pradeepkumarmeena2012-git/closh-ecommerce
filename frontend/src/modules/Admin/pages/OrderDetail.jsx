@@ -497,6 +497,52 @@ const OrderDetail = () => {
             </div>
           )}
 
+          {/* Vendor Information Card */}
+          {order.vendorItems && order.vendorItems.length > 0 && (
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+                <FiShoppingBag className="text-primary-600 text-base" />
+                Vendor Details
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {order.vendorItems.map((vi, idx) => (
+                  <div key={idx} className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div>
+                      <p className="text-xs text-gray-500">Store Name</p>
+                      <p className="font-semibold text-sm text-gray-800">
+                        {vi.vendorId?.storeName || vi.vendorName || 'N/A'}
+                      </p>
+                    </div>
+                    {vi.vendorId?.phone && (
+                      <div>
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <FiPhone className="text-xs" />
+                          Phone
+                        </p>
+                        <p className="font-semibold text-xs text-gray-800">{vi.vendorId.phone}</p>
+                      </div>
+                    )}
+                    {vi.vendorId?.shopAddress && (
+                      <div>
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <FiMapPin className="text-xs" />
+                          Address
+                        </p>
+                        <p className="font-semibold text-xs text-gray-800 truncate">{vi.vendorId.shopAddress}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs text-gray-500">Order Status</p>
+                      <div className="mt-0.5">
+                        <Badge variant={vi.status}>{vi.status}</Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Customer & Shipping Combined Card */}
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

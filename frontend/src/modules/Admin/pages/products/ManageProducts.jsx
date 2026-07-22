@@ -21,7 +21,7 @@ const ManageProducts = () => {
   const { brands, initialize: initBrands } = useBrandStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [categoryPath, setCategoryPath] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
@@ -111,9 +111,23 @@ const ManageProducts = () => {
       filtered = filtered.filter((product) => product.stockStatus === selectedStatus);
     }
 
-    if (selectedCategory !== "all") {
+    const activeCategory = categoryPath.length > 0 ? categoryPath[categoryPath.length - 1] : "all";
+    if (activeCategory !== "all") {
+      const getDescendantIds = (parentId) => {
+        const children = categories.filter(cat => {
+            const pId = typeof cat.parentId === 'object' ? cat.parentId?._id || cat.parentId?.id : cat.parentId;
+            return String(pId) === String(parentId);
+        });
+        let ids = [String(parentId)];
+        for (let child of children) {
+            ids = [...ids, ...getDescendantIds(String(child.id || child._id))];
+        }
+        return ids;
+      };
+      const allowedCatIds = getDescendantIds(activeCategory);
+
       filtered = filtered.filter(
-        (product) => String(product.categoryId?._id || product.categoryId) === String(selectedCategory)
+        (product) => allowedCatIds.includes(String(product.categoryId?._id || product.categoryId))
       );
     }
 
@@ -130,7 +144,7 @@ const ManageProducts = () => {
     }
 
     return filtered;
-  }, [products, searchQuery, selectedStatus, selectedCategory, selectedBrand, selectedTab, selectedVendor]);
+  }, [products, searchQuery, selectedStatus, categoryPath, categories, selectedBrand, selectedTab, selectedVendor]);
 
   const columns = [
     {
@@ -382,17 +396,57 @@ const ManageProducts = () => {
                     className="w-full sm:w-auto min-w-[140px]"
                   />
 
-                  <AnimatedSelect
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    options={[
-                      { value: "all", label: "All Categories" },
-                      ...categories
-                        .filter((cat) => cat.isActive !== false)
-                        .map((cat) => ({ value: String(cat.id || cat._id), label: cat.name })),
-                    ]}
-                    className="w-full sm:w-auto min-w-[160px]"
-                  />
+                  {/* Cascading Category Selects */}
+                  {(() => {
+                    const levels = [];
+                    
+                    // 1. Root Level
+                    const rootCategories = categories.filter(cat => !cat.parentId && cat.isActive !== false);
+                    levels.push({
+                      options: rootCategories,
+                      selectedValue: categoryPath[0] || "all",
+                      onChange: (val) => {
+                        if (val === "all") setCategoryPath([]);
+                        else setCategoryPath([val]);
+                      },
+                      placeholder: "All Categories"
+                    });
+
+                    // 2. Subsequent Levels
+                    for (let i = 0; i < categoryPath.length; i++) {
+                      const selectedId = categoryPath[i];
+                      const subCats = categories.filter(cat => {
+                        const parentId = typeof cat.parentId === 'object' ? cat.parentId?._id || cat.parentId?.id : cat.parentId;
+                        return String(parentId) === String(selectedId) && cat.isActive !== false;
+                      });
+
+                      if (subCats.length > 0) {
+                        levels.push({
+                          options: subCats,
+                          selectedValue: categoryPath[i + 1] || "all",
+                          onChange: (val) => {
+                            const newPath = categoryPath.slice(0, i + 1); // Keep up to current level
+                            if (val !== "all") newPath.push(val);
+                            setCategoryPath(newPath);
+                          },
+                          placeholder: "Sub Category"
+                        });
+                      }
+                    }
+
+                    return levels.map((level, index) => (
+                      <AnimatedSelect
+                        key={`category-level-${index}`}
+                        value={level.selectedValue}
+                        onChange={(e) => level.onChange(e.target.value)}
+                        options={[
+                          { value: "all", label: level.placeholder },
+                          ...level.options.map((cat) => ({ value: String(cat.id || cat._id), label: cat.name })),
+                        ]}
+                        className="w-full sm:w-auto min-w-[160px]"
+                      />
+                    ));
+                  })()}
 
                   <AnimatedSelect
                     value={selectedBrand}

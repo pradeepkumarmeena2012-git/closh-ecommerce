@@ -53,9 +53,9 @@ const normalizePublicTrackingOrder = (order) =>
   });
 
 const buildIdempotencyKey = (payload, userId = null) => {
-  // Use a 15-minute window for identical order key stabilization.
+  // Use a 10-second window for identical order key stabilization.
   // This prevents double-clicks/quick retries but allows subsequent purchases.
-  const timeWindow = Math.floor(Date.now() / (15 * 60 * 1000));
+  const timeWindow = Math.floor(Date.now() / (10 * 1000));
 
   const base = JSON.stringify({
     userId: userId || null,
