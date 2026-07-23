@@ -189,7 +189,7 @@ const MobileCategory = () => {
   }, [category, categoryProductsFeed, filters, searchQuery]);
 
   const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } =
-    useInfiniteScroll(categoryProducts, 10, 10);
+    useInfiniteScroll(categoryProducts, 24, 24);
 
   const filterButtonRef = useRef(null);
 

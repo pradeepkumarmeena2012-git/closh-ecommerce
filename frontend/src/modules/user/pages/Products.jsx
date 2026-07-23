@@ -43,6 +43,16 @@ const ProductsPage = () => {
         }).catch(() => {});
     }, [initCategories]);
 
+    // Sync state with URL params on change
+    useEffect(() => {
+        const urlSearch = searchParams.get('search') || searchParams.get('q') || '';
+        if (urlSearch !== searchValue) {
+            setSearchValue(urlSearch);
+            setPage(1);
+        }
+    }, [searchParams]);
+
+
     // Resolve Names to IDs if cid is missing
     useEffect(() => {
         if (allCategories.length > 0 && !searchParams.get('cid')) {
@@ -88,7 +98,10 @@ const ProductsPage = () => {
                 if (selectedCategory) params.category = selectedCategory;
                 if (selectedBrand) params.brand = selectedBrand;
 
+                console.log("Fetching products with params:", params);
+
                 const res = await api.get('/products', { params });
+                console.log("Products response:", res?.data || res);
                 
                 // Extremely robust data extraction
                 const apiData = res?.data || res || {};

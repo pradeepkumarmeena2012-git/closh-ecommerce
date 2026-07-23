@@ -98,7 +98,7 @@ const Seller = () => {
     }, [rawVendorProducts, filters]);
 
     const { displayedItems, hasMore, isLoading, loadMore, loadMoreRef } =
-        useInfiniteScroll(vendorProducts, 10, 10);
+        useInfiniteScroll(vendorProducts, 24, 24);
 
     const filterButtonRef = useRef(null);
 

@@ -119,7 +119,7 @@ const ProductsPage = () => {
         }
     }, [searchParams, brandFromUrl]);
 
-    // Dynamic Filter State
+    // Dynamic Filter State — seeded with common sizes as defaults
     const [filterOptions, setFilterOptions] = useState({
         sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
         fabrics: [],
@@ -127,21 +127,70 @@ const ProductsPage = () => {
         fits: []
     });
 
+    // Re-derive filter options whenever products change (works without admin localStorage data)
+    useEffect(() => {
+        if (!products || products.length === 0) return;
+
+        const sizesSet = new Set(['XS', 'S', 'M', 'L', 'XL', 'XXL']);
+        const fabricsSet = new Set();
+        const patternsSet = new Set();
+        const fitsSet = new Set();
+
+        products.forEach(p => {
+            // Sizes — stored in variants.sizes (per Product model schema)
+            const variantSizes = p.variants?.sizes || p.sizes || [];
+            variantSizes.forEach(s => s && sizesSet.add(String(s)));
+
+            // Materials/Fabrics — stored in variants.materials (per Product model schema)
+            const variantMaterials = p.variants?.materials || [];
+            variantMaterials.forEach(m => m && fabricsSet.add(String(m)));
+
+            // From variants.attributes[] — generic named attribute groups
+            const attrs = p.variants?.attributes || p.attributes || [];
+            attrs.forEach(attr => {
+                const name = (attr.name || '').toLowerCase();
+                const values = Array.isArray(attr.values) ? attr.values : [];
+                if (name.includes('size')) values.forEach(v => v && sizesSet.add(String(v)));
+                else if (name.includes('fabric') || name.includes('material')) values.forEach(v => v && fabricsSet.add(String(v)));
+                else if (name.includes('pattern')) values.forEach(v => v && patternsSet.add(String(v)));
+                else if (name.includes('fit')) values.forEach(v => v && fitsSet.add(String(v)));
+            });
+        });
+
+        // Also merge admin attribute sets from localStorage if available
+        try {
+            const savedSets = localStorage.getItem('admin-attribute-sets');
+            if (savedSets) {
+                JSON.parse(savedSets).forEach(set => {
+                    const name = (set.name || '').toLowerCase();
+                    const attrs = Array.isArray(set.attributes) ? set.attributes : [];
+                    if (name.includes('size')) attrs.forEach(v => v && sizesSet.add(v));
+                    else if (name.includes('material') || name.includes('fabric')) attrs.forEach(v => v && fabricsSet.add(v));
+                    else if (name.includes('pattern')) attrs.forEach(v => v && patternsSet.add(v));
+                    else if (name.includes('fit')) attrs.forEach(v => v && fitsSet.add(v));
+                });
+            }
+        } catch (_) {}
+
+        setFilterOptions({
+            sizes: [...sizesSet].filter(Boolean),
+            fabrics: [...fabricsSet].filter(Boolean).sort(),
+            patterns: [...patternsSet].filter(Boolean).sort(),
+            fits: [...fitsSet].filter(Boolean).sort(),
+        });
+    }, [products]);
+
     // Load categories
     useEffect(() => {
         initCategories();
     }, [initCategories]);
 
-    // Load admin products and attributes
+    // Load products from backend based on active URL filters
     useEffect(() => {
-        // Fetch products based on ALL active filters
-        // If a direct category ObjectId (cid) is in the URL, use it — most reliable
-        // Skip division filter when using cid because division field on products may not match
         const hasCid = Boolean(cidFromUrl && /^[0-9a-fA-F]{24}$/.test(cidFromUrl));
         const divisionToFetch = hasCid ? undefined : (division || (selectedGender !== 'All' ? selectedGender : undefined));
         const categoryToFetch = hasCid ? undefined : (category || undefined);
         const subCategoryToFetch = hasCid ? undefined : (selectedSubCategories.length > 0 ? selectedSubCategories[0] : (subCategoryFromUrl || undefined));
-
         const searchFromUrlForFetch = searchParams.get('search') || searchParams.get('q') || undefined;
 
         fetchPublicProducts({
@@ -152,28 +201,11 @@ const ProductsPage = () => {
             subCategory: subCategoryToFetch,
             brand: (selectedBrands.length > 0 ? selectedBrands[0] : undefined),
             ...(searchFromUrlForFetch ? { q: searchFromUrlForFetch } : {}),
-            sort: selectedSort === 'New Arrivals' ? 'newest' : 
-                  selectedSort === 'Price: Low to High' ? 'price-asc' : 
-                  selectedSort === 'Price: High to Low' ? 'price-desc' : 
+            sort: selectedSort === 'New Arrivals' ? 'newest' :
+                  selectedSort === 'Price: Low to High' ? 'price-asc' :
+                  selectedSort === 'Price: High to Low' ? 'price-desc' :
                   selectedSort === 'Discount' ? 'discount' : 'popular',
         });
-
-        // Load attribute sets from admin side
-        const savedSets = localStorage.getItem('admin-attribute-sets');
-        if (savedSets) {
-            const parsedSets = JSON.parse(savedSets);
-            const newOptions = { ...filterOptions };
-
-            parsedSets.forEach(set => {
-                const name = set.name.toLowerCase();
-                if (name.includes('size')) newOptions.sizes = set.attributes;
-                if (name.includes('material') || name.includes('fabric')) newOptions.fabrics = set.attributes;
-                if (name.includes('pattern')) newOptions.patterns = set.attributes;
-                if (name.includes('fit')) newOptions.fits = set.attributes;
-            });
-
-            setFilterOptions(newOptions);
-        }
     }, [category, subCategoryFromUrl, cidFromUrl, division, selectedGender, selectedBrands, selectedSubCategories, selectedSort, fetchPublicProducts, searchParams]);
 
     // Derived subcategories based on gender
@@ -231,15 +263,9 @@ const ProductsPage = () => {
             result = result.filter(p => (p.division || '').toLowerCase() === mappedGender);
         }
 
-        // 4. Header Search Filter
-        if (headerSearchValue) {
-            const query = headerSearchValue.toLowerCase();
-            result = result.filter(p =>
-                (p.name || '').toLowerCase().includes(query) ||
-                (p.brand || '').toLowerCase().includes(query) ||
-                (p.subCategory || '').toLowerCase().includes(query)
-            );
-        }
+        // 4. Header Search Filter (Removed)
+        // The backend handles search via the API call, so we don't need to filter locally.
+        // Doing it locally with .includes() breaks multi-word smart searches like 'puma shoes'.
 
         // 5. Brand Filter
         if (selectedBrands.length > 0) {
@@ -251,49 +277,47 @@ const ProductsPage = () => {
             result = result.filter(p => selectedSubCategories.includes(p.categoryId?.name) || selectedSubCategories.includes(p.subCategory));
         }
 
-        // 6. Size Filter
+        // 6. Size Filter — variants.sizes is the correct field per Product model schema
         if (selectedSizes.length > 0) {
             result = result.filter(p => {
-                const productSizes = p.sizes || p.variantData?.sizes || [];
+                const productSizes = p.variants?.sizes || p.sizes || [];
                 return selectedSizes.some(s => productSizes.includes(s));
             });
         }
 
-        // 7. Fabric/Material Filter
+        // 7. Fabric/Material Filter — variants.materials is the correct field per Product model schema
         if (selectedFabrics.length > 0) {
             result = result.filter(p => {
-                if (p.fabric && selectedFabrics.includes(p.fabric)) return true;
-                if (p.material && selectedFabrics.includes(p.material)) return true;
-                const attrs = p.attributes || p.variantData?.attributes || [];
-                const fabricAttr = attrs.find(a => a.name.toLowerCase().includes('fabric') || a.name.toLowerCase().includes('material'));
+                const variantMaterials = p.variants?.materials || [];
+                if (selectedFabrics.some(f => variantMaterials.includes(f))) return true;
+                const attrs = p.variants?.attributes || p.attributes || [];
+                const fabricAttr = attrs.find(a => (a.name || '').toLowerCase().includes('fabric') || (a.name || '').toLowerCase().includes('material'));
                 if (fabricAttr) {
-                    return selectedFabrics.some(f => fabricAttr.values.includes(f));
+                    return selectedFabrics.some(f => (fabricAttr.values || []).includes(f));
                 }
                 return false;
             });
         }
 
-        // 8. Pattern Filter
+        // 8. Pattern Filter — from variants.attributes[]
         if (selectedPatterns.length > 0) {
             result = result.filter(p => {
-                if (p.pattern && selectedPatterns.includes(p.pattern)) return true;
-                const attrs = p.attributes || p.variantData?.attributes || [];
-                const patternAttr = attrs.find(a => a.name.toLowerCase().includes('pattern'));
+                const attrs = p.variants?.attributes || p.attributes || [];
+                const patternAttr = attrs.find(a => (a.name || '').toLowerCase().includes('pattern'));
                 if (patternAttr) {
-                    return selectedPatterns.some(pat => patternAttr.values.includes(pat));
+                    return selectedPatterns.some(pat => (patternAttr.values || []).includes(pat));
                 }
                 return false;
             });
         }
 
-        // 9. Fit Filter
+        // 9. Fit Filter — from variants.attributes[]
         if (selectedFits.length > 0) {
             result = result.filter(p => {
-                if (p.fit && selectedFits.includes(p.fit)) return true;
-                const attrs = p.attributes || p.variantData?.attributes || [];
-                const fitAttr = attrs.find(a => a.name.toLowerCase().includes('fit'));
+                const attrs = p.variants?.attributes || p.attributes || [];
+                const fitAttr = attrs.find(a => (a.name || '').toLowerCase().includes('fit'));
                 if (fitAttr) {
-                    return selectedFits.some(fit => fitAttr.values.includes(fit));
+                    return selectedFits.some(fit => (fitAttr.values || []).includes(fit));
                 }
                 return false;
             });
@@ -782,20 +806,21 @@ const ProductsPage = () => {
                                     </div>
                                 </FilterSection>
 
-                                { /* <FilterSection title="Size" id="size">
+                                <FilterSection title="Size" id="size">
                                     <div className="grid grid-cols-4 gap-2 pt-2">
                                         {sizes.map(size => (
                                             <button 
                                                 key={size} 
                                                 onClick={() => handleSelectSize(size)}
-                                                className={`border py-3 text-[11px] font-bold rounded-lg transition-all ${selectedSizes.includes(size) ? 'bg-black border-black text-white shadow-md' : 'border-gray-200 bg-white text-gray-500 hover:border-black hover:text-black'}`}
+                                                className={`border py-2.5 text-[11px] font-bold rounded-lg transition-all ${selectedSizes.includes(size) ? 'bg-black border-black text-white shadow-md' : 'border-gray-200 bg-white text-gray-500 hover:border-black hover:text-black'}`}
                                             >
                                                 {size}
                                             </button>
                                         ))}
                                     </div>
-                                </FilterSection> */ }
+                                </FilterSection>
 
+                                {filterOptions.fabrics.length > 0 && (
                                 <FilterSection title="Fabric" id="fabric">
                                     <div className="space-y-3 pt-2">
                                         {filterOptions.fabrics.map(fabric => (
@@ -814,7 +839,9 @@ const ProductsPage = () => {
                                         ))}
                                     </div>
                                 </FilterSection>
+                                )}
 
+                                {filterOptions.patterns.length > 0 && (
                                 <FilterSection title="Pattern" id="pattern">
                                     <div className="space-y-3 pt-2">
                                         {filterOptions.patterns.map(pattern => (
@@ -833,7 +860,9 @@ const ProductsPage = () => {
                                         ))}
                                     </div>
                                 </FilterSection>
+                                )}
 
+                                {filterOptions.fits.length > 0 && (
                                 <FilterSection title="Fit" id="fit">
                                     <div className="space-y-3 pt-2">
                                         {filterOptions.fits.map(fit => (
@@ -852,6 +881,7 @@ const ProductsPage = () => {
                                         ))}
                                     </div>
                                 </FilterSection>
+                                )}
 
                                 <FilterSection title="Deals & Offers" id="discount">
                                     <div className="space-y-3 pt-2">
@@ -865,8 +895,6 @@ const ProductsPage = () => {
                                     </div>
                                 </FilterSection>
 
-                                <FilterSection title="Product Type" id="productType" />
-                                <FilterSection title="Trend" id="trend" />
                             </div>
                         </div>
                         <div className="border-t border-gray-100 p-3 pl-safe pr-safe pb-safe flex gap-3 bg-white/95 backdrop-blur-xl absolute bottom-0 left-0 w-full shadow-[0_-5px_30px_rgba(0,0,0,0.1)] z-10">

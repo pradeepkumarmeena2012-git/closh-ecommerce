@@ -198,14 +198,13 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
     // Update only this vendor's items status
     let statusChangedToCancelled = false;
-    order.vendorItems = order.vendorItems.map((vi) => {
+    (order.vendorItems || []).forEach((vi) => {
         if (vi.vendorId.toString() === req.user.id) {
             if (status === 'cancelled' && vi.status !== 'cancelled') {
                 statusChangedToCancelled = true;
             }
-            return { ...vi.toObject(), status };
+            vi.status = status;
         }
-        return vi;
     });
 
     const oldStatus = order.status;
