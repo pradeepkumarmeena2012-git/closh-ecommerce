@@ -251,23 +251,40 @@ const listProducts = asyncHandler(async (req, res) => {
     if (minRating) filter.rating = { $gte: Number(minRating) };    
     const searchQuery = String(search || q || '').trim();
     if (searchQuery) {
-        const words = searchQuery.split(/[\s\W]+/).filter(Boolean);
+        const stopWords = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'in', 'on', 'for', 'to', 'with', 'by']);
+        const words = searchQuery.split(/[\s\W]+/).filter(w => w && !stopWords.has(w.toLowerCase()));
+        
         if (words.length > 0) {
             const conditions = await Promise.all(words.map(async (word) => {
-                const safeWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp(safeWord, 'i');
+                let safeWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 
-                const [matchedBrands, matchedVendors] = await Promise.all([
+                // Handle common plurals for better matching
+                const lower = safeWord.toLowerCase();
+                if (lower === 'mens') safeWord = 'men';
+                else if (lower === 'womens') safeWord = 'women';
+                else if (lower === 'boys') safeWord = 'boy';
+                else if (lower === 'girls') safeWord = 'girl';
+                else if (lower === 'shoes') safeWord = 'shoe';
+                else if (lower === 'shirts') safeWord = 'shirt';
+                else if (lower === 'pants') safeWord = 'pant';
+                else if (lower === 'jeans') safeWord = 'jean';
+                else if (lower === 'dresses') safeWord = 'dress';
+                
+                const regex = new RegExp(safeWord + '(s|es)?', 'i');
+                
+                const [matchedBrands, matchedVendors, matchedCategories] = await Promise.all([
                     Brand.find({ name: regex }).select('_id').lean(),
                     Vendor.find({ 
                         $or: [{ storeName: regex }, { companyName: regex }, { name: regex }] 
-                    }).select('_id').lean()
+                    }).select('_id').lean(),
+                    Category.find({ name: regex }).select('_id').lean()
                 ]);
                 
                 const wordOr = [
                     { name: regex },
                     { tags: regex },
-                    { description: regex }
+                    { description: regex },
+                    { division: regex }
                 ];
                 
                 if (matchedBrands.length > 0) {
@@ -275,6 +292,9 @@ const listProducts = asyncHandler(async (req, res) => {
                 }
                 if (matchedVendors.length > 0) {
                     wordOr.push({ vendorId: { $in: matchedVendors.map(v => v._id) } });
+                }
+                if (matchedCategories.length > 0) {
+                    wordOr.push({ categoryId: { $in: matchedCategories.map(c => c._id) } });
                 }
                 
                 return { $or: wordOr };
@@ -413,23 +433,40 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
     };
     const searchQuery = String(search || q || '').trim();
     if (searchQuery) {
-        const words = searchQuery.split(/[\s\W]+/).filter(Boolean);
+        const stopWords = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'in', 'on', 'for', 'to', 'with', 'by']);
+        const words = searchQuery.split(/[\s\W]+/).filter(w => w && !stopWords.has(w.toLowerCase()));
+        
         if (words.length > 0) {
             const conditions = await Promise.all(words.map(async (word) => {
-                const safeWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = new RegExp(safeWord, 'i');
+                let safeWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 
-                const [matchedBrands, matchedVendors] = await Promise.all([
+                // Handle common plurals for better matching
+                const lower = safeWord.toLowerCase();
+                if (lower === 'mens') safeWord = 'men';
+                else if (lower === 'womens') safeWord = 'women';
+                else if (lower === 'boys') safeWord = 'boy';
+                else if (lower === 'girls') safeWord = 'girl';
+                else if (lower === 'shoes') safeWord = 'shoe';
+                else if (lower === 'shirts') safeWord = 'shirt';
+                else if (lower === 'pants') safeWord = 'pant';
+                else if (lower === 'jeans') safeWord = 'jean';
+                else if (lower === 'dresses') safeWord = 'dress';
+                
+                const regex = new RegExp(safeWord + '(s|es)?', 'i');
+                
+                const [matchedBrands, matchedVendors, matchedCategories] = await Promise.all([
                     Brand.find({ name: regex }).select('_id').lean(),
                     Vendor.find({ 
                         $or: [{ storeName: regex }, { companyName: regex }, { name: regex }] 
-                    }).select('_id').lean()
+                    }).select('_id').lean(),
+                    Category.find({ name: regex }).select('_id').lean()
                 ]);
                 
                 const wordOr = [
                     { name: regex },
                     { tags: regex },
-                    { description: regex }
+                    { description: regex },
+                    { division: regex }
                 ];
                 
                 if (matchedBrands.length > 0) {
@@ -437,6 +474,9 @@ router.get('/new-arrivals', asyncHandler(async (req, res) => {
                 }
                 if (matchedVendors.length > 0) {
                     wordOr.push({ vendorId: { $in: matchedVendors.map(v => v._id) } });
+                }
+                if (matchedCategories.length > 0) {
+                    wordOr.push({ categoryId: { $in: matchedCategories.map(c => c._id) } });
                 }
                 
                 return { $or: wordOr };
