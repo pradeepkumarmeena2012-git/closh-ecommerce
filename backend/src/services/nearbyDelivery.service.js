@@ -1,5 +1,6 @@
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import Order from '../models/Order.model.js';
+import ServiceArea from '../models/ServiceArea.model.js';
 import { emitEvent } from './socket.service.js';
 import { createNotification } from './notification.service.js';
 
@@ -14,20 +15,49 @@ export const DeliveryNearbyService = {
         // 1. Get pickup location (assuming single-vendor or first vendor)
         const pickupCoords = order.pickupLocation?.coordinates || [0, 0];
         
-        // 2. Query riders within radius
-        const riders = await DeliveryBoy.find({
-            status: 'available',
+        // 2. Query riders
+        // 2.1 First find if pickup location is inside a ServiceArea
+        const activeServiceArea = await ServiceArea.findOne({
             isActive: true,
-            currentLocation: {
-                $near: {
+            boundaries: {
+                $geoIntersects: {
                     $geometry: {
                         type: 'Point',
                         coordinates: pickupCoords
-                    },
-                    $maxDistance: radiusKm * 1000 // meters
+                    }
                 }
             }
-        }).limit(20); // Push to first 20 nearby riders
+        });
+
+        let riders = [];
+        
+        if (activeServiceArea && activeServiceArea.boundaries && activeServiceArea.boundaries.coordinates && activeServiceArea.boundaries.coordinates.length > 0) {
+            console.log(`[Nearby] Broadcasting strictly inside ServiceArea: ${activeServiceArea.name}`);
+            riders = await DeliveryBoy.find({
+                status: 'available',
+                isActive: true,
+                currentLocation: {
+                    $geoWithin: {
+                        $geometry: activeServiceArea.boundaries
+                    }
+                }
+            }).limit(20);
+        } else {
+            console.log(`[Nearby] No strict boundary found. Broadcasting in ${radiusKm}km radius.`);
+            riders = await DeliveryBoy.find({
+                status: 'available',
+                isActive: true,
+                currentLocation: {
+                    $near: {
+                        $geometry: {
+                            type: 'Point',
+                            coordinates: pickupCoords
+                        },
+                        $maxDistance: radiusKm * 1000 // meters
+                    }
+                }
+            }).limit(20); // Push to first 20 nearby riders
+        }
 
         if (riders.length === 0) {
             console.log(`[Nearby] No available riders in ${radiusKm}km radius for order ${order.orderId}`);

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Order from '../models/Order.model.js';
 import DeliveryBoy from '../models/DeliveryBoy.model.js';
 import DeliveryBatch from '../models/DeliveryBatch.model.js';
+import ServiceArea from '../models/ServiceArea.model.js';
 import { createNotification } from './notification.service.js';
 import { emitEvent, isDeliveryBoyConnected } from './socket.service.js';
 import { calculateDistance } from '../utils/geo.js';
@@ -77,19 +78,51 @@ export const autoAssignDeliveryBoy = async (orderId, excludeRiderIds = []) => {
             try { return new mongoose.Types.ObjectId(id); } catch (e) { return null; }
         }).filter(Boolean);
 
-        // 2. Query nearest available delivery boys (within 10km radius)
-        let deliveryBoys = await DeliveryBoy.find({
-            status: 'available',
-            isAvailable: true,
-            applicationStatus: 'approved',
-            _id: { $nin: excludeObjectIds },
-            currentLocation: {
-                $near: {
-                    $geometry: { type: 'Point', coordinates: firstVendorLocation },
-                    $maxDistance: 10000 // 10 kilometers
+        // 2. Find which ServiceArea boundary the pickup location falls inside
+        const activeServiceArea = await ServiceArea.findOne({
+            isActive: true,
+            boundaries: {
+                $geoIntersects: {
+                    $geometry: {
+                        type: 'Point',
+                        coordinates: firstVendorLocation
+                    }
                 }
             }
-        }).limit(15).lean();
+        });
+
+        let deliveryBoys = [];
+
+        if (activeServiceArea && activeServiceArea.boundaries && activeServiceArea.boundaries.coordinates && activeServiceArea.boundaries.coordinates.length > 0) {
+            console.log(`[AutoAssignment] Pickup is within ServiceArea: ${activeServiceArea.name}. Using strictly geofenced boundaries.`);
+            // Strict geofence search
+            deliveryBoys = await DeliveryBoy.find({
+                status: 'available',
+                isAvailable: true,
+                applicationStatus: 'approved',
+                _id: { $nin: excludeObjectIds },
+                currentLocation: {
+                    $geoWithin: {
+                        $geometry: activeServiceArea.boundaries
+                    }
+                }
+            }).limit(15).lean();
+        } else {
+            console.log(`[AutoAssignment] No strict boundary found for pickup location. Falling back to 10km radius search.`);
+            // Fallback: Query nearest available delivery boys (within 10km radius)
+            deliveryBoys = await DeliveryBoy.find({
+                status: 'available',
+                isAvailable: true,
+                applicationStatus: 'approved',
+                _id: { $nin: excludeObjectIds },
+                currentLocation: {
+                    $near: {
+                        $geometry: { type: 'Point', coordinates: firstVendorLocation },
+                        $maxDistance: 10000 // 10 kilometers
+                    }
+                }
+            }).limit(15).lean();
+        }
 
         // 2.1 Prefer connected riders, but fallback to sleeping riders if none are connected
         let connectedRiders = deliveryBoys.filter(boy => isDeliveryBoyConnected(boy._id.toString()));
