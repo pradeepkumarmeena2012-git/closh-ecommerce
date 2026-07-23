@@ -121,7 +121,7 @@ const deliveryFlowItemSchema = new mongoose.Schema({
 const deliveryFlowSchema = new mongoose.Schema({
     phase: {
         type: String,
-        enum: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'try_and_buy', 'payment_pending', 'delivered', 'returning_unselected', 'try_buy_completed'],
+        enum: ['assigned', 'picked_up', 'out_for_delivery', 'arrived', 'try_and_buy', 'payment_pending', 'delivered', 'returning_unselected', 'try_buy_completed', 'returned'],
         default: 'assigned',
     },
     // Pickup
