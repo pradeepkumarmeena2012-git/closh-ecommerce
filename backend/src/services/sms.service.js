@@ -60,6 +60,7 @@ export const sendSms = async (mobile, message) => {
 
     if (process.env.NODE_ENV !== 'production') {
         console.log(`[SMS][Debug] Sending to 91${normalizedMobile} | Sender: ${sender} | DLT_TE: ${templateId || 'None'}`);
+        console.log(`[SMS][Debug] Exact URL: ${url.toString()}`);
     }
 
     return new Promise((resolve, reject) => {
@@ -108,8 +109,7 @@ export const sendSms = async (mobile, message) => {
  */
 export const sendSmsOtp = async (mobile, otp) => {
     // CRITICAL: This text MUST match your DLT approved template EXACTLY.
-    // Ensure the message format provided by the user is used.
-    const message = `Welcome to the Closh powered by SMSINDIAHUB. Your OTP for registration is ${otp}`;
+    const message = `Welcome to the Closh powered by Appzeto.Your OTP for registration is ${otp}.BGADEC`;
     return sendSms(mobile, message);
 };
 
