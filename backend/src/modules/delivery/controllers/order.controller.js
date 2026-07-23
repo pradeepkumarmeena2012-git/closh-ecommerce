@@ -1006,88 +1006,31 @@ export const cancelOrder = asyncHandler(async (req, res) => {
         throw new ApiError(409, `Order cannot be cancelled in ${order.status} state.`);
     }
 
-    // Create a ReturnRequest for Admin instead of Enquiry so it shows in Return Requests panel
-    const vendorDropoffs = [];
-    if (order.isMultiVendor && order.vendorItems) {
-        order.vendorItems.forEach(vi => {
-            if (vi.vendorId) {
-                vendorDropoffs.push({
-                    vendorId: vi.vendorId._id || vi.vendorId,
-                    status: 'pending',
-                    items: vi.items ? vi.items.map(i => ({
-                        productId: i.productId,
-                        name: i.name,
-                        price: i.price,
-                        quantity: i.quantity,
-                        variant: i.variant,
-                        selectedSize: i.selectedSize
-                    })) : []
-                });
-            }
-        });
+    // Check if an enquiry is already pending for this order
+    const existingEnquiry = await Enquiry.findOne({ 
+        orderId: order._id, 
+        status: 'pending' 
+    });
+    if (existingEnquiry) {
+        throw new ApiError(400, 'A cancellation request is already pending for this order.');
     }
 
-    let resolvedVendorId = undefined;
-    if (!order.isMultiVendor && order.vendorItems && order.vendorItems.length > 0) {
-        const vi = order.vendorItems[0];
-        if (vi && vi.vendorId) {
-            resolvedVendorId = vi.vendorId._id || vi.vendorId;
-        }
-    }
-
-    const returnReqData = {
+    const enquiry = await Enquiry.create({
         orderId: order._id,
-        returnId: `RET-${Date.now().toString(36).toUpperCase()}`,
-        userId: order.userId || null,
-        vendorId: resolvedVendorId,
-        isMultiVendor: order.isMultiVendor || false,
-        vendorDropoffs: vendorDropoffs,
-        items: (order.items || []).map(i => ({
-            productId: i.productId,
-            name: i.name,
-            price: i.price,
-            quantity: i.quantity,
-            variant: i.variant,
-            selectedSize: i.selectedSize,
-            reason: reasonText || 'Delivery Cancellation'
-        })),
-        reason: reasonText || 'Delivery Cancellation',
-        status: 'pending', // Admin needs to approve
         deliveryBoyId: riderId,
-        originalDeliveryBoyId: riderId,
-        pickupLocation: order.dropoffLocation || { type: 'Point', coordinates: [0,0] },
-        dropoffLocation: order.pickupLocation || { type: 'Point', coordinates: [0,0] },
-        deliveryDistance: order.deliveryDistance || 0,
-        deliveryEarnings: order.deliveryEarnings || 0
-    };
-
-    const returnReq = await ReturnRequest.create(returnReqData);
-
-    // Credit delivery boy immediately for the forward trip
-    const DeliveryBoy = mongoose.model('DeliveryBoy');
-    const riderEarnings = Number(order.deliveryEarnings || 0);
-
-    if (riderEarnings > 0) {
-        await DeliveryBoy.findByIdAndUpdate(riderId, {
-            $inc: {
-                totalDeliveries: 1, // count as forward trip
-                totalEarnings: riderEarnings,
-                availableBalance: riderEarnings
-            }
-        });
-        // Clear order's delivery earnings so they aren't double-credited if admin cancels it later
-        order.deliveryEarnings = 0;
-        await order.save();
-    }
+        reasonId: reasonId || null,
+        reasonText: reasonText || 'Delivery Cancellation',
+        status: 'pending'
+    });
 
     // Notify Admin
-    emitEvent('admin', 'new_return_request', {
-        returnId: returnReq._id,
+    emitEvent('admin', 'new_enquiry', {
+        enquiryId: enquiry._id,
         orderId: order.orderId
     });
 
-    // We return the ORIGINAL order to the frontend, because the frontend expects an Order object to update its state, not a ReturnRequest.
-    // The order's status remains unchanged until admin approves the return request.
+    // We return the ORIGINAL order to the frontend, because the frontend expects an Order object to update its state, not an Enquiry.
+    // The order's status remains unchanged until admin approves the enquiry.
     res.status(200).json(new ApiResponse(200, order, 'Cancellation request submitted to admin for approval.'));
 });
 

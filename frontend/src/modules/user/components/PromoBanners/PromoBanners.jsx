@@ -95,8 +95,8 @@ const PromoBanners = () => {
                     <div
                         className="flex transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
                         style={{
-                            gap: visibleCards === 1 ? '0px' : '20px',
-                            transform: `translateX(calc(-${currentIndex} * (${100 / visibleCards}% + ${visibleCards === 1 ? 0 : 20 - (20 / visibleCards)}px)))`
+                            gap: '20px',
+                            transform: `translateX(calc(-${currentIndex} * (${100 / visibleCards}% + ${20 / visibleCards}px)))`
                         }}
                     >
                         {activeDeals.map((deal, i) => (
@@ -107,7 +107,7 @@ const PromoBanners = () => {
                                     navigate(targetLink);
                                 }}
                                 className={`flex-shrink-0 h-[200px] sm:h-[240px] md:h-[280px] rounded-2xl md:rounded-[32px] overflow-hidden relative cursor-pointer shadow-md group/card ${deal.bg || 'bg-gray-100'}`}
-                                style={{ width: `calc(${100 / visibleCards}% - ${visibleCards === 1 ? 0 : 20 - (20 / visibleCards)}px)` }}
+                                style={{ width: `calc(${100 / visibleCards}% - ${20 * (visibleCards - 1) / visibleCards}px)` }}
                             >
                                 {/* Background Image with Overlay */}
                                 <div
