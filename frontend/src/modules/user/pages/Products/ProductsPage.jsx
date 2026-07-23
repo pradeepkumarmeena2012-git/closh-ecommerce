@@ -263,15 +263,9 @@ const ProductsPage = () => {
             result = result.filter(p => (p.division || '').toLowerCase() === mappedGender);
         }
 
-        // 4. Header Search Filter
-        if (headerSearchValue) {
-            const query = headerSearchValue.toLowerCase();
-            result = result.filter(p =>
-                (p.name || '').toLowerCase().includes(query) ||
-                (p.brand || '').toLowerCase().includes(query) ||
-                (p.subCategory || '').toLowerCase().includes(query)
-            );
-        }
+        // 4. Header Search Filter (Removed)
+        // The backend handles search via the API call, so we don't need to filter locally.
+        // Doing it locally with .includes() breaks multi-word smart searches like 'puma shoes'.
 
         // 5. Brand Filter
         if (selectedBrands.length > 0) {
