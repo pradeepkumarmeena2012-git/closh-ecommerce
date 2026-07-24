@@ -533,15 +533,16 @@ export const placeOrder = asyncHandler(async (req, res) => {
     } else if (totalShipping === 0 && globalDefaultShippingRate > 0) {
         shipping = globalDefaultShippingRate;
     }
-    // Allow client override only if explicitly sent (e.g., for promo/coupon adjustments)
-    if (req.body.shipping !== undefined) {
-        shipping = Number(req.body.shipping);
-    }
-
-    // 4. Calculate final totals (server is source of truth)
-    const tax = req.body.tax !== undefined ? Number(req.body.tax) : 0;
-    const platformFee = req.body.platformFee !== undefined ? Number(req.body.platformFee) : dynamicPlatformFee;
-    const total = req.body.total !== undefined ? Number(req.body.total) : parseFloat((subtotal - couponDiscount + shipping + tax + platformFee).toFixed(2));
+    // 4. Calculate final totals — server is ALWAYS the source of truth.
+    // SECURITY: req.body.shipping, req.body.tax, req.body.platformFee, req.body.total are NEVER trusted.
+    // tax is derived from per-item GST already calculated in the enrichedItems loop above.
+    const tax = parseFloat(
+        enrichedItems.reduce((sum, item) =>
+            sum + (Number(item.customerIgst) || 0) + (Number(item.customerCgst) || 0) + (Number(item.customerSgst) || 0),
+        0).toFixed(2)
+    );
+    const platformFee = Number(dynamicPlatformFee || 0);
+    const total = parseFloat((subtotal - couponDiscount + shipping + tax + platformFee).toFixed(2));
 
     console.log(`💰 [TOTALS] Subtotal: ₹${subtotal}, Shipping: ₹${shipping}, Discount: ₹${couponDiscount}, Tax: ₹${tax}, Platform Fee: ₹${platformFee}, Grand Total: ₹${total}`);
 
@@ -608,7 +609,8 @@ export const placeOrder = asyncHandler(async (req, res) => {
                 paymentStatus: 'pending',
                 subtotal,
                 shipping,
-                tax,
+                // tax is set correctly below via vendorItems.reduce (line 616 overrides this key).
+                // Kept for readability — JS last-key-wins means line 616 is the actual DB value.
                 discount: couponDiscount,
                 totalCustomerIgst: vendorItems.reduce((sum, v) => sum + (v.totalCustomerIgst || 0), 0),
                 totalCustomerCgst: vendorItems.reduce((sum, v) => sum + (v.totalCustomerCgst || 0), 0),

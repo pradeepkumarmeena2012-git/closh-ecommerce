@@ -93,6 +93,15 @@ const OrdersCustomersSettings = () => {
     });
   };
 
+  const formatTime12Hour = (time24) => {
+    if (!time24) return '';
+    const [hourStr, minStr] = time24.split(':');
+    let h = parseInt(hourStr, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h.toString().padStart(2, '0')}:${minStr} ${ampm}`;
+  };
+
   const handleTimeManagementChange = (e) => {
     const { name, value, type, checked } = e.target;
     setOrdersData(prev => {
@@ -103,10 +112,24 @@ const OrdersCustomersSettings = () => {
         if (checked) {
           timeManagement.startTime = timeManagement.startTime || '09:00';
           timeManagement.endTime = timeManagement.endTime || '21:00';
-          timeManagement.message = timeManagement.message || 'We are currently not accepting orders. Please try again between 09:00 AM and 09:00 PM.';
+          const start12 = formatTime12Hour(timeManagement.startTime);
+          const end12 = formatTime12Hour(timeManagement.endTime);
+          timeManagement.message = timeManagement.message || `We are currently not accepting orders. Please try again between ${start12} and ${end12}.`;
         }
       } else {
         timeManagement[name] = value;
+        // Dynamically update the message if start or end time changes
+        if (name === 'startTime' || name === 'endTime') {
+           const newStartTime = name === 'startTime' ? value : (timeManagement.startTime || '09:00');
+           const newEndTime = name === 'endTime' ? value : (timeManagement.endTime || '21:00');
+           const start12 = formatTime12Hour(newStartTime);
+           const end12 = formatTime12Hour(newEndTime);
+           
+           // Only update message if it looks like the default format to avoid wiping out fully custom messages.
+           // However, for simplicity, we will just set it to the updated template if it's currently using a template-like text.
+           // To be safe and predictable, we'll just auto-update it to the new template always when time is changed using pickers.
+           timeManagement.message = `We are currently not accepting orders. Please try again between ${start12} and ${end12}.`;
+        }
       }
       
       return { ...prev, timeManagement };
